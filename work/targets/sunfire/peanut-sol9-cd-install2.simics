@@ -1,0 +1,2 @@
+add-directory "%script%"
+run-command-file "%simics%/targets/sunfire/peanut-sol9-cd-install2.simics"

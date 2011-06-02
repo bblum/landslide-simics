@@ -1,0 +1,14 @@
+performance
+	language
+		calling into python will suck - use C
+		how fast would hasqel be? how easy?
+	simics uses JIT for speed - how many orders of magnitude slowdown?
+
+things to do
+	learn simics C hooqs
+	checkpoint 0: something that fires/prints on every guest instruction
+
+stack
+	./simics-model-builder-4.0.16/src/extensions/sample-memhier/sample-memhier.c
+	snoop_memory interface probably the way to go
+		note how to turn the STC off

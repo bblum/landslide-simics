@@ -1,0 +1,72 @@
+@sys.path += ['../scripts']
+@SIM_add_directory(os.environ["OS_PROJ_PATH"], 0)
+
+if not defined create_network {}
+if not defined mac_address    {$mac_address   = "10:10:10:10:10:20"}
+if not defined disk_size      {$disk_size     = 1056964608}
+
+###
+
+$freq_mhz = 200
+
+@simenv.memory_megs = int(os.environ.get("SIMICS_MEM_SIZE", 256))
+@simenv.text_console = os.environ.get("SIMICS_TEXT_CONSOLE", "no")
+@simenv.num_cpus = int( os.environ.get("SIMICS_CPU_COUNT", 1) )
+
+@simenv.use_piix4_usb = int( os.environ.get("SIMICS_ENABLE_USB", 0) )
+
+#@try :
+#  if os.environ["SIMICS_USE_USB_KEYBOARD"] != "" :
+#    simenv.use_piix4_usb = 1;
+#except :
+#  pass
+
+@try :
+  simenv.disk_image = os.environ["SIMICS_DISK_IMAGE"]
+except :
+  pass
+
+@try : 
+  simenv.disk_size = os.environ["SIMICS_DISK_SIZE"]
+except :
+  pass
+
+@try :
+  if os.environ["SIMICS_AMD_SIXTYFOUR"] != "" :
+    simenv.cpu_class = "x86-hammer"
+except :
+  pass
+
+run-command-file "%simics%/targets/x86-440bx/x86-440bx-pci-system.include"
+
+# $eth = (create-isa-lance mac_address = $mac_address)
+# $sb.connect $eth
+
+instantiate-components
+
+# $eth_comp = $eth
+# $eth_cnt = ""
+# run-command-file "%simics%/targets/common/add-eth-link.include"
+
+load-module symtable
+new-symtable deflsym
+if $text_console == "no" {
+	con0.enable-input
+}
+
+@try :
+	if os.environ["SIMICS_REALTIME"] != "" :
+		conf.sim.real_time_enable=1
+		conf.sim.real_time_ms_interval=100
+		conf.sim.real_time_max_speed=100
+except :
+	pass
+
+# ???
+
+@if os.environ.has_key('SIMICS_DISK_IMAGE') and os.environ.has_key('SIMICS_WRITEBACK'):
+    conf.disk0_image.files[0][1] = 'rw'
+
+run-python-file "410mods.py"
+add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
+load-module hax

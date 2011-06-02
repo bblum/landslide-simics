@@ -1,0 +1,2 @@
+add-directory "%script%"
+run-command-file "%simics%/targets/sample/sample-linux-common.simics"

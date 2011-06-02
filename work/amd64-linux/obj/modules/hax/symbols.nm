@@ -1,0 +1,37 @@
+
+
+Symbols from hax.o:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+hax.o:.LC0                |0000000000000000|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC1                |0000000000000000|   r  |            NOTYPE|                |     |.rodata.str1.8
+hax.o:.LC10               |0000000000000080|   r  |            NOTYPE|                |     |.rodata.str1.8
+hax.o:.LC11               |00000000000000b0|   r  |            NOTYPE|                |     |.rodata.str1.8
+hax.o:.LC12               |0000000000000130|   r  |            NOTYPE|                |     |.rodata.str1.8
+hax.o:.LC13               |0000000000000060|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC2                |0000000000000011|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC3                |0000000000000023|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC4                |0000000000000027|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC5                |0000000000000031|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC6                |0000000000000050|   r  |            NOTYPE|                |     |.rodata.str1.8
+hax.o:.LC7                |0000000000000037|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC8                |0000000000000039|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:.LC9                |000000000000004d|   r  |            NOTYPE|                |     |.rodata.str1.1
+hax.o:SIM_log_constructor |                |   U  |            NOTYPE|                |     |*UND*
+hax.o:SIM_register_class  |                |   U  |            NOTYPE|                |     |*UND*
+hax.o:SIM_register_interface|                |   U  |            NOTYPE|                |     |*UND*
+hax.o:SIM_register_typed_attribute|                |   U  |            NOTYPE|                |     |*UND*
+hax.o:SIM_set_mem_op_value_le|                |   U  |            NOTYPE|                |     |*UND*
+hax.o:VT_log_message_fmt  |                |   U  |            NOTYPE|                |     |*UND*
+hax.o:_GLOBAL_OFFSET_TABLE_|                |   U  |            NOTYPE|                |     |*UND*
+hax.o:_module_date        |                |   U  |            NOTYPE|                |     |*UND*
+hax.o:assert_error        |                |   U  |            NOTYPE|                |     |*UND*
+hax.o:get_value_attribute |0000000000000000|   t  |              FUNC|0000000000000012|     |.text
+hax.o:init_local          |0000000000000020|   T  |              FUNC|00000000000000c0|     |.text
+hax.o:memory_iface.9593   |0000000000000000|   d  |            OBJECT|0000000000000010|     |.data.rel.ro.local
+hax.o:mm_zalloc           |                |   U  |            NOTYPE|                |     |*UND*
+hax.o:new_instance        |00000000000001d0|   t  |              FUNC|000000000000005b|     |.text
+hax.o:operation           |00000000000000e0|   t  |              FUNC|000000000000007a|     |.text
+hax.o:set_value_attribute |0000000000000160|   t  |              FUNC|0000000000000068|     |.text
+hax.o:vtutil_printf       |                |   U  |            NOTYPE|                |     |*UND*

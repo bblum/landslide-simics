@@ -1,0 +1,476 @@
+version 2590
+dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/amd64-linux/lib
+file 166493 1261501699 AM79C973.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501681;MOD:AM79C973;HOSTTYPE:amd64-linux;CLS:AM79C973;THREADSAFE;
+file 203961 1261501698 BCM5703C.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501692;MOD:BCM5703C;HOSTTYPE:amd64-linux;CLS:BCM5703C;THREADSAFE;
+file 208320 1261501699 BCM5704C.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501694;MOD:BCM5704C;HOSTTYPE:amd64-linux;CLS:BCM5704C;THREADSAFE;
+file 76909 1261501697 CL-PD6729.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501693;MOD:CL-PD6729;HOSTTYPE:amd64-linux;CLS:CL-PD6729;THREADSAFE;
+file 116898 1261501703 DEC21041.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501697;MOD:DEC21041;HOSTTYPE:amd64-linux;CLS:DEC21041;THREADSAFE;
+file 145266 1261501715 DEC21140A-dml.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501698;MOD:DEC21140A-dml;HOSTTYPE:amd64-linux;CLS:DEC21140A-dml;THREADSAFE;
+file 116994 1261501701 DEC21140A.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501697;MOD:DEC21140A;HOSTTYPE:amd64-linux;CLS:DEC21140A;THREADSAFE;
+file 117544 1261501703 DEC21143.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501698;MOD:DEC21143;HOSTTYPE:amd64-linux;CLS:DEC21143;THREADSAFE;
+file 115741 1261501720 ISP1040.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501714;MOD:ISP1040;HOSTTYPE:amd64-linux;CLS:ISP1040;CLS:ISP1040_SUN;THREADSAFE;
+file 115278 1261501722 ISP2200.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501715;MOD:ISP2200;HOSTTYPE:amd64-linux;CLS:ISP2200;CLS:ISP2200_SUN;THREADSAFE;
+file 34149 1261501728 M25Pxx.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501723;MOD:M25Pxx;HOSTTYPE:amd64-linux;CLS:M25Pxx;THREADSAFE;
+file 34522 1261501969 NS16550_c.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501967;MOD:NS16550_c;HOSTTYPE:amd64-linux;CLS:NS16550_c;CLS:NS16550;THREADSAFE;
+file 88515 1261501987 NS16x50.so
+cap VER:2504;BLD:2590;BUILDDATE:1261501969;MOD:NS16x50;HOSTTYPE:amd64-linux;CLS:NS16550_dml;CLS:NS16450_dml;THREADSAFE;
+file 15151 1261502041 PCF8582C.so
+cap VER:2504;BLD:2590;BUILDDATE:1261502040;MOD:PCF8582C;HOSTTYPE:amd64-linux;CLS:PCF8582C;THREADSAFE;
+file 195845 1261502077 PMC1553.so
+cap VER:2504;BLD:2590;BUILDDATE:1261502053;MOD:PMC1553;HOSTTYPE:amd64-linux;CLS:PMC1553;THREADSAFE;
+file 340266 1261502076 SYM53C810.so
+cap VER:2504;BLD:2590;BUILDDATE:1261502068;MOD:SYM53C810;HOSTTYPE:amd64-linux;CLS:SYM53C810;THREADSAFE;
+file 349640 1261502081 SYM53C875.so
+cap VER:2504;BLD:2590;BUILDDATE:1261502071;MOD:SYM53C875;HOSTTYPE:amd64-linux;CLS:SYM53C875;THREADSAFE;
+file 125999 1261502148 accel-vga.so
+cap VER:2504;BLD:2590;BUILDDATE:1261502142;MOD:accel-vga;HOSTTYPE:amd64-linux;CLS:accel-vga;THREADSAFE;
+file 102 1261502951 attr_meter.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261502951;MOD:attr-meter;CLS:attr-meter;THREADSAFE;
+file 10798 1261502956 bitmask-translator.so
+cap VER:2504;BLD:2590;BUILDDATE:1261502951;MOD:bitmask-translator;HOSTTYPE:amd64-linux;CLS:bitmask-translator;THREADSAFE;
+file 73701 1261503051 central.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503048;MOD:central;HOSTTYPE:amd64-linux;CLS:central-server;CLS:central-client;
+file 21725 1261503059 clock.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503058;MOD:clock;HOSTTYPE:amd64-linux;CLS:clock;THREADSAFE;
+file 114 1261503060 context_switcher.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503060;MOD:context-switcher;CLS:context-switcher;THREADSAFE;
+file 9213 1261503068 cpu-group.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503067;MOD:cpu-group;HOSTTYPE:amd64-linux;CLS:cpu-group;THREADSAFE;
+file 114 1261503069 cpu_mode_tracker.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503069;MOD:cpu-mode-tracker;CLS:cpu-mode-tracker;THREADSAFE;
+file 9274 1261503093 empty-device-c.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503092;MOD:empty-device-c;HOSTTYPE:amd64-linux;CLS:empty-device-c;THREADSAFE;
+file 85038 1261503112 etg.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503108;MOD:etg;HOSTTYPE:amd64-linux;CLS:etg;THREADSAFE;
+file 20691 1261503114 eth-transceiver.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503112;MOD:eth-transceiver;HOSTTYPE:amd64-linux;CLS:eth-transceiver;THREADSAFE;
+file 114255 1261503125 ethernet-link.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503114;MOD:ethernet-link;HOSTTYPE:amd64-linux;CLS:ethernet-link;THREADSAFE;
+file 48564 1261503116 fc-disk.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503114;MOD:fc-disk;HOSTTYPE:amd64-linux;CLS:fc-disk;THREADSAFE;
+file 12703 1261503123 file-cdrom.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503121;MOD:file-cdrom;HOSTTYPE:amd64-linux;CLS:file-cdrom;THREADSAFE;
+file 35230 1261503128 flash-memory.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503126;MOD:flash-memory;HOSTTYPE:amd64-linux;CLS:flash-memory;THREADSAFE;
+file 20963 1261503133 frequency-bus.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503130;MOD:frequency-bus;HOSTTYPE:amd64-linux;CLS:frequency_bus;THREADSAFE;
+file 13983 1261503132 frontend-server-console.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503131;MOD:frontend-server-console;HOSTTYPE:amd64-linux;CLS:frontend-server-console;THREADSAFE;
+file 191046 1261503138 frontend-server.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503131;MOD:frontend-server;HOSTTYPE:amd64-linux;CLS:frontend-server;THREADSAFE;
+file 14766 1261503135 ftp_alg.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503134;MOD:ftp_alg;HOSTTYPE:amd64-linux;CLS:ftp-alg;THREADSAFE;
+file 76555 1261503138 g-cache.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503134;MOD:g-cache;HOSTTYPE:amd64-linux;CLS:g-cache;CLS:trans-splitter;CLS:trans-sorter;THREADSAFE;
+file 77668 1261503143 g-link.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503134;MOD:g-link;HOSTTYPE:amd64-linux;CLS:generic-message-link;THREADSAFE;
+file 112992 1261503143 gdb-remote.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503138;MOD:gdb-remote;HOSTTYPE:amd64-linux;CLS:gdb-remote;THREADSAFE;
+file 15862 1261503141 generic-message-sample-device.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503140;MOD:generic-message-sample-device;HOSTTYPE:amd64-linux;CLS:generic-message-sample-device;THREADSAFE;
+file 18115 1261503156 hap-meter.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503154;MOD:hap-meter;HOSTTYPE:amd64-linux;CLS:hap-meter;THREADSAFE;
+file 14428 1261503156 host-cdrom.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503154;MOD:host-cdrom;HOSTTYPE:amd64-linux;CLS:host-cdrom;THREADSAFE;
+file 18884 1261503178 host-serial-console.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503175;MOD:host-serial-console;HOSTTYPE:amd64-linux;CLS:host-serial-console;CLS:pty-console;THREADSAFE;
+file 39858 1261503179 hostfs.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503177;MOD:hostfs;HOSTTYPE:amd64-linux;CLS:hostfs;THREADSAFE;
+file 38907 1261503179 hypersim-pattern-matcher.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503176;MOD:hypersim-pattern-matcher;HOSTTYPE:amd64-linux;CLS:hypersim-pattern-matcher;THREADSAFE;
+file 70726 1261503183 i21150.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503178;MOD:i21150;HOSTTYPE:amd64-linux;CLS:i21150;THREADSAFE;
+file 70726 1261503184 i21152.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503179;MOD:i21152;HOSTTYPE:amd64-linux;CLS:i21152;THREADSAFE;
+file 75983 1261503183 i21554.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503179;MOD:i21554;HOSTTYPE:amd64-linux;CLS:i21554-prim;CLS:i21554-scnd;THREADSAFE;
+file 75983 1261503188 i21555.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503184;MOD:i21555;HOSTTYPE:amd64-linux;CLS:i21555-prim;CLS:i21555-scnd;THREADSAFE;
+file 30624 1261503185 i2c-bus.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503184;MOD:i2c-bus;HOSTTYPE:amd64-linux;CLS:i2c-bus;THREADSAFE;
+file 34736 1261503192 i2c-link.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503185;MOD:i2c-link;HOSTTYPE:amd64-linux;CLS:i2c_link;THREADSAFE;
+file 134649 1261503193 i82543.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503187;MOD:i82543;HOSTTYPE:amd64-linux;CLS:i82543;THREADSAFE;
+file 135021 1261503194 i82546.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503188;MOD:i82546;HOSTTYPE:amd64-linux;CLS:i82546;THREADSAFE;
+file 153923 1261503209 i82559.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503192;MOD:i82559;HOSTTYPE:amd64-linux;CLS:i82559;THREADSAFE;
+file 9318 1261503201 id-splitter.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503200;MOD:id-splitter;HOSTTYPE:amd64-linux;CLS:id-splitter;THREADSAFE;
+file 90969 1261503203 ide.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503200;MOD:ide;HOSTTYPE:amd64-linux;CLS:ide;CLS:ide-disk;CLS:ide-cdrom;THREADSAFE;
+file 339 1261503236 isa_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503236;MOD:isa-components;CLS:std-super-io;CLS:ps2-keyboard-mouse;CLS:pc-dual-serial-ports;CLS:pc-quad-serial-ports;CLS:isa-fourport;CLS:pc-floppy-controller;CLS:pc-single-parallel-port;CLS:isa-vga;CLS:isa-lance;CLS:sio-w83627hf;THREADSAFE;
+file 124 1261503202 linux-process-tracker.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503202;MOD:linux-process-tracker;CLS:linux-process-tracker;THREADSAFE;
+file 10431 1261503220 local-space-mapper.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503218;MOD:local-space-mapper;HOSTTYPE:amd64-linux;CLS:local-space-mapper;THREADSAFE;
+file 11463 1261503251 mac-splitter.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503247;MOD:mac-splitter;HOSTTYPE:amd64-linux;CLS:mac_splitter;THREADSAFE;
+file 20063 1261503252 mem-traffic-meter.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503250;MOD:mem-traffic-meter;HOSTTYPE:amd64-linux;CLS:mem-traffic-meter;THREADSAFE;
+file 201 1261503201 memory_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503201;MOD:memory-components;CLS:ddr-memory-module;CLS:ddr2-memory-module;CLS:ddr3-memory-module;CLS:sdram-memory-module;THREADSAFE;
+file 17580 1261503253 microwire-eeprom.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503252;MOD:microwire-eeprom;HOSTTYPE:amd64-linux;CLS:microwire-eeprom;THREADSAFE;
+file 22947 1261503217 mii-management-bus.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503214;MOD:mii-management-bus;HOSTTYPE:amd64-linux;CLS:mii-management-bus;THREADSAFE;
+file 58653 1261503218 mii-transceiver.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503215;MOD:mii-transceiver;HOSTTYPE:amd64-linux;CLS:mii-transceiver;THREADSAFE;
+file 141 1261503253 mil_std_1553_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503253;MOD:mil-std-1553-components;CLS:std-ms1553-link;CLS:pci-pmc1553;THREADSAFE;
+file 18202 1261503373 ms1553-link.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503368;MOD:ms1553-link;HOSTTYPE:amd64-linux;CLS:ms1553-link;CLS:ms1553-recorder-bm;THREADSAFE;
+file 23668 1261503373 ms1553-rt.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503368;MOD:ms1553-rt;HOSTTYPE:amd64-linux;CLS:ms1553_rt;THREADSAFE;
+file 110 1261503369 ms1553_test_rt.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503369;MOD:ms1553-test-rt;CLS:ms1553-test-rt;THREADSAFE;
+file 85704 1261503223 new-flash-memory.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503219;MOD:new-flash-memory;HOSTTYPE:amd64-linux;CLS:generic-flash-memory;CLS:new-flash-memory;THREADSAFE;
+file 35082 1261503221 pci-bus.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503219;MOD:pci-bus;HOSTTYPE:amd64-linux;CLS:pci-bus;THREADSAFE;
+file 584 1261503220 pci_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503220;MOD:pci-components;CLS:pci-sym53c810;CLS:pci-sym53c875;CLS:pci-sym53c876;CLS:pci-isp1040;CLS:pci-isp2200;CLS:pci-bcm5703c;CLS:pci-bcm5704c;CLS:pci-dec21041;CLS:pci-dec21140a;CLS:pci-dec21143;CLS:pci-dec21140a-dml;CLS:pci-am79c973;CLS:pci-vga;CLS:pci-voodoo3;CLS:agp-voodoo3;CLS:pci-ragexl;CLS:pci-accel-vga;CLS:pci-i21152;CLS:pci-pd6729;CLS:pci-sil680a;CLS:pci-i82543gc;CLS:pci-i82546bg;CLS:pci-i82559;THREADSAFE;
+file 36884 1261503222 pcie-switch.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503220;MOD:pcie-switch;HOSTTYPE:amd64-linux;CLS:pcie-switch;THREADSAFE;
+file 22105 1261503204 perfanalyze-client.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503203;MOD:perfanalyze-client;HOSTTYPE:amd64-linux;CLS:perfanalyze-client;THREADSAFE;
+file 28971 1261503205 perfmeter.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503204;MOD:perfmeter;HOSTTYPE:amd64-linux;CLS:perfmeter;THREADSAFE;
+file 115 1261503201 phy_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503201;MOD:phy-components;CLS:phy-mii-transceiver;THREADSAFE;
+file 120 1261503202 qnx_process_tracker.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503202;MOD:qnx-process-tracker;CLS:qnx-process-tracker;THREADSAFE;
+file 29805 1261503816 rapidio-simple-device.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503811;MOD:rapidio-simple-device;HOSTTYPE:amd64-linux;CLS:rapidio_simple_device;THREADSAFE;
+file 106 1261503816 rapidio_tape.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503816;MOD:rapidio-tape;CLS:rapidio_tape;THREADSAFE;
+file 105397 1261503216 real-network.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503207;MOD:real-network;HOSTTYPE:amd64-linux;CLS:rn-eth-bridge-raw;CLS:rn-eth-proxy-raw;CLS:rn-ip-router-raw;CLS:rn-eth-bridge-tap;CLS:rn-ip-tunnel-tun;THREADSAFE;
+file 14155 1261503202 realtime.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503201;MOD:realtime;HOSTTYPE:amd64-linux;CLS:realtime;THREADSAFE;
+file 22364 1261503202 recorder.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503201;MOD:recorder;HOSTTYPE:amd64-linux;CLS:recorder;THREADSAFE;
+file 23829 1261503211 scsi-bus.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503210;MOD:scsi-bus;HOSTTYPE:amd64-linux;CLS:scsi-bus;THREADSAFE;
+file 57472 1261503214 scsi-cdrom.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503211;MOD:scsi-cdrom;HOSTTYPE:amd64-linux;CLS:scsi-cdrom;THREADSAFE;
+file 56978 1261503214 scsi-disk.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503211;MOD:scsi-disk;HOSTTYPE:amd64-linux;CLS:scsi-disk;THREADSAFE;
+file 19034 1261503223 selfprof.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503221;MOD:selfprof;HOSTTYPE:amd64-linux;CLS:selfprof;THREADSAFE;
+file 66162 1261503858 serial-link.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503851;MOD:serial-link;HOSTTYPE:amd64-linux;CLS:serial-link;THREADSAFE;
+file 330887 1261503222 service-node.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503208;MOD:service-node;HOSTTYPE:amd64-linux;CLS:service-node;CLS:service-node-device;CLS:port-forward-outgoing-server;CLS:port-forward-incoming-server;THREADSAFE;
+file 8917 1261503852 set-memory.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503852;MOD:set-memory;HOSTTYPE:amd64-linux;CLS:set-memory;THREADSAFE;
+file 18869 1261503228 signal-bus.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503222;MOD:signal-bus;HOSTTYPE:amd64-linux;CLS:signal-bus;THREADSAFE;
+file 82655 1261503227 sil680a.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503223;MOD:sil680a;HOSTTYPE:amd64-linux;CLS:SIL680A;THREADSAFE;
+file 32433 1261503878 simple-scsi-disk.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503877;MOD:simple-scsi-disk;HOSTTYPE:amd64-linux;CLS:simple-scsi-disk;THREADSAFE;
+file 56567 1261503207 state-assertion.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503205;MOD:state-assertion;HOSTTYPE:amd64-linux;CLS:state-assertion;THREADSAFE;
+file 106 1261503223 status_panel.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503223;MOD:status-panel;CLS:status_panel;THREADSAFE;
+file 116 1261503223 status_panel_view.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503223;MOD:status-panel-view;CLS:status_panel_view;THREADSAFE;
+file 668 1261503201 std_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503201;MOD:std-components;CLS:std-scsi-bus;CLS:std-scsi-disk;CLS:std-scsi-cdrom;CLS:std-ide-disk;CLS:std-ide-cdrom;CLS:std-pcmcia-flash-disk;CLS:std-text-console;CLS:std-telnet-console;CLS:std-server-console;CLS:std-host-serial-console;CLS:std-text-graphics-console;CLS:std-graphics-console;CLS:simple-fc-disk;CLS:std-ethernet-link;CLS:std-generic-link;CLS:std-serial-link;CLS:std-service-node;CLS:std-etg;CLS:std-generic-link-sample;CLS:dummy-component;CLS:example-keypad;CLS:example-status-panel;THREADSAFE;
+file 229661 1261503214 symtable.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503203;MOD:symtable;HOSTTYPE:amd64-linux;CLS:symtable;THREADSAFE;
+file 97 1261503207 system_perfmeter.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503207;MOD:system-perfmeter;THREADSAFE;
+file 40796 1261503203 telnet-console.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503202;MOD:telnet-console;HOSTTYPE:amd64-linux;CLS:telnet_console;CLS:server-console;THREADSAFE;
+file 24060 1261504048 telnet-frontend.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504047;MOD:telnet-frontend;HOSTTYPE:amd64-linux;CLS:telnet_frontend;THREADSAFE;
+file 1352367 1261503225 time-server-c.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503223;MOD:time-server-c;HOSTTYPE:amd64-linux;CLS:time-server;THREADSAFE;
+file 169 1261503202 timing_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261503202;MOD:timing-components;CLS:sample-gcache;CLS:memory-timer;CLS:instruction-data-splitter;THREADSAFE;
+file 35570 1261503204 trace.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503203;MOD:trace;HOSTTYPE:amd64-linux;CLS:trace-mem-hier;CLS:base-trace-mem-hier;THREADSAFE;
+file 9143 1261503203 trans-staller.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503202;MOD:trans-staller;HOSTTYPE:amd64-linux;CLS:trans-staller;THREADSAFE;
+file 39340 1261504080 tsi500.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504075;MOD:tsi500;HOSTTYPE:amd64-linux;CLS:tsi500;THREADSAFE;
+file 28657 1261504093 usb-disk.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504087;MOD:usb-disk;HOSTTYPE:amd64-linux;CLS:usb_disk;THREADSAFE;
+file 20896 1261504095 usb-santa.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504089;MOD:usb-santa;HOSTTYPE:amd64-linux;CLS:usb_santa;THREADSAFE;
+file 24842 1261504099 usb-tablet.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504093;MOD:usb-tablet;HOSTTYPE:amd64-linux;CLS:usb_tablet;THREADSAFE;
+file 24776 1261504102 usb-wacom-tablet.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504096;MOD:usb-wacom-tablet;HOSTTYPE:amd64-linux;CLS:usb_wacom_tablet;THREADSAFE;
+file 179 1261504087 usb_components.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261504087;MOD:usb-components;CLS:usb-disk;CLS:usb-santa;CLS:usb-tablet-comp;CLS:usb-wacom-tablet-comp;THREADSAFE;
+file 112814 1261504120 vga-pci.so
+cap VER:2504;BLD:2590;BUILDDATE:1261504117;MOD:vga-pci;HOSTTYPE:amd64-linux;CLS:vga_pci;THREADSAFE;
+file 102 1261504120 wdb-remote.pymod
+cap VER:2504;BLD:2590;BUILDDATE:1261504120;MOD:wdb-remote;CLS:wdb-remote;THREADSAFE;
+file 303456 1261503210 x11-console.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503207;MOD:x11-console;HOSTTYPE:amd64-linux;CLS:gfx-console;CLS:x11-console;THREADSAFE;
+file 135061 1261503222 xterm-console.so
+cap VER:2504;BLD:2590;BUILDDATE:1261503218;MOD:xterm-console;HOSTTYPE:amd64-linux;CLS:xterm-console;CLS:text-console;THREADSAFE;
+dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-serengeti-4.0.1/amd64-linux/lib
+file 165945 1229037895 cassini.so
+cap VER:2504;BLD:2536;BUILDDATE:1229037889;MOD:cassini;HOSTTYPE:amd64-linux;CLS:cassini;CLS:cassini_sub;
+file 61032 1229038009 cheerio-e2bus.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038005;MOD:cheerio-e2bus;HOSTTYPE:amd64-linux;CLS:cheerio-e2bus;
+file 126764 1229038015 cheerio-hme.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038009;MOD:cheerio-hme;HOSTTYPE:amd64-linux;CLS:cheerio-hme;CLS:cheerio-hme-io3;
+file 67597 1229038013 cheetah+mmu.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038009;MOD:cheetah+mmu;HOSTTYPE:amd64-linux;CLS:cheetah-plus-mmu;
+file 67589 1229038015 cheetah-mmu.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038013;MOD:cheetah-mmu;HOSTTYPE:amd64-linux;CLS:cheetah-mmu;
+file 71701 1229038235 jaguar-mmu.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038232;MOD:jaguar-mmu;HOSTTYPE:amd64-linux;CLS:jaguar-mmu;
+file 119 1229038235 logical_memory_translator.pymod
+cap VER:2504;BLD:2536;BUILDDATE:1229038235;MOD:logical-memory-translator;CLS:logical-memory-translator;
+file 71741 1229038344 panther-mmu.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038341;MOD:panther-mmu;HOSTTYPE:amd64-linux;CLS:panther-mmu;
+file 69396 1229038775 sbbc-pci.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038772;MOD:sbbc-pci;HOSTTYPE:amd64-linux;CLS:sbbc-pci;
+file 62491 1229038781 serengeti-console.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038780;MOD:serengeti-console;HOSTTYPE:amd64-linux;CLS:serengeti-console;CLS:serengeti-console-old;CLS:nvci;
+file 14268 1229038782 serengeti-hypersim-patterns.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038780;MOD:serengeti-hypersim-patterns;HOSTTYPE:amd64-linux;CLS:serengeti-smp-wait-cpu-enable-pattern;CLS:serengeti-wait-stick-pattern;
+file 64303 1229038783 serengeti-schizo.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038780;MOD:serengeti-schizo;HOSTTYPE:amd64-linux;CLS:serengeti-schizo;
+file 567 1229038779 serengeti_components.pymod
+cap VER:2504;BLD:2536;BUILDDATE:1229038779;MOD:serengeti-components;CLS:serengeti-3800-chassis;CLS:serengeti-4800-chassis;CLS:serengeti-4810-chassis;CLS:serengeti-6800-chassis;CLS:serengeti-cluster-chassis;CLS:serengeti-us-iii-cpu-board;CLS:serengeti-us-iii-plus-cpu-board;CLS:serengeti-us-iv-cpu-board;CLS:serengeti-us-iv-plus-cpu-board;CLS:serengeti-pci8-board;CLS:serengeti-cpci4-board;CLS:serengeti-sp-cpci6-board;CLS:sun-cpci-hme-isp;CLS:sun-cpci-isp-isp;CLS:sun-cpci-qlc-qlc;
+file 72 1229038780 serengeti_obp.pymod
+cap VER:2504;BLD:2536;BUILDDATE:1229038780;MOD:serengeti_obp;
+file 101 1229038781 serengeti_system.pymod
+cap VER:2504;BLD:2536;BUILDDATE:1229038781;MOD:serengeti-system;CLS:serengeti-system;
+file 11088 1229038801 sparc-irq-bus.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038799;MOD:sparc-irq-bus;HOSTTYPE:amd64-linux;CLS:sparc-irq-bus;
+file 4781151 1229039012 sparc-u3-turbo.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038903;MOD:sparc-u3-turbo;HOSTTYPE:amd64-linux;CPU;CLS:ultrasparc-iii;CLS:ultrasparc-iii-plus;CLS:ultrasparc-iii-i;
+file 2302207 1229038937 sparc-u3.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038889;MOD:sparc-u3;HOSTTYPE:amd64-linux;CPU;CLS:ultrasparc-iii;CLS:ultrasparc-iii-plus;CLS:ultrasparc-iii-i;
+file 4785882 1229039014 sparc-u4-turbo.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038908;MOD:sparc-u4-turbo;HOSTTYPE:amd64-linux;CPU;CLS:ultrasparc-iv;CLS:ultrasparc-iv-plus;
+file 2310042 1229038964 sparc-u4.so
+cap VER:2504;BLD:2536;BUILDDATE:1229038913;MOD:sparc-u4;HOSTTYPE:amd64-linux;CPU;CLS:ultrasparc-iv;CLS:ultrasparc-iv-plus;
+file 261 1229038929 sun_components.pymod
+cap VER:2504;BLD:2536;BUILDDATE:1229038929;MOD:sun-components;CLS:sun-pci-pgx64;CLS:sun-pci-ce;CLS:sun-pci-hme;CLS:sun-pci-hme-isp;CLS:sun-pci-qlc;CLS:sun-pci-qlc-qlc;CLS:sun-type5-keyboard;CLS:sun-type5-mouse;
+file 29541 1229039024 v9-sol9-idle-opt.so
+cap VER:2504;BLD:2536;BUILDDATE:1229039022;MOD:v9-sol9-idle-opt;HOSTTYPE:amd64-linux;CLS:v9-sol9-idle-opt;
+dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-sunfire-4.0.2/amd64-linux/lib
+file 38560 1254240480 FAS366U.so
+cap VER:2504;BLD:2576;BUILDDATE:1254240478;MOD:FAS366U;HOSTTYPE:amd64-linux;CLS:FAS366U;
+file 20506 1254240510 MK48T08.so
+cap VER:2504;BLD:2576;BUILDDATE:1254240509;MOD:MK48T08;HOSTTYPE:amd64-linux;CLS:MK48T08;
+file 27715 1254241060 Z8530.so
+cap VER:2504;BLD:2576;BUILDDATE:1254241058;MOD:Z8530;HOSTTYPE:amd64-linux;CLS:Z8530;CLS:Z8530-port;
+file 165945 1254241965 cassini.so
+cap VER:2504;BLD:2576;BUILDDATE:1254241958;MOD:cassini;HOSTTYPE:amd64-linux;CLS:cassini;CLS:cassini_sub;
+file 61032 1254242012 cheerio-e2bus.so
+cap VER:2504;BLD:2576;BUILDDATE:1254242006;MOD:cheerio-e2bus;HOSTTYPE:amd64-linux;CLS:cheerio-e2bus;
+file 126893 1254242018 cheerio-hme.so
+cap VER:2504;BLD:2576;BUILDDATE:1254242012;MOD:cheerio-hme;HOSTTYPE:amd64-linux;CLS:cheerio-hme;CLS:cheerio-hme-io3;
+file 119 1254242362 logical_memory_translator.pymod
+cap VER:2504;BLD:2576;BUILDDATE:1254242362;MOD:logical-memory-translator;CLS:logical-memory-translator;
+file 79589 1254243001 sbus-hme.so
+cap VER:2504;BLD:2576;BUILDDATE:1254242998;MOD:sbus-hme;HOSTTYPE:amd64-linux;CLS:sbus-hme;
+file 11088 1254243037 sparc-irq-bus.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243035;MOD:sparc-irq-bus;HOSTTYPE:amd64-linux;CLS:sparc-irq-bus;
+file 4798514 1254243233 sparc-u2-turbo.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243129;MOD:sparc-u2-turbo;HOSTTYPE:amd64-linux;CPU;CLS:ultrasparc-ii;
+file 2293149 1254243136 sparc-u2.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243089;MOD:sparc-u2;HOSTTYPE:amd64-linux;CPU;CLS:ultrasparc-ii;
+file 54804 1254243138 spitfire-mmu.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243136;MOD:spitfire-mmu;HOSTTYPE:amd64-linux;CLS:spitfire-mmu;
+file 30555 1254243165 sun-keyboard.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243163;MOD:sun-keyboard;HOSTTYPE:amd64-linux;CLS:sun-keyboard;
+file 18179 1254243166 sun-mouse.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243165;MOD:sun-mouse;HOSTTYPE:amd64-linux;CLS:sun-mouse;
+file 18522 1254243166 sun4u-fasdma.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243165;MOD:sun4u-fasdma;HOSTTYPE:amd64-linux;CLS:sun4u-fasdma;
+file 261 1254243163 sun_components.pymod
+cap VER:2504;BLD:2576;BUILDDATE:1254243163;MOD:sun-components;CLS:sun-pci-pgx64;CLS:sun-pci-ce;CLS:sun-pci-hme;CLS:sun-pci-hme-isp;CLS:sun-pci-qlc;CLS:sun-pci-qlc-qlc;CLS:sun-type5-keyboard;CLS:sun-type5-mouse;
+file 72073 1254243175 sunfire-devices.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243170;MOD:sunfire-devices;HOSTTYPE:amd64-linux;CLS:sun4u-ac;CLS:sun4u-clockregs;CLS:sun4u-counter;CLS:sun4u-fhc;CLS:sun4u-sbus-speed;CLS:sun4u-simm-status;CLS:sun4u-systemregs;CLS:sun4u-temperature;CLS:sun4u-trans2;
+file 13814 1254243174 sunfire-hypersim-patterns.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243173;MOD:sunfire-hypersim-patterns;HOSTTYPE:amd64-linux;CLS:sunfire-rtc-calibrate-pattern;CLS:sunfire-linux-idle-pattern;
+file 52695 1254243176 sunfire-psycho.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243173;MOD:sunfire-psycho;HOSTTYPE:amd64-linux;CLS:sunfire-psycho;
+file 45300 1254243176 sunfire-sysio.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243174;MOD:sunfire-sysio;HOSTTYPE:amd64-linux;CLS:sunfire-sysio;
+file 281 1254243167 sunfire_components.pymod
+cap VER:2504;BLD:2576;BUILDDATE:1254243167;MOD:sunfire-components;CLS:sunfire-3500-backplane;CLS:sunfire-4500-backplane;CLS:sunfire-6500-backplane;CLS:sunfire-cpu-board;CLS:sunfire-sbus-board;CLS:sunfire-pci-board;CLS:sun-sbus-fas-hme;
+file 70 1254243168 sunfire_obp.pymod
+cap VER:2504;BLD:2576;BUILDDATE:1254243168;MOD:sunfire_obp;
+file 97 1254243175 sunfire_system.pymod
+cap VER:2504;BLD:2576;BUILDDATE:1254243175;MOD:sunfire-system;CLS:sunfire-system;
+file 29541 1254243251 v9-sol9-idle-opt.so
+cap VER:2504;BLD:2576;BUILDDATE:1254243250;MOD:v9-sol9-idle-opt;HOSTTYPE:amd64-linux;CLS:v9-sol9-idle-opt;
+dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-firststeps-4.0.8/amd64-linux/lib
+file 245225 1232586574 440gp-devices.so
+cap VER:2504;BLD:2540;BUILDDATE:1232586564;MOD:440gp-devices;HOSTTYPE:amd64-linux;CLS:ppc440gp-mc;CLS:ppc440gp-cpc;CLS:ppc440gp-pci;CLS:ppc440gp-zmii;CLS:ppc440gp-emac;CLS:ppc440gp-mal;CLS:ppc440gp-uic;CLS:ppc440gp-dma;CLS:ppc440gp-ebc;CLS:ppc440gp-iic;CLS:ppc440gp-gpio;CLS:ppc440gp-sram;CLS:ppc440gp-plb;CLS:ppc440gp-gpt;THREADSAFE;
+file 17229 1232586593 DS1743P.so
+cap VER:2504;BLD:2540;BUILDDATE:1232586592;MOD:DS1743P;HOSTTYPE:amd64-linux;CLS:DS1743P;THREADSAFE;
+file 88515 1232586855 NS16x50.so
+cap VER:2504;BLD:2540;BUILDDATE:1232586840;MOD:NS16x50;HOSTTYPE:amd64-linux;CLS:NS16550_dml;CLS:NS16450_dml;THREADSAFE;
+file 9076 1232587725 ebony-fpga.so
+cap VER:2504;BLD:2540;BUILDDATE:1232587724;MOD:ebony-fpga;HOSTTYPE:amd64-linux;CLS:ebony-fpga;THREADSAFE;
+file 11715 1232587726 ebony-hypersim-patterns.so
+cap VER:2504;BLD:2540;BUILDDATE:1232587725;MOD:ebony-hypersim-patterns;HOSTTYPE:amd64-linux;CLS:ebony-linux-idle-pattern;THREADSAFE;
+file 19277 1232588060 ppc-broadcast-bus.so
+cap VER:2504;BLD:2540;BUILDDATE:1232588059;MOD:ppc-broadcast-bus;HOSTTYPE:amd64-linux;CLS:ppc-broadcast-bus;THREADSAFE;
+file 3711609 1232588229 ppc440gp-turbo.so
+cap VER:2504;BLD:2540;BUILDDATE:1232588135;MOD:ppc440gp-turbo;HOSTTYPE:amd64-linux;CPU;CLS:ppc440gp;THREADSAFE;
+file 984116 1232588181 ppc440gp.so
+cap VER:2504;BLD:2540;BUILDDATE:1232588131;MOD:ppc440gp;HOSTTYPE:amd64-linux;CPU;CLS:ppc440gp;THREADSAFE;
+file 112 1232588135 ppc440gp_components.pymod
+cap VER:2504;BLD:2540;BUILDDATE:1232588135;MOD:ppc440gp-components;CLS:ebony-board;THREADSAFE;
+file 4154677 1232588305 ppc603e-turbo.so
+cap VER:2504;BLD:2540;BUILDDATE:1232588205;MOD:ppc603e-turbo;HOSTTYPE:amd64-linux;CPU;CLS:ppc603e;THREADSAFE;
+file 1101656 1232588234 ppc603e.so
+cap VER:2504;BLD:2540;BUILDDATE:1232588186;MOD:ppc603e;HOSTTYPE:amd64-linux;CPU;CLS:ppc603e;THREADSAFE;
+file 113 1232588079 ppc_simple_components.pymod
+cap VER:2504;BLD:2540;BUILDDATE:1232588079;MOD:ppc-simple-components;CLS:ppc-simple;THREADSAFE;
+file 13105 1232588438 sample-i2c-device.so
+cap VER:2504;BLD:2540;BUILDDATE:1232588433;MOD:sample-i2c-device;HOSTTYPE:amd64-linux;CLS:sample-i2c-device;THREADSAFE;
+file 114 1232588425 sample_components.pymod
+cap VER:2504;BLD:2540;BUILDDATE:1232588425;MOD:sample-components;CLS:sample-pci-card;THREADSAFE;
+dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-model-builder-4.0.16/amd64-linux/lib
+file 12583 1241627500 empty-device-dml.so
+cap VER:2504;BLD:2556;BUILDDATE:1241627493;MOD:empty-device-dml;HOSTTYPE:amd64-linux;CLS:empty_device_dml;THREADSAFE;
+file 113 1241627491 empty_components.pymod
+cap VER:2504;BLD:2556;BUILDDATE:1241627491;MOD:empty-components;CLS:empty-component;THREADSAFE;
+file 120 1241627497 empty_device_python.pymod
+cap VER:2504;BLD:2556;BUILDDATE:1241627497;MOD:empty-device-python;CLS:empty-device-python;THREADSAFE;
+file 21314 1241628178 sample-casino.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628174;MOD:sample-casino;HOSTTYPE:amd64-linux;CLS:sample_casino;THREADSAFE;
+file 14781 1241628179 sample-device-c.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628177;MOD:sample-device-c;HOSTTYPE:amd64-linux;CLS:sample-device-c;THREADSAFE;
+file 13949 1241628184 sample-device-dml.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628178;MOD:sample-device-dml;HOSTTYPE:amd64-linux;CLS:sample_device_dml;THREADSAFE;
+file 15089 1241628185 sample-device-mixed.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628180;MOD:sample-device-mixed;HOSTTYPE:amd64-linux;CLS:sample_device_mixed;THREADSAFE;
+file 22141 1241628190 sample-dma-device-le.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628184;MOD:sample-dma-device-le;HOSTTYPE:amd64-linux;CLS:sample_dma_device_le;THREADSAFE;
+file 22094 1241628190 sample-dma-device.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628183;MOD:sample-dma-device;HOSTTYPE:amd64-linux;CLS:sample_dma_device;THREADSAFE;
+file 15397 1241628190 sample-event-device.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628185;MOD:sample-event-device;HOSTTYPE:amd64-linux;CLS:sample_event_device;THREADSAFE;
+file 13105 1241628194 sample-i2c-device.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628189;MOD:sample-i2c-device;HOSTTYPE:amd64-linux;CLS:sample-i2c-device;THREADSAFE;
+file 17677 1241628195 sample-interrupt-device.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628190;MOD:sample-interrupt-device;HOSTTYPE:amd64-linux;CLS:sample_interrupt_device;THREADSAFE;
+file 11619 1241627611 sample-memhier.so
+cap VER:2504;BLD:2556;BUILDDATE:1241627609;MOD:sample-memhier;HOSTTYPE:amd64-linux;CLS:sample-memhier;THREADSAFE;
+file 24766 1241628195 sample-movable-device.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628190;MOD:sample-movable-device;HOSTTYPE:amd64-linux;CLS:sample_movable_device;THREADSAFE;
+file 58704 1241628195 sample-pci-device-c.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628192;MOD:sample-pci-device-c;HOSTTYPE:amd64-linux;CLS:sample-pci-device-c;THREADSAFE;
+file 76563 1241628201 sample-pci-device.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628190;MOD:sample-pci-device;HOSTTYPE:amd64-linux;CLS:sample_pci_device;THREADSAFE;
+file 63120 1241628197 sample-risc.so
+cap VER:2504;BLD:2556;BUILDDATE:1241628194;MOD:sample-risc;HOSTTYPE:amd64-linux;CLS:sample-risc;CLS:sample-risc-core;THREADSAFE;
+file 15739 1241627612 sample-user-decoder.so
+cap VER:2504;BLD:2556;BUILDDATE:1241627611;MOD:sample-user-decoder;HOSTTYPE:amd64-linux;CLS:sample-user-decoder;THREADSAFE;
+file 114 1241628177 sample_components.pymod
+cap VER:2504;BLD:2556;BUILDDATE:1241628177;MOD:sample-components;CLS:sample-pci-card;THREADSAFE;
+file 122 1241628182 sample_device_python.pymod
+cap VER:2504;BLD:2556;BUILDDATE:1241628182;MOD:sample-device-python;CLS:sample-device-python;THREADSAFE;
+file 10336 1241627597 simple-byte-dump.so
+cap VER:2504;BLD:2556;BUILDDATE:1241627596;MOD:simple-byte-dump;HOSTTYPE:amd64-linux;CLS:simple-byte-dump;THREADSAFE;
+file 104 1241627612 spi_checker.pymod
+cap VER:2504;BLD:2556;BUILDDATE:1241627612;MOD:spi_checker;CLS:spi_checker;THREADSAFE;
+dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-x86-440bx-4.0.18/amd64-linux/lib
+file 62957 1260983278 8042.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983275;MOD:8042;HOSTTYPE:amd64-linux;CLS:i8042;THREADSAFE;
+file 37089 1260983277 82077.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983275;MOD:82077;HOSTTYPE:amd64-linux;CLS:i82077;CLS:floppy-drive;THREADSAFE;
+file 24255 1260983277 8237x2.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983275;MOD:8237x2;HOSTTYPE:amd64-linux;CLS:i8237x2;THREADSAFE;
+file 98792 1260983281 82443BX.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983275;MOD:82443BX;HOSTTYPE:amd64-linux;CLS:i82443bx;CLS:i82443bx_agp;THREADSAFE;
+file 34788 1260983277 8254.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983275;MOD:8254;HOSTTYPE:amd64-linux;CLS:i8254;THREADSAFE;
+file 24935 1260983280 8259x2.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983279;MOD:8259x2;HOSTTYPE:amd64-linux;CLS:i8259x2;THREADSAFE;
+file 52268 1260983287 AM79C960-c.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983285;MOD:AM79C960-c;HOSTTYPE:amd64-linux;CLS:AM79C960-c;THREADSAFE;
+file 81705 1260983292 AM79C960.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983284;MOD:AM79C960;HOSTTYPE:amd64-linux;CLS:AM79C960;THREADSAFE;
+file 31629 1260983305 DS12887-c.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983304;MOD:DS12887-c;HOSTTYPE:amd64-linux;CLS:DS12887-c;THREADSAFE;
+file 61916 1260983310 DS12887.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983303;MOD:DS12887;HOSTTYPE:amd64-linux;CLS:DS12887;THREADSAFE;
+file 33916 1260983570 NS16450_c.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983569;MOD:NS16450_c;HOSTTYPE:amd64-linux;CLS:NS16450_c;CLS:NS16450;THREADSAFE;
+file 59333 1260983810 apic.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983808;MOD:apic;HOSTTYPE:amd64-linux;CLS:apic;CLS:apic-bus;THREADSAFE;
+file 10919 1260983811 apm.so
+cap VER:2504;BLD:2589;BUILDDATE:1260983809;MOD:apm;HOSTTYPE:amd64-linux;CLS:apm;THREADSAFE;
+file 11128 1260984724 fourport.so
+cap VER:2504;BLD:2589;BUILDDATE:1260984723;MOD:fourport;HOSTTYPE:amd64-linux;CLS:fourport;THREADSAFE;
+file 23425 1260984836 io-apic.so
+cap VER:2504;BLD:2589;BUILDDATE:1260984835;MOD:io-apic;HOSTTYPE:amd64-linux;CLS:io-apic;THREADSAFE;
+file 14730 1260984837 isa.so
+cap VER:2504;BLD:2589;BUILDDATE:1260984836;MOD:isa;HOSTTYPE:amd64-linux;CLS:ISA;THREADSAFE;
+file 10863 1260984989 pc-shadow.so
+cap VER:2504;BLD:2589;BUILDDATE:1260984987;MOD:pc-shadow;HOSTTYPE:amd64-linux;CLS:pc-shadow;THREADSAFE;
+file 100 1260984986 pc_config.pymod
+cap VER:2504;BLD:2589;BUILDDATE:1260984986;MOD:pc-config;CLS:pc-config;THREADSAFE;
+file 184582 1260985041 piix4.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985022;MOD:piix4;HOSTTYPE:amd64-linux;CLS:piix4_isa;CLS:piix4_ide;CLS:piix4_usb;CLS:piix4_usb_dummy;CLS:piix4_power;THREADSAFE;
+file 61723 1260985696 vga.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985693;MOD:vga;HOSTTYPE:amd64-linux;CLS:vga;THREADSAFE;
+file 13215922 1260985992 x86-486sx-turbo.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985719;MOD:x86-486sx-turbo;HOSTTYPE:amd64-linux;CPU;CLS:x86-486sx;THREADSAFE;
+file 4442624 1260985903 x86-486sx.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985713;MOD:x86-486sx;HOSTTYPE:amd64-linux;CPU;CLS:x86-486sx;THREADSAFE;
+file 24971444 1260986266 x86-hammer-turbo.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985750;MOD:x86-hammer-turbo;HOSTTYPE:amd64-linux;CPU;CLS:x86-hammer;THREADSAFE;
+file 7608269 1260986018 x86-hammer.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985729;MOD:x86-hammer;HOSTTYPE:amd64-linux;CPU;CLS:x86-hammer;THREADSAFE;
+file 15291030 1260986210 x86-p2-turbo.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985902;MOD:x86-p2-turbo;HOSTTYPE:amd64-linux;CPU;CLS:x86-p2;THREADSAFE;
+file 4825149 1260986150 x86-p2.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985893;MOD:x86-p2;HOSTTYPE:amd64-linux;CPU;CLS:x86-p2;THREADSAFE;
+file 18198719 1260986529 x86-p4-turbo.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986070;MOD:x86-p4-turbo;HOSTTYPE:amd64-linux;CPU;CLS:x86-p4;THREADSAFE;
+file 6564938 1260986262 x86-p4.so
+cap VER:2504;BLD:2589;BUILDDATE:1260985992;MOD:x86-p4;HOSTTYPE:amd64-linux;CPU;CLS:x86-p4;THREADSAFE;
+file 24708296 1260986665 x86-p4e-turbo.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986217;MOD:x86-p4e-turbo;HOSTTYPE:amd64-linux;CPU;CLS:x86-p4e;THREADSAFE;
+file 7552083 1260986518 x86-p4e.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986151;MOD:x86-p4e;HOSTTYPE:amd64-linux;CPU;CLS:x86-p4e;THREADSAFE;
+file 10145 1260986363 x86-reset-bus.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986362;MOD:x86-reset-bus;HOSTTYPE:amd64-linux;CLS:x86-reset-bus;THREADSAFE;
+file 86 1260985721 x86_acpi_setup.pymod
+cap VER:2504;BLD:2589;BUILDDATE:1260985721;MOD:x86_acpi_setup;THREADSAFE;
+file 50888 1260986368 x86_tlb.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986364;MOD:x86_tlb;HOSTTYPE:amd64-linux;CLS:x86-tlb;THREADSAFE;
+file 11743 1260986364 x86_broadcast.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986363;MOD:x86_broadcast;HOSTTYPE:amd64-linux;CLS:x86_broadcast;THREADSAFE;
+file 85 1260985721 x86_cmos_info.pymod
+cap VER:2504;BLD:2589;BUILDDATE:1260985721;MOD:x86_cmos_info;THREADSAFE;
+file 887 1260985720 x86_components.pymod
+cap VER:2504;BLD:2589;BUILDDATE:1260985720;MOD:x86-components;CLS:x86-system;CLS:x86-apic-system;CLS:x86-separate-mem-io-system;CLS:i386-cpu;CLS:i486sx-cpu;CLS:i486dx2-cpu;CLS:pentium-cpu;CLS:pentium-mmx-cpu;CLS:pentium-pro-cpu;CLS:pentium-ii-cpu;CLS:pentium-iii-cpu;CLS:pentium-m-cpu;CLS:pentium-4-cpu;CLS:xeon-prestonia-cpu;CLS:xeon-prestonia-2ht-cpu;CLS:pentium-4e-cpu;CLS:pentium-4e-2ht-cpu;CLS:pentium-4e-4ht-cpu;CLS:core-solo-cpu;CLS:core2-solo-cpu;CLS:intel-l7400-cpu;CLS:x86-hammer-cpu;CLS:opteron-cpu;CLS:north-bridge-443bx;CLS:north-bridge-443bx-agp;CLS:north-bridge-875p;CLS:north-bridge-k8;CLS:legacy-pc-devices;CLS:vmware-mouse;CLS:clipboard;CLS:south-bridge-piix4;CLS:south-bridge-amd8111;THREADSAFE;
+file 12172 1260986369 x87_exception.so
+cap VER:2504;BLD:2589;BUILDDATE:1260986368;MOD:x87_exception;HOSTTYPE:amd64-linux;CLS:x87_exception;THREADSAFE;
+dir 0 /afs/andrew.cmu.edu/usr12/bblum/masters/work/amd64-linux/lib
+file 21297 1307038348 hax.so
+cap VER:2504;BLD:2556;BUILDDATE:1307032440;MOD:hax;HOSTTYPE:amd64-linux;CLS:hax;THREADSAFE;

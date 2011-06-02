@@ -1,0 +1,4 @@
+workspace: /afs/andrew.cmu.edu/usr12/bblum/masters/work
+simics-root: /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60
+simics-model-builder: /afs/andrew.cmu.edu/usr12/bblum/410/simics/simics-4.0.60/../simics-model-builder-4.0.16
+mingw: None

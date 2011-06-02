@@ -1,0 +1,19 @@
+#!/bin/sh
+
+MN=`uname -m`
+if [ $MN != "x86_64" ]; then
+    echo "This version of simics only works on x86-64 machines."
+    exit 1
+fi
+
+[ -z $SIMROOT ] && SIMROOT=/afs/cs/academic/class/15410-s11/simics-4.0.60
+[ -z $SIMBIN ] && SIMBIN=simics
+[ -z $SIMBINPATH] && SIMBINPATH=$SIMROOT/simics-4.0.60/bin/$SIMBIN
+[ -z $SIMHOMES ] && SIMHOMES=$SIMROOT/home
+#[ -z $SIMENV ] && SIMENV=$SIMHOMES/pebsim
+[ -z $SIMENV ] && SIMENV=/afs/andrew/usr12/bblum/masters/pebsim
+
+export OS_PROJ_PATH=$PWD
+
+cd $SIMENV
+nice -n 5 $SIMBINPATH $SIMENV/config.simics
