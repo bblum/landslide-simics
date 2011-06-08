@@ -29,6 +29,12 @@
 #include <simics/api.h>
 #include <simics/alloc.h>
 #include <simics/utils.h>
+#include <simics/arch/x86.h>
+
+// #include "util.h"
+
+// XXX: idiots wrote this header, so it must be after the other includes.
+#include "trace.h"
 
 #define MODULE_NAME "hax"
 
@@ -36,10 +42,8 @@ typedef struct {
 	/* log_object_t must be the first thing in the device struct */
 	log_object_t log;
 
-	/* USER-TODO: Add user specific members here. The 'value' member
-	 * is only an example to show how to implement an attribute */
-	int value;
 	int hax_count;
+	int hax_magic;
 } hax_t;
 
 /*
@@ -47,20 +51,18 @@ typedef struct {
  * call (see init_local() below), and is used as a constructor for every
  * instance of the hax class.
  */
-static conf_object_t *new_instance(parse_object_t *parse_obj)
+static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 {
 	hax_t *empty = MM_ZALLOC(1, hax_t);
 	SIM_log_constructor(&empty->log, parse_obj);
 
-	/* USER-TODO: Add initialization code for new instances here */
-	empty->value = 31337;
-
 	empty->hax_count = 0;
+	empty->hax_magic = 0x15410DE0U;
 
 	return &empty->log.obj;
 }
 
-
+#if 0
 static cycles_t hax_main(conf_object_t *obj, conf_object_t *space,
 			 map_list_t *map, generic_transaction_t *mem_op)
 {
@@ -72,30 +74,41 @@ static cycles_t hax_main(conf_object_t *obj, conf_object_t *space,
 		printf("hax number %d at offset %d\n", h->hax_count, offset);
 	}
 	/* USER-TODO: Handle accesses to the device here */
-#if 0
 	if (SIM_mem_op_is_read(mop)) {
 		SIM_log_info(2, &empty->log, 0, "read from offset %d", offset);
 		SIM_set_mem_op_value_le(mop, 0);
 	} else {
 		SIM_log_info(2, &empty->log, 0, "write to offset %d", offset);
 	}
-#endif
 	return 0;
 }
+#endif
 
-static set_error_t set_value_attribute(void *arg, conf_object_t *obj,
-				       attr_value_t *val, attr_value_t *idx)
+static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
+{
+	hax_t *h = (hax_t *)obj;
+
+	h->hax_count++;
+	if (h->hax_count % 1000000 == 0) {
+		printf("hax number %d with trace-type %s\n", h->hax_count,
+		       entry->trace_type == TR_Data ? "DATA" :
+		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN");
+	}
+}
+
+static set_error_t set_hax_attribute(void *arg, conf_object_t *obj,
+				     attr_value_t *val, attr_value_t *idx)
 {
 	hax_t *empty = (hax_t *)obj;
-	empty->value = SIM_attr_integer(*val);
+	empty->hax_count = SIM_attr_integer(*val);
 	return Sim_Set_Ok;
 }
 
-static attr_value_t get_value_attribute(void *arg, conf_object_t *obj,
-					attr_value_t *idx)
+static attr_value_t get_hax_attribute(void *arg, conf_object_t *obj,
+				      attr_value_t *idx)
 {
 	hax_t *empty = (hax_t *)obj;
-	return SIM_make_attr_integer(empty->value);
+	return SIM_make_attr_integer(empty->hax_count);
 }
 
 /* init_local() is called once when the device module is loaded into Simics */
@@ -104,7 +117,7 @@ void init_local(void)
 	printf("welcome to hax.\n");
 
 	const class_data_t funcs = {
-		.new_instance = new_instance,
+		.new_instance = hax_new_instance,
 		.class_desc = "hax and sploits",
 		.description = "here we have a simix module which provides not"
 			" only hax or sploits individually but rather a great"
@@ -114,6 +127,7 @@ void init_local(void)
 	/* Register the empty device class. */
 	conf_class_t *conf_class = SIM_register_class(MODULE_NAME, &funcs);
 
+#if 0
 	/* Register the 'io_memory' interface, that is used to implement
 	 * memory mapped accesses */
 	static const snoop_memory_interface_t memory_iface = {
@@ -122,12 +136,20 @@ void init_local(void)
 	SIM_register_interface(conf_class, SNOOP_MEMORY_INTERFACE,
 			       &memory_iface);
 
+	//attach_to_memory(conf_class);
+#endif
+
+	static const trace_consume_interface_t sploits = {
+		.consume = hax_consume
+	};
+	SIM_register_interface(conf_class, TRACE_CONSUME_INTERFACE, &sploits);
+
 	/* USER-TODO: Add any attributes for the device here */
 
 	SIM_register_typed_attribute(
-		conf_class, "value",
-		get_value_attribute, NULL,
-		set_value_attribute, NULL,
+		conf_class, "hax_count",
+		get_hax_attribute, NULL,
+		set_hax_attribute, NULL,
 		Sim_Attr_Optional,
 		"i", NULL,
 		"Value containing a valid valuable valuation.");

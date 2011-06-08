@@ -69,4 +69,17 @@ except :
 
 run-python-file "410mods.py"
 add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
+
+########################
+#### bblum was here ####
+########################
+
 load-module hax
+@hax = SIM_create_object("hax", "hax0", [])
+
+# setup
+break 0x1009cf # <start>
+run
+new-tracer
+trace0.start
+@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)

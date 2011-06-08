@@ -12,3 +12,14 @@ stack
 	./simics-model-builder-4.0.16/src/extensions/sample-memhier/sample-memhier.c
 	snoop_memory interface probably the way to go
 		note how to turn the STC off
+	trace.c - trace_instr_operate
+
+	to do next: debug trace and make sure the conf_object_t cast to a hax_t has the right hax_magic
+
+to hook in hax:
+	new-tracer
+	@hax = SIM_create_object("hax", "hax0", [])
+	# ...
+	trace0.start
+	@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)
+	# note: setting trace0.start resets the bt->trace_consume to text_tracer; set_consumer after that.
