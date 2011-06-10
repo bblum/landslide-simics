@@ -74,12 +74,22 @@ add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 #### bblum was here ####
 ########################
 
-load-module hax
-@hax = SIM_create_object("hax", "hax0", [])
+## symbol tables (should be in 410mods.py but isn't)
 
-# setup
-break 0x1009cf # <start>
+deflsym.load-symbols "kernel"
+## deflsym.source-path "kern"
+
+## setting up hax
+
+load-module hax
+@hax = SIM_create_object("hax", "hax0", [["hax_magic", 356585377], # HAX_MAGIC
+					 ["hax_count", 0],
+					 ["cpu0", SIM_get_object("cpu0")],
+					 ["phys_mem0", SIM_get_object("phys_mem0")]])
+
+break (sym _start)
 run
+delete 1
 new-tracer
 trace0.start
 @SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)

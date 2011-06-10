@@ -23,3 +23,13 @@ to hook in hax:
 	trace0.start
 	@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)
 	# note: setting trace0.start resets the bt->trace_consume to text_tracer; set_consumer after that.
+
+to make an interrupt stack frame:
+	@cpu = SIM_get_object("cpu0")
+	@SIM_set_attribute(cpu, "esp", cpu.esp - 12) # 3x 4B for eip, cs, eflags
+	@SIM_write_phys_memory(cpu, cpu.esp + 0, cpu.eip, 4)
+	@SIM_write_phys_memory(cpu, cpu.esp + 4, 16, 4) # KERNEL_SEGSEL_CS == 16
+	@SIM_write_phys_memory(cpu, cpu.esp + 8, cpu.eflags, 4)
+	@SIM_set_attribute(cpu, "eip", 0x001035bc)
+
+	# note: this *might* be somehow broken...? i saw a triple fault *once*.

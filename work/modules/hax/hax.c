@@ -22,6 +22,7 @@
 
 */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,78 +45,65 @@ typedef struct {
 
 	int hax_count;
 	int hax_magic;
+
+	/* Pointers to the CPU and physical memory. Currently only supports
+	 * one CPU and one memory space. The python glue must set these to
+	 * cpu0 and phys_mem0. */
+	conf_object_t *cpu0;
+	conf_object_t *phys_mem0;
 } hax_t;
 
-/*
- * The new_instance() function is registered with the SIM_register_class
- * call (see init_local() below), and is used as a constructor for every
- * instance of the hax class.
- */
+/* Whoever calls the constructor must set hax_magic to HAX_MAGIC as a promise
+ * that it is also setting cpu0 and phys_mem0 correctly. */
+#define HAX_MAGIC 0x15410FA1L
+
+/******************************************************************************
+ * simics glue
+ ******************************************************************************/
+
+/* initialise a new hax instance */
 static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 {
 	hax_t *empty = MM_ZALLOC(1, hax_t);
 	SIM_log_constructor(&empty->log, parse_obj);
-
 	empty->hax_count = 0;
-	empty->hax_magic = 0x15410DE0U;
-
 	return &empty->log.obj;
 }
 
-#if 0
-static cycles_t hax_main(conf_object_t *obj, conf_object_t *space,
-			 map_list_t *map, generic_transaction_t *mem_op)
-{
-	hax_t *h = (hax_t *)obj;
-	int offset = (int)(SIM_get_mem_op_physical_address(mem_op));
-
-	h->hax_count++;
-	if (h->hax_count % 1000 == 0) {
-		printf("hax number %d at offset %d\n", h->hax_count, offset);
+/* type should be one of "integer", "boolean", "object", ... */
+#define HAX_ATTR_SET_GET_FNS(name, type)				\
+	static set_error_t set_hax_##name##_attribute(			\
+		void *arg, conf_object_t *obj, attr_value_t *val,	\
+		attr_value_t *idx)					\
+	{								\
+		((hax_t *)obj)->name = SIM_attr_##type(*val);		\
+		return Sim_Set_Ok;					\
+	}								\
+	static attr_value_t get_hax_##name##_attribute(			\
+		void *arg, conf_object_t *obj, attr_value_t *idx)	\
+	{								\
+		return SIM_make_attr_##type(((hax_t *)obj)->name);	\
 	}
-	/* USER-TODO: Handle accesses to the device here */
-	if (SIM_mem_op_is_read(mop)) {
-		SIM_log_info(2, &empty->log, 0, "read from offset %d", offset);
-		SIM_set_mem_op_value_le(mop, 0);
-	} else {
-		SIM_log_info(2, &empty->log, 0, "write to offset %d", offset);
-	}
-	return 0;
-}
-#endif
 
-static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
-{
-	hax_t *h = (hax_t *)obj;
+/* type should be one of "\"i\"", "\"b\"", "\"o\"", ... */
+#define HAX_ATTR_REGISTER(class, name, type, desc)			\
+	SIM_register_typed_attribute(class, #name,			\
+				     get_hax_##name##_attribute, NULL,	\
+				     set_hax_##name##_attribute, NULL,	\
+				     Sim_Attr_Required, type, NULL,	\
+				     desc);
 
-	h->hax_count++;
-	if (h->hax_count % 1000000 == 0) {
-		printf("hax number %d with trace-type %s\n", h->hax_count,
-		       entry->trace_type == TR_Data ? "DATA" :
-		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN");
-	}
-}
+HAX_ATTR_SET_GET_FNS(hax_count, integer);
+HAX_ATTR_SET_GET_FNS(hax_magic, integer);
+HAX_ATTR_SET_GET_FNS(cpu0, object);
+HAX_ATTR_SET_GET_FNS(phys_mem0, object);
 
-static set_error_t set_hax_attribute(void *arg, conf_object_t *obj,
-				     attr_value_t *val, attr_value_t *idx)
-{
-	hax_t *empty = (hax_t *)obj;
-	empty->hax_count = SIM_attr_integer(*val);
-	return Sim_Set_Ok;
-}
-
-static attr_value_t get_hax_attribute(void *arg, conf_object_t *obj,
-				      attr_value_t *idx)
-{
-	hax_t *empty = (hax_t *)obj;
-	return SIM_make_attr_integer(empty->hax_count);
-}
+/* Forward declaration. */
+static void hax_consume(conf_object_t *obj, trace_entry_t *entry);
 
 /* init_local() is called once when the device module is loaded into Simics */
 void init_local(void)
 {
-	printf("welcome to hax.\n");
-
 	const class_data_t funcs = {
 		.new_instance = hax_new_instance,
 		.class_desc = "hax and sploits",
@@ -127,30 +115,36 @@ void init_local(void)
 	/* Register the empty device class. */
 	conf_class_t *conf_class = SIM_register_class(MODULE_NAME, &funcs);
 
-#if 0
-	/* Register the 'io_memory' interface, that is used to implement
-	 * memory mapped accesses */
-	static const snoop_memory_interface_t memory_iface = {
-		.operate = hax_main
-	};
-	SIM_register_interface(conf_class, SNOOP_MEMORY_INTERFACE,
-			       &memory_iface);
-
-	//attach_to_memory(conf_class);
-#endif
-
+	/* Register the hax class as a trace consumer. */
 	static const trace_consume_interface_t sploits = {
 		.consume = hax_consume
 	};
 	SIM_register_interface(conf_class, TRACE_CONSUME_INTERFACE, &sploits);
 
-	/* USER-TODO: Add any attributes for the device here */
+	/* Register attributes for the class. */
+	HAX_ATTR_REGISTER(conf_class, hax_count, "i", "Count of haxes");
+	HAX_ATTR_REGISTER(conf_class, hax_magic, "i", "Magic hax number");
+	HAX_ATTR_REGISTER(conf_class, cpu0, "o", "The system's cpu0");
+	HAX_ATTR_REGISTER(conf_class, phys_mem0, "o", "The system's phys_mem0");
 
-	SIM_register_typed_attribute(
-		conf_class, "hax_count",
-		get_hax_attribute, NULL,
-		set_hax_attribute, NULL,
-		Sim_Attr_Optional,
-		"i", NULL,
-		"Value containing a valid valuable valuation.");
+	printf("welcome to hax.\n");
+}
+
+/******************************************************************************
+ * actual interesting hax logic
+ ******************************************************************************/
+
+/* Main entry point. Called every instruction, data access, and exception. */
+static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
+{
+	hax_t *h = (hax_t *)obj;
+
+	assert(h->hax_magic == HAX_MAGIC && "The glue didn't do its job!");
+
+	h->hax_count++;
+	if (h->hax_count % 1000000 == 0) {
+		printf("hax number %d with trace-type %s\n", h->hax_count,
+		       entry->trace_type == TR_Data ? "DATA" :
+		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN");
+	}
 }
