@@ -51,6 +51,9 @@ typedef struct {
 	 * cpu0 and phys_mem0. */
 	conf_object_t *cpu0;
 	conf_object_t *phys_mem0;
+	// TODO: the above ones should be initialised using SIM_get_object().
+
+	conf_object_t *kbd0;
 } hax_t;
 
 /* Whoever calls the constructor must set hax_magic to HAX_MAGIC as a promise
@@ -64,10 +67,14 @@ typedef struct {
 /* initialise a new hax instance */
 static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 {
-	hax_t *empty = MM_ZALLOC(1, hax_t);
-	SIM_log_constructor(&empty->log, parse_obj);
-	empty->hax_count = 0;
-	return &empty->log.obj;
+	hax_t *h = MM_ZALLOC(1, hax_t);
+	SIM_log_constructor(&h->log, parse_obj);
+	h->hax_count = 0;
+
+	h->kbd0 = SIM_get_object("kbd0");
+	assert(h->kbd0 && "failed to find keyboard");
+
+	return &h->log.obj;
 }
 
 /* type should be one of "integer", "boolean", "object", ... */
@@ -124,6 +131,7 @@ void init_local(void)
 	/* Register attributes for the class. */
 	HAX_ATTR_REGISTER(conf_class, hax_count, "i", "Count of haxes");
 	HAX_ATTR_REGISTER(conf_class, hax_magic, "i", "Magic hax number");
+	// TODO: use SIM_get_object to initialise these
 	HAX_ATTR_REGISTER(conf_class, cpu0, "o", "The system's cpu0");
 	HAX_ATTR_REGISTER(conf_class, phys_mem0, "o", "The system's phys_mem0");
 
@@ -131,20 +139,104 @@ void init_local(void)
 }
 
 /******************************************************************************
+ * miscellaneous other support code
+ ******************************************************************************/
+
+#define GET_CPU_REG(cpu, reg) SIM_attr_integer(SIM_get_attribute(cpu, #reg))
+#define SET_CPU_REG(cpu, reg, val) do {					\
+		attr_value_t noob = SIM_make_attr_integer(val);		\
+		set_error_t ret = SIM_set_attribute(cpu, #reg, &noob);	\
+		assert(ret == Sim_Set_Ok && "SET_CPU_REG failed!");	\
+	} while (0)
+
+#define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
+
+#define KERNEL_SEGSEL_CS 0x10
+
+static void cause_timer_interrupt(hax_t *h)
+{
+	int esp = GET_CPU_REG(h->cpu0, esp);
+	int eip = GET_CPU_REG(h->cpu0, eip);
+	int eflags = GET_CPU_REG(h->cpu0, eflags);
+
+	/* 12 is the size of an IRET frame only when already in kernel mode. */
+	SET_CPU_REG(h->cpu0, esp, esp - 12);
+	esp = esp - 12; /* "oh, I can do common subexpression elimination!" */
+	SIM_write_phys_memory(h->cpu0, esp + 8, eflags, 4);
+	SIM_write_phys_memory(h->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
+	SIM_write_phys_memory(h->cpu0, esp + 0, eip, 4);
+	SET_CPU_REG(h->cpu0, eip, TIMER_HANDLER_WRAPPER);
+}
+
+/* keycodes for the keyboard buffer */
+static int i8042_key(char c)
+{
+	static const int i8042_keys[] = {
+		['0'] = 18, ['1'] = 19, ['2'] = 20, ['3'] = 21, ['4'] = 22,
+		['5'] = 23, ['6'] = 24, ['7'] = 25, ['8'] = 26, ['9'] = 27,
+		['a'] = 28, ['b'] = 29, ['c'] = 30, ['d'] = 31, ['e'] = 32,
+		['f'] = 33, ['g'] = 34, ['h'] = 35, ['i'] = 36, ['j'] = 37,
+		['k'] = 38, ['l'] = 39, ['m'] = 40, ['n'] = 41, ['o'] = 42,
+		['p'] = 43, ['q'] = 44, ['r'] = 45, ['s'] = 46, ['t'] = 47,
+		['u'] = 48, ['v'] = 49, ['w'] = 50, ['x'] = 51, ['y'] = 52,
+		['z'] = 53, ['\''] = 54, [','] = 55, ['.'] = 56, [';'] = 57,
+		['='] = 58, ['/'] = 59, ['\\'] = 60, [' '] = 61, ['['] = 62,
+		[']'] = 63, ['-'] = 64, ['`'] = 65,             ['\n'] = 67,
+	};
+	assert(i8042_keys[(int)c] != 0 && "Attempt to type an unsupported key");
+	return i8042_keys[(int)c];
+}
+
+static void cause_keypress(hax_t *h, int key)
+{
+	attr_value_t i = SIM_make_attr_integer(key);
+	attr_value_t v = SIM_make_attr_integer(0); /* see i8042 docs */
+
+	set_error_t ret = SIM_set_attribute_idx(h->kbd0, "key_event", &i, &v);
+	assert(ret == Sim_Set_Ok && "cause_keypress press failed!");
+
+	v = SIM_make_attr_integer(1);
+	ret = SIM_set_attribute_idx(h->kbd0, "key_event", &i, &v);
+	assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
+}
+
+/******************************************************************************
  * actual interesting hax logic
  ******************************************************************************/
 
-/* Main entry point. Called every instruction, data access, and exception. */
+#define TEST_STRING "mandelbrot\n"
+static void cause_test(hax_t *h)
+{
+	int i;
+	for (i = 0; i < strlen(TEST_STRING); i++) {
+		cause_keypress(h, i8042_key(TEST_STRING[i]));
+	}
+}
+
+// TODO: delete these
+#define FORK_AFTER_CHILD 0x103ee1 // pobbles
+// #define FORK_AFTER_CHILD 0x1068f4 // pathos
+
+/* Main entry point. Called every instruction, data access, and extensible. */
 static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
 {
 	hax_t *h = (hax_t *)obj;
 
 	assert(h->hax_magic == HAX_MAGIC && "The glue didn't do its job!");
-
 	h->hax_count++;
+
+	int eip = GET_CPU_REG(h->cpu0, eip);
+
 	if (h->hax_count % 1000000 == 0) {
-		printf("hax number %d with trace-type %s\n", h->hax_count,
+		printf("hax number %d with trace-type %s at 0x%x\n", h->hax_count,
 		       entry->trace_type == TR_Data ? "DATA" :
-		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN");
+		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
+		       eip);
+	}
+
+	if (entry->trace_type == TR_Instruction && eip == FORK_AFTER_CHILD && h->hax_count < 30000000) {
+		printf("in fork after child; invoking hax\n");
+		cause_test(h);
+		// cause_timer_interrupt(h);
 	}
 }
