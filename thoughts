@@ -5,16 +5,11 @@ performance
 	simics uses JIT for speed - how many orders of magnitude slowdown?
 
 things to do
-	learn simics C hooqs
-	checkpoint 0: something that fires/prints on every guest instruction
+	figure out symbol table manipulation
+
 
 stack
-	./simics-model-builder-4.0.16/src/extensions/sample-memhier/sample-memhier.c
-	snoop_memory interface probably the way to go
-		note how to turn the STC off
-	trace.c - trace_instr_operate
-
-	to do next: debug trace and make sure the conf_object_t cast to a hax_t has the right hax_magic
+	((empty))
 
 to hook in hax:
 	new-tracer
@@ -33,3 +28,8 @@ to make an interrupt stack frame:
 	@SIM_set_attribute(cpu, "eip", 0x001035bc)
 
 	# note: this *might* be somehow broken...? i saw a triple fault *once*.
+
+other ways to invoke the timer?
+	@SIM_get_object("cpu0").pending_interrupt = 1
+	@SIM_get_object("cpu0").pending_vector = 32 # will need to be more robust
+	@SIM_get_object("cpu0").pending_vector_valid = 1
