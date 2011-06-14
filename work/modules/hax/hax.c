@@ -32,10 +32,10 @@
 #include <simics/utils.h>
 #include <simics/arch/x86.h>
 
-// #include "util.h"
-
 // XXX: idiots wrote this header, so it must be after the other includes.
 #include "trace.h"
+
+#include "sp_table.h"
 
 #define MODULE_NAME "hax"
 
@@ -54,6 +54,10 @@ typedef struct {
 	// TODO: the above ones should be initialised using SIM_get_object().
 
 	conf_object_t *kbd0;
+
+#ifdef CAUSE_TIMER_LOLOL
+	struct sp_table active_threads;
+#endif
 } hax_t;
 
 /* Whoever calls the constructor must set hax_magic to HAX_MAGIC as a promise
@@ -73,6 +77,10 @@ static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 
 	h->kbd0 = SIM_get_object("kbd0");
 	assert(h->kbd0 && "failed to find keyboard");
+
+#ifdef CAUSE_TIMER_LOLOL
+	sp_init(&h->active_threads);
+#endif
 
 	return &h->log.obj;
 }
@@ -142,30 +150,51 @@ void init_local(void)
  * miscellaneous other support code
  ******************************************************************************/
 
-#define GET_CPU_REG(cpu, reg) SIM_attr_integer(SIM_get_attribute(cpu, #reg))
-#define SET_CPU_REG(cpu, reg, val) do {					\
+#define GET_CPU_ATTR(cpu, name) SIM_attr_integer(SIM_get_attribute(cpu, #name))
+#define SET_CPU_ATTR(cpu, name, val) do {				\
 		attr_value_t noob = SIM_make_attr_integer(val);		\
-		set_error_t ret = SIM_set_attribute(cpu, #reg, &noob);	\
-		assert(ret == Sim_Set_Ok && "SET_CPU_REG failed!");	\
+		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
+		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
 	} while (0)
 
-#define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
-
-#define KERNEL_SEGSEL_CS 0x10
-
+/* two possible methods for causing a timer interrupt - the lolol version crafts
+ * an iret stack frame by hand and changes the cpu's registers manually; the
+ * other way just manipulates the cpu's interrupt pending flags to make it do
+ * the interrupt itself. */
 static void cause_timer_interrupt(hax_t *h)
 {
-	int esp = GET_CPU_REG(h->cpu0, esp);
-	int eip = GET_CPU_REG(h->cpu0, eip);
-	int eflags = GET_CPU_REG(h->cpu0, eflags);
+// #define CAUSE_TIMER_LOLOL
+#ifdef CAUSE_TIMER_LOLOL
+# define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
+# define KERNEL_SEGSEL_CS 0x10
+
+	int esp = GET_CPU_ATTR(h->cpu0, esp);
+	int eip = GET_CPU_ATTR(h->cpu0, eip);
+	int eflags = GET_CPU_ATTR(h->cpu0, eflags);
 
 	/* 12 is the size of an IRET frame only when already in kernel mode. */
-	SET_CPU_REG(h->cpu0, esp, esp - 12);
+	SET_CPU_ATTR(h->cpu0, esp, esp - 12);
 	esp = esp - 12; /* "oh, I can do common subexpression elimination!" */
 	SIM_write_phys_memory(h->cpu0, esp + 8, eflags, 4);
 	SIM_write_phys_memory(h->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
 	SIM_write_phys_memory(h->cpu0, esp + 0, eip, 4);
-	SET_CPU_REG(h->cpu0, eip, TIMER_HANDLER_WRAPPER);
+	SET_CPU_ATTR(h->cpu0, eip, TIMER_HANDLER_WRAPPER);
+
+#else
+# define TIMER_INTERRUPT_NUMBER 0x20
+
+	if (GET_CPU_ATTR(h->cpu0, pending_vector_valid)) {
+		SET_CPU_ATTR(h->cpu0, pending_vector,
+			     GET_CPU_ATTR(h->cpu0, pending_vector)
+			     | TIMER_INTERRUPT_NUMBER);
+	} else {
+		SET_CPU_ATTR(h->cpu0, pending_vector, TIMER_INTERRUPT_NUMBER);
+		SET_CPU_ATTR(h->cpu0, pending_vector_valid, 1);
+	}
+
+	SET_CPU_ATTR(h->cpu0, pending_interrupt, 1);
+
+#endif
 }
 
 /* keycodes for the keyboard buffer */
@@ -225,7 +254,7 @@ static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
 	assert(h->hax_magic == HAX_MAGIC && "The glue didn't do its job!");
 	h->hax_count++;
 
-	int eip = GET_CPU_REG(h->cpu0, eip);
+	int eip = GET_CPU_ATTR(h->cpu0, eip);
 
 	if (h->hax_count % 1000000 == 0) {
 		printf("hax number %d with trace-type %s at 0x%x\n", h->hax_count,
@@ -234,9 +263,23 @@ static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
 		       eip);
 	}
 
-	if (entry->trace_type == TR_Instruction && eip == FORK_AFTER_CHILD && h->hax_count < 30000000) {
+#ifdef CAUSE_TIMER_LOLOL
+	int esp = GET_CPU_ATTR(h->cpu0, esp);
+
+	if (sp_remove(&h->active_threads, esp)) {
+		printf("returned to a thread we interrupted -- continuing;\n");
+		return;
+	}
+#endif
+
+	if (entry->trace_type == TR_Instruction && eip == FORK_AFTER_CHILD) {
+
 		printf("in fork after child; invoking hax\n");
-		cause_test(h);
-		// cause_timer_interrupt(h);
+		// cause_test(h);
+
+#ifdef CAUSE_TIMER_LOLOL
+		sp_add(&h->active_threads, esp);
+#endif
+		cause_timer_interrupt(h);
 	}
 }

@@ -8,7 +8,7 @@
 MODULE_CLASSES=hax
 
 # USER-TODO: set file-names
-SRC_FILES = hax.c
+SRC_FILES = hax.c sp_table.h sp_table.c
 
 MODULE_CFLAGS =
 
