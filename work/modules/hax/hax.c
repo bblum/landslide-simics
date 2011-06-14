@@ -44,25 +44,15 @@ typedef struct {
 	log_object_t log;
 
 	int hax_count;
-	int hax_magic;
 
-	/* Pointers to the CPU and physical memory. Currently only supports
-	 * one CPU and one memory space. The python glue must set these to
-	 * cpu0 and phys_mem0. */
+	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;
-	conf_object_t *phys_mem0;
-	// TODO: the above ones should be initialised using SIM_get_object().
-
 	conf_object_t *kbd0;
 
 #ifdef CAUSE_TIMER_LOLOL
 	struct sp_table active_threads;
 #endif
 } hax_t;
-
-/* Whoever calls the constructor must set hax_magic to HAX_MAGIC as a promise
- * that it is also setting cpu0 and phys_mem0 correctly. */
-#define HAX_MAGIC 0x15410FA1L
 
 /******************************************************************************
  * simics glue
@@ -75,6 +65,8 @@ static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 	SIM_log_constructor(&h->log, parse_obj);
 	h->hax_count = 0;
 
+	h->cpu0 = SIM_get_object("cpu0");
+	assert(h->cpu0 && "failed to find cpu");
 	h->kbd0 = SIM_get_object("kbd0");
 	assert(h->kbd0 && "failed to find keyboard");
 
@@ -109,9 +101,7 @@ static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 				     desc);
 
 HAX_ATTR_SET_GET_FNS(hax_count, integer);
-HAX_ATTR_SET_GET_FNS(hax_magic, integer);
 HAX_ATTR_SET_GET_FNS(cpu0, object);
-HAX_ATTR_SET_GET_FNS(phys_mem0, object);
 
 /* Forward declaration. */
 static void hax_consume(conf_object_t *obj, trace_entry_t *entry);
@@ -138,10 +128,8 @@ void init_local(void)
 
 	/* Register attributes for the class. */
 	HAX_ATTR_REGISTER(conf_class, hax_count, "i", "Count of haxes");
-	HAX_ATTR_REGISTER(conf_class, hax_magic, "i", "Magic hax number");
 	// TODO: use SIM_get_object to initialise these
 	HAX_ATTR_REGISTER(conf_class, cpu0, "o", "The system's cpu0");
-	HAX_ATTR_REGISTER(conf_class, phys_mem0, "o", "The system's phys_mem0");
 
 	printf("welcome to hax.\n");
 }
@@ -245,13 +233,13 @@ static void cause_test(hax_t *h)
 // TODO: delete these
 #define FORK_AFTER_CHILD 0x103ee1 // pobbles
 // #define FORK_AFTER_CHILD 0x1068f4 // pathos
+// #define FORK_AFTER_CHILD 0x104d5e // bros
 
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
 {
 	hax_t *h = (hax_t *)obj;
 
-	assert(h->hax_magic == HAX_MAGIC && "The glue didn't do its job!");
 	h->hax_count++;
 
 	int eip = GET_CPU_ATTR(h->cpu0, eip);

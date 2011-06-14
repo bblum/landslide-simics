@@ -82,10 +82,7 @@ deflsym.load-symbols "kernel"
 ## setting up hax
 
 load-module hax
-@hax = SIM_create_object("hax", "hax0", [["hax_magic", 356585377], # HAX_MAGIC
-					 ["hax_count", 0],
-					 ["cpu0", SIM_get_object("cpu0")],
-					 ["phys_mem0", SIM_get_object("phys_mem0")]])
+@hax = SIM_create_object("hax", "hax0", [])
 
 break (sym _start)
 run
