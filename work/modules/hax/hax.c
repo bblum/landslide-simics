@@ -97,7 +97,7 @@ static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
 	SIM_register_typed_attribute(class, #name,			\
 				     get_hax_##name##_attribute, NULL,	\
 				     set_hax_##name##_attribute, NULL,	\
-				     Sim_Attr_Required, type, NULL,	\
+				     Sim_Attr_Optional, type, NULL,	\
 				     desc);
 
 HAX_ATTR_SET_GET_FNS(hax_count, integer);
