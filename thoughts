@@ -11,25 +11,59 @@ things to do
 stack
 	((empty))
 
-to hook in hax:
-	new-tracer
-	@hax = SIM_create_object("hax", "hax0", [])
-	# ...
-	trace0.start
-	@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)
-	# note: setting trace0.start resets the bt->trace_consume to text_tracer; set_consumer after that.
+simics glue
+	to hook in hax:
+		new-tracer
+		@hax = SIM_create_object("hax", "hax0", [])
+		# ...
+		trace0.start
+		@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)
+		# note: trace0.start resets bt->trace_consume to text_tracer;
+		# do set_consumer after that.
 
-to make an interrupt stack frame:
-	@cpu = SIM_get_object("cpu0")
-	@SIM_set_attribute(cpu, "esp", cpu.esp - 12) # 3x 4B for eip, cs, eflags
-	@SIM_write_phys_memory(cpu, cpu.esp + 0, cpu.eip, 4)
-	@SIM_write_phys_memory(cpu, cpu.esp + 4, 16, 4) # KERNEL_SEGSEL_CS == 16
-	@SIM_write_phys_memory(cpu, cpu.esp + 8, cpu.eflags, 4)
-	@SIM_set_attribute(cpu, "eip", 0x001035bc)
+	to make an interrupt stack frame:
+		@cpu = SIM_get_object("cpu0")
+		@SIM_set_attribute(cpu, "esp", cpu.esp - 12)
+		@SIM_write_phys_memory(cpu, cpu.esp + 0, cpu.eip, 4)
+		@SIM_write_phys_memory(cpu, cpu.esp + 4, 16, 4) # kernel cs
+		@SIM_write_phys_memory(cpu, cpu.esp + 8, cpu.eflags, 4)
+		@SIM_set_attribute(cpu, "eip", 0x001035bc) # discus
 
-	# note: this *might* be somehow broken...? i saw a triple fault *once*.
+		# note: this *might* be somehow broken...? it TFed *once*.
 
-other ways to invoke the timer?
-	@SIM_get_object("cpu0").pending_interrupt = 1
-	@SIM_get_object("cpu0").pending_vector = 32 # will need to be more robust
-	@SIM_get_object("cpu0").pending_vector_valid = 1
+	other ways to invoke the timer?
+		@SIM_get_object("cpu0").pending_interrupt = 1
+		@SIM_get_object("cpu0").pending_vector = 32 # more robust
+		@SIM_get_object("cpu0").pending_vector_valid = 1
+
+algs
+	execution poince of interest:
+		concurrency ifaces
+			mutex_lock, mutex_unlock
+			cond_wait, cond_signal, cond_broadcast (or analogous)
+			other primitives (sem, rw, rend?)
+		single instructions
+			cli, sti
+			xchg, xadd, cmpxchg, cmpxchg8b(???)
+			invlpg (maybe?)
+			inb/outb (maybe?)
+		core scheduler
+			yield (scheduler internal version)
+			context switcher
+		other
+			malloc
+				(just set eax to 0 and jump to the return)
+	
+	or the same for p1 only:
+		keyboard 
+
+	NOTE: list the particular bugs we're looking for, and possibly only use
+	NOTE: the poince of interest relevant to them at one time.
+
+	things landslide needs to know about the kernel:
+		names and/or locations of functions of interest
+		is there a scheduler lock we should watch out for
+		can we examine (and possibly manipulate) the runqueue?
+
+	how to run the wrapper
+		landslide can talk to its past/future selves with a file
