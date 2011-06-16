@@ -234,7 +234,7 @@ static void cause_test(ls_state_t *ls)
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
-	ls_state_t *ls (ls_state_t *)obj;
+	ls_state_t *ls = (ls_state_t *)obj;
 
 	ls->trigger_count++;
 
