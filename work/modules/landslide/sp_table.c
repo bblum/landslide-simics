@@ -12,7 +12,7 @@
 #include "sp_table.h"
 
 static int sp_hash(int esp) {
-	int x = HAX_NUM_SPS;
+	int x = LANDSLIDE_NUM_SPS;
 	return (esp % x) ^ ((esp / x) % x) ^ ((esp / (x * x)) % x);
 }
 

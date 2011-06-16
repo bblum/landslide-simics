@@ -28,5 +28,5 @@ def get_status(obj):
     return [("Registers",
              [("Value", obj.value)])]
 
-cli.new_info_command("hax", get_info)
-cli.new_status_command("hax", get_status)
+cli.new_info_command("landslide", get_info)
+cli.new_status_command("landslide", get_status)

@@ -5,12 +5,12 @@
  *        interrupts already triggered on them upon return.
  */
 
-#ifndef HAX_SP_TABLE_H
-#define HAX_SP_TABLE_H
+#ifndef LANDSLIDE_SP_TABLE_H
+#define LANDSLIDE_SP_TABLE_H
 
 #include <stdlib.h>
 
-#define HAX_NUM_SPS 4096 /* approx. max number of kthreads */
+#define LANDSLIDE_NUM_SPS 4096 /* approx. max number of kthreads */
 
 struct sp_entry {
 	int esp;
@@ -18,7 +18,7 @@ struct sp_entry {
 };
 
 struct sp_table {
-	struct sp_entry *a[HAX_NUM_SPS];
+	struct sp_entry *a[LANDSLIDE_NUM_SPS];
 };
 
 #define sp_init(t) memset(t, 0, sizeof(*t))

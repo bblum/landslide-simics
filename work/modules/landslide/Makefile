@@ -5,10 +5,10 @@
 #
 
 # USER-TODO: specify the class(es) implemented in this module
-MODULE_CLASSES=hax
+MODULE_CLASSES=landslide
 
 # USER-TODO: set file-names
-SRC_FILES = hax.c sp_table.h sp_table.c
+SRC_FILES = landslide.c sp_table.h sp_table.c
 
 MODULE_CFLAGS =
 

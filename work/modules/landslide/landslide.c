@@ -1,5 +1,5 @@
 /*
-  hax.c - A Module for Simics which provides yon Hax and Sploits
+  landslide.c - A Module for Simics which provides yon Hax and Sploits
 
   Copyright 1998-2009 Virtutech AB
   
@@ -37,13 +37,13 @@
 
 #include "sp_table.h"
 
-#define MODULE_NAME "hax"
+#define MODULE_NAME "landslide"
 
 typedef struct {
 	/* log_object_t must be the first thing in the device struct */
 	log_object_t log;
 
-	int hax_count;
+	int trigger_count;
 
 	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;
@@ -52,65 +52,63 @@ typedef struct {
 #ifdef CAUSE_TIMER_LOLOL
 	struct sp_table active_threads;
 #endif
-} hax_t;
+} ls_state_t;
 
 /******************************************************************************
  * simics glue
  ******************************************************************************/
 
-/* initialise a new hax instance */
-static conf_object_t *hax_new_instance(parse_object_t *parse_obj)
+static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 {
-	hax_t *h = MM_ZALLOC(1, hax_t);
-	SIM_log_constructor(&h->log, parse_obj);
-	h->hax_count = 0;
+	ls_state_t *ls = MM_ZALLOC(1, ls_state_t);
+	SIM_log_constructor(&ls->log, parse_obj);
+	ls->trigger_count = 0;
 
-	h->cpu0 = SIM_get_object("cpu0");
-	assert(h->cpu0 && "failed to find cpu");
-	h->kbd0 = SIM_get_object("kbd0");
-	assert(h->kbd0 && "failed to find keyboard");
+	ls->cpu0 = SIM_get_object("cpu0");
+	assert(ls->cpu0 && "failed to find cpu");
+	ls->kbd0 = SIM_get_object("kbd0");
+	assert(ls->kbd0 && "failed to find keyboard");
 
 #ifdef CAUSE_TIMER_LOLOL
-	sp_init(&h->active_threads);
+	sp_init(&ls->active_threads);
 #endif
 
-	return &h->log.obj;
+	return &ls->log.obj;
 }
 
 /* type should be one of "integer", "boolean", "object", ... */
-#define HAX_ATTR_SET_GET_FNS(name, type)				\
-	static set_error_t set_hax_##name##_attribute(			\
+#define LS_ATTR_SET_GET_FNS(name, type)				\
+	static set_error_t set_ls_##name##_attribute(			\
 		void *arg, conf_object_t *obj, attr_value_t *val,	\
 		attr_value_t *idx)					\
 	{								\
-		((hax_t *)obj)->name = SIM_attr_##type(*val);		\
+		((ls_state_t *)obj)->name = SIM_attr_##type(*val);	\
 		return Sim_Set_Ok;					\
 	}								\
-	static attr_value_t get_hax_##name##_attribute(			\
+	static attr_value_t get_ls_##name##_attribute(			\
 		void *arg, conf_object_t *obj, attr_value_t *idx)	\
 	{								\
-		return SIM_make_attr_##type(((hax_t *)obj)->name);	\
+		return SIM_make_attr_##type(((ls_state_t *)obj)->name);	\
 	}
 
 /* type should be one of "\"i\"", "\"b\"", "\"o\"", ... */
-#define HAX_ATTR_REGISTER(class, name, type, desc)			\
+#define LS_ATTR_REGISTER(class, name, type, desc)			\
 	SIM_register_typed_attribute(class, #name,			\
-				     get_hax_##name##_attribute, NULL,	\
-				     set_hax_##name##_attribute, NULL,	\
+				     get_ls_##name##_attribute, NULL,	\
+				     set_ls_##name##_attribute, NULL,	\
 				     Sim_Attr_Optional, type, NULL,	\
 				     desc);
 
-HAX_ATTR_SET_GET_FNS(hax_count, integer);
-HAX_ATTR_SET_GET_FNS(cpu0, object);
+LS_ATTR_SET_GET_FNS(trigger_count, integer);
 
 /* Forward declaration. */
-static void hax_consume(conf_object_t *obj, trace_entry_t *entry);
+static void ls_consume(conf_object_t *obj, trace_entry_t *entry);
 
 /* init_local() is called once when the device module is loaded into Simics */
 void init_local(void)
 {
 	const class_data_t funcs = {
-		.new_instance = hax_new_instance,
+		.new_instance = ls_new_instance,
 		.class_desc = "hax and sploits",
 		.description = "here we have a simix module which provides not"
 			" only hax or sploits individually but rather a great"
@@ -120,18 +118,16 @@ void init_local(void)
 	/* Register the empty device class. */
 	conf_class_t *conf_class = SIM_register_class(MODULE_NAME, &funcs);
 
-	/* Register the hax class as a trace consumer. */
+	/* Register the landslide class as a trace consumer. */
 	static const trace_consume_interface_t sploits = {
-		.consume = hax_consume
+		.consume = ls_consume
 	};
 	SIM_register_interface(conf_class, TRACE_CONSUME_INTERFACE, &sploits);
 
 	/* Register attributes for the class. */
-	HAX_ATTR_REGISTER(conf_class, hax_count, "i", "Count of haxes");
-	// TODO: use SIM_get_object to initialise these
-	HAX_ATTR_REGISTER(conf_class, cpu0, "o", "The system's cpu0");
+	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
 
-	printf("welcome to hax.\n");
+	printf("welcome to landslide.\n");
 }
 
 /******************************************************************************
@@ -149,38 +145,38 @@ void init_local(void)
  * an iret stack frame by hand and changes the cpu's registers manually; the
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
-static void cause_timer_interrupt(hax_t *h)
+static void cause_timer_interrupt(ls_state_t *ls)
 {
 // #define CAUSE_TIMER_LOLOL
 #ifdef CAUSE_TIMER_LOLOL
 # define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
 # define KERNEL_SEGSEL_CS 0x10
 
-	int esp = GET_CPU_ATTR(h->cpu0, esp);
-	int eip = GET_CPU_ATTR(h->cpu0, eip);
-	int eflags = GET_CPU_ATTR(h->cpu0, eflags);
+	int esp = GET_CPU_ATTR(ls->cpu0, esp);
+	int eip = GET_CPU_ATTR(ls->cpu0, eip);
+	int eflags = GET_CPU_ATTR(ls->cpu0, eflags);
 
 	/* 12 is the size of an IRET frame only when already in kernel mode. */
-	SET_CPU_ATTR(h->cpu0, esp, esp - 12);
+	SET_CPU_ATTR(ls->cpu0, esp, esp - 12);
 	esp = esp - 12; /* "oh, I can do common subexpression elimination!" */
-	SIM_write_phys_memory(h->cpu0, esp + 8, eflags, 4);
-	SIM_write_phys_memory(h->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
-	SIM_write_phys_memory(h->cpu0, esp + 0, eip, 4);
-	SET_CPU_ATTR(h->cpu0, eip, TIMER_HANDLER_WRAPPER);
+	SIM_write_phys_memory(ls->cpu0, esp + 8, eflags, 4);
+	SIM_write_phys_memory(ls->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
+	SIM_write_phys_memory(ls->cpu0, esp + 0, eip, 4);
+	SET_CPU_ATTR(ls->cpu0, eip, TIMER_HANDLER_WRAPPER);
 
 #else
 # define TIMER_INTERRUPT_NUMBER 0x20
 
-	if (GET_CPU_ATTR(h->cpu0, pending_vector_valid)) {
-		SET_CPU_ATTR(h->cpu0, pending_vector,
-			     GET_CPU_ATTR(h->cpu0, pending_vector)
+	if (GET_CPU_ATTR(ls->cpu0, pending_vector_valid)) {
+		SET_CPU_ATTR(ls->cpu0, pending_vector,
+			     GET_CPU_ATTR(ls->cpu0, pending_vector)
 			     | TIMER_INTERRUPT_NUMBER);
 	} else {
-		SET_CPU_ATTR(h->cpu0, pending_vector, TIMER_INTERRUPT_NUMBER);
-		SET_CPU_ATTR(h->cpu0, pending_vector_valid, 1);
+		SET_CPU_ATTR(ls->cpu0, pending_vector, TIMER_INTERRUPT_NUMBER);
+		SET_CPU_ATTR(ls->cpu0, pending_vector_valid, 1);
 	}
 
-	SET_CPU_ATTR(h->cpu0, pending_interrupt, 1);
+	SET_CPU_ATTR(ls->cpu0, pending_interrupt, 1);
 
 #endif
 }
@@ -204,29 +200,29 @@ static int i8042_key(char c)
 	return i8042_keys[(int)c];
 }
 
-static void cause_keypress(hax_t *h, int key)
+static void cause_keypress(ls_state_t *ls, int key)
 {
 	attr_value_t i = SIM_make_attr_integer(key);
 	attr_value_t v = SIM_make_attr_integer(0); /* see i8042 docs */
 
-	set_error_t ret = SIM_set_attribute_idx(h->kbd0, "key_event", &i, &v);
+	set_error_t ret = SIM_set_attribute_idx(ls->kbd0, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress press failed!");
 
 	v = SIM_make_attr_integer(1);
-	ret = SIM_set_attribute_idx(h->kbd0, "key_event", &i, &v);
+	ret = SIM_set_attribute_idx(ls->kbd0, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
 }
 
 /******************************************************************************
- * actual interesting hax logic
+ * actual interesting landslide logic
  ******************************************************************************/
 
 #define TEST_STRING "mandelbrot\n"
-static void cause_test(hax_t *h)
+static void cause_test(ls_state_t *ls)
 {
 	int i;
 	for (i = 0; i < strlen(TEST_STRING); i++) {
-		cause_keypress(h, i8042_key(TEST_STRING[i]));
+		cause_keypress(ls, i8042_key(TEST_STRING[i]));
 	}
 }
 
@@ -236,25 +232,26 @@ static void cause_test(hax_t *h)
 // #define FORK_AFTER_CHILD 0x104d5e // bros
 
 /* Main entry point. Called every instruction, data access, and extensible. */
-static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
+static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
-	hax_t *h = (hax_t *)obj;
+	ls_state_t *ls (ls_state_t *)obj;
 
-	h->hax_count++;
+	ls->trigger_count++;
 
-	int eip = GET_CPU_ATTR(h->cpu0, eip);
+	int eip = GET_CPU_ATTR(ls->cpu0, eip);
 
-	if (h->hax_count % 1000000 == 0) {
-		printf("hax number %d with trace-type %s at 0x%x\n", h->hax_count,
+	if (ls->trigger_count % 1000000 == 0) {
+		printf("hax number %d with trace-type %s at 0x%x\n",
+		       ls->trigger_count,
 		       entry->trace_type == TR_Data ? "DATA" :
 		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
 		       eip);
 	}
 
 #ifdef CAUSE_TIMER_LOLOL
-	int esp = GET_CPU_ATTR(h->cpu0, esp);
+	int esp = GET_CPU_ATTR(ls->cpu0, esp);
 
-	if (sp_remove(&h->active_threads, esp)) {
+	if (sp_remove(&ls->active_threads, esp)) {
 		printf("returned to a thread we interrupted -- continuing;\n");
 		return;
 	}
@@ -263,11 +260,11 @@ static void hax_consume(conf_object_t *obj, trace_entry_t *entry)
 	if (entry->trace_type == TR_Instruction && eip == FORK_AFTER_CHILD) {
 
 		printf("in fork after child; invoking hax\n");
-		// cause_test(h);
+		// cause_test(ls);
 
 #ifdef CAUSE_TIMER_LOLOL
-		sp_add(&h->active_threads, esp);
+		sp_add(&ls->active_threads, esp);
 #endif
-		cause_timer_interrupt(h);
+		cause_timer_interrupt(ls);
 	}
 }

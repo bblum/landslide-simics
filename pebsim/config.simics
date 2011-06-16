@@ -79,14 +79,14 @@ add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 deflsym.load-symbols "kernel"
 ## deflsym.source-path "kern"
 
-## setting up hax
+## setting up landslide
 
-load-module hax
-@hax = SIM_create_object("hax", "hax0", [])
+load-module landslide
+@landslide = SIM_create_object("landslide", "landslide0", [])
 
 break (sym _start)
 run
 delete 1
 new-tracer
 trace0.start
-@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)
+@SIM_set_attribute(SIM_get_object("trace0"), "consumer", landslide)
