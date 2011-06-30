@@ -35,24 +35,7 @@
 // XXX: idiots wrote this header, so it must be after the other includes.
 #include "trace.h"
 
-#include "sp_table.h"
-
-#define MODULE_NAME "landslide"
-
-typedef struct {
-	/* log_object_t must be the first thing in the device struct */
-	log_object_t log;
-
-	int trigger_count;
-
-	/* Pointers to relevant objects. Currently only supports one CPU. */
-	conf_object_t *cpu0;
-	conf_object_t *kbd0;
-
-#ifdef CAUSE_TIMER_LOLOL
-	struct sp_table active_threads;
-#endif
-} ls_state_t;
+#include "landslide.h"
 
 /******************************************************************************
  * simics glue
