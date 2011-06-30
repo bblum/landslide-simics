@@ -11,31 +11,6 @@ things to do
 stack
 	((empty))
 
-simics glue
-	to hook in hax:
-		new-tracer
-		@hax = SIM_create_object("hax", "hax0", [])
-		# ...
-		trace0.start
-		@SIM_set_attribute(SIM_get_object("trace0"), "consumer", hax)
-		# note: trace0.start resets bt->trace_consume to text_tracer;
-		# do set_consumer after that.
-
-	to make an interrupt stack frame:
-		@cpu = SIM_get_object("cpu0")
-		@SIM_set_attribute(cpu, "esp", cpu.esp - 12)
-		@SIM_write_phys_memory(cpu, cpu.esp + 0, cpu.eip, 4)
-		@SIM_write_phys_memory(cpu, cpu.esp + 4, 16, 4) # kernel cs
-		@SIM_write_phys_memory(cpu, cpu.esp + 8, cpu.eflags, 4)
-		@SIM_set_attribute(cpu, "eip", 0x001035bc) # discus
-
-		# note: this *might* be somehow broken...? it TFed *once*.
-
-	other ways to invoke the timer?
-		@SIM_get_object("cpu0").pending_interrupt = 1
-		@SIM_get_object("cpu0").pending_vector = 32 # more robust
-		@SIM_get_object("cpu0").pending_vector_valid = 1
-
 algs
 	execution poince of interest:
 		concurrency ifaces
@@ -60,6 +35,12 @@ algs
 	NOTE: list the particular bugs we're looking for, and possibly only use
 	NOTE: the poince of interest relevant to them at one time.
 
+	what biggest [subtle] bugs are we looking for?
+		vanish/wait-related unsafety or deadlocks
+		oom robustness
+		...
+
+impl details
 	things landslide needs to know about the kernel:
 		names and/or locations of functions of interest
 		is there a scheduler lock we should watch out for
@@ -67,3 +48,18 @@ algs
 
 	how to run the wrapper
 		landslide can talk to its past/future selves with a file
+
+questions from the papers
+	how will we implement in simics the analogue of reg/unreg, interact?
+		agent ~ kthread
+		"blocking" impl will need internal tricksiness
+	steady state hmm
+	need to understand the partial order reduction; will it need porting (no?)
+	'stateless exploration' we might be able to do better
+	trap on exit from context switcher
+	how to bootstrap state for first process
+	when a thread is removed from the runqueue - distinguish scenarios?
+	make simics stop throwing timer interrupts of its own
+	how to avoid devolving always into the timer handler overflow problem
+	how to tell when a all blocks (spinning vs otherwise?)
+	what is up with the erroneous thing (double unlock)?
