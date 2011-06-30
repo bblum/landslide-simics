@@ -36,6 +36,7 @@
 #include "trace.h"
 
 #include "landslide.h"
+#include "schedule.h"
 
 /******************************************************************************
  * simics glue
@@ -214,24 +215,9 @@ static void cause_test(ls_state_t *ls)
 // #define FORK_AFTER_CHILD 0x1068f4 // pathos
 // #define FORK_AFTER_CHILD 0x104d5e // bros
 
-/* Main entry point. Called every instruction, data access, and extensible. */
-static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
+static void decide_whether_to_hax(ls_state_t *ls, trace_entry_t *entry, int eip)
 {
-	ls_state_t *ls = (ls_state_t *)obj;
-
-	ls->trigger_count++;
-
-	int eip = GET_CPU_ATTR(ls->cpu0, eip);
-
-	if (ls->trigger_count % 1000000 == 0) {
-		printf("hax number %d with trace-type %s at 0x%x\n",
-		       ls->trigger_count,
-		       entry->trace_type == TR_Data ? "DATA" :
-		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
-		       eip);
-	}
-
-#ifdef CAUSE_TIMER_LOLOL
+	#ifdef CAUSE_TIMER_LOLOL
 	int esp = GET_CPU_ATTR(ls->cpu0, esp);
 
 	if (sp_remove(&ls->active_threads, esp)) {
@@ -250,4 +236,31 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 #endif
 		cause_timer_interrupt(ls);
 	}
+}
+
+/* Main entry point. Called every instruction, data access, and extensible. */
+static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
+{
+	ls_state_t *ls = (ls_state_t *)obj;
+
+	ls->trigger_count++;
+
+	int eip = GET_CPU_ATTR(ls->cpu0, eip);
+
+	if (ls->trigger_count % 1000000 == 0) {
+		printf("hax number %d with trace-type %s at 0x%x\n",
+		       ls->trigger_count,
+		       entry->trace_type == TR_Data ? "DATA" :
+		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
+		       eip);
+	}
+
+	int old_thread = ls->current_thread;
+	ls->current_thread = get_current_thread(ls);
+	if (old_thread != ls->current_thread) {
+		printf("switched threads %d -> %d at 0x%x\n", old_thread,
+		       ls->current_thread, eip);
+	}
+
+	decide_whether_to_hax(ls, entry, eip);
 }

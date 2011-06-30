@@ -28,6 +28,9 @@ typedef struct {
 #ifdef CAUSE_TIMER_LOLOL
 	struct sp_table active_threads;
 #endif
+
+	/* scheduler state below - TODO: refactor */
+	int current_thread;
 } ls_state_t;
 
 #endif
