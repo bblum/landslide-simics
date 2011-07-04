@@ -11,8 +11,6 @@
 
 /* Assumptions we need to make about the kernel */
 
-#define WORD_SIZE 4 /* TODO move to x86-up.h */
-
 #define GUEST_POBBLES
 #ifdef GUEST_POBBLES
 
@@ -60,22 +58,22 @@ int kern_get_current_tid(struct ls_state *ls)
 bool kern_thread_is_appearing(struct ls_state *ls)
 {
 	return (GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_ADD)
-	    && (GET_ARG(ls->cpu0, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
+	    && (READ_STACK(ls->cpu0, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
 }
 
 int kern_thread_appearing(struct ls_state *ls)
 {
 	assert(kern_thread_is_appearing(ls));
 	/* 0(%esp) points to the return address; get the arg above it */
-	return TID_FROM_TCB(ls, GET_ARG(ls->cpu0, GUEST_Q_ADD_TCB_ARGNUM));
+	return TID_FROM_TCB(ls, READ_STACK(ls->cpu0, GUEST_Q_ADD_TCB_ARGNUM));
 }
 
 bool kern_thread_is_disappearing(struct ls_state *ls)
 {
 	return ((GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE)
-	     && (GET_ARG(ls->cpu0, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
+	     && (READ_STACK(ls->cpu0, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
 	    || ((GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_POP_RETURN)
-	     && (GET_ARG(ls->cpu0, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
+	     && (READ_STACK(ls->cpu0, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
 }
 
 int kern_thread_disappearing(struct ls_state *ls)
@@ -86,7 +84,7 @@ int kern_thread_disappearing(struct ls_state *ls)
 
 	if (GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE) {
 		/* at beginning of sch_queue_remove */
-		tcb = GET_ARG(ls->cpu0, GUEST_Q_REMOVE_TCB_ARGNUM);
+		tcb = READ_STACK(ls->cpu0, GUEST_Q_REMOVE_TCB_ARGNUM);
 	} else {
 		/* at end of sch_queue_pop; see prior assert */
 		tcb = GET_CPU_ATTR(ls->cpu0, eax);

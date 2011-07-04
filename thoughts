@@ -39,6 +39,8 @@ algs
 		vanish/wait-related unsafety or deadlocks
 		oom robustness
 		...
+	
+	how to deal with sleeping threads?
 
 impl details
 	things landslide needs to know about the kernel:

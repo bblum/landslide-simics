@@ -45,10 +45,11 @@ struct ls_state {
 /* TODO: move these to x86-up.h */
 #define WORD_SIZE 4
 
-/* to be used either at the very end or the very beginning of a function,
- * when esp points to the return address. */
-#define GET_ARG(cpu, argnum)  \
+/* reading the stack. can be used to examine function arguments, if used either
+ * at the very end or the very beginning of a function, when esp points to the
+ * return address. */
+#define READ_STACK(cpu, offset)  \
 	SIM_read_phys_memory( \
-		cpu, GET_CPU_ATTR(cpu, esp) + ((argnum) * WORD_SIZE), WORD_SIZE)
+		cpu, GET_CPU_ATTR(cpu, esp) + ((offset) * WORD_SIZE), WORD_SIZE)
 
 #endif
