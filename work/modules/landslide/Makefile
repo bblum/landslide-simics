@@ -10,7 +10,9 @@ MODULE_CLASSES=landslide
 # USER-TODO: set file-names
 SRC_FILES = landslide.h landslide.c \
 	    sp_table.h sp_table.c \
-	    kernel_specifics.h kernel_specifics.c
+	    kernel_specifics.h kernel_specifics.c \
+	    schedule.h schedule.c \
+	    variable_queue.h
 
 MODULE_CFLAGS =
 

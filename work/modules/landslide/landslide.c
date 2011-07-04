@@ -36,7 +36,6 @@
 #include "trace.h"
 
 #include "landslide.h"
-#include "kernel_specifics.h"
 
 /******************************************************************************
  * simics glue
@@ -44,7 +43,8 @@
 
 static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 {
-	ls_state_t *ls = MM_ZALLOC(1, ls_state_t);
+	struct ls_state *ls = MM_ZALLOC(1, struct ls_state);
+	assert(ls && "failed to allocate ls state");
 	SIM_log_constructor(&ls->log, parse_obj);
 	ls->trigger_count = 0;
 
@@ -66,13 +66,14 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 		void *arg, conf_object_t *obj, attr_value_t *val,	\
 		attr_value_t *idx)					\
 	{								\
-		((ls_state_t *)obj)->name = SIM_attr_##type(*val);	\
+		((struct ls_state *)obj)->name = SIM_attr_##type(*val);	\
 		return Sim_Set_Ok;					\
 	}								\
 	static attr_value_t get_ls_##name##_attribute(			\
 		void *arg, conf_object_t *obj, attr_value_t *idx)	\
 	{								\
-		return SIM_make_attr_##type(((ls_state_t *)obj)->name);	\
+		return SIM_make_attr_##type(				\
+			((struct ls_state *)obj)->name);		\
 	}
 
 /* type should be one of "\"i\"", "\"b\"", "\"o\"", ... */
@@ -124,7 +125,7 @@ void init_local(void)
  * an iret stack frame by hand and changes the cpu's registers manually; the
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
-static void cause_timer_interrupt(ls_state_t *ls)
+static void cause_timer_interrupt(struct ls_state *ls)
 {
 // #define CAUSE_TIMER_LOLOL
 #ifdef CAUSE_TIMER_LOLOL
@@ -179,7 +180,7 @@ static int i8042_key(char c)
 	return i8042_keys[(int)c];
 }
 
-static void cause_keypress(ls_state_t *ls, int key)
+static void cause_keypress(struct ls_state *ls, int key)
 {
 	attr_value_t i = SIM_make_attr_integer(key);
 	attr_value_t v = SIM_make_attr_integer(0); /* see i8042 docs */
@@ -197,7 +198,7 @@ static void cause_keypress(ls_state_t *ls, int key)
  ******************************************************************************/
 
 #define TEST_STRING "mandelbrot\n"
-static void cause_test(ls_state_t *ls)
+static void cause_test(struct ls_state *ls)
 {
 	int i;
 	for (i = 0; i < strlen(TEST_STRING); i++) {
@@ -210,7 +211,7 @@ static void cause_test(ls_state_t *ls)
 // #define FORK_AFTER_CHILD 0x1068f4 // pathos
 // #define FORK_AFTER_CHILD 0x104d5e // bros
 
-static void decide_whether_to_hax(ls_state_t *ls, trace_entry_t *entry, int eip)
+static void decide_whether_to_hax(struct ls_state *ls, trace_entry_t *entry)
 {
 	#ifdef CAUSE_TIMER_LOLOL
 	int esp = GET_CPU_ATTR(ls->cpu0, esp);
@@ -221,7 +222,7 @@ static void decide_whether_to_hax(ls_state_t *ls, trace_entry_t *entry, int eip)
 	}
 #endif
 
-	if (eip == FORK_AFTER_CHILD) {
+	if (ls->eip == FORK_AFTER_CHILD) {
 
 		printf("in fork after child; invoking hax\n");
 		// cause_test(ls);
@@ -236,34 +237,25 @@ static void decide_whether_to_hax(ls_state_t *ls, trace_entry_t *entry, int eip)
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
-	ls_state_t *ls = (ls_state_t *)obj;
+	struct ls_state *ls = (struct ls_state *)obj;
 
 	if (entry->trace_type != TR_Instruction)
 		return;
 
 	ls->trigger_count++;
 
-	int eip = GET_CPU_ATTR(ls->cpu0, eip);
+	/* TODO: avoid using get_cpu_attr */
+	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (ls->trigger_count % 1000000 == 0) {
 		printf("hax number %d with trace-type %s at 0x%x\n",
 		       ls->trigger_count,
 		       entry->trace_type == TR_Data ? "DATA" :
 		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
-		       eip);
+		       ls->eip);
 	}
 
-	int old_thread = ls->current_thread;
-	ls->current_thread = get_current_tid(ls);
-	if (old_thread != ls->current_thread) {
-		printf("switched threads %d -> %d at 0x%x\n", old_thread,
-		       ls->current_thread, eip);
-	}
-
-	if (agent_is_appearing(ls)) {
-		printf("new agent %d at eip 0x%x\n", agent_appearing(ls), eip);
-	} else if (agent_is_disappearing(ls)) {
-		printf("agent %d gone at eip 0x%x\n", agent_disappearing(ls), eip);
-	}
-	decide_whether_to_hax(ls, entry, eip);
+	// TODO: conditions for calling this?
+	sched_update(ls);
+	decide_whether_to_hax(ls, entry);
 }

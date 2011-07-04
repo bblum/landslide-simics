@@ -9,13 +9,15 @@
 
 #include <simics/api.h>
 
+#include "schedule.h"
+
 #ifdef CAUSE_TIMER_LOLOL
 #include "sp_table.h"
 #endif
 
 #define MODULE_NAME "landslide"
 
-typedef struct {
+struct ls_state {
 	/* log_object_t must be the first thing in the device struct */
 	log_object_t log;
 
@@ -24,14 +26,14 @@ typedef struct {
 	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;
 	conf_object_t *kbd0;
+	int eip;
+
+	struct sched_state sched;
 
 #ifdef CAUSE_TIMER_LOLOL
 	struct sp_table active_threads;
 #endif
-
-	/* scheduler state below - TODO: refactor */
-	int current_thread;
-} ls_state_t;
+};
 
 #define GET_CPU_ATTR(cpu, name) SIM_attr_integer(SIM_get_attribute(cpu, #name))
 #define SET_CPU_ATTR(cpu, name, val) do {				\

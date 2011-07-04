@@ -9,12 +9,21 @@
 
 #include "landslide.h"
 
-int get_current_tcb(ls_state_t *ls);
-int get_current_tid(ls_state_t *ls);
+struct sched_state;
 
-bool agent_is_appearing(ls_state_t *ls);
-int agent_appearing(ls_state_t *ls);
-bool agent_is_disappearing(ls_state_t *ls);
-int agent_disappearing(ls_state_t *ls);
+/* Currently running thread */
+int kern_get_current_tcb(struct ls_state *);
+int kern_get_current_tid(struct ls_state *);
+
+/* Lifecycle */
+bool kern_thread_is_appearing(struct ls_state *);
+int kern_thread_appearing(struct ls_state *);
+bool kern_thread_is_disappearing(struct ls_state *);
+int kern_thread_disappearing(struct ls_state *);
+
+/* Other / init */
+int kern_get_init_thread(void);
+void kern_init_runqueue(struct sched_state *,
+			void (*)(struct sched_state *, int));
 
 #endif

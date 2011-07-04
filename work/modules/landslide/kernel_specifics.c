@@ -22,7 +22,7 @@
 #define TID_FROM_TCB(ls, tcb) \
 	SIM_read_phys_memory(ls->cpu0, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)
 
-/* Where is it that agents appear and disappear? */
+/* Where is it that runnable threads appear and disappear? */
 #define GUEST_Q_ADD                0x00105613
 #define GUEST_Q_ADD_TCB_ARGNUM     2 /* second argument; rq should be first */
 #define GUEST_Q_REMOVE             0x001056d5
@@ -37,25 +37,29 @@
 #endif
 
 /* Returns the tcb/tid of the currently scheduled thread. */
-int get_current_tcb(ls_state_t *ls)
+int kern_get_current_tcb(struct ls_state *ls)
 {
 	return SIM_read_phys_memory(ls->cpu0, GUEST_CURRENT_TCB, WORD_SIZE);
 }
 
-int get_current_tid(ls_state_t *ls)
+int kern_get_current_tid(struct ls_state *ls)
 {
-	return TID_FROM_TCB(ls, get_current_tcb(ls));
+	return TID_FROM_TCB(ls, kern_get_current_tcb(ls));
 }
 
-/* How to tell if a new agent is appearing or disappearing. */
-bool agent_is_appearing(ls_state_t *ls)
+/******************************************************************************
+ * Lifecycle
+ ******************************************************************************/
+
+/* How to tell if a new thread is appearing or disappearing. */
+bool kern_thread_is_appearing(struct ls_state *ls)
 {
 	return GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_ADD;
 }
 
-int agent_appearing(ls_state_t *ls)
+int kern_thread_appearing(struct ls_state *ls)
 {
-	assert(agent_is_appearing(ls));
+	assert(kern_thread_is_appearing(ls));
 	/* 0(%esp) points to the return address; get the arg above it */
 	int arg_loc = GET_CPU_ATTR(ls->cpu0, esp) +
 		(GUEST_Q_ADD_TCB_ARGNUM * WORD_SIZE);
@@ -63,15 +67,15 @@ int agent_appearing(ls_state_t *ls)
 						     WORD_SIZE));
 }
 
-bool agent_is_disappearing(ls_state_t *ls)
+bool kern_thread_is_disappearing(struct ls_state *ls)
 {
 	return GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE
 	    || GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_POP_RETURN;
 }
 
-int agent_disappearing(ls_state_t *ls)
+int kern_thread_disappearing(struct ls_state *ls)
 {
-	assert(agent_is_disappearing(ls));
+	assert(kern_thread_is_disappearing(ls));
 	
 	int tcb;
 
@@ -85,4 +89,21 @@ int agent_disappearing(ls_state_t *ls)
 		tcb = GET_CPU_ATTR(ls->cpu0, eax);
 	}
 	return TID_FROM_TCB(ls, tcb);
+}
+
+/******************************************************************************
+ * Other / Init
+ ******************************************************************************/
+
+/* Which thread runs first on kernel init? */
+int kern_get_init_thread()
+{
+	return 1;
+}
+
+void kern_init_runqueue(struct sched_state *s,
+			void (*add_thread)(struct sched_state *, int))
+{
+	/* Only init runs first in POBBLES, but other kernels may have idle. */
+	add_thread(s, 1);
 }
