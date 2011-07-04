@@ -29,26 +29,45 @@
 #define GUEST_Q_REMOVE             0x001056d5
 #define GUEST_Q_REMOVE_Q_ARGNUM    1 /* same as above */
 #define GUEST_Q_REMOVE_TCB_ARGNUM  2 /* same as above */
-#define GUEST_Q_POP_RETURN         0x1056d4 /* thread in eax; discus */
+#define GUEST_Q_POP_RETURN         0x001056d4 /* thread in eax; discus */
 #define GUEST_Q_POP_Q_ARGNUM       1
 /* XXX: this is discus; for better interface maybe make an enum type for these
  * functions wherein one takes the thread as an arg and others return it...
  * a challenge: use symtab to extract either the start or the end of a fn */
 
+/* Interrupt handler information */
+#define GUEST_TIMER_WRAP_ENTER     0x001035bc
+#define GUEST_TIMER_WRAP_EXIT      0x001035c3 /* should always be "iret" */
+
 
 // TODO: elsif ...
 #endif
+
+/******************************************************************************
+ * Miscellaneous information
+ ******************************************************************************/
 
 /* Returns the tcb/tid of the currently scheduled thread. */
 int kern_get_current_tcb(struct ls_state *ls)
 {
 	return SIM_read_phys_memory(ls->cpu0, GUEST_CURRENT_TCB, WORD_SIZE);
 }
-
 int kern_get_current_tid(struct ls_state *ls)
 {
 	return TID_FROM_TCB(ls, kern_get_current_tcb(ls));
 }
+
+/* The boundaries of the timer handler wrapper. */
+int kern_timer_entering(struct ls_state *ls)
+{
+	return ls->eip == GUEST_TIMER_WRAP_ENTER;
+}
+int kern_timer_exiting(struct ls_state *ls)
+{
+	return ls->eip == GUEST_TIMER_WRAP_EXIT;
+}
+
+/* TODO: kern_scheduler_is_locked() and how does it interact with sleepers? */
 
 /******************************************************************************
  * Lifecycle
@@ -57,7 +76,7 @@ int kern_get_current_tid(struct ls_state *ls)
 /* How to tell if a new thread is appearing or disappearing. */
 bool kern_thread_is_appearing(struct ls_state *ls)
 {
-	return (GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_ADD)
+	return (ls->eip == GUEST_Q_ADD)
 	    && (READ_STACK(ls->cpu0, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
 }
 
@@ -70,9 +89,9 @@ int kern_thread_appearing(struct ls_state *ls)
 
 bool kern_thread_is_disappearing(struct ls_state *ls)
 {
-	return ((GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE)
+	return ((ls->eip == GUEST_Q_REMOVE)
 	     && (READ_STACK(ls->cpu0, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
-	    || ((GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_POP_RETURN)
+	    || ((ls->eip == GUEST_Q_POP_RETURN)
 	     && (READ_STACK(ls->cpu0, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
 }
 
@@ -82,7 +101,7 @@ int kern_thread_disappearing(struct ls_state *ls)
 	
 	int tcb;
 
-	if (GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE) {
+	if (ls->eip == GUEST_Q_REMOVE) {
 		/* at beginning of sch_queue_remove */
 		tcb = READ_STACK(ls->cpu0, GUEST_Q_REMOVE_TCB_ARGNUM);
 	} else {

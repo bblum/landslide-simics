@@ -11,9 +11,11 @@
 
 struct sched_state;
 
-/* Currently running thread */
+/* Miscellaneous simple information */
 int kern_get_current_tcb(struct ls_state *);
 int kern_get_current_tid(struct ls_state *);
+int kern_timer_entering(struct ls_state *);
+int kern_timer_exiting(struct ls_state *);
 
 /* Lifecycle */
 bool kern_thread_is_appearing(struct ls_state *);
