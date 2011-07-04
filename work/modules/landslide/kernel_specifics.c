@@ -22,12 +22,17 @@
 #define TID_FROM_TCB(ls, tcb) \
 	SIM_read_phys_memory(ls->cpu0, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)
 
+#define GUEST_RQ_ADDR 0x00152424
+
 /* Where is it that runnable threads appear and disappear? */
 #define GUEST_Q_ADD                0x00105613
-#define GUEST_Q_ADD_TCB_ARGNUM     2 /* second argument; rq should be first */
+#define GUEST_Q_ADD_Q_ARGNUM       1 /* rq to modify is first argument */
+#define GUEST_Q_ADD_TCB_ARGNUM     2 /* target tcb is second argument */
 #define GUEST_Q_REMOVE             0x001056d5
+#define GUEST_Q_REMOVE_Q_ARGNUM    1 /* same as above */
 #define GUEST_Q_REMOVE_TCB_ARGNUM  2 /* same as above */
 #define GUEST_Q_POP_RETURN         0x1056d4 /* thread in eax; discus */
+#define GUEST_Q_POP_Q_ARGNUM       1
 /* XXX: this is discus; for better interface maybe make an enum type for these
  * functions wherein one takes the thread as an arg and others return it...
  * a challenge: use symtab to extract either the start or the end of a fn */
@@ -54,23 +59,23 @@ int kern_get_current_tid(struct ls_state *ls)
 /* How to tell if a new thread is appearing or disappearing. */
 bool kern_thread_is_appearing(struct ls_state *ls)
 {
-	return GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_ADD;
+	return (GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_ADD)
+	    && (GET_ARG(ls->cpu0, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
 }
 
 int kern_thread_appearing(struct ls_state *ls)
 {
 	assert(kern_thread_is_appearing(ls));
 	/* 0(%esp) points to the return address; get the arg above it */
-	int arg_loc = GET_CPU_ATTR(ls->cpu0, esp) +
-		(GUEST_Q_ADD_TCB_ARGNUM * WORD_SIZE);
-	return TID_FROM_TCB(ls, SIM_read_phys_memory(ls->cpu0, arg_loc,
-						     WORD_SIZE));
+	return TID_FROM_TCB(ls, GET_ARG(ls->cpu0, GUEST_Q_ADD_TCB_ARGNUM));
 }
 
 bool kern_thread_is_disappearing(struct ls_state *ls)
 {
-	return GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE
-	    || GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_POP_RETURN;
+	return ((GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE)
+	     && (GET_ARG(ls->cpu0, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
+	    || ((GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_POP_RETURN)
+	     && (GET_ARG(ls->cpu0, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
 }
 
 int kern_thread_disappearing(struct ls_state *ls)
@@ -81,9 +86,7 @@ int kern_thread_disappearing(struct ls_state *ls)
 
 	if (GET_CPU_ATTR(ls->cpu0, eip) == GUEST_Q_REMOVE) {
 		/* at beginning of sch_queue_remove */
-		int arg_loc = GET_CPU_ATTR(ls->cpu0, esp) +
-			(GUEST_Q_REMOVE_TCB_ARGNUM * WORD_SIZE);
-		tcb = SIM_read_phys_memory(ls->cpu0, arg_loc, WORD_SIZE);
+		tcb = GET_ARG(ls->cpu0, GUEST_Q_REMOVE_TCB_ARGNUM);
 	} else {
 		/* at end of sch_queue_pop; see prior assert */
 		tcb = GET_CPU_ATTR(ls->cpu0, eax);

@@ -53,6 +53,8 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	ls->kbd0 = SIM_get_object("kbd0");
 	assert(ls->kbd0 && "failed to find keyboard");
 
+	sched_init(&ls->sched);
+
 #ifdef CAUSE_TIMER_LOLOL
 	sp_init(&ls->active_threads);
 #endif
@@ -257,5 +259,5 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 	// TODO: conditions for calling this?
 	sched_update(ls);
-	decide_whether_to_hax(ls, entry);
+	// decide_whether_to_hax(ls, entry);
 }

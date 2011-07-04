@@ -42,4 +42,13 @@ struct ls_state {
 		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
 	} while (0)
 
+/* TODO: move these to x86-up.h */
+#define WORD_SIZE 4
+
+/* to be used either at the very end or the very beginning of a function,
+ * when esp points to the return address. */
+#define GET_ARG(cpu, argnum)  \
+	SIM_read_phys_memory( \
+		cpu, GET_CPU_ATTR(cpu, esp) + ((argnum) * WORD_SIZE), WORD_SIZE)
+
 #endif
