@@ -33,4 +33,11 @@ typedef struct {
 	int current_thread;
 } ls_state_t;
 
+#define GET_CPU_ATTR(cpu, name) SIM_attr_integer(SIM_get_attribute(cpu, #name))
+#define SET_CPU_ATTR(cpu, name, val) do {				\
+		attr_value_t noob = SIM_make_attr_integer(val);		\
+		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
+		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
+	} while (0)
+
 #endif

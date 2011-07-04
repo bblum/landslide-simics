@@ -36,7 +36,7 @@
 #include "trace.h"
 
 #include "landslide.h"
-#include "schedule.h"
+#include "kernel_specifics.h"
 
 /******************************************************************************
  * simics glue
@@ -118,12 +118,7 @@ void init_local(void)
  * miscellaneous other support code
  ******************************************************************************/
 
-#define GET_CPU_ATTR(cpu, name) SIM_attr_integer(SIM_get_attribute(cpu, #name))
-#define SET_CPU_ATTR(cpu, name, val) do {				\
-		attr_value_t noob = SIM_make_attr_integer(val);		\
-		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
-		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
-	} while (0)
+// TODO: move this to x86-up.c or some such
 
 /* two possible methods for causing a timer interrupt - the lolol version crafts
  * an iret stack frame by hand and changes the cpu's registers manually; the
@@ -226,7 +221,7 @@ static void decide_whether_to_hax(ls_state_t *ls, trace_entry_t *entry, int eip)
 	}
 #endif
 
-	if (entry->trace_type == TR_Instruction && eip == FORK_AFTER_CHILD) {
+	if (eip == FORK_AFTER_CHILD) {
 
 		printf("in fork after child; invoking hax\n");
 		// cause_test(ls);
@@ -243,6 +238,9 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
 	ls_state_t *ls = (ls_state_t *)obj;
 
+	if (entry->trace_type != TR_Instruction)
+		return;
+
 	ls->trigger_count++;
 
 	int eip = GET_CPU_ATTR(ls->cpu0, eip);
@@ -256,11 +254,16 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	}
 
 	int old_thread = ls->current_thread;
-	ls->current_thread = get_current_thread(ls);
+	ls->current_thread = get_current_tid(ls);
 	if (old_thread != ls->current_thread) {
 		printf("switched threads %d -> %d at 0x%x\n", old_thread,
 		       ls->current_thread, eip);
 	}
 
+	if (agent_is_appearing(ls)) {
+		printf("new agent %d at eip 0x%x\n", agent_appearing(ls), eip);
+	} else if (agent_is_disappearing(ls)) {
+		printf("agent %d gone at eip 0x%x\n", agent_disappearing(ls), eip);
+	}
 	decide_whether_to_hax(ls, entry, eip);
 }
