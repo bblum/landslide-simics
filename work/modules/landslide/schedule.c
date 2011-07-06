@@ -98,13 +98,13 @@ void sched_init(struct sched_state *s)
 	s->schedule_in_progress = false;
 }
 
-static void print_q(struct sched_state *s)
+static void print_q(const char *start, struct agent_q *q, const char *end)
 {
 	struct agent *a;
 	bool first = true;
 
-	printf("RQ [");
-	Q_FOREACH(a, &s->rq, nobe) {
+	printf("%s", start);
+	Q_FOREACH(a, q, nobe) {
 		if (first)
 			first = false;
 		else
@@ -113,33 +113,13 @@ static void print_q(struct sched_state *s)
 		if (a->action.handling_timer)
 			printf("t");
 	}
-	printf("]  ");
-
-	first = true;
-	printf("SQ {");
-	Q_FOREACH(a, &s->sq, nobe) {
-		if (first)
-			first = false;
-		else
-			printf(", ");
-		printf("%d", a->tid);
-		if (a->action.handling_timer)
-			printf("t");
-	}
-	printf("}  ");
-
-	first = true;
-	printf("DQ (");
-	Q_FOREACH(a, &s->dq, nobe) {
-		if (first)
-			first = false;
-		else
-			printf(", ");
-		printf("%d", a->tid);
-		if (a->action.handling_timer)
-			printf("t");
-	}
-	printf(")");
+	printf("%s", end);
+}
+static void print_qs(struct sched_state *s)
+{
+	print_q(" RQ [", &s->rq, "] ");
+	print_q(" SQ {", &s->sq, "} ");
+	print_q(" DQ (", &s->dq, ") ");
 }
 
 /* what is the current thread doing? */
@@ -223,7 +203,7 @@ void sched_update(struct ls_state *ls)
 			printf("agent %d wake -- ", target_tid);
 			agent_wake(s, target_tid);
 		}
-		print_q(s);
+		print_qs(s);
 		printf("\n");
 		/* If this is happening from the context switcher, we also need
 		 * to update the currently-running thread. */
@@ -250,7 +230,7 @@ void sched_update(struct ls_state *ls)
 			agent_deschedule(s, target_tid);
 			printf("agent %d desch -- ", target_tid);
 		}
-		print_q(s);
+		print_qs(s);
 		printf("\n");
 	}
 
