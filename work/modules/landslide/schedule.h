@@ -20,10 +20,12 @@ struct agent {
 	/* state tracking for what the corresponding kthread is up to */
 	struct {
 		/* is there a timer handler frame on this thread's stack?
-		 * TODO: similar for keyboard, if it becomes relevant */
+		 * FIXME: similar for keyboard will be needed */
 		bool handling_timer;
 		/* are they about to create a new thread? */
 		bool forking;
+		/* about to take a spin on the sleep queue? */
+		bool sleeping;
 		/* do they have properties of red wizard? */
 		bool vanishing;
 	} action;
@@ -37,6 +39,8 @@ struct sched_state {
 	struct agent_q rq;
 	/* Reflection of threads which exist but are not runnable */
 	struct agent_q dq;
+	/* Reflection of threads which will become runnable on their own time */
+	struct agent_q sq;
 	/* Currently active thread */
 	struct agent *cur_agent;
 	/* Are we about to context-switch? (see inside sched_update) */

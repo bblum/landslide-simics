@@ -49,9 +49,8 @@
  * which cause the final removal of the vanishing thread from the runqueue.
  * NOTE: A kernel may have more points than these; this is not generalised. */
 #define GUEST_FORK_WINDOW_ENTER    0x00103ec0
-#define GUEST_FORK_WINDOW_EXIT     0x00103ee1
 #define GUEST_THRFORK_WINDOW_ENTER 0x001041bb
-#define GUEST_THRFORK_WINDOW_EXIT  0x001041dc
+#define GUEST_SLEEP_WINDOW_ENTER   0x00103fb2
 #define GUEST_VANISH_WINDOW_ENTER  0x0010450d
 
 
@@ -94,19 +93,17 @@ bool kern_sched_init_done(struct ls_state *ls)
  ******************************************************************************/
 
 /* How to tell if a thread's life is beginning or ending */
-bool kern_fork_entering(struct ls_state *ls)
+bool kern_forking(struct ls_state *ls)
 {
 	return (ls->eip == GUEST_FORK_WINDOW_ENTER)
 	    || (ls->eip == GUEST_THRFORK_WINDOW_ENTER);
 }
-bool kern_fork_exiting(struct ls_state *ls)
+bool kern_sleeping(struct ls_state *ls)
 {
-	return (ls->eip == GUEST_FORK_WINDOW_EXIT)
-	    || (ls->eip == GUEST_THRFORK_WINDOW_EXIT);
+	return ls->eip == GUEST_SLEEP_WINDOW_ENTER;
 }
 bool kern_vanishing(struct ls_state *ls)
 {
-	/* obviously there is not a corresponding exit to the vanish window */
 	return ls->eip == GUEST_VANISH_WINDOW_ENTER;
 }
 

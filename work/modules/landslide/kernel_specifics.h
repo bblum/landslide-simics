@@ -19,9 +19,9 @@ bool kern_timer_exiting(struct ls_state *);
 bool kern_sched_init_done(struct ls_state *);
 
 /* Lifecycle */
-bool kern_fork_entering(struct ls_state *);
-bool kern_fork_exiting(struct ls_state *);
+bool kern_forking(struct ls_state *);
 bool kern_vanishing(struct ls_state *);
+bool kern_sleeping(struct ls_state *);
 bool kern_thread_runnable(struct ls_state *, int *);
 bool kern_thread_descheduling(struct ls_state *, int *);
 

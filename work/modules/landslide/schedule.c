@@ -38,14 +38,20 @@ static void agent_fork(struct sched_state *s, int tid)
 	a->tid = tid;
 	a->action.handling_timer = false;
 	a->action.forking = false; /* XXX: may not be true in some kernels */
+	a->action.sleeping = false;
 	a->action.vanishing = false;
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
 
-static void agent_runnable(struct sched_state *s, int tid)
+static void agent_wake(struct sched_state *s, int tid)
 {
-	struct agent *a = agent_by_tid(&s->dq, tid);
-	Q_REMOVE(&s->dq, a, nobe);
+	struct agent *a = agent_by_tid_or_null(&s->dq, tid);
+	if (a) {
+		Q_REMOVE(&s->dq, a, nobe);
+	} else {
+		a = agent_by_tid(&s->sq, tid);
+		Q_REMOVE(&s->sq, a, nobe);
+	}
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
 
@@ -54,6 +60,13 @@ static void agent_deschedule(struct sched_state *s, int tid)
 	struct agent *a = agent_by_tid(&s->rq, tid);
 	Q_REMOVE(&s->rq, a, nobe);
 	Q_INSERT_FRONT(&s->dq, a, nobe);
+}
+
+static void agent_sleep(struct sched_state *s, int tid)
+{
+	struct agent *a = agent_by_tid(&s->rq, tid);
+	Q_REMOVE(&s->rq, a, nobe);
+	Q_INSERT_FRONT(&s->sq, a, nobe);
 }
 
 static void agent_vanish(struct sched_state *s, int tid)
@@ -90,7 +103,7 @@ static void print_q(struct sched_state *s)
 	struct agent *a;
 	bool first = true;
 
-	printf("[");
+	printf("RQ [");
 	Q_FOREACH(a, &s->rq, nobe) {
 		if (first)
 			first = false;
@@ -100,10 +113,23 @@ static void print_q(struct sched_state *s)
 		if (a->action.handling_timer)
 			printf("t");
 	}
-	printf("] ");
+	printf("]  ");
 
 	first = true;
-	printf("((");
+	printf("SQ {");
+	Q_FOREACH(a, &s->sq, nobe) {
+		if (first)
+			first = false;
+		else
+			printf(", ");
+		printf("%d", a->tid);
+		if (a->action.handling_timer)
+			printf("t");
+	}
+	printf("}  ");
+
+	first = true;
+	printf("DQ (");
 	Q_FOREACH(a, &s->dq, nobe) {
 		if (first)
 			first = false;
@@ -113,11 +139,13 @@ static void print_q(struct sched_state *s)
 		if (a->action.handling_timer)
 			printf("t");
 	}
-	printf("))");
+	printf(")");
 }
 
 /* what is the current thread doing? */
 #define ACTION(s, act) ((s)->cur_agent->action.act)
+/* FIXME: add one for the keyboard */
+#define HANDLING_INTERRUPT(s) (ACTION(s, handling_timer))
 
 void sched_update(struct ls_state *ls)
 {
@@ -144,15 +172,14 @@ void sched_update(struct ls_state *ls)
 		 * find it later. (see the kern_thread_runnable case below.) */
 		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
 		if (next) {
-			printf("switched threads %d -> %d at 0x%x\n", old_tid,
-			       new_tid, ls->eip);
+			printf("switched threads %d -> %d\n", old_tid, new_tid);
 			s->cur_agent = next;
 		} else {
 			/* there is also a possibility of searching s->dq, to
 			 * find the thread, but the kern_thread_runnable case
 			 * below can handle it for us anyway with less code. */
-			printf("about to switch threads %d -> %d at 0x%x\n", old_tid,
-			       new_tid, ls->eip);
+			printf("about to switch threads %d -> %d\n", old_tid,
+			       new_tid);
 			s->context_switch_pending = true;
 			s->context_switch_target = new_tid;
 		}
@@ -167,30 +194,34 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_timer_exiting(ls)) {
 		assert(ACTION(s, handling_timer));
 		ACTION(s, handling_timer) = false;
-	} else if (kern_fork_entering(ls)) {
+	} else if (kern_forking(ls)) {
 		assert(!ACTION(s, handling_timer));
 		assert(!ACTION(s, forking));
+		assert(!ACTION(s, sleeping));
 		assert(!ACTION(s, vanishing));
 		ACTION(s, forking) = true;
-	} else if (kern_fork_exiting(ls)) {
+	} else if (kern_sleeping(ls)) {
 		assert(!ACTION(s, handling_timer));
-		assert(ACTION(s, forking));
+		assert(!ACTION(s, forking));
+		assert(!ACTION(s, sleeping));
 		assert(!ACTION(s, vanishing));
-		ACTION(s, forking) = false;
+		ACTION(s, sleeping) = true;
 	} else if (kern_vanishing(ls)) {
 		assert(!ACTION(s, handling_timer));
 		assert(!ACTION(s, forking));
+		assert(!ACTION(s, sleeping));
 		assert(!ACTION(s, vanishing));
 		ACTION(s, vanishing) = true;
 	} else if (kern_thread_runnable(ls, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
-		if (ACTION(s, forking) && !ACTION(s, handling_timer)) {
-			printf("agent %d forked at eip 0x%x -- ", target_tid, ls->eip);
+		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
+			printf("agent %d forked -- ", target_tid);
 			agent_fork(s, target_tid);
-			/* TODO: set action to false and delete fork_exiting */
+			/* don't need this flag anymore; fork only forks once */
+			ACTION(s, forking) = false;
 		} else {
-			printf("agent %d wake at eip 0x%x -- ", target_tid, ls->eip);
-			agent_runnable(s, target_tid);
+			printf("agent %d wake -- ", target_tid);
+			agent_wake(s, target_tid);
 		}
 		print_q(s);
 		printf("\n");
@@ -203,16 +234,21 @@ void sched_update(struct ls_state *ls)
 		}
 	} else if (kern_thread_descheduling(ls, &target_tid)) {
 		/* A thread is about to deschedule. Is it vanishing? */
-		if (ACTION(s, vanishing) && !ACTION(s, handling_timer)) {
+		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
 			agent_vanish(s, target_tid);
-			printf("agent %d vanished at eip 0x%x -- ", target_tid, ls->eip);
+			printf("agent %d vanished -- ", target_tid);
 			/* Future actions by this thread, such as scheduling
 			 * somebody else, shouldn't count as them vanishing too! */
 			ACTION(s, vanishing) = false;
+		} else if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
+			assert(s->cur_agent->tid == target_tid);
+			agent_sleep(s, target_tid);
+			printf("agent %d sleep -- ", target_tid);
+			ACTION(s, sleeping) = false;
 		} else {
 			agent_deschedule(s, target_tid);
-			printf("agent %d sleep at eip 0x%x -- ", target_tid, ls->eip);
+			printf("agent %d desch -- ", target_tid);
 		}
 		print_q(s);
 		printf("\n");
