@@ -9,6 +9,7 @@
 
 #include "landslide.h"
 #include "schedule.h" /* TODO: separate the struct part into schedule_type.h */
+#include "x86.h"
 
 /* Assumptions we need to make about the kernel */
 

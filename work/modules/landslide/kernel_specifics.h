@@ -7,8 +7,7 @@
 #ifndef __LS_KERNEL_SPECIFICS_H
 #define __LS_KERNEL_SPECIFICS_H
 
-#include "landslide.h"
-
+struct ls_state;
 struct sched_state;
 
 /* Miscellaneous simple information */

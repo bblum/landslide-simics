@@ -35,21 +35,4 @@ struct ls_state {
 #endif
 };
 
-#define GET_CPU_ATTR(cpu, name) SIM_attr_integer(SIM_get_attribute(cpu, #name))
-#define SET_CPU_ATTR(cpu, name, val) do {				\
-		attr_value_t noob = SIM_make_attr_integer(val);		\
-		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
-		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
-	} while (0)
-
-/* TODO: move these to x86-up.h */
-#define WORD_SIZE 4
-
-/* reading the stack. can be used to examine function arguments, if used either
- * at the very end or the very beginning of a function, when esp points to the
- * return address. */
-#define READ_STACK(cpu, offset)  \
-	SIM_read_phys_memory( \
-		cpu, GET_CPU_ATTR(cpu, esp) + ((offset) * WORD_SIZE), WORD_SIZE)
-
 #endif
