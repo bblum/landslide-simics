@@ -13,6 +13,7 @@ SRC_FILES = landslide.h landslide.c \
 	    x86.c x86.h \
 	    kernel_specifics.h kernel_specifics.c \
 	    schedule.h schedule.c \
+	    arbiter.h arbiter.c \
 	    variable_queue.h
 
 MODULE_CFLAGS =

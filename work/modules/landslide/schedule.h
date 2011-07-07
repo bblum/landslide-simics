@@ -22,12 +22,17 @@ struct agent {
 		/* is there a timer handler frame on this thread's stack?
 		 * FIXME: similar for keyboard will be needed */
 		bool handling_timer;
+		/* are they in the context switcher? (note: this and
+		 * handling_$INTERRUPT are not necessarily linked!) */
+		bool context_switch;
 		/* are they about to create a new thread? */
 		bool forking;
 		/* about to take a spin on the sleep queue? */
 		bool sleeping;
 		/* do they have properties of red wizard? */
 		bool vanishing;
+		/* are we trying to schedule this agent? */
+		bool schedule_target;
 	} action;
 };
 
@@ -50,8 +55,11 @@ struct sched_state {
 	struct agent *last_vanished_agent;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
-	/* It does take many instructions for us to switch, after all */
-	bool schedule_in_progress;
+	/* It does take many instructions for us to switch, after all. This is
+	 * NULL if we're not trying to schedule anybody. */
+	struct agent *schedule_in_flight;
+	/* TODO: have a scheduler-global schedule_landing to assert against the
+	 * per-agent flag (only violated by interrupts we don't control) */
 };
 
 void sched_init(struct sched_state *);

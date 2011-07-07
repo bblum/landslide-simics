@@ -84,3 +84,11 @@ void cause_keypress(struct ls_state *ls, char key)
 	ret = SIM_set_attribute_idx(ls->kbd0, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
 }
+
+#define EFL_IF          0x00000200 /* from 410kern/inc/x86/eflags.h */
+
+bool interrupts_enabled(struct ls_state *ls)
+{
+	int eflags = GET_CPU_ATTR(ls->cpu0, eflags);
+	return (eflags & EFL_IF) != 0;
+}

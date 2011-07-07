@@ -28,5 +28,6 @@
 
 void cause_timer_interrupt(struct ls_state *);
 void cause_keypress(struct ls_state *, char);
+bool interrupts_enabled(struct ls_state *);
 
 #endif

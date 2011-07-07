@@ -7,10 +7,12 @@
 #include <simics/api.h>
 #include <simics/alloc.h>
 
+#include "arbiter.h"
 #include "landslide.h"
-#include "schedule.h"
 #include "kernel_specifics.h"
+#include "schedule.h"
 #include "variable_queue.h"
+#include "x86.h"
 
 /******************************************************************************
  * Agence
@@ -30,16 +32,21 @@ static struct agent *agent_by_tid(struct agent_q *q, int tid)
 	return a;
 }
 
-static void agent_fork(struct sched_state *s, int tid)
+/* Call with whether or not the thread is created with a context-switch frame
+ * crafted on its stack. Most threads would be; "init" may not be. */
+static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 {
 	struct agent *a = MM_MALLOC(1, struct agent);
 	assert(a && "failed to allocate new agent");
 	
 	a->tid = tid;
 	a->action.handling_timer = false;
+	/* XXX: may not be true in some kernels; also a huge hack */
+	a->action.context_switch = context_switch;
 	a->action.forking = false; /* XXX: may not be true in some kernels */
 	a->action.sleeping = false;
 	a->action.vanishing = false;
+	a->action.schedule_target = false;
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
 
@@ -73,11 +80,15 @@ static void agent_vanish(struct sched_state *s, int tid)
 {
 	struct agent *a = agent_by_tid(&s->rq, tid);
 	Q_REMOVE(&s->rq, a, nobe);
+	assert(a == s->cur_agent);
 	/* It turns out kernels tend to have vanished threads continue to be the
 	 * "current thread" after our trigger point. It's only safe to free them
 	 * after somebody else gets scheduled. */
-	if (s->last_vanished_agent)
+	if (s->last_vanished_agent) {
+		assert(!s->last_vanished_agent->action.handling_timer);
+		assert(s->last_vanished_agent->action.context_switch);
 		MM_FREE(s->last_vanished_agent);
+	}
 	s->last_vanished_agent = a;
 }
 
@@ -95,7 +106,18 @@ void sched_init(struct sched_state *s)
 	s->context_switch_target = 0xdeadd00d; /* poison value */
 	s->last_vanished_agent = NULL;
 	s->guest_init_done = false;
-	s->schedule_in_progress = false;
+	s->schedule_in_flight = NULL;
+}
+
+static void print_agent(struct agent *a)
+{
+	printf("%d", a->tid);
+	if (a->action.handling_timer)  printf("t");
+	if (a->action.context_switch)  printf("c");
+	if (a->action.forking)         printf("f");
+	if (a->action.sleeping)        printf("s");
+	if (a->action.vanishing)       printf("v");
+	if (a->action.schedule_target) printf("*");
 }
 
 static void print_q(const char *start, struct agent_q *q, const char *end)
@@ -109,14 +131,14 @@ static void print_q(const char *start, struct agent_q *q, const char *end)
 			first = false;
 		else
 			printf(", ");
-		printf("%d", a->tid);
-		if (a->action.handling_timer)
-			printf("t");
+		print_agent(a);
 	}
 	printf("%s", end);
 }
 static void print_qs(struct sched_state *s)
 {
+	printf("current ");
+	print_agent(s->cur_agent);
 	print_q(" RQ [", &s->rq, "] ");
 	print_q(" SQ {", &s->sq, "} ");
 	print_q(" DQ (", &s->dq, ") ");
@@ -124,8 +146,11 @@ static void print_qs(struct sched_state *s)
 
 /* what is the current thread doing? */
 #define ACTION(s, act) ((s)->cur_agent->action.act)
-/* FIXME: add one for the keyboard */
-#define HANDLING_INTERRUPT(s) (ACTION(s, handling_timer))
+#define HANDLING_INTERRUPT(s) (ACTION(s, handling_timer)) /* FIXME: add kbd */
+#define NO_ACTION(s) (!(ACTION(s, handling_timer) || ACTION(s, context_switch) \
+			|| ACTION(s, forking) || ACTION(s, sleeping)           \
+			|| ACTION(s, vanishing)))
+
 
 void sched_update(struct ls_state *ls)
 {
@@ -137,11 +162,15 @@ void sched_update(struct ls_state *ls)
 	if (!s->guest_init_done) {
 		if (kern_sched_init_done(ls)) {
 			s->guest_init_done = true;
-			assert(old_tid == new_tid);
+			assert(old_tid == new_tid && "init tid mismatch");
 		} else {
 			return;
 		}
 	}
+
+	/**********************************************************************
+	 * Update scheduler state.
+	 **********************************************************************/
 
 	if (old_tid != new_tid && !s->context_switch_pending) {
 		/* Careful! On some kernels, the trigger for a new agent forking
@@ -167,44 +196,62 @@ void sched_update(struct ls_state *ls)
 
 	int target_tid;
 
-	/* Update scheduler state. */
+	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls)) {
 		/* TODO: would it be right to assert !handling_timer? */
 		ACTION(s, handling_timer) = true;
+		printf("==> %d timer enter\n", s->cur_agent->tid);
 	} else if (kern_timer_exiting(ls)) {
 		assert(ACTION(s, handling_timer));
 		ACTION(s, handling_timer) = false;
+		/* If the schedule target was in a timer interrupt when we
+		 * decided to schedule him, then now is when the operation
+		 * finishes landing. (otherwise, see below) */
+		if (ACTION(s, schedule_target)) {
+			ACTION(s, schedule_target) = false;
+			printf("==> %d timer exit and land\n", s->cur_agent->tid);
+		} else {
+			printf("==> %d timer exit\n", s->cur_agent->tid);
+		}
+	/* Context switching. */
+	} else if (kern_context_switch_entering(ls)) {
+		/* It -is- possible for a context switch to interrupt a
+		 * context switch if a timer goes off before c-s disables
+		 * interrupts. TODO: if we care, make this an int counter. */
+		ACTION(s, context_switch) = true;
+		printf("==> %d c-s enter\n", s->cur_agent->tid);
+	} else if (kern_context_switch_exiting(ls)) {
+		assert(ACTION(s, context_switch));
+		ACTION(s, context_switch) = false;
+		/* For threads that context switched of their own accord. */
+		if (ACTION(s, schedule_target) && !HANDLING_INTERRUPT(s)) {
+			ACTION(s, schedule_target) = false;
+			printf("==> %d c-s exit and land\n", s->cur_agent->tid);
+		} else {
+			printf("==> %d c-s exit\n", s->cur_agent->tid);
+		}
+	/* Lifecycle. */
 	} else if (kern_forking(ls)) {
-		assert(!ACTION(s, handling_timer));
-		assert(!ACTION(s, forking));
-		assert(!ACTION(s, sleeping));
-		assert(!ACTION(s, vanishing));
+		assert(NO_ACTION(s));
 		ACTION(s, forking) = true;
 	} else if (kern_sleeping(ls)) {
-		assert(!ACTION(s, handling_timer));
-		assert(!ACTION(s, forking));
-		assert(!ACTION(s, sleeping));
-		assert(!ACTION(s, vanishing));
+		assert(NO_ACTION(s));
 		ACTION(s, sleeping) = true;
 	} else if (kern_vanishing(ls)) {
-		assert(!ACTION(s, handling_timer));
-		assert(!ACTION(s, forking));
-		assert(!ACTION(s, sleeping));
-		assert(!ACTION(s, vanishing));
+		assert(NO_ACTION(s));
 		ACTION(s, vanishing) = true;
+	/* Runnable state change (incl. consequences of fork, vanish, sleep). */
 	} else if (kern_thread_runnable(ls, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
 		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
 			printf("agent %d forked -- ", target_tid);
-			agent_fork(s, target_tid);
+			agent_fork(s, target_tid, kern_fork_returns_to_cs());
 			/* don't need this flag anymore; fork only forks once */
 			ACTION(s, forking) = false;
 		} else {
 			printf("agent %d wake -- ", target_tid);
 			agent_wake(s, target_tid);
 		}
-		print_qs(s);
-		printf("\n");
 		/* If this is happening from the context switcher, we also need
 		 * to update the currently-running thread. */
 		if (s->context_switch_pending) {
@@ -212,6 +259,8 @@ void sched_update(struct ls_state *ls)
 			s->cur_agent = agent_by_tid(&s->rq, target_tid);
 			s->context_switch_pending = false;
 		}
+		print_qs(s);
+		printf("\n");
 	} else if (kern_thread_descheduling(ls, &target_tid)) {
 		/* A thread is about to deschedule. Is it vanishing? */
 		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
@@ -234,5 +283,83 @@ void sched_update(struct ls_state *ls)
 		printf("\n");
 	}
 
-	/* TODO: check for cli or sched locked before invoking timer */
+	/**********************************************************************
+	 * Exercise our will upon the guest kernel
+	 **********************************************************************/
+
+	/* Some checks before invoking the arbiter. First see if an operation of
+	 * ours is already in-flight. */
+	if (s->schedule_in_flight) {
+		if (!(ACTION(s, context_switch) || HANDLING_INTERRUPT(s)))
+			printf("fuck; current %d at 0x%x\n", s->cur_agent->tid, ls->eip);
+		assert(ACTION(s, context_switch) || HANDLING_INTERRUPT(s));
+		if (s->schedule_in_flight == s->cur_agent) {
+			/* the in-flight schedule operation is cleared for
+			 * landing. note that this may cause another one to
+			 * be triggered again as soon as the context switcher
+			 * and/or the timer handler finishes; it is up to the
+			 * arbiter to decide this. */
+			assert(ACTION(s, schedule_target));
+			s->schedule_in_flight = NULL;
+		} else {
+			/* An undesirable thread has been context-switched away
+			 * from either from an interrupt handler (timer/kbd) or
+			 * of its own accord. We need to wait for it to get back
+			 * to its own execution before triggering an interrupt
+			 * on it; in the former case, this will be just after it
+			 * irets; in the latter, just after the c-s returns. */
+			if (kern_timer_exiting(ls) ||
+			    (!HANDLING_INTERRUPT(s) &&
+			     kern_context_switch_exiting(ls))) {
+				/* an undesirable agent just got switched to;
+				 * keep the pending schedule in the air. */
+				cause_timer_interrupt(ls);
+			} else {
+				assert(ACTION(s, context_switch));
+			}
+			/* in any case we have no more decisions to make here */
+			return;
+		}
+	}
+	assert(!s->schedule_in_flight);
+
+	/* XXX TODO: This will "leak" an undesirable thread to execute an
+	 * instruction if the timer/kbd handler is an interrupt gate, so check
+	 * also if we're about to iret and then examine the eflags on the
+	 * stack. Also, "sti" and "popf" are interesting, so check for those.
+	 * Also, do trap gates enable interrupts if they were off? o_O */
+	if (!interrupts_enabled(ls)) {
+		return;
+	}
+
+	/* If a schedule operation is just finishing, we should allow the thread
+	 * to get back to its own execution before making another choice. Note 
+	 * that when we previously decided to interrupt the thread, it will have
+	 * executed the single instruction we made the choice at then taken the
+	 * interrupt, so we return to the next instruction, not the same one. */
+	if (ACTION(s, schedule_target)) {
+		return;
+	}
+
+	/* TODO: have an extra mode which will allow us to preempt the timer
+	 * handler. */
+	if (HANDLING_INTERRUPT(s)) {
+		return;
+	}
+
+	/* Okay, are we at a choice point? */
+	/* TODO: arbiter may also want to see the trace_entry_t */
+	if (arbiter_interested(ls)) {
+		struct agent *a = arbiter_choose(s);
+		/* obviously it's only relevant if somebody else should go. */
+		if (a != s->cur_agent) {
+			printf("from agent %d, arbiter chose %d at 0x%x\n",
+			       s->cur_agent->tid, a->tid, ls->eip);
+			s->schedule_in_flight = a;
+			a->action.schedule_target = true;
+			cause_timer_interrupt(ls);
+		}
+	}
+	/* XXX TODO: it may be that not every timer interrupt triggers a context
+	 * switch, so we should watch out if a handler doesn't enter the c-s. */
 }

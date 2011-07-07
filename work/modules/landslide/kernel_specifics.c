@@ -40,6 +40,9 @@
 /* Interrupt handler information */
 #define GUEST_TIMER_WRAP_ENTER     0x001035bc
 #define GUEST_TIMER_WRAP_EXIT      0x001035c3 /* should always be "iret" */
+/* When does a context switch happen */
+#define GUEST_CONTEXT_SWITCH_ENTER 0x001059aa
+#define GUEST_CONTEXT_SWITCH_EXIT  0x00105a57
 /* When is it safe to assume init/idle are initialised? */
 #define GUEST_SCHED_INIT_EXIT      0x001053ed
 
@@ -80,6 +83,16 @@ bool kern_timer_entering(struct ls_state *ls)
 bool kern_timer_exiting(struct ls_state *ls)
 {
 	return ls->eip == GUEST_TIMER_WRAP_EXIT;
+}
+
+/* the boundaries of the context switcher */
+bool kern_context_switch_entering(struct ls_state *ls)
+{
+	return ls->eip == GUEST_CONTEXT_SWITCH_ENTER;
+}
+bool kern_context_switch_exiting(struct ls_state *ls)
+{
+	return ls->eip == GUEST_CONTEXT_SWITCH_EXIT;
 }
 
 bool kern_sched_init_done(struct ls_state *ls)
@@ -162,8 +175,16 @@ int kern_get_init_tid()
 }
 
 void kern_init_runqueue(struct sched_state *s,
-			void (*add_thread)(struct sched_state *, int))
+			void (*add_thread)(struct sched_state *, int, bool))
 {
-	/* Only init runs first in POBBLES, but other kernels may have idle. */
-	add_thread(s, 1);
+	/* Only init runs first in POBBLES, but other kernels may have idle. In
+	 * POBBLES, init is not context-switched to to begin with. */
+	add_thread(s, 1, false);
+}
+
+/* Do newly forked children exit to userspace through the end of the
+ * context-switcher? (POBBLES does not; it bypasses the end to return_zero.) */
+bool kern_fork_returns_to_cs()
+{
+	return false;
 }
