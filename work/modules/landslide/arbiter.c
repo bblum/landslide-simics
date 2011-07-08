@@ -15,6 +15,7 @@ bool arbiter_interested(struct ls_state *ls)
 	return ls->eip == GUEST_MUTEX_LOCK;
 }
 
+/* May return either null, the current thread, or any other thread. */
 struct agent *arbiter_choose(struct sched_state *s)
 {
 	/* TODO: sleep queue */
@@ -23,6 +24,5 @@ struct agent *arbiter_choose(struct sched_state *s)
 	struct agent *a;
 	
 	Q_SEARCH(a, &s->rq, nobe, ++i == size);
-	assert(a);
 	return a;
 }

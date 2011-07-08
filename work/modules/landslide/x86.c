@@ -15,13 +15,10 @@
  * an iret stack frame by hand and changes the cpu's registers manually; the
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
-void cause_timer_interrupt(struct ls_state *ls)
+#define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
+#define KERNEL_SEGSEL_CS 0x10
+void cause_timer_interrupt_immediately(struct ls_state *ls)
 {
-// #define CAUSE_TIMER_LOLOL
-#ifdef CAUSE_TIMER_LOLOL
-# define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
-# define KERNEL_SEGSEL_CS 0x10
-
 	int esp = GET_CPU_ATTR(ls->cpu0, esp);
 	int eip = GET_CPU_ATTR(ls->cpu0, eip);
 	int eflags = GET_CPU_ATTR(ls->cpu0, eflags);
@@ -33,10 +30,11 @@ void cause_timer_interrupt(struct ls_state *ls)
 	SIM_write_phys_memory(ls->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
 	SIM_write_phys_memory(ls->cpu0, esp + 0, eip, 4);
 	SET_CPU_ATTR(ls->cpu0, eip, TIMER_HANDLER_WRAPPER);
+}
 
-#else
-# define TIMER_INTERRUPT_NUMBER 0x20
-
+#define TIMER_INTERRUPT_NUMBER 0x20
+void cause_timer_interrupt(struct ls_state *ls)
+{
 	if (GET_CPU_ATTR(ls->cpu0, pending_vector_valid)) {
 		SET_CPU_ATTR(ls->cpu0, pending_vector,
 			     GET_CPU_ATTR(ls->cpu0, pending_vector)
@@ -47,8 +45,6 @@ void cause_timer_interrupt(struct ls_state *ls)
 	}
 
 	SET_CPU_ATTR(ls->cpu0, pending_interrupt, 1);
-
-#endif
 }
 
 /* keycodes for the keyboard buffer */

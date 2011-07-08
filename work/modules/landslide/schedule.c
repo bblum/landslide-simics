@@ -292,7 +292,6 @@ void sched_update(struct ls_state *ls)
 	if (s->schedule_in_flight) {
 		if (!(ACTION(s, context_switch) || HANDLING_INTERRUPT(s)))
 			printf("fuck; current %d at 0x%x\n", s->cur_agent->tid, ls->eip);
-		assert(ACTION(s, context_switch) || HANDLING_INTERRUPT(s));
 		if (s->schedule_in_flight == s->cur_agent) {
 			/* the in-flight schedule operation is cleared for
 			 * landing. note that this may cause another one to
@@ -300,6 +299,11 @@ void sched_update(struct ls_state *ls)
 			 * and/or the timer handler finishes; it is up to the
 			 * arbiter to decide this. */
 			assert(ACTION(s, schedule_target));
+			/* this condition should trigger in the middle of the
+			 * switch, rather than after it finishes. (which is also
+			 * why we leave the schedule_target flag turned on. */
+			assert(ACTION(s, context_switch) ||
+			       HANDLING_INTERRUPT(s));
 			s->schedule_in_flight = NULL;
 		} else {
 			/* An undesirable thread has been context-switched away
@@ -315,7 +319,9 @@ void sched_update(struct ls_state *ls)
 				 * keep the pending schedule in the air. */
 				cause_timer_interrupt(ls);
 			} else {
-				assert(ACTION(s, context_switch));
+				/* they'd better not have "escaped" */
+				assert(ACTION(s, context_switch) ||
+				       HANDLING_INTERRUPT(s));
 			}
 			/* in any case we have no more decisions to make here */
 			return;
@@ -352,12 +358,13 @@ void sched_update(struct ls_state *ls)
 	if (arbiter_interested(ls)) {
 		struct agent *a = arbiter_choose(s);
 		/* obviously it's only relevant if somebody else should go. */
-		if (a != s->cur_agent) {
+		if (a && a != s->cur_agent) {
 			printf("from agent %d, arbiter chose %d at 0x%x\n",
 			       s->cur_agent->tid, a->tid, ls->eip);
 			s->schedule_in_flight = a;
 			a->action.schedule_target = true;
 			cause_timer_interrupt(ls);
+			// SIM_break_simulation("c.c");
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
