@@ -15,6 +15,7 @@ int kern_get_current_tcb(struct ls_state *);
 int kern_get_current_tid(struct ls_state *);
 bool kern_timer_entering(struct ls_state *);
 bool kern_timer_exiting(struct ls_state *);
+int kern_get_timer_wrap_begin();
 bool kern_context_switch_entering(struct ls_state *);
 bool kern_context_switch_exiting(struct ls_state *);
 bool kern_sched_init_done(struct ls_state *);

@@ -84,6 +84,10 @@ bool kern_timer_exiting(struct ls_state *ls)
 {
 	return ls->eip == GUEST_TIMER_WRAP_EXIT;
 }
+int kern_get_timer_wrap_begin()
+{
+	return GUEST_TIMER_WRAP_ENTER;
+}
 
 /* the boundaries of the context switcher */
 bool kern_context_switch_entering(struct ls_state *ls)

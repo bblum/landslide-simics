@@ -58,6 +58,7 @@ struct sched_state {
 	/* It does take many instructions for us to switch, after all. This is
 	 * NULL if we're not trying to schedule anybody. */
 	struct agent *schedule_in_flight;
+	bool entering_timer; /* only for debugging/asserting purposes */
 	/* TODO: have a scheduler-global schedule_landing to assert against the
 	 * per-agent flag (only violated by interrupts we don't control) */
 };

@@ -10,12 +10,12 @@
 
 #include "landslide.h"
 #include "x86.h"
+#include "kernel_specifics.h"
 
 /* two possible methods for causing a timer interrupt - the lolol version crafts
  * an iret stack frame by hand and changes the cpu's registers manually; the
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
-#define TIMER_HANDLER_WRAPPER 0x001035bc // TODO: reduce discosity
 #define KERNEL_SEGSEL_CS 0x10
 void cause_timer_interrupt_immediately(struct ls_state *ls)
 {
@@ -29,7 +29,13 @@ void cause_timer_interrupt_immediately(struct ls_state *ls)
 	SIM_write_phys_memory(ls->cpu0, esp + 8, eflags, 4);
 	SIM_write_phys_memory(ls->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
 	SIM_write_phys_memory(ls->cpu0, esp + 0, eip, 4);
-	SET_CPU_ATTR(ls->cpu0, eip, TIMER_HANDLER_WRAPPER);
+	SET_CPU_ATTR(ls->cpu0, eip, kern_get_timer_wrap_begin());
+}
+
+/* i.e., with stallin' */
+static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
+{
+	SIM_stall_cycle(cpu, 0);
 }
 
 #define TIMER_INTERRUPT_NUMBER 0x20
@@ -45,6 +51,11 @@ void cause_timer_interrupt(struct ls_state *ls)
 	}
 
 	SET_CPU_ATTR(ls->cpu0, pending_interrupt, 1);
+	/* Causes simics to flush whatever pipeline, implicit or not, would
+	 * otherwise let more instructions get executed before the interrupt be
+	 * taken. */
+	SIM_run_unrestricted((conf_object_t *)(ls->cpu0),
+			     cause_timer_interrupt_soviet_style, NULL);
 }
 
 /* keycodes for the keyboard buffer */

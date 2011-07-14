@@ -107,6 +107,7 @@ void sched_init(struct sched_state *s)
 	s->last_vanished_agent = NULL;
 	s->guest_init_done = false;
 	s->schedule_in_flight = NULL;
+	s->entering_timer = false;
 }
 
 static void print_agent(struct agent *a)
@@ -139,6 +140,7 @@ static void print_qs(struct sched_state *s)
 {
 	printf("current ");
 	print_agent(s->cur_agent);
+	printf(" ");
 	print_q(" RQ [", &s->rq, "] ");
 	print_q(" SQ {", &s->sq, "} ");
 	print_q(" DQ (", &s->dq, ") ");
@@ -166,6 +168,14 @@ void sched_update(struct ls_state *ls)
 		} else {
 			return;
 		}
+	}
+
+	/* The Importance of Being Assertive, A Trivial Style Guideline for
+	 * Serious Programmers, by Ben Blum */
+	if (s->entering_timer) {
+		assert(ls->eip == kern_get_timer_wrap_begin() &&
+		       "simics is a clown and tried to delay our interrupt :<");
+		s->entering_timer = false;
 	}
 
 	/**********************************************************************
@@ -200,7 +210,8 @@ void sched_update(struct ls_state *ls)
 	if (kern_timer_entering(ls)) {
 		/* TODO: would it be right to assert !handling_timer? */
 		ACTION(s, handling_timer) = true;
-		printf("==> %d timer enter\n", s->cur_agent->tid);
+		printf("==> %d timer enter from 0x%x\n", s->cur_agent->tid,
+		       (int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls)) {
 		assert(ACTION(s, handling_timer));
 		ACTION(s, handling_timer) = false;
@@ -290,8 +301,6 @@ void sched_update(struct ls_state *ls)
 	/* Some checks before invoking the arbiter. First see if an operation of
 	 * ours is already in-flight. */
 	if (s->schedule_in_flight) {
-		if (!(ACTION(s, context_switch) || HANDLING_INTERRUPT(s)))
-			printf("fuck; current %d at 0x%x\n", s->cur_agent->tid, ls->eip);
 		if (s->schedule_in_flight == s->cur_agent) {
 			/* the in-flight schedule operation is cleared for
 			 * landing. note that this may cause another one to
@@ -317,7 +326,10 @@ void sched_update(struct ls_state *ls)
 			     kern_context_switch_exiting(ls))) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
+				printf("keeping schedule in-flight at 0x%x\n",
+				       ls->eip);
 				cause_timer_interrupt(ls);
+				s->entering_timer = true;
 			} else {
 				/* they'd better not have "escaped" */
 				assert(ACTION(s, context_switch) ||
@@ -364,7 +376,7 @@ void sched_update(struct ls_state *ls)
 			s->schedule_in_flight = a;
 			a->action.schedule_target = true;
 			cause_timer_interrupt(ls);
-			// SIM_break_simulation("c.c");
+			s->entering_timer = true;
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
