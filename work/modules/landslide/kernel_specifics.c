@@ -46,6 +46,10 @@
 /* When is it safe to assume init/idle are initialised? */
 #define GUEST_SCHED_INIT_EXIT      0x001053ed
 
+/* The address of the scheduler locked flag */
+#define GUEST_SCHEDULER_LOCK       0x001323e0
+#define GUEST_SCHEDULER_LOCKED(x)  (x)
+
 /* Windows around the lifecycle-changing parts of fork and vanish, for
  * determining when a thread's life begins and ends. The fork window should
  * include only the instructions which cause the child thread to be added to
@@ -104,7 +108,13 @@ bool kern_sched_init_done(struct ls_state *ls)
 	return ls->eip == GUEST_SCHED_INIT_EXIT;
 }
 
-/* TODO: kern_scheduler_is_locked() and how does it interact with sleepers? */
+/* Anything that would prevent timer interrupts from triggering context
+ * switches */
+bool kern_scheduler_locked(struct ls_state *ls)
+{
+	int x = SIM_read_phys_memory(ls->cpu0, GUEST_SCHEDULER_LOCK, WORD_SIZE);
+	return GUEST_SCHEDULER_LOCKED(x);
+}
 
 /******************************************************************************
  * Lifecycle

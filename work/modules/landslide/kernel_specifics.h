@@ -19,6 +19,7 @@ int kern_get_timer_wrap_begin();
 bool kern_context_switch_entering(struct ls_state *);
 bool kern_context_switch_exiting(struct ls_state *);
 bool kern_sched_init_done(struct ls_state *);
+bool kern_scheduler_locked(struct ls_state *);
 
 /* Lifecycle */
 bool kern_forking(struct ls_state *);

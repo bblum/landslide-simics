@@ -361,7 +361,7 @@ void sched_update(struct ls_state *ls)
 
 	/* TODO: have an extra mode which will allow us to preempt the timer
 	 * handler. */
-	if (HANDLING_INTERRUPT(s)) {
+	if (HANDLING_INTERRUPT(s) || kern_scheduler_locked(ls)) {
 		return;
 	}
 
