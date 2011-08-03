@@ -11,10 +11,6 @@
 
 #include "schedule.h"
 
-#ifdef CAUSE_TIMER_LOLOL
-#include "sp_table.h"
-#endif
-
 #define MODULE_NAME "landslide"
 
 struct ls_state {
@@ -29,10 +25,6 @@ struct ls_state {
 	int eip;
 
 	struct sched_state sched;
-
-#ifdef CAUSE_TIMER_LOLOL
-	struct sp_table active_threads;
-#endif
 };
 
 #endif

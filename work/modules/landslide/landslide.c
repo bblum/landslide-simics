@@ -56,10 +56,6 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 
 	sched_init(&ls->sched);
 
-#ifdef CAUSE_TIMER_LOLOL
-	sp_init(&ls->active_threads);
-#endif
-
 	return &ls->log.obj;
 }
 
@@ -136,29 +132,6 @@ static void cause_test(struct ls_state *ls)
 // #define FORK_AFTER_CHILD 0x1068f4 // pathos
 // #define FORK_AFTER_CHILD 0x104d5e // bros
 
-static void decide_whether_to_hax(struct ls_state *ls, trace_entry_t *entry)
-{
-	#ifdef CAUSE_TIMER_LOLOL
-	int esp = GET_CPU_ATTR(ls->cpu0, esp);
-
-	if (sp_remove(&ls->active_threads, esp)) {
-		printf("returned to a thread we interrupted -- continuing;\n");
-		return;
-	}
-#endif
-
-	if (ls->eip == FORK_AFTER_CHILD) {
-
-		printf("in fork after child; invoking hax\n");
-		// cause_test(ls);
-
-#ifdef CAUSE_TIMER_LOLOL
-		sp_add(&ls->active_threads, esp);
-#endif
-		cause_timer_interrupt(ls);
-	}
-}
-
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
@@ -182,5 +155,4 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 	// TODO: conditions for calling this?
 	sched_update(ls);
-	// decide_whether_to_hax(ls, entry);
 }
