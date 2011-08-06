@@ -1,15 +1,10 @@
 performance
 	language
-		calling into python will suck - use C
 		how fast would hasqel be? how easy?
 	simics uses JIT for speed - how many orders of magnitude slowdown?
 
 things to do
 	figure out symbol table manipulation
-
-
-stack
-	((empty))
 
 algs
 	execution poince of interest:
@@ -44,24 +39,37 @@ algs
 
 impl details
 	things landslide needs to know about the kernel:
-		names and/or locations of functions of interest
-		is there a scheduler lock we should watch out for
-		can we examine (and possibly manipulate) the runqueue?
+		[x] names and/or locations of functions of interest
+		[ ] is there a scheduler lock we should watch out for
+		[x] can we examine (and possibly manipulate) the runqueue?
 
 	how to run the wrapper
 		landslide can talk to its past/future selves with a file
+		test failed detection
+			- easy mode: trap on a panic() and be like "welp"
+			- deadlock: START__TYPE_COMPLETE & ... 
+				spinning mutexes?
+					- all threads on RQ in mutex_lock() -> yield()
+						have a counter and watch for it being 0
+				descheduling mutexes?
+					- empty RQ & ... 
+				- empty SQ & no readline
+					how to tell no readline? (special case)
+			- other, e.g. data structure corruption
+				much harder :\
+
 
 questions from the papers
-	how will we implement in simics the analogue of reg/unreg, interact?
-		agent ~ kthread
-		"blocking" impl will need internal tricksiness
 	steady state hmm
 	need to understand the partial order reduction; will it need porting (no?)
 	'stateless exploration' we might be able to do better
-	trap on exit from context switcher
-	how to bootstrap state for first process
-	when a thread is removed from the runqueue - distinguish scenarios?
 	make simics stop throwing timer interrupts of its own
-	how to avoid devolving always into the timer handler overflow problem
-	how to tell when a all blocks (spinning vs otherwise?)
+	how to tell when a call blocks (spinning vs otherwise?)
 	what is up with the erroneous thing (double unlock)?
+
+write a guide to using landslide ... 
+	We assume...
+		that your context switcher works
+		that if a thread is on the RQ, a finite number of timer interrupts in succession will cause it to run
+	The more asserts you have in your kernel, the easier it will be for landslide to detect if something has gone wrong.
+
