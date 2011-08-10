@@ -55,6 +55,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	assert(ls->kbd0 && "failed to find keyboard");
 
 	sched_init(&ls->sched);
+	arbiter_init(&ls->arbiter);
 
 	return &ls->log.obj;
 }
@@ -85,6 +86,19 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 
 LS_ATTR_SET_GET_FNS(trigger_count, integer);
 
+static set_error_t set_ls_arbiter_choice_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	arbiter_append_choice(&((struct ls_state *)obj)->arbiter,
+			      SIM_attr_integer(*val));
+	return Sim_Set_Ok;
+}
+static attr_value_t get_ls_arbiter_choice_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	return SIM_make_attr_integer(-42);
+}
+
 /* Forward declaration. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry);
 
@@ -110,6 +124,9 @@ void init_local(void)
 
 	/* Register attributes for the class. */
 	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
+	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
+			 "Tell the arbiter which thread to choose next "
+			 "(buffered, FIFO)");
 
 	printf("welcome to landslide.\n");
 }

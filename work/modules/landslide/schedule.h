@@ -63,7 +63,14 @@ struct sched_state {
 	 * per-agent flag (only violated by interrupts we don't control) */
 };
 
+struct agent *agent_by_tid_or_null(struct agent_q *, int);
+struct agent *agent_by_tid(struct agent_q *, int);
+
 void sched_init(struct sched_state *);
+
+void print_agent(struct agent *);
+void print_q(const char *, struct agent_q *, const char *);
+void print_qs(struct sched_state *);
 
 /* called at every "interesting" point ... */
 // TODO: is this the right interface?

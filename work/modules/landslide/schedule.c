@@ -18,14 +18,14 @@
  * Agence
  ******************************************************************************/
 
-static struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
+struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
 {
 	struct agent *a;
 	Q_SEARCH(a, q, nobe, a->tid == tid);
 	return a;
 }
 
-static struct agent *agent_by_tid(struct agent_q *q, int tid)
+struct agent *agent_by_tid(struct agent_q *q, int tid)
 {
 	struct agent *a = agent_by_tid_or_null(q, tid);
 	assert(a && "attempt to look up tid not in specified queue");
@@ -110,7 +110,7 @@ void sched_init(struct sched_state *s)
 	s->entering_timer = false;
 }
 
-static void print_agent(struct agent *a)
+void print_agent(struct agent *a)
 {
 	printf("%d", a->tid);
 	if (a->action.handling_timer)  printf("t");
@@ -121,7 +121,7 @@ static void print_agent(struct agent *a)
 	if (a->action.schedule_target) printf("*");
 }
 
-static void print_q(const char *start, struct agent_q *q, const char *end)
+void print_q(const char *start, struct agent_q *q, const char *end)
 {
 	struct agent *a;
 	bool first = true;
@@ -136,7 +136,7 @@ static void print_q(const char *start, struct agent_q *q, const char *end)
 	}
 	printf("%s", end);
 }
-static void print_qs(struct sched_state *s)
+void print_qs(struct sched_state *s)
 {
 	printf("current ");
 	print_agent(s->cur_agent);
@@ -210,8 +210,6 @@ void sched_update(struct ls_state *ls)
 	if (kern_timer_entering(ls)) {
 		/* TODO: would it be right to assert !handling_timer? */
 		ACTION(s, handling_timer) = true;
-		printf("==> %d timer enter from 0x%x\n", s->cur_agent->tid,
-		       (int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls)) {
 		assert(ACTION(s, handling_timer));
 		ACTION(s, handling_timer) = false;
@@ -220,9 +218,6 @@ void sched_update(struct ls_state *ls)
 		 * finishes landing. (otherwise, see below) */
 		if (ACTION(s, schedule_target)) {
 			ACTION(s, schedule_target) = false;
-			printf("==> %d timer exit and land\n", s->cur_agent->tid);
-		} else {
-			printf("==> %d timer exit\n", s->cur_agent->tid);
 		}
 	/* Context switching. */
 	} else if (kern_context_switch_entering(ls)) {
@@ -230,16 +225,12 @@ void sched_update(struct ls_state *ls)
 		 * context switch if a timer goes off before c-s disables
 		 * interrupts. TODO: if we care, make this an int counter. */
 		ACTION(s, context_switch) = true;
-		printf("==> %d c-s enter\n", s->cur_agent->tid);
 	} else if (kern_context_switch_exiting(ls)) {
 		assert(ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
 		/* For threads that context switched of their own accord. */
 		if (ACTION(s, schedule_target) && !HANDLING_INTERRUPT(s)) {
 			ACTION(s, schedule_target) = false;
-			printf("==> %d c-s exit and land\n", s->cur_agent->tid);
-		} else {
-			printf("==> %d c-s exit\n", s->cur_agent->tid);
 		}
 	/* Lifecycle. */
 	} else if (kern_forking(ls)) {
@@ -368,11 +359,11 @@ void sched_update(struct ls_state *ls)
 	/* Okay, are we at a choice point? */
 	/* TODO: arbiter may also want to see the trace_entry_t */
 	if (arbiter_interested(ls)) {
-		struct agent *a = arbiter_choose(s);
+		struct agent *a = arbiter_choose(ls);
 		/* obviously it's only relevant if somebody else should go. */
 		if (a && a != s->cur_agent) {
-			printf("from agent %d, arbiter chose %d at 0x%x\n",
-			       s->cur_agent->tid, a->tid, ls->eip);
+			printf("from agent %d, arbiter chose %d at 0x%x (called at 0x%x)\n",
+			       s->cur_agent->tid, a->tid, ls->eip, (unsigned int)READ_STACK(ls->cpu0, 0));
 			s->schedule_in_flight = a;
 			a->action.schedule_target = true;
 			cause_timer_interrupt(ls);

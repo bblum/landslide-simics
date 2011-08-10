@@ -4,25 +4,83 @@
  * @brief decision-making routines for landslide
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "landslide.h"
 #include "schedule.h"
+#include "x86.h"
+
+void arbiter_init(struct arbiter_state *r)
+{
+	Q_INIT_HEAD(&r->choices);
+}
+
+// FIXME: do these need to be threadsafe?
+void arbiter_append_choice(struct arbiter_state *r, int tid)
+{
+	struct choice *c = MM_MALLOC(1, struct choice);
+	assert(c && "failed to allocate arbiter choice");
+	c->tid = tid;
+	Q_INSERT_FRONT(&r->choices, c, nobe);
+}
+
+static bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
+{
+	struct choice *c = Q_GET_TAIL(&r->choices);
+	if (c) {
+		Q_REMOVE(&r->choices, c, nobe);
+		*tid = c->tid;
+		MM_FREE(c);
+		return true;
+	} else {
+		return false;
+	}
+}
+
 
 // TODO move this elsewhere
-#define GUEST_MUTEX_LOCK 0x001068a0
+// #define GUEST_MUTEX_LOCK 0x001068a0
+#define GUEST_MUTEX_LOCK 0x106930
+#define GUEST_VANISH 0x104223
+#define GUEST_VANISH_END 0x104593
 
 bool arbiter_interested(struct ls_state *ls)
 {
-	return ls->eip == GUEST_MUTEX_LOCK;
+	// TODO: more interesting choice points
+	int called_from = READ_STACK(ls->cpu0, 0);
+	return ls->eip == GUEST_MUTEX_LOCK
+	    && called_from >= GUEST_VANISH
+	    && called_from <= GUEST_VANISH_END;
 }
 
+#define BUF_SIZE 512
+
 /* May return either null, the current thread, or any other thread. */
-struct agent *arbiter_choose(struct sched_state *s)
+struct agent *arbiter_choose(struct ls_state *ls)
 {
-	/* TODO: sleep queue */
-	int size = Q_GET_SIZE(&s->rq);
-	int i = 0;
+	struct arbiter_state *r = &ls->arbiter;
 	struct agent *a;
-	
-	Q_SEARCH(a, &s->rq, nobe, ++i == size);
+	int tid;
+
+	/* Has the user specified something for us to do? */
+	if (arbiter_pop_choice(r, &tid)) {
+		printf("[ARBITER] looking for requested agent %d\n", tid);
+		a = agent_by_tid_or_null(&ls->sched.rq, tid);
+		if (!a) {
+			a = agent_by_tid_or_null(&ls->sched.sq, tid);
+		}
+		if (!a) {
+			printf("[ARBITER] failed to choose agent %d\n", tid);
+		}
+	/* automatically choose a thread */
+	} else {
+		/* TODO: sleep queue */
+		int size = Q_GET_SIZE(&ls->sched.rq);
+		int i = 0;
+
+		Q_SEARCH(a, &ls->sched.rq, nobe, ++i == size);
+	}
+
 	return a;
 }
