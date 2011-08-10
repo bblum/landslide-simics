@@ -4,11 +4,20 @@
 # comments can be found there... (sorry)
 
 KERNEL_IMG=$1
+KERNEL_NAME=$2
 
-if [ ! -f $KERNEL_IMG ]; then
+if [ ! -f "$KERNEL_IMG" ]; then
 	echo "invalid kernel image specified"
 	exit 1
 fi
+
+if [ -z "$KERNEL_NAME" ]; then
+	echo "what is the name of this kernel?"
+	exit 1
+fi
+
+KERNEL_NAME_LOWER=`echo $KERNEL_NAME | tr '[:upper:]' '[:lower:]'`
+KERNEL_NAME_UPPER=`echo $KERNEL_NAME | tr '[:lower:]' '[:upper:]'`
 
 function get_sym {
 	objdump -t $KERNEL_IMG | grep "\<$1\>" | cut -d" " -f1
@@ -21,6 +30,17 @@ function get_func {
 function get_func_end {
 	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
 }
+
+echo "/**"
+echo " * @file kernel_specifics_$KERNEL_NAME_LOWER.h"
+echo " * @brief #defines for the $KERNEL_NAME guest kernel (automatically generated)"
+echo " * @author Ben Blum <bblum@andrew.cmu.edu>"
+echo " */"
+echo
+echo "#ifndef __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
+echo "#define __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
+echo
+
 
 CURRENT_TCB=`get_sym thr_current`
 echo "#define GUEST_CURRENT_TCB 0x$CURRENT_TCB"
@@ -84,5 +104,5 @@ echo "#define GUEST_THRFORK_WINDOW_ENTER 0x$THRFORK_WINDOW"
 echo "#define GUEST_SLEEP_WINDOW_ENTER   0x$SLEEP_WINDOW"
 echo "#define GUEST_VANISH_WINDOW_ENTER  0x$VANISH_WINDOW"
 
-
-
+echo
+echo "#endif"
