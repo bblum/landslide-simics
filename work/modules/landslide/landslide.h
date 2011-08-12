@@ -9,8 +9,8 @@
 
 #include <simics/api.h>
 
-#include "schedule.h"
 #include "arbiter.h"
+#include "schedule.h"
 
 #define MODULE_NAME "landslide"
 

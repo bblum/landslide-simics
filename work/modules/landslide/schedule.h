@@ -7,6 +7,8 @@
 #ifndef __LS_SCHEDULE_H
 #define __LS_SCHEDULE_H
 
+#include <simics/api.h>
+
 #include "variable_queue.h"
 
 struct ls_state;
