@@ -25,9 +25,12 @@ struct save_state {
 		int tid;
 		bool live;
 	} last_choice;
+	bool started;
 };
 
 void save_init(struct save_state *, char *base_dir);
+void save_append_tid(struct save_state *, int);
+void save_start_here(struct save_state *, struct ls_state *);
 
 /* recording a choice made is done in two passes - this value is set as soon as
  * a scheduling decision is made, and when the next decision point (or end of
