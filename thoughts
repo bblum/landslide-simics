@@ -71,5 +71,5 @@ write a guide to using landslide ...
 	We assume...
 		that your context switcher works
 		that if a thread is on the RQ, a finite number of timer interrupts in succession will cause it to run
+		sleep must not spin-wait.
 	The more asserts you have in your kernel, the easier it will be for landslide to detect if something has gone wrong.
-
