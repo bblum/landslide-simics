@@ -86,6 +86,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 
 LS_ATTR_SET_GET_FNS(trigger_count, integer);
 
+// XXX: figure out how to use simics list attributes
 static set_error_t set_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
