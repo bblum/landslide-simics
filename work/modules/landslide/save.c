@@ -79,25 +79,33 @@ static void write_tids_file(struct save_state *ss, struct sched_state *s)
 /* internally: always assume directory strings don't have a "/" at the end */
 
 /* called with base_dir as the directory for the first new choice to be made */
-void save_init(struct save_state *ss, char *base_dir)
+bool save_init(struct save_state *ss, const char *base_dir)
 {
 	int len = strlen(base_dir) * 2; /* start with some padding */
 
+	if (ss->dir.path) {
+		printf("Cannot set save state path if it's already set.\n");
+		return false;
+	}
 	ss->dir.path = MM_MALLOC(len, char);
 	assert(ss->dir.path && "failed to allocate ss->dir.path");
 	strcpy(ss->dir.path, base_dir);
 	ss->dir.len = len;
 
 	ss->last_choice.live = false;
-	ss->started = false;
+	ss->save_choice_ever_called = false;
+	return true;
+}
+
+const char *save_get_path(struct save_state *ss)
+{
+	return ss->dir.path;
 }
 
 /* appends the tid onto the save state's directory representation */
 void save_append_tid(struct save_state *ss, int tid)
 {
 	char subdir[MAX_TID_LEN + 1];
-
-	assert(!ss->started && "don't use save_append_tid after starting!");
 
 	while (strlen(ss->dir.path) + MAX_TID_LEN + 1 > ss->dir.len) {
 		char *path = MM_MALLOC(ss->dir.len * 2, char);
@@ -111,46 +119,44 @@ void save_append_tid(struct save_state *ss, int tid)
 	strcat(ss->dir.path, subdir);
 }
 
-void save_start_here(struct save_state *ss, struct ls_state *ls)
-{
-	assert(!ss->started && "save already started?");
-
-	ss->started = true;
-	write_eip_file(ss, ls->eip);
-	write_tids_file(ss, &ls->sched);
-}
-
 void save_choice(struct save_state *ss, int eip, int tid)
 {
-	assert(ss->started && "start save before saving");
 	assert(!ss->last_choice.live &&
 	       "can't save new choice over existing uncommitted one");
 	ss->last_choice.eip = eip;
 	ss->last_choice.tid = tid;
 	ss->last_choice.live = true;
+	ss->save_choice_ever_called = true;
 }
 
-/* pass NULL as the ls_state to indicate the test case ended */
-void save_choice_commit(struct save_state *ss, struct ls_state *ls)
+/* Call to "commit" a new directory representing a choice we just encountered.
+ * pass NULL as the ls_state to indicate the test case ended */
+void save_choice_commit(struct save_state *ss, struct ls_state *ls, bool our_choice)
 {
-	assert(ss->started && "start save before saving");
-	assert(ss->last_choice.live && "can't commit a nonexistent choice");
-	
 	/* committing a choice that causes future choices */
 	if (ls) {
-		int ret;
+		if (ss->last_choice.live) {
+			/* append the tid onto the buf (descend directory) */
+			save_append_tid(ss, ss->last_choice.tid);
 
-		/* append the tid onto the buf */
-		save_append_tid(ss, ss->last_choice.tid);
-
-		/* create directory */
-		ret = mkdir(ss->dir.path, DIR_MODE);
-		assert(ret == 0 && "failed to mkdir");
+			if (our_choice) {
+				/* create directory */
+				int ret = mkdir(ss->dir.path, DIR_MODE);
+				assert(ret == 0 && "failed to mkdir");
+			}
+		} else {
+			/* This may be called once before save_choice() to init
+			 * the base directory. */
+			assert(!ss->save_choice_ever_called);
+			ss->save_choice_ever_called = true;
+		}
+		/* in either case, we write metadata iff it was our choice. */
+		if (our_choice) {
+				/* init metadata */
+				write_eip_file(ss, ls->eip);
+				write_tids_file(ss, &ls->sched);
+		}
 		
-		/* init metadata */
-		write_eip_file(ss, ls->eip);
-		write_tids_file(ss, &ls->sched);
-
 	/* committing a terminal choice */
 	} else {
 		char *buf = MM_MALLOC(ss->dir.len + MAX_TID_LEN + 1, char);

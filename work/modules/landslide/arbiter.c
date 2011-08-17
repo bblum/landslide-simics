@@ -56,8 +56,11 @@ bool arbiter_interested(struct ls_state *ls)
 
 #define BUF_SIZE 512
 
-/* May return either null, the current thread, or any other thread. */
-struct agent *arbiter_choose(struct ls_state *ls)
+/* Returns true if a thread was chosen. If true, sets 'target' (to either the
+ * current thread or any other thread), and sets 'our_choice' to false if
+ * somebody else already made this choice for us, true otherwise. */
+bool arbiter_choose(struct ls_state *ls, struct agent **target,
+		    bool *our_choice)
 {
 	struct arbiter_state *r = &ls->arbiter;
 	struct agent *a;
@@ -70,8 +73,13 @@ struct agent *arbiter_choose(struct ls_state *ls)
 		if (!a) {
 			a = agent_by_tid_or_null(&ls->sched.sq, tid);
 		}
-		if (!a) {
+		if (a) {
+			*target = a;
+			*our_choice = false;
+			return true;
+		} else {
 			printf("[ARBITER] failed to choose agent %d\n", tid);
+			return false;
 		}
 	/* automatically choose a thread */
 	} else {
@@ -80,7 +88,12 @@ struct agent *arbiter_choose(struct ls_state *ls)
 		int i = 0;
 
 		Q_SEARCH(a, &ls->sched.rq, nobe, ++i == size);
+		if (a) {
+			*target = a;
+			*our_choice = true;
+			return true;
+		} else {
+			return false;
+		}
 	}
-
-	return a;
 }

@@ -10,6 +10,7 @@
 #include <simics/api.h>
 
 #include "arbiter.h"
+#include "save.h"
 #include "schedule.h"
 
 #define MODULE_NAME "landslide"
@@ -27,6 +28,7 @@ struct ls_state {
 
 	struct sched_state sched;
 	struct arbiter_state arbiter;
+	struct save_state save;
 };
 
 #endif

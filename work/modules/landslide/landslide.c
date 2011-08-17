@@ -86,7 +86,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 
 LS_ATTR_SET_GET_FNS(trigger_count, integer);
 
-// XXX: figure out how to use simics list attributes
+// XXX: figure out how to use simics list/string attributes
 static set_error_t set_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
@@ -98,6 +98,22 @@ static attr_value_t get_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *idx)
 {
 	return SIM_make_attr_integer(-42);
+}
+
+static set_error_t set_ls_save_path_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	if (save_init(&((struct ls_state *)obj)->save, SIM_attr_string(*val))) {
+		return Sim_Set_Ok;
+	} else {
+		return Sim_Set_Not_Writable;
+	}
+}
+static attr_value_t get_ls_save_path_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	const char *path = save_get_path(&((struct ls_state *)obj)->save);
+	return SIM_make_attr_string(path);
 }
 
 /* Forward declaration. */
@@ -128,6 +144,8 @@ void init_local(void)
 	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
 			 "Tell the arbiter which thread to choose next "
 			 "(buffered, FIFO)");
+	LS_ATTR_REGISTER(conf_class, save_path, "s",
+			 "Base directory of saved choices for this test case");
 
 	printf("welcome to landslide.\n");
 }

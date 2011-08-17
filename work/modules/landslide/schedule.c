@@ -359,15 +359,32 @@ void sched_update(struct ls_state *ls)
 	/* Okay, are we at a choice point? */
 	/* TODO: arbiter may also want to see the trace_entry_t */
 	if (arbiter_interested(ls)) {
-		struct agent *a = arbiter_choose(ls);
-		/* obviously it's only relevant if somebody else should go. */
-		if (a && a != s->cur_agent) {
-			printf("from agent %d, arbiter chose %d at 0x%x (called at 0x%x)\n",
-			       s->cur_agent->tid, a->tid, ls->eip, (unsigned int)READ_STACK(ls->cpu0, 0));
-			s->schedule_in_flight = a;
-			a->action.schedule_target = true;
-			cause_timer_interrupt(ls);
-			s->entering_timer = true;
+		struct agent *a;
+		bool our_choice;
+		/* TODO: as an optimisation (in serialisation state / etc), the
+		 * arbiter may return NULL if there was only one possible
+		 * choice. */
+		if (arbiter_choose(ls, &a, &our_choice)) {
+			/* Commit information about the current choice point.
+			 * (If it wasn't our choice, simply descend a
+			 * directory. */
+			save_choice_commit(&ls->save, ls, our_choice);
+
+			/* Effect the choice that was made... */
+			if (a != s->cur_agent) {
+				printf("from agent %d, arbiter chose %d at 0x%x "
+				       "(called at 0x%x)\n",
+				       s->cur_agent->tid, a->tid, ls->eip,
+				       (unsigned int)READ_STACK(ls->cpu0, 0));
+				s->schedule_in_flight = a;
+				a->action.schedule_target = true;
+				cause_timer_interrupt(ls);
+				s->entering_timer = true;
+			}
+			/* Record the choice that was just made. */
+			save_choice(&ls->save, ls->eip, a->tid);
+		} else {
+			printf("[SCHED] no agent was chosen at eip %d\n", ls->eip);
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context

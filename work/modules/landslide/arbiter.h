@@ -10,6 +10,7 @@
 #include "variable_queue.h"
 
 struct ls_state;
+struct agent;
 
 struct choice {
 	int tid;
@@ -28,6 +29,6 @@ void arbiter_append_choice(struct arbiter_state *, int tid);
 
 /* scheduling interface */
 bool arbiter_interested(struct ls_state *);
-struct agent *arbiter_choose(struct ls_state *);
+bool arbiter_choose(struct ls_state *, struct agent **, bool *our_choice);
 
 #endif

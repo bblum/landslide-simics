@@ -25,12 +25,17 @@ struct save_state {
 		int tid;
 		bool live;
 	} last_choice;
-	bool started;
+	/* save_choice_commit may once be called before save_choice is called,
+	 * to initialise the base directory. it should only happen if never not
+	 * our choice. */
+	bool ever_not_our_choice;
+	bool save_choice_ever_called;
 };
 
-void save_init(struct save_state *, char *base_dir);
+bool save_init(struct save_state *, const char *base_dir);
 void save_append_tid(struct save_state *, int);
-void save_start_here(struct save_state *, struct ls_state *);
+
+const char *save_get_path(struct save_state *);
 
 /* recording a choice made is done in two passes - this value is set as soon as
  * a scheduling decision is made, and when the next decision point (or end of
@@ -39,7 +44,8 @@ void save_start_here(struct save_state *, struct ls_state *);
  * to choose next). */
 /* TODO: how will this work with the base case? */
 void save_choice(struct save_state *, int eip, int tid);
-void save_choice_commit(struct save_state *, struct ls_state *);
+void save_choice_commit(struct save_state *, struct ls_state *,
+			bool our_choice);
 
 
 #endif
