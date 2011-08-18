@@ -56,6 +56,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 
 	sched_init(&ls->sched);
 	arbiter_init(&ls->arbiter);
+	save_init(&ls->save);
 
 	return &ls->log.obj;
 }
@@ -103,7 +104,8 @@ static attr_value_t get_ls_arbiter_choice_attribute(
 static set_error_t set_ls_save_path_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
-	if (save_init(&((struct ls_state *)obj)->save, SIM_attr_string(*val))) {
+	if (save_set_base_dir(&((struct ls_state *)obj)->save,
+			      SIM_attr_string(*val))) {
 		return Sim_Set_Ok;
 	} else {
 		return Sim_Set_Not_Writable;

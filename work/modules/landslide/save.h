@@ -26,14 +26,12 @@ struct save_state {
 		bool live;
 	} last_choice;
 	/* save_choice_commit may once be called before save_choice is called,
-	 * to initialise the base directory. it should only happen if never not
-	 * our choice. */
-	bool ever_not_our_choice;
+	 * to initialise the base directory. this flag is for state tracking. */
 	bool save_choice_ever_called;
 };
 
-bool save_init(struct save_state *, const char *base_dir);
-void save_append_tid(struct save_state *, int);
+void save_init(struct save_state *);
+bool save_set_base_dir(struct save_state *, const char *base_dir);
 
 const char *save_get_path(struct save_state *);
 

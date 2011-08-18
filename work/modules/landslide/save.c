@@ -72,38 +72,7 @@ static void write_tids_file(struct save_state *ss, struct sched_state *s)
 	MM_FREE(buf);
 }
 
-/******************************************************************************
- * interface
- ******************************************************************************/
-
-/* internally: always assume directory strings don't have a "/" at the end */
-
-/* called with base_dir as the directory for the first new choice to be made */
-bool save_init(struct save_state *ss, const char *base_dir)
-{
-	int len = strlen(base_dir) * 2; /* start with some padding */
-
-	if (ss->dir.path) {
-		printf("Cannot set save state path if it's already set.\n");
-		return false;
-	}
-	ss->dir.path = MM_MALLOC(len, char);
-	assert(ss->dir.path && "failed to allocate ss->dir.path");
-	strcpy(ss->dir.path, base_dir);
-	ss->dir.len = len;
-
-	ss->last_choice.live = false;
-	ss->save_choice_ever_called = false;
-	return true;
-}
-
-const char *save_get_path(struct save_state *ss)
-{
-	return ss->dir.path;
-}
-
-/* appends the tid onto the save state's directory representation */
-void save_append_tid(struct save_state *ss, int tid)
+static void save_append_tid(struct save_state *ss, int tid)
 {
 	char subdir[MAX_TID_LEN + 1];
 
@@ -119,8 +88,53 @@ void save_append_tid(struct save_state *ss, int tid)
 	strcat(ss->dir.path, subdir);
 }
 
+/******************************************************************************
+ * interface
+ ******************************************************************************/
+
+/* internally: always assume directory strings don't have a "/" at the end */
+
+/* called with base_dir as the directory for the first new choice to be made */
+void save_init(struct save_state *ss)
+{
+	ss->dir.path = NULL;
+	ss->last_choice.live = false;
+	ss->save_choice_ever_called = false;
+}
+
+bool save_set_base_dir(struct save_state *ss, const char *base_dir)
+{
+	int len = strlen(base_dir) * 2; /* start with some padding */
+
+	if (ss->dir.path) {
+		printf("[SAVE] Cannot set save path if it's already set.\n");
+		return false;
+	}
+
+	if (ss->save_choice_ever_called) {
+		printf("[SAVE] Too late to set save path.\n");
+		return false;
+	}
+
+	ss->dir.path = MM_MALLOC(len, char);
+	assert(ss->dir.path && "failed to allocate ss->dir.path");
+	strcpy(ss->dir.path, base_dir);
+	ss->dir.len = len;
+	return true;
+}
+
+const char *save_get_path(struct save_state *ss)
+{
+	return ss->dir.path ? ss->dir.path : "/dev/null"; /* c.c */
+}
+
 void save_choice(struct save_state *ss, int eip, int tid)
 {
+	if (!ss->dir.path) {
+		printf("[SAVE] not saving choice %d at 0x%x\n", tid, eip);
+		return;
+	}
+
 	assert(!ss->last_choice.live &&
 	       "can't save new choice over existing uncommitted one");
 	ss->last_choice.eip = eip;
@@ -133,9 +147,16 @@ void save_choice(struct save_state *ss, int eip, int tid)
  * pass NULL as the ls_state to indicate the test case ended */
 void save_choice_commit(struct save_state *ss, struct ls_state *ls, bool our_choice)
 {
+	if (!ss->dir.path) {
+		printf("[SAVE] not committing...\n");
+		return;
+	}
+
 	/* committing a choice that causes future choices */
 	if (ls) {
 		if (ss->last_choice.live) {
+			assert(ss->save_choice_ever_called);
+
 			/* append the tid onto the buf (descend directory) */
 			save_append_tid(ss, ss->last_choice.tid);
 
