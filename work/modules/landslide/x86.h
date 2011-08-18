@@ -19,6 +19,8 @@
 
 #define WORD_SIZE 4
 
+#define USER_MEM_START 0x01000000
+
 /* reading the stack. can be used to examine function arguments, if used either
  * at the very end or the very beginning of a function, when esp points to the
  * return address. */

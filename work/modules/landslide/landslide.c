@@ -191,6 +191,10 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 		       ls->eip);
 	}
 
+	if (ls->eip >= USER_MEM_START) {
+		return;
+	}
+
 	// TODO: conditions for calling this?
 	sched_update(ls);
 }
