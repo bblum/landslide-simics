@@ -72,4 +72,12 @@ write a guide to using landslide ...
 		that your context switcher works
 		that if a thread is on the RQ, a finite number of timer interrupts in succession will cause it to run
 		sleep must not spin-wait.
+		readline must not spin-wait.
+		memory below USER_MEM_START is direct-mapped.
 	The more asserts you have in your kernel, the easier it will be for landslide to detect if something has gone wrong.
+
+
+on save state and restore state
+	save state: fix internal state tracking
+	hook in smashing the opponent
+	make arbiter know when it is making the null choice
