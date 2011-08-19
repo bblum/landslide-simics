@@ -7,26 +7,25 @@
 #ifndef __LS_KERNEL_SPECIFICS_H
 #define __LS_KERNEL_SPECIFICS_H
 
-struct ls_state;
-struct sched_state;
+#include <simics/api.h>
 
 /* Miscellaneous simple information */
-int kern_get_current_tcb(struct ls_state *);
-int kern_get_current_tid(struct ls_state *);
-bool kern_timer_entering(struct ls_state *);
-bool kern_timer_exiting(struct ls_state *);
+int kern_get_current_tcb(conf_object_t *cpu);
+int kern_get_current_tid(conf_object_t *cpu);
+bool kern_timer_entering(int eip);
+bool kern_timer_exiting(int eip);
 int kern_get_timer_wrap_begin();
-bool kern_context_switch_entering(struct ls_state *);
-bool kern_context_switch_exiting(struct ls_state *);
-bool kern_sched_init_done(struct ls_state *);
-bool kern_scheduler_locked(struct ls_state *);
+bool kern_context_switch_entering(int eip);
+bool kern_context_switch_exiting(int eip);
+bool kern_sched_init_done(int eip);
+bool kern_scheduler_locked(conf_object_t *cpu);
 
 /* Lifecycle */
-bool kern_forking(struct ls_state *);
-bool kern_vanishing(struct ls_state *);
-bool kern_sleeping(struct ls_state *);
-bool kern_thread_runnable(struct ls_state *, int *);
-bool kern_thread_descheduling(struct ls_state *, int *);
+bool kern_forking(int eip);
+bool kern_vanishing(int eip);
+bool kern_sleeping(int eip);
+bool kern_thread_runnable(conf_object_t *cpu, int eip, int *);
+bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *);
 
 /* Other / init */
 int kern_get_init_tid(void);

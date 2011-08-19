@@ -158,11 +158,11 @@ void sched_update(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
 	int old_tid = s->cur_agent->tid;
-	int new_tid = kern_get_current_tid(ls);
+	int new_tid = kern_get_current_tid(ls->cpu0);
 
 	/* wait until the guest is ready */
 	if (!s->guest_init_done) {
-		if (kern_sched_init_done(ls)) {
+		if (kern_sched_init_done(ls->eip)) {
 			s->guest_init_done = true;
 			assert(old_tid == new_tid && "init tid mismatch");
 		} else {
@@ -207,10 +207,10 @@ void sched_update(struct ls_state *ls)
 	int target_tid;
 
 	/* Timer interrupt handling. */
-	if (kern_timer_entering(ls)) {
+	if (kern_timer_entering(ls->eip)) {
 		/* TODO: would it be right to assert !handling_timer? */
 		ACTION(s, handling_timer) = true;
-	} else if (kern_timer_exiting(ls)) {
+	} else if (kern_timer_exiting(ls->eip)) {
 		assert(ACTION(s, handling_timer));
 		ACTION(s, handling_timer) = false;
 		/* If the schedule target was in a timer interrupt when we
@@ -220,12 +220,12 @@ void sched_update(struct ls_state *ls)
 			ACTION(s, schedule_target) = false;
 		}
 	/* Context switching. */
-	} else if (kern_context_switch_entering(ls)) {
+	} else if (kern_context_switch_entering(ls->eip)) {
 		/* It -is- possible for a context switch to interrupt a
 		 * context switch if a timer goes off before c-s disables
 		 * interrupts. TODO: if we care, make this an int counter. */
 		ACTION(s, context_switch) = true;
-	} else if (kern_context_switch_exiting(ls)) {
+	} else if (kern_context_switch_exiting(ls->eip)) {
 		assert(ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
 		/* For threads that context switched of their own accord. */
@@ -233,17 +233,17 @@ void sched_update(struct ls_state *ls)
 			ACTION(s, schedule_target) = false;
 		}
 	/* Lifecycle. */
-	} else if (kern_forking(ls)) {
+	} else if (kern_forking(ls->eip)) {
 		assert(NO_ACTION(s));
 		ACTION(s, forking) = true;
-	} else if (kern_sleeping(ls)) {
+	} else if (kern_sleeping(ls->eip)) {
 		assert(NO_ACTION(s));
 		ACTION(s, sleeping) = true;
-	} else if (kern_vanishing(ls)) {
+	} else if (kern_vanishing(ls->eip)) {
 		assert(NO_ACTION(s));
 		ACTION(s, vanishing) = true;
 	/* Runnable state change (incl. consequences of fork, vanish, sleep). */
-	} else if (kern_thread_runnable(ls, &target_tid)) {
+	} else if (kern_thread_runnable(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
 		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
 			printf("agent %d forked -- ", target_tid);
@@ -263,7 +263,7 @@ void sched_update(struct ls_state *ls)
 		}
 		print_qs(s);
 		printf("\n");
-	} else if (kern_thread_descheduling(ls, &target_tid)) {
+	} else if (kern_thread_descheduling(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to deschedule. Is it vanishing? */
 		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
@@ -312,14 +312,14 @@ void sched_update(struct ls_state *ls)
 			 * to its own execution before triggering an interrupt
 			 * on it; in the former case, this will be just after it
 			 * irets; in the latter, just after the c-s returns. */
-			if (kern_timer_exiting(ls) ||
+			if (kern_timer_exiting(ls->eip) ||
 			    (!HANDLING_INTERRUPT(s) &&
-			     kern_context_switch_exiting(ls))) {
+			     kern_context_switch_exiting(ls->eip))) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
 				printf("keeping schedule in-flight at 0x%x\n",
 				       ls->eip);
-				cause_timer_interrupt(ls);
+				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 			} else {
 				/* they'd better not have "escaped" */
@@ -337,7 +337,7 @@ void sched_update(struct ls_state *ls)
 	 * also if we're about to iret and then examine the eflags on the
 	 * stack. Also, "sti" and "popf" are interesting, so check for those.
 	 * Also, do trap gates enable interrupts if they were off? o_O */
-	if (!interrupts_enabled(ls)) {
+	if (!interrupts_enabled(ls->cpu0)) {
 		return;
 	}
 
@@ -352,7 +352,7 @@ void sched_update(struct ls_state *ls)
 
 	/* TODO: have an extra mode which will allow us to preempt the timer
 	 * handler. */
-	if (HANDLING_INTERRUPT(s) || kern_scheduler_locked(ls)) {
+	if (HANDLING_INTERRUPT(s) || kern_scheduler_locked(ls->cpu0)) {
 		return;
 	}
 
@@ -378,7 +378,7 @@ void sched_update(struct ls_state *ls)
 				       (unsigned int)READ_STACK(ls->cpu0, 0));
 				s->schedule_in_flight = a;
 				a->action.schedule_target = true;
-				cause_timer_interrupt(ls);
+				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 			}
 			/* Record the choice that was just made. */

@@ -8,7 +8,6 @@
 
 #include <simics/api.h>
 
-#include "landslide.h"
 #include "x86.h"
 #include "kernel_specifics.h"
 
@@ -17,19 +16,19 @@
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
 #define KERNEL_SEGSEL_CS 0x10
-void cause_timer_interrupt_immediately(struct ls_state *ls)
+void cause_timer_interrupt_immediately(conf_object_t *cpu)
 {
-	int esp = GET_CPU_ATTR(ls->cpu0, esp);
-	int eip = GET_CPU_ATTR(ls->cpu0, eip);
-	int eflags = GET_CPU_ATTR(ls->cpu0, eflags);
+	int esp = GET_CPU_ATTR(cpu, esp);
+	int eip = GET_CPU_ATTR(cpu, eip);
+	int eflags = GET_CPU_ATTR(cpu, eflags);
 
 	/* 12 is the size of an IRET frame only when already in kernel mode. */
-	SET_CPU_ATTR(ls->cpu0, esp, esp - 12);
+	SET_CPU_ATTR(cpu, esp, esp - 12);
 	esp = esp - 12; /* "oh, I can do common subexpression elimination!" */
-	SIM_write_phys_memory(ls->cpu0, esp + 8, eflags, 4);
-	SIM_write_phys_memory(ls->cpu0, esp + 4, KERNEL_SEGSEL_CS, 4);
-	SIM_write_phys_memory(ls->cpu0, esp + 0, eip, 4);
-	SET_CPU_ATTR(ls->cpu0, eip, kern_get_timer_wrap_begin());
+	SIM_write_phys_memory(cpu, esp + 8, eflags, 4);
+	SIM_write_phys_memory(cpu, esp + 4, KERNEL_SEGSEL_CS, 4);
+	SIM_write_phys_memory(cpu, esp + 0, eip, 4);
+	SET_CPU_ATTR(cpu, eip, kern_get_timer_wrap_begin());
 }
 
 /* i.e., with stallin' */
@@ -39,23 +38,22 @@ static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
 }
 
 #define TIMER_INTERRUPT_NUMBER 0x20
-void cause_timer_interrupt(struct ls_state *ls)
+void cause_timer_interrupt(conf_object_t *cpu)
 {
-	if (GET_CPU_ATTR(ls->cpu0, pending_vector_valid)) {
-		SET_CPU_ATTR(ls->cpu0, pending_vector,
-			     GET_CPU_ATTR(ls->cpu0, pending_vector)
+	if (GET_CPU_ATTR(cpu, pending_vector_valid)) {
+		SET_CPU_ATTR(cpu, pending_vector,
+			     GET_CPU_ATTR(cpu, pending_vector)
 			     | TIMER_INTERRUPT_NUMBER);
 	} else {
-		SET_CPU_ATTR(ls->cpu0, pending_vector, TIMER_INTERRUPT_NUMBER);
-		SET_CPU_ATTR(ls->cpu0, pending_vector_valid, 1);
+		SET_CPU_ATTR(cpu, pending_vector, TIMER_INTERRUPT_NUMBER);
+		SET_CPU_ATTR(cpu, pending_vector_valid, 1);
 	}
 
-	SET_CPU_ATTR(ls->cpu0, pending_interrupt, 1);
+	SET_CPU_ATTR(cpu, pending_interrupt, 1);
 	/* Causes simics to flush whatever pipeline, implicit or not, would
 	 * otherwise let more instructions get executed before the interrupt be
 	 * taken. */
-	SIM_run_unrestricted((conf_object_t *)(ls->cpu0),
-			     cause_timer_interrupt_soviet_style, NULL);
+	SIM_run_unrestricted(cpu, cause_timer_interrupt_soviet_style, NULL);
 }
 
 /* keycodes for the keyboard buffer */
@@ -77,25 +75,25 @@ static int i8042_key(char c)
 	return i8042_keys[(int)c];
 }
 
-void cause_keypress(struct ls_state *ls, char key)
+void cause_keypress(conf_object_t *kbd, char key)
 {
 	int keycode = i8042_key(key);
 
 	attr_value_t i = SIM_make_attr_integer(keycode);
 	attr_value_t v = SIM_make_attr_integer(0); /* see i8042 docs */
 
-	set_error_t ret = SIM_set_attribute_idx(ls->kbd0, "key_event", &i, &v);
+	set_error_t ret = SIM_set_attribute_idx(kbd, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress press failed!");
 
 	v = SIM_make_attr_integer(1);
-	ret = SIM_set_attribute_idx(ls->kbd0, "key_event", &i, &v);
+	ret = SIM_set_attribute_idx(kbd, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
 }
 
 #define EFL_IF          0x00000200 /* from 410kern/inc/x86/eflags.h */
 
-bool interrupts_enabled(struct ls_state *ls)
+bool interrupts_enabled(conf_object_t *cpu)
 {
-	int eflags = GET_CPU_ATTR(ls->cpu0, eflags);
+	int eflags = GET_CPU_ATTR(cpu, eflags);
 	return (eflags & EFL_IF) != 0;
 }

@@ -7,7 +7,6 @@
 #include <assert.h>
 #include <simics/api.h>
 
-#include "landslide.h"
 #include "schedule.h" /* TODO: separate the struct part into schedule_type.h */
 #include "x86.h"
 
@@ -28,23 +27,23 @@
  ******************************************************************************/
 
 /* Returns the tcb/tid of the currently scheduled thread. */
-int kern_get_current_tcb(struct ls_state *ls)
+int kern_get_current_tcb(conf_object_t *cpu)
 {
-	return SIM_read_phys_memory(ls->cpu0, GUEST_CURRENT_TCB, WORD_SIZE);
+	return SIM_read_phys_memory(cpu, GUEST_CURRENT_TCB, WORD_SIZE);
 }
-int kern_get_current_tid(struct ls_state *ls)
+int kern_get_current_tid(conf_object_t *cpu)
 {
-	return TID_FROM_TCB(ls, kern_get_current_tcb(ls));
+	return TID_FROM_TCB(cpu, kern_get_current_tcb(cpu));
 }
 
 /* The boundaries of the timer handler wrapper. */
-bool kern_timer_entering(struct ls_state *ls)
+bool kern_timer_entering(int eip)
 {
-	return ls->eip == GUEST_TIMER_WRAP_ENTER;
+	return eip == GUEST_TIMER_WRAP_ENTER;
 }
-bool kern_timer_exiting(struct ls_state *ls)
+bool kern_timer_exiting(int eip)
 {
-	return ls->eip == GUEST_TIMER_WRAP_EXIT;
+	return eip == GUEST_TIMER_WRAP_EXIT;
 }
 int kern_get_timer_wrap_begin()
 {
@@ -52,25 +51,25 @@ int kern_get_timer_wrap_begin()
 }
 
 /* the boundaries of the context switcher */
-bool kern_context_switch_entering(struct ls_state *ls)
+bool kern_context_switch_entering(int eip)
 {
-	return ls->eip == GUEST_CONTEXT_SWITCH_ENTER;
+	return eip == GUEST_CONTEXT_SWITCH_ENTER;
 }
-bool kern_context_switch_exiting(struct ls_state *ls)
+bool kern_context_switch_exiting(int eip)
 {
-	return ls->eip == GUEST_CONTEXT_SWITCH_EXIT;
+	return eip == GUEST_CONTEXT_SWITCH_EXIT;
 }
 
-bool kern_sched_init_done(struct ls_state *ls)
+bool kern_sched_init_done(int eip)
 {
-	return ls->eip == GUEST_SCHED_INIT_EXIT;
+	return eip == GUEST_SCHED_INIT_EXIT;
 }
 
 /* Anything that would prevent timer interrupts from triggering context
  * switches */
-bool kern_scheduler_locked(struct ls_state *ls)
+bool kern_scheduler_locked(conf_object_t *cpu)
 {
-	int x = SIM_read_phys_memory(ls->cpu0, GUEST_SCHEDULER_LOCK, WORD_SIZE);
+	int x = SIM_read_phys_memory(cpu, GUEST_SCHEDULER_LOCK, WORD_SIZE);
 	return GUEST_SCHEDULER_LOCKED(x);
 }
 
@@ -79,57 +78,57 @@ bool kern_scheduler_locked(struct ls_state *ls)
  ******************************************************************************/
 
 /* How to tell if a thread's life is beginning or ending */
-bool kern_forking(struct ls_state *ls)
+bool kern_forking(int eip)
 {
-	return (ls->eip == GUEST_FORK_WINDOW_ENTER)
-	    || (ls->eip == GUEST_THRFORK_WINDOW_ENTER);
+	return (eip == GUEST_FORK_WINDOW_ENTER)
+	    || (eip == GUEST_THRFORK_WINDOW_ENTER);
 }
-bool kern_sleeping(struct ls_state *ls)
+bool kern_sleeping(int eip)
 {
-	return ls->eip == GUEST_SLEEP_WINDOW_ENTER;
+	return eip == GUEST_SLEEP_WINDOW_ENTER;
 }
-bool kern_vanishing(struct ls_state *ls)
+bool kern_vanishing(int eip)
 {
-	return ls->eip == GUEST_VANISH_WINDOW_ENTER;
+	return eip == GUEST_VANISH_WINDOW_ENTER;
 }
 
 /* How to tell if a new thread is appearing or disappearing on the runqueue. */
-static bool thread_becoming_runnable(struct ls_state *ls)
+static bool thread_becoming_runnable(conf_object_t *cpu, int eip)
 {
-	return (ls->eip == GUEST_Q_ADD)
-	    && (READ_STACK(ls->cpu0, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
+	return (eip == GUEST_Q_ADD)
+	    && (READ_STACK(cpu, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
 }
-bool kern_thread_runnable(struct ls_state *ls, int *tid)
+bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
 {
-	if (thread_becoming_runnable(ls)) {
+	if (thread_becoming_runnable(cpu, eip)) {
 		/* 0(%esp) points to the return address; get the arg above it */
-		*tid = TID_FROM_TCB(ls, READ_STACK(ls->cpu0,
-						   GUEST_Q_ADD_TCB_ARGNUM));
+		*tid = TID_FROM_TCB(cpu, READ_STACK(cpu,
+						    GUEST_Q_ADD_TCB_ARGNUM));
 		return true;
 	} else {
 		return false;
 	}
 }
 
-static bool thread_is_descheduling(struct ls_state *ls)
+static bool thread_is_descheduling(conf_object_t *cpu, int eip)
 {
-	return ((ls->eip == GUEST_Q_REMOVE)
-	     && (READ_STACK(ls->cpu0, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
-	    || ((ls->eip == GUEST_Q_POP_RETURN)
-	     && (READ_STACK(ls->cpu0, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
+	return ((eip == GUEST_Q_REMOVE)
+	     && (READ_STACK(cpu, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
+	    || ((eip == GUEST_Q_POP_RETURN)
+	     && (READ_STACK(cpu, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
 }
-bool kern_thread_descheduling(struct ls_state *ls, int *tid)
+bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
 {
-	if (thread_is_descheduling(ls)) {
+	if (thread_is_descheduling(cpu, eip)) {
 		int tcb;
-		if (ls->eip == GUEST_Q_REMOVE) {
+		if (eip == GUEST_Q_REMOVE) {
 			/* at beginning of sch_queue_remove */
-			tcb = READ_STACK(ls->cpu0, GUEST_Q_REMOVE_TCB_ARGNUM);
+			tcb = READ_STACK(cpu, GUEST_Q_REMOVE_TCB_ARGNUM);
 		} else {
 			/* at end of sch_queue_pop; see prior assert */
-			tcb = GET_CPU_ATTR(ls->cpu0, eax);
+			tcb = GET_CPU_ATTR(cpu, eax);
 		}
-		*tid = TID_FROM_TCB(ls, tcb);
+		*tid = TID_FROM_TCB(cpu, tcb);
 		return true;
 	} else {
 		return false;

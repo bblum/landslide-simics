@@ -9,8 +9,8 @@
 
 #define GUEST_CURRENT_TCB 0x001564a0
 #define GUEST_TCB_TID_OFFSET 0
-#define TID_FROM_TCB(ls, tcb) \
-	SIM_read_phys_memory(ls->cpu0, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)
+#define TID_FROM_TCB(cpu, tcb) \
+	SIM_read_phys_memory(cpu, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)
 
 #define GUEST_RQ_ADDR 0x001564a4
 

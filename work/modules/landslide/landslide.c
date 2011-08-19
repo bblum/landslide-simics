@@ -161,7 +161,7 @@ static void cause_test(struct ls_state *ls)
 {
 	int i;
 	for (i = 0; i < strlen(TEST_STRING); i++) {
-		cause_keypress(ls, TEST_STRING[i]);
+		cause_keypress(ls->kbd0, TEST_STRING[i]);
 	}
 }
 

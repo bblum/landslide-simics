@@ -28,9 +28,9 @@
 	SIM_read_phys_memory( \
 		cpu, GET_CPU_ATTR(cpu, esp) + ((offset) * WORD_SIZE), WORD_SIZE)
 
-void cause_timer_interrupt(struct ls_state *);
-void cause_timer_interrupt_immediately(struct ls_state *);
-void cause_keypress(struct ls_state *, char);
-bool interrupts_enabled(struct ls_state *);
+void cause_timer_interrupt(conf_object_t *cpu);
+void cause_timer_interrupt_immediately(conf_object_t *cpu);
+void cause_keypress(conf_object_t *kbd, char);
+bool interrupts_enabled(conf_object_t *cpu);
 
 #endif

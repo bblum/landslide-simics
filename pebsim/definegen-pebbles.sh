@@ -46,8 +46,8 @@ CURRENT_TCB=`get_sym thr_current`
 echo "#define GUEST_CURRENT_TCB 0x$CURRENT_TCB"
 
 echo "#define GUEST_TCB_TID_OFFSET 0"
-echo "#define TID_FROM_TCB(ls, tcb) \\"
-echo -e "\tSIM_read_phys_memory(ls->cpu0, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)"
+echo "#define TID_FROM_TCB(cpu, tcb) \\"
+echo -e "\tSIM_read_phys_memory(cpu, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)"
 echo
 
 RQ=`get_sym runqueue`
