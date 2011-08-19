@@ -12,6 +12,7 @@
 #include "arbiter.h"
 #include "save.h"
 #include "schedule.h"
+#include "test.h"
 
 #define MODULE_NAME "landslide"
 
@@ -29,6 +30,7 @@ struct ls_state {
 	struct sched_state sched;
 	struct arbiter_state arbiter;
 	struct save_state save;
+	struct test_state test;
 };
 
 #endif

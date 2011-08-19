@@ -57,6 +57,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	sched_init(&ls->sched);
 	arbiter_init(&ls->arbiter);
 	save_init(&ls->save);
+	test_init(&ls->test);
 
 	return &ls->log.obj;
 }
@@ -118,6 +119,25 @@ static attr_value_t get_ls_save_path_attribute(
 	return SIM_make_attr_string(path);
 }
 
+static set_error_t set_ls_test_case_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	if (cause_test(&((struct ls_state *)obj)->test,
+		       ((struct ls_state *)obj)->kbd0,
+		       SIM_attr_string(*val))) {
+		return Sim_Set_Ok;
+	} else {
+		return Sim_Set_Not_Writable;
+	}
+}
+static attr_value_t get_ls_test_case_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	const char *path = test_get_test(&((struct ls_state *)obj)->test);
+	return SIM_make_attr_string(path);
+}
+
+
 /* Forward declaration. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry);
 
@@ -148,6 +168,8 @@ void init_local(void)
 			 "(buffered, FIFO)");
 	LS_ATTR_REGISTER(conf_class, save_path, "s",
 			 "Base directory of saved choices for this test case");
+	LS_ATTR_REGISTER(conf_class, test_case, "s",
+			 "Which test case should we run?");
 
 	printf("welcome to landslide.\n");
 }
@@ -155,20 +177,6 @@ void init_local(void)
 /******************************************************************************
  * actual interesting landslide logic
  ******************************************************************************/
-
-#define TEST_STRING "mandelbrot\n"
-static void cause_test(struct ls_state *ls)
-{
-	int i;
-	for (i = 0; i < strlen(TEST_STRING); i++) {
-		cause_keypress(ls->kbd0, TEST_STRING[i]);
-	}
-}
-
-// TODO: delete these
-#define FORK_AFTER_CHILD 0x103ee1 // pobbles
-// #define FORK_AFTER_CHILD 0x1068f4 // pathos
-// #define FORK_AFTER_CHILD 0x104d5e // bros
 
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
@@ -197,4 +205,11 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 	// TODO: conditions for calling this?
 	sched_update(ls);
+
+	/* When a test case finishes, break the simulation so the wrapper can
+	 * decide what to do. */
+	if (test_update_state(&ls->test, &ls->sched) &&
+	    !test_is_running(&ls->test)) {
+		SIM_break_simulation("[LANDSLIDE] test case ended!");
+	}
 }

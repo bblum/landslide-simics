@@ -75,19 +75,59 @@ static int i8042_key(char c)
 	return i8042_keys[(int)c];
 }
 
+static bool i8042_shift_key(char *c)
+{
+	static const char i8042_shift_keys[] = {
+		['~'] = '`', ['!'] = '1', ['@'] = '2', ['#'] = '3', ['$'] = '4',
+		['%'] = '5', ['^'] = '6', ['&'] = '7', ['*'] = '8', ['('] = '9',
+		[')'] = '0', ['_'] = '-', ['+'] = '=', ['Q'] = 'q', ['W'] = 'w',
+		['E'] = 'e', ['R'] = 'r', ['T'] = 't', ['Y'] = 'y', ['U'] = 'u',
+		['I'] = 'i', ['O'] = 'o', ['P'] = 'p', ['{'] = '[', ['}'] = ']',
+		['A'] = 'a', ['S'] = 's', ['D'] = 'd', ['D'] = 'd', ['F'] = 'f',
+		['G'] = 'g', ['H'] = 'h', ['J'] = 'j', ['K'] = 'k', ['L'] = 'l',
+		[':'] = ';', ['"'] = '\'', ['Z'] = 'z', ['X'] = 'x',
+		['C'] = 'c', ['V'] = 'v', ['B'] = 'b', ['N'] = 'n', ['M'] = 'm',
+		['<'] = ',', ['>'] = '.', ['?'] = '/',
+	};
+
+	if (i8042_shift_keys[(int)*c] != 0) {
+		*c = i8042_shift_keys[(int)*c];
+		return true;
+	}
+	return false;
+}
+
 void cause_keypress(conf_object_t *kbd, char key)
 {
+	bool do_shift = i8042_shift_key(&key);
+	
 	int keycode = i8042_key(key);
 
 	attr_value_t i = SIM_make_attr_integer(keycode);
 	attr_value_t v = SIM_make_attr_integer(0); /* see i8042 docs */
+	/* keycode value for shift found by trial and error :< */
+	attr_value_t shift = SIM_make_attr_integer(72);
 
-	set_error_t ret = SIM_set_attribute_idx(kbd, "key_event", &i, &v);
+	set_error_t ret;
+
+	/* press key */
+	if (do_shift) {
+		ret = SIM_set_attribute_idx(kbd, "key_event", &shift, &v);
+		assert(ret == Sim_Set_Ok && "shift press failed!");
+	}
+
+	ret = SIM_set_attribute_idx(kbd, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress press failed!");
 
+	/* release key */
 	v = SIM_make_attr_integer(1);
 	ret = SIM_set_attribute_idx(kbd, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
+	
+	if (do_shift) {
+		ret = SIM_set_attribute_idx(kbd, "key_event", &shift, &v);
+		assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
+	}
 }
 
 #define EFL_IF          0x00000200 /* from 410kern/inc/x86/eflags.h */

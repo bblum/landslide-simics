@@ -48,6 +48,7 @@ struct sched_state {
 	struct agent_q dq;
 	/* Reflection of threads which will become runnable on their own time */
 	struct agent_q sq;
+	/* TODO: test.c relies on this; update it if a readlineq appears */
 	/* Currently active thread */
 	struct agent *cur_agent;
 	/* Are we about to context-switch? (see inside sched_update) */

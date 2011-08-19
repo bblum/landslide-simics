@@ -139,8 +139,24 @@ bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
  * Other / Init
  ******************************************************************************/
 
-/* Which thread runs first on kernel init? */
 int kern_get_init_tid()
+{
+	return 1;
+}
+
+int kern_get_idle_tid()
+{
+	assert(false && "POBBLES does not have an idle tid!");
+}
+
+/* the tid of the shell (OK to assume the first shell never exits). */
+int kern_get_shell_tid()
+{
+	return 2;
+}
+
+/* Which thread runs first on kernel init? */
+int kern_get_first_tid()
 {
 	return 1;
 }
@@ -150,7 +166,7 @@ void kern_init_runqueue(struct sched_state *s,
 {
 	/* Only init runs first in POBBLES, but other kernels may have idle. In
 	 * POBBLES, init is not context-switched to to begin with. */
-	add_thread(s, 1, false);
+	add_thread(s, kern_get_init_tid(), false);
 }
 
 /* Do newly forked children exit to userspace through the end of the

@@ -9,6 +9,8 @@
 
 #include <simics/api.h>
 
+struct sched_state;
+
 /* Miscellaneous simple information */
 int kern_get_current_tcb(conf_object_t *cpu);
 int kern_get_current_tid(conf_object_t *cpu);
@@ -29,6 +31,9 @@ bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *);
 
 /* Other / init */
 int kern_get_init_tid(void);
+int kern_get_idle_tid(void);
+int kern_get_shell_tid(void);
+int kern_get_first_tid(void);
 void kern_init_runqueue(struct sched_state *,
 			void (*)(struct sched_state *, int, bool));
 bool kern_fork_returns_to_cs(void);
