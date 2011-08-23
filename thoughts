@@ -3,9 +3,6 @@ performance
 		how fast would hasqel be? how easy?
 	simics uses JIT for speed - how many orders of magnitude slowdown?
 
-things to do
-	figure out symbol table manipulation
-
 algs
 	execution poince of interest:
 		concurrency ifaces
@@ -34,15 +31,12 @@ algs
 		vanish/wait-related unsafety or deadlocks
 		oom robustness
 		...
+		memory validation races
+		a mutex_lock/yield/switch/etc while interrupts off / scheduler locked
 	
 	how to deal with sleeping threads?
 
 impl details
-	things landslide needs to know about the kernel:
-		[x] names and/or locations of functions of interest
-		[ ] is there a scheduler lock we should watch out for
-		[x] can we examine (and possibly manipulate) the runqueue?
-
 	how to run the wrapper
 		landslide can talk to its past/future selves with a file
 		test failed detection
@@ -57,14 +51,24 @@ impl details
 					how to tell no readline? (special case)
 			- other, e.g. data structure corruption
 				much harder :\
+			- in #PF handler, did the fault occur in kernel mode?
+				(not always correct to assume that's never OK)
+	test case design
+		write specific tests for expected bugs?
+			how many? - common problem syscall pairs / triplets / ...
+
+miscellaneous todo
+	figure out symbol table manipulation
+	make simics stop throwing timer interrupts of its own (and control kbd)
+	how to tell when a call blocks (spinning vs otherwise?)
+		add a "is this spinning mutex blocked? skip over it" logic
+	make arbiter know when it is making the null choice
 
 
 questions from the papers
 	steady state hmm
 	need to understand the partial order reduction; will it need porting (no?)
 	'stateless exploration' we might be able to do better
-	make simics stop throwing timer interrupts of its own
-	how to tell when a call blocks (spinning vs otherwise?)
 	what is up with the erroneous thing (double unlock)?
 
 write a guide to using landslide ... 
@@ -80,4 +84,3 @@ write a guide to using landslide ...
 on save state and restore state
 	save state: fix internal state tracking
 	hook in smashing the opponent
-	make arbiter know when it is making the null choice
