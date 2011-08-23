@@ -11,6 +11,10 @@
 
 #include <simics/alloc.h>
 
+#define MODULE_NAME "SAVE"
+#define MODULE_COLOUR COLOUR_MAGENTA
+
+#include "common.h"
 #include "compiler.h"
 #include "landslide.h"
 #include "save.h"
@@ -107,12 +111,12 @@ bool save_set_base_dir(struct save_state *ss, const char *base_dir)
 	int len = strlen(base_dir) * 2; /* start with some padding */
 
 	if (ss->dir.path) {
-		printf("[SAVE] Cannot set save path if it's already set.\n");
+		lsprintf("Cannot set save path if it's already set.\n");
 		return false;
 	}
 
 	if (ss->save_choice_ever_called) {
-		printf("[SAVE] Too late to set save path.\n");
+		lsprintf("Too late to set save path.\n");
 		return false;
 	}
 
@@ -131,7 +135,7 @@ const char *save_get_path(struct save_state *ss)
 void save_choice(struct save_state *ss, int eip, int tid)
 {
 	if (!ss->dir.path) {
-		printf("[SAVE] not saving choice %d at 0x%x\n", tid, eip);
+		lsprintf("not saving choice %d at 0x%x\n", tid, eip);
 		return;
 	}
 
@@ -148,7 +152,7 @@ void save_choice(struct save_state *ss, int eip, int tid)
 void save_choice_commit(struct save_state *ss, struct ls_state *ls, bool our_choice)
 {
 	if (!ss->dir.path) {
-		printf("[SAVE] not committing...\n");
+		lsprintf("not committing...\n");
 		return;
 	}
 

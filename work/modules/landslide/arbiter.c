@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MODULE_NAME "ARBITER"
+#define MODULE_COLOUR COLOUR_YELLOW
+
+#include "common.h"
 #include "landslide.h"
 #include "schedule.h"
 #include "x86.h"
@@ -68,7 +72,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 
 	/* Has the user specified something for us to do? */
 	if (arbiter_pop_choice(r, &tid)) {
-		printf("[ARBITER] looking for requested agent %d\n", tid);
+		lsprintf("looking for requested agent %d\n", tid);
 		a = agent_by_tid_or_null(&ls->sched.rq, tid);
 		if (!a) {
 			a = agent_by_tid_or_null(&ls->sched.sq, tid);
@@ -78,7 +82,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 			*our_choice = false;
 			return true;
 		} else {
-			printf("[ARBITER] failed to choose agent %d\n", tid);
+			lsprintf("failed to choose agent %d\n", tid);
 			return false;
 		}
 	/* automatically choose a thread */

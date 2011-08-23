@@ -14,7 +14,7 @@
 #include "schedule.h"
 #include "test.h"
 
-#define MODULE_NAME "landslide"
+#define SIM_MODULE_NAME "landslide"
 
 struct ls_state {
 	/* log_object_t must be the first thing in the device struct */

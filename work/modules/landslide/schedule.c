@@ -7,7 +7,11 @@
 #include <simics/api.h>
 #include <simics/alloc.h>
 
+#define MODULE_NAME "SCHEDULE"
+#define MODULE_COLOUR COLOUR_GREEN
+
 #include "arbiter.h"
+#include "common.h"
 #include "landslide.h"
 #include "kernel_specifics.h"
 #include "schedule.h"
@@ -191,14 +195,15 @@ void sched_update(struct ls_state *ls)
 		 * find it later. (see the kern_thread_runnable case below.) */
 		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
 		if (next) {
-			printf("switched threads %d -> %d\n", old_tid, new_tid);
+			lsprintf("switched threads %d -> %d\n", old_tid,
+				 new_tid);
 			s->cur_agent = next;
 		} else {
 			/* there is also a possibility of searching s->dq, to
 			 * find the thread, but the kern_thread_runnable case
 			 * below can handle it for us anyway with less code. */
-			printf("about to switch threads %d -> %d\n", old_tid,
-			       new_tid);
+			lsprintf("about to switch threads %d -> %d\n", old_tid,
+				 new_tid);
 			s->context_switch_pending = true;
 			s->context_switch_target = new_tid;
 		}
@@ -246,12 +251,12 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_thread_runnable(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
 		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
-			printf("agent %d forked -- ", target_tid);
+			lsprintf("agent %d forked -- ", target_tid);
 			agent_fork(s, target_tid, kern_fork_returns_to_cs());
 			/* don't need this flag anymore; fork only forks once */
 			ACTION(s, forking) = false;
 		} else {
-			printf("agent %d wake -- ", target_tid);
+			lsprintf("agent %d wake -- ", target_tid);
 			agent_wake(s, target_tid);
 		}
 		/* If this is happening from the context switcher, we also need
@@ -268,18 +273,18 @@ void sched_update(struct ls_state *ls)
 		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
 			agent_vanish(s, target_tid);
-			printf("agent %d vanished -- ", target_tid);
+			lsprintf("agent %d vanished -- ", target_tid);
 			/* Future actions by this thread, such as scheduling
 			 * somebody else, shouldn't count as them vanishing too! */
 			ACTION(s, vanishing) = false;
 		} else if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
 			agent_sleep(s, target_tid);
-			printf("agent %d sleep -- ", target_tid);
+			lsprintf("agent %d sleep -- ", target_tid);
 			ACTION(s, sleeping) = false;
 		} else {
 			agent_deschedule(s, target_tid);
-			printf("agent %d desch -- ", target_tid);
+			lsprintf("agent %d desch -- ", target_tid);
 		}
 		print_qs(s);
 		printf("\n");
@@ -317,8 +322,8 @@ void sched_update(struct ls_state *ls)
 			     kern_context_switch_exiting(ls->eip))) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
-				printf("keeping schedule in-flight at 0x%x\n",
-				       ls->eip);
+				lsprintf("keeping schedule in-flight at 0x%x\n",
+					 ls->eip);
 				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 			} else {
@@ -372,10 +377,10 @@ void sched_update(struct ls_state *ls)
 
 			/* Effect the choice that was made... */
 			if (a != s->cur_agent) {
-				printf("from agent %d, arbiter chose %d at 0x%x "
-				       "(called at 0x%x)\n",
-				       s->cur_agent->tid, a->tid, ls->eip,
-				       (unsigned int)READ_STACK(ls->cpu0, 0));
+				lsprintf("from agent %d, arbiter chose %d at "
+					 "0x%x (called at 0x%x)\n",
+					 s->cur_agent->tid, a->tid, ls->eip,
+					 (unsigned int)READ_STACK(ls->cpu0, 0));
 				s->schedule_in_flight = a;
 				a->action.schedule_target = true;
 				cause_timer_interrupt(ls->cpu0);
@@ -384,7 +389,7 @@ void sched_update(struct ls_state *ls)
 			/* Record the choice that was just made. */
 			save_choice(&ls->save, ls->eip, a->tid);
 		} else {
-			printf("[SCHED] no agent was chosen at eip %d\n", ls->eip);
+			lsprintf("no agent was chosen at eip %d\n", ls->eip);
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context

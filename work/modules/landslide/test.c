@@ -4,6 +4,10 @@
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
+#define MODULE_NAME "TEST"
+#define MODULE_COLOUR COLOUR_CYAN
+
+#include "common.h"
 #include "kernel_specifics.h"
 #include "schedule.h"
 #include "test.h"
@@ -50,13 +54,13 @@ bool test_update_state(struct test_state *t, struct sched_state *s)
 {
 	if (anybody_alive(s)) {
 		if (!t->test_is_running) {
-			printf("[TEST] a test appears to be starting\n");
+			lsprintf("a test appears to be starting\n");
 			t->test_is_running = true;
 			return true;
 		}
 	} else {
 		if (t->test_is_running) {
-			printf("[TEST] a test appears to be ending\n");
+			lsprintf("a test appears to be ending\n");
 			if (t->current_test) {
 				MM_FREE(t->current_test);
 				t->current_test = NULL;
@@ -81,8 +85,8 @@ const char *test_get_test(struct test_state *t)
 bool cause_test(struct test_state *t, conf_object_t *kbd, const char *test_string)
 {
 	if (t->test_is_running || t->current_test) {
-		printf("[TEST] can't run \"%s\" with another test running\n",
-		       test_string);
+		lsprintf("can't run \"%s\" with another test running\n",
+			 test_string);
 		return false;
 	}
 

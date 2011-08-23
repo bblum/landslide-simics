@@ -35,6 +35,10 @@
 // XXX: idiots wrote this header, so it must be after the other includes.
 #include "trace.h"
 
+#define MODULE_NAME "LANDSLIDE"
+#define MODULE_COLOUR COLOUR_RED
+
+#include "common.h"
 #include "landslide.h"
 #include "x86.h"
 
@@ -153,7 +157,7 @@ void init_local(void)
 	};
 
 	/* Register the empty device class. */
-	conf_class_t *conf_class = SIM_register_class(MODULE_NAME, &funcs);
+	conf_class_t *conf_class = SIM_register_class(SIM_MODULE_NAME, &funcs);
 
 	/* Register the landslide class as a trace consumer. */
 	static const trace_consume_interface_t sploits = {
@@ -171,7 +175,7 @@ void init_local(void)
 	LS_ATTR_REGISTER(conf_class, test_case, "s",
 			 "Which test case should we run?");
 
-	printf("welcome to landslide.\n");
+	lsprintf("welcome to landslide.\n");
 }
 
 /******************************************************************************
@@ -192,11 +196,11 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (ls->trigger_count % 1000000 == 0) {
-		printf("hax number %d with trace-type %s at 0x%x\n",
-		       ls->trigger_count,
-		       entry->trace_type == TR_Data ? "DATA" :
-		       entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
-		       ls->eip);
+		lsprintf("hax number %d with trace-type %s at 0x%x\n",
+			 ls->trigger_count,
+			 entry->trace_type == TR_Data ? "DATA" :
+			 entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
+			 ls->eip);
 	}
 
 	if (ls->eip >= USER_MEM_START) {
@@ -210,6 +214,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	 * decide what to do. */
 	if (test_update_state(&ls->test, &ls->sched) &&
 	    !test_is_running(&ls->test)) {
-		SIM_break_simulation("[LANDSLIDE] test case ended!");
+		lsprintf("test case ended!\n");
+		SIM_break_simulation(NULL);
 	}
 }
