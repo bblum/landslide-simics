@@ -91,6 +91,14 @@ bool kern_vanishing(int eip)
 {
 	return eip == GUEST_VANISH_WINDOW_ENTER;
 }
+bool kern_readline_begin(int eip)
+{
+	return eip == GUEST_READLINE_WINDOW_ENTER;
+}
+bool kern_readline_done(int eip)
+{
+	return eip == GUEST_READLINE_WINDOW_EXIT;
+}
 
 /* How to tell if a new thread is appearing or disappearing on the runqueue. */
 static bool thread_becoming_runnable(conf_object_t *cpu, int eip)
