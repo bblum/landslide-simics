@@ -26,6 +26,8 @@ bool kern_scheduler_locked(conf_object_t *cpu);
 bool kern_forking(int eip);
 bool kern_vanishing(int eip);
 bool kern_sleeping(int eip);
+bool kern_readline_enter(int eip);
+bool kern_readline_exit(int eip);
 bool kern_thread_runnable(conf_object_t *cpu, int eip, int *);
 bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *);
 

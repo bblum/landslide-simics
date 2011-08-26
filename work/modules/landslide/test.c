@@ -22,6 +22,14 @@ void test_init(struct test_state *t)
 // TODO: some way of telling when actually ... use readline to know
 static bool anybody_alive(struct sched_state *s)
 {
+	struct agent *shell;
+
+	if ((shell = agent_by_tid_or_null(&s->rq, kern_get_shell_tid())) ||
+	    (shell = agent_by_tid_or_null(&s->dq, kern_get_shell_tid()))) {
+		return !shell->action.readlining;
+	}
+	return true;
+#if 0
 	/* test running / not running state is determined by:
 	 * 1) nobody on the RQ
 	 * 2) nobody on the SQ
@@ -46,6 +54,7 @@ static bool anybody_alive(struct sched_state *s)
 		    	return true;
 		}
 	}
+#endif
 	return false;
 }
 

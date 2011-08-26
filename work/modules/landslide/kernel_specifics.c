@@ -91,11 +91,11 @@ bool kern_vanishing(int eip)
 {
 	return eip == GUEST_VANISH_WINDOW_ENTER;
 }
-bool kern_readline_begin(int eip)
+bool kern_readline_enter(int eip)
 {
 	return eip == GUEST_READLINE_WINDOW_ENTER;
 }
-bool kern_readline_done(int eip)
+bool kern_readline_exit(int eip)
 {
 	return eip == GUEST_READLINE_WINDOW_EXIT;
 }

@@ -50,6 +50,7 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 	a->action.forking = false; /* XXX: may not be true in some kernels */
 	a->action.sleeping = false;
 	a->action.vanishing = false;
+	a->action.readlining = false;
 	a->action.schedule_target = false;
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
@@ -122,6 +123,7 @@ void print_agent(struct agent *a)
 	if (a->action.forking)         printf("f");
 	if (a->action.sleeping)        printf("s");
 	if (a->action.vanishing)       printf("v");
+	if (a->action.readlining)      printf("r");
 	if (a->action.schedule_target) printf("*");
 }
 
@@ -155,7 +157,7 @@ void print_qs(struct sched_state *s)
 #define HANDLING_INTERRUPT(s) (ACTION(s, handling_timer)) /* FIXME: add kbd */
 #define NO_ACTION(s) (!(ACTION(s, handling_timer) || ACTION(s, context_switch) \
 			|| ACTION(s, forking) || ACTION(s, sleeping)           \
-			|| ACTION(s, vanishing)))
+			|| ACTION(s, vanishing) || ACTION(s, readlining)))
 
 
 void sched_update(struct ls_state *ls)
@@ -247,6 +249,12 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_vanishing(ls->eip)) {
 		assert(NO_ACTION(s));
 		ACTION(s, vanishing) = true;
+	} else if (kern_readline_enter(ls->eip)) {
+		assert(NO_ACTION(s));
+		ACTION(s, readlining) = true;
+	} else if (kern_readline_exit(ls->eip)) {
+		assert(ACTION(s, readlining));
+		ACTION(s, readlining) = false;
 	/* Runnable state change (incl. consequences of fork, vanish, sleep). */
 	} else if (kern_thread_runnable(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
