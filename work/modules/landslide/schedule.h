@@ -33,6 +33,8 @@ struct agent {
 		bool sleeping;
 		/* do they have properties of red wizard? */
 		bool vanishing;
+		/* are they reading lines */
+		bool readlining;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
