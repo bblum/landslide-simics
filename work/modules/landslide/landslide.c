@@ -52,6 +52,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	assert(ls && "failed to allocate ls state");
 	SIM_log_constructor(&ls->log, parse_obj);
 	ls->trigger_count = 0;
+	ls->absolute_trigger_count = 0;
 
 	ls->cpu0 = SIM_get_object("cpu0");
 	assert(ls->cpu0 && "failed to find cpu");
@@ -91,6 +92,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 				     desc);
 
 LS_ATTR_SET_GET_FNS(trigger_count, integer);
+LS_ATTR_SET_GET_FNS(absolute_trigger_count, integer);
 
 // XXX: figure out how to use simics list/string attributes
 static set_error_t set_ls_arbiter_choice_attribute(
@@ -167,6 +169,8 @@ void init_local(void)
 
 	/* Register attributes for the class. */
 	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
+	LS_ATTR_REGISTER(conf_class, absolute_trigger_count, "i",
+			 "Count of all haxes ever");
 	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
 			 "Tell the arbiter which thread to choose next "
 			 "(buffered, FIFO)");
@@ -191,13 +195,14 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 		return;
 
 	ls->trigger_count++;
+	ls->absolute_trigger_count++;
 
 	/* TODO: avoid using get_cpu_attr */
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (ls->trigger_count % 1000000 == 0) {
-		lsprintf("hax number %d with trace-type %s at 0x%x\n",
-			 ls->trigger_count,
+		lsprintf("hax number %d (%d) with trace-type %s at 0x%x\n",
+			 ls->trigger_count, ls->absolute_trigger_count,
 			 entry->trace_type == TR_Data ? "DATA" :
 			 entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
 			 ls->eip);
