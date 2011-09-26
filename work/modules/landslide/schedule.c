@@ -378,11 +378,6 @@ void sched_update(struct ls_state *ls)
 		 * arbiter may return NULL if there was only one possible
 		 * choice. */
 		if (arbiter_choose(ls, &a, &our_choice)) {
-			/* Commit information about the current choice point.
-			 * (If it wasn't our choice, simply descend a
-			 * directory. */
-			save_choice_commit(&ls->save, ls, our_choice);
-
 			/* Effect the choice that was made... */
 			if (a != s->cur_agent) {
 				lsprintf("from agent %d, arbiter chose %d at "
@@ -395,9 +390,9 @@ void sched_update(struct ls_state *ls)
 				s->entering_timer = true;
 			}
 			/* Record the choice that was just made. */
-			save_choice(&ls->save, ls->eip, a->tid);
+			save_setjmp(&ls->save, ls, a->tid, our_choice);
 		} else {
-			lsprintf("no agent was chosen at eip %d\n", ls->eip);
+			lsprintf("no agent was chosen at eip 0x%x\n", ls->eip);
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context

@@ -42,7 +42,8 @@ struct agent {
 
 Q_NEW_HEAD(struct agent_q, struct agent);
 
-/* Internal state for the scheduler. */
+/* Internal state for the scheduler.
+ * If you change this, make sure to update save.c! */
 struct sched_state {
 	/* Reflection of the currently runnable threads in the guest kernel */
 	struct agent_q rq;
@@ -50,7 +51,6 @@ struct sched_state {
 	struct agent_q dq;
 	/* Reflection of threads which will become runnable on their own time */
 	struct agent_q sq;
-	/* TODO: test.c relies on this; update it if a readlineq appears */
 	/* Currently active thread */
 	struct agent *cur_agent;
 	/* Are we about to context-switch? (see inside sched_update) */

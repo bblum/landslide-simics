@@ -108,6 +108,8 @@ static attr_value_t get_ls_arbiter_choice_attribute(
 	return SIM_make_attr_integer(-42);
 }
 
+// save_path is deprecated. TODO remove
+#if 0
 static set_error_t set_ls_save_path_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
@@ -124,6 +126,7 @@ static attr_value_t get_ls_save_path_attribute(
 	const char *path = save_get_path(&((struct ls_state *)obj)->save);
 	return SIM_make_attr_string(path);
 }
+#endif
 
 static set_error_t set_ls_test_case_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
@@ -174,8 +177,10 @@ void init_local(void)
 	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
 			 "Tell the arbiter which thread to choose next "
 			 "(buffered, FIFO)");
+#if 0
 	LS_ATTR_REGISTER(conf_class, save_path, "s",
 			 "Base directory of saved choices for this test case");
+#endif
 	LS_ATTR_REGISTER(conf_class, test_case, "s",
 			 "Which test case should we run?");
 
