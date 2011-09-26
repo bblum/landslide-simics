@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "compiler.h"
+
 /**
  * @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE) 
  *
@@ -158,6 +160,7 @@
  *  @return Void
  **/
 #define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) do {       \
+		STATIC_ASSERT(!"XXX: Use Q_INSERT_HEAD not Q_INSERT_TAIL."); \
 		if (!(Q_HEAD)->head) {                              \
 			(Q_HEAD)->head = (Q_HEAD)->tail = (Q_ELEM);     \
 		} else {                                            \
