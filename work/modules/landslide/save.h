@@ -48,7 +48,8 @@ struct save_state {
 	struct hax *root;
 	/* If root is set, this points to the "current" node in the tree */
 	struct hax *current;
-	struct { int tid; int ours; } next_choice;
+	int next_tid;
+	bool just_jumped;
 };
 
 void save_init(struct save_state *);

@@ -228,11 +228,11 @@ void save_init(struct save_state *ss)
 {
 	ss->root = NULL;
 	ss->current = NULL;
-	ss->next_choice.tid = -1;
-	ss->next_choice.ours = true;
+	ss->next_tid = -1;
+	ss->just_jumped = -1;
 }
 
-/* In the typical case,, this signifies that we have reached a new decision
+/* In the typical case, this signifies that we have reached a new decision
  * point. We:
  *  - Add a new choice node to signify this
  *  - The TID that was chosen to get here is stored in ss->new_tid; copy that
@@ -244,36 +244,43 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 {
 	struct hax *h;
 
-	lsprintf("%s tid %d to eip 0x%x, where we %s tid %d\n",
-		 ss->next_choice.ours ? "chose" : "followed",
-		 ss->next_choice.tid, ls->eip,
-		 our_choice ? "choose" : "follow", new_tid);
+	/* The first setjmp call after a longjmp is a special case, since it
+	 * will be on exactly the node we jumped to. There is nothing to do in
+	 * this case. */
+	if (ss->just_jumped) {
+		ss->next_tid = new_tid;
+		lsprintf("explorer chose tid %d; ready for action\n", new_tid);
+		return;
+	}
+
+	lsprintf("tid %d to eip 0x%x, where we %s tid %d\n", ss->next_tid,
+		 ls->eip, our_choice ? "choose" : "follow", new_tid);
 
 	/* Whether there should be a choice node in the tree is dependent on
-	 * whether the *previous* pending choice was our decision or not. */
-	if (ss->next_choice.ours) {
+	 * whether the current pending choice was our decision or not. The
+	 * explorer's choice (!ours) will be in anticipation of a new node, but
+	 * at that point we won't have the info to create the node until we go
+	 * one step further. */
+	if (our_choice) {
 		h = MM_MALLOC(1, struct hax);
 		assert(h && "failed allocate choice node");
 
-		assert(our_choice && "!our_choice after previous our_choice??");
-
 		h->eip           = ls->eip;
 		h->trigger_count = ls->trigger_count;
-		h->chosen_thread = ss->next_choice.tid;
+		h->chosen_thread = ss->next_tid;
 
 		/* Put the choice into the tree. */
 		if (ss->root == NULL) {
 			/* First/root choice. */
 			assert(ss->current == NULL);
-			assert(ss->next_choice.tid == -1);
-			assert(ss->next_choice.ours == true);
+			assert(ss->next_tid == -1);
 
 			h->parent = NULL;
 			ss->root  = h;
 		} else {
 			/* Subsequent choice. */
 			assert(ss->current != NULL);
-			assert(ss->next_choice.tid != -1);
+			assert(ss->next_tid != -1);
 
 			// XXX: Q_INSERT_TAIL causes a sigsegv
 			Q_INSERT_HEAD(&ss->current->children, h, sibling);
@@ -284,11 +291,11 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	} else {
 		assert(ss->root != NULL);
 		assert(ss->current != NULL);
-		assert(ss->next_choice.tid != -1);
+		assert(ss->next_tid != -1);
 
 		/* Find already-existing previous choice nobe */
 		Q_SEARCH(h, &ss->current->children, sibling,
-			 h->chosen_thread == ss->next_choice.tid);
+			 h->chosen_thread == ss->next_tid);
 		assert(h != NULL && "!our_choice but chosen tid not found...");
 
 		assert(h->eip == ls->eip);
@@ -307,8 +314,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	ss->current = h;
 
-	ss->next_choice.tid  = new_tid;
-	ss->next_choice.ours = our_choice;
+	ss->next_tid = new_tid;
 
 	SIM_run_alone(bookmark, (lang_void *)h);
 }
@@ -324,8 +330,6 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 	if (h == NULL)
 		h = ss->root;
 	
-	// TODO: Here, analyse the tree and get some choices for the next traversal.
-
 	/* Find the target choice point from among our ancestors. */
 	while (ss->current != h) {
 		/* This node will soon be in the future. Reclaim memory. */
@@ -345,11 +349,7 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 
 	restore_ls(ls, h);
 
-	// TODO: Here, append one or more arbiter_choices (has to be after restore_ls)
-
-	/* Finally, reclaim memory from the node we just skipped to, since we
-	 * will soon be asked to setjmp on it again with !our_choice. */
-	free_hax(h);
+	ss->just_jumped = true;
 
 	SIM_run_alone(skip_to, (lang_void *)h);
 }
