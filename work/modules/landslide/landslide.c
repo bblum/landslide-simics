@@ -39,7 +39,11 @@
 #define MODULE_COLOUR COLOUR_RED
 
 #include "common.h"
+#include "explore.h"
 #include "landslide.h"
+#include "save.h"
+#include "test.h"
+#include "tree.h"
 #include "x86.h"
 
 /******************************************************************************
@@ -142,7 +146,7 @@ static set_error_t set_ls_test_case_attribute(
 static attr_value_t get_ls_test_case_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *idx)
 {
-	const char *path = test_get_test(&((struct ls_state *)obj)->test);
+	const char *path = ((struct ls_state *)obj)->test.current_test;
 	return SIM_make_attr_string(path);
 }
 
@@ -223,8 +227,27 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	/* When a test case finishes, break the simulation so the wrapper can
 	 * decide what to do. */
 	if (test_update_state(&ls->test, &ls->sched) &&
-	    !test_is_running(&ls->test)) {
-		lsprintf("test case ended!\n");
-		SIM_break_simulation(NULL);
+	    !ls->test.test_is_running) {
+		/* See if it's time to try again... */
+		if (ls->test.test_ever_caused) {
+			/* find where we want to go in the tree, and emit one or
+			 * more choices to do upon getting there. */
+			int tid;
+			struct hax *h;
+
+			lsprintf("test case ended!\n");
+			ls->save.current->end_of_test = true;
+			if ((h = explore(ls->save.current, ls->save.root, &tid))
+			    != NULL) {
+				arbiter_append_choice(&ls->arbiter, tid);
+				save_longjmp(&ls->save, ls, h);
+			} else {
+				lsprintf("choice tree explored; you passed!\n");
+				SIM_quit(0);
+			}
+		} else {
+			lsprintf("ready to roll!\n");
+			SIM_break_simulation(NULL);
+		}
 	}
 }

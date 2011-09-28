@@ -22,6 +22,7 @@
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
+#include "tree.h"
 
 /******************************************************************************
  * helpers
@@ -184,12 +185,20 @@ static void free_test(const struct test_state *t)
 }
 static void free_arbiter_choices(struct arbiter_state *a)
 {
+// TODO: deprecate one of these
+#if 0
 	while (Q_GET_SIZE(&a->choices) > 0) {
 		struct choice *c = Q_GET_HEAD(&a->choices);
 		Q_REMOVE(&a->choices, c, nobe);
 		lsprintf("discarding buffered arbiter choice %d\n", c->tid);
 		MM_FREE(c);
 	}
+#else
+	struct choice *c;
+	Q_FOREACH(c, &a->choices, nobe) {
+		lsprintf("Preserving buffered arbiter choice %d\n", c->tid);
+	}
+#endif
 }
 
 static void free_hax(struct hax *h)
@@ -288,6 +297,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		}
 
 		Q_INIT_HEAD(&h->children);
+		h->end_of_test = false;
 	} else {
 		assert(ss->root != NULL);
 		assert(ss->current != NULL);

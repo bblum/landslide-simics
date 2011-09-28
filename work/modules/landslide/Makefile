@@ -15,6 +15,8 @@ SRC_FILES = landslide.h landslide.c \
 	    arbiter.h arbiter.c \
 	    save.h save.c \
 	    test.h test.c \
+	    explore.h explore.c \
+	    tree.h \
 	    variable_queue.h
 
 MODULE_CFLAGS =

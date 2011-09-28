@@ -15,8 +15,9 @@
 
 void test_init(struct test_state *t)
 {
-	t->test_is_running = false;
-	t->current_test = NULL;
+	t->test_is_running  = false;
+	t->test_ever_caused = false;
+	t->current_test     = NULL;
 }
 
 // TODO: some way of telling when actually ... use readline to know
@@ -81,16 +82,6 @@ bool test_update_state(struct test_state *t, struct sched_state *s)
 	return false;
 }
 
-bool test_is_running(struct test_state *t)
-{
-	return t->test_is_running;
-}
-
-const char *test_get_test(struct test_state *t)
-{
-	return t->current_test;
-}
-
 bool cause_test(struct test_state *t, conf_object_t *kbd, const char *test_string)
 {
 	if (t->test_is_running || t->current_test) {
@@ -110,6 +101,8 @@ bool cause_test(struct test_state *t, conf_object_t *kbd, const char *test_strin
 	if (test_string[strlen(test_string)-1] != '\n') {
 		cause_keypress(kbd, '\n');
 	}
+
+	t->test_ever_caused = true;
 
 	return true;
 }
