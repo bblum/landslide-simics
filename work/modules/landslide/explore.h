@@ -10,6 +10,6 @@
 struct arbiter_state;
 struct hax;
 
-struct hax *explore(struct hax *cur, struct hax *root, int *new_tid);
+struct hax *explore(struct hax *root, struct hax *current, int *new_tid);
 
 #endif

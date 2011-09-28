@@ -237,7 +237,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 			lsprintf("test case ended!\n");
 			ls->save.current->end_of_test = true;
-			if ((h = explore(ls->save.current, ls->save.root, &tid))
+			if ((h = explore(ls->save.root, ls->save.current, &tid))
 			    != NULL) {
 				arbiter_append_choice(&ls->arbiter, tid);
 				save_longjmp(&ls->save, ls, h);

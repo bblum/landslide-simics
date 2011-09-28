@@ -6,7 +6,7 @@
 
 #include "tree.h"
 
-struct hax *explore(struct hax *current, struct hax *root, int *new_tid)
+struct hax *explore(struct hax *root, struct hax *current, int *new_tid)
 {
 	return NULL;
 }
