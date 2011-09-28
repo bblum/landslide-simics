@@ -238,7 +238,7 @@ void save_init(struct save_state *ss)
 	ss->root = NULL;
 	ss->current = NULL;
 	ss->next_tid = -1;
-	ss->just_jumped = -1;
+	ss->just_jumped = false;
 }
 
 /* In the typical case, this signifies that we have reached a new decision
