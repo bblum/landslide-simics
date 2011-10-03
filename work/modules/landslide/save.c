@@ -160,8 +160,12 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
 	dest->test_is_running = src->test_is_running;
-	dest->current_test    = MM_STRDUP(src->current_test);
-	assert(dest->current_test != NULL && "couldn't strdup current_test");
+	if (src->current_test == NULL) {
+		dest->current_test = NULL;
+	} else {
+		dest->current_test = MM_STRDUP(src->current_test);
+		assert(dest->current_test != NULL && "couldn't strdup test");
+	}
 }
 
 /* To free copied state data structures. None of these free the arg pointer. */
