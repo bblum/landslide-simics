@@ -41,7 +41,7 @@ struct hax {
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! (TODO: is this sufficient, if sched gets wiped sometimes?) */
 
-	bool end_of_test;
+	bool all_explored;
 };
 
 #endif

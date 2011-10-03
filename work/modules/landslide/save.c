@@ -249,7 +249,7 @@ void save_init(struct save_state *ss)
  *  - Store the new_tid for some subsequent choice point
  */
 void save_setjmp(struct save_state *ss, struct ls_state *ls,
-		 int new_tid, bool our_choice)
+		 int new_tid, bool our_choice, bool end_of_test)
 {
 	struct hax *h;
 
@@ -297,11 +297,12 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		}
 
 		Q_INIT_HEAD(&h->children);
-		h->end_of_test = false;
+		h->all_explored = end_of_test;
 	} else {
 		assert(ss->root != NULL);
 		assert(ss->current != NULL);
 		assert(ss->next_tid != -1);
+		assert(!end_of_test);
 
 		/* Find already-existing previous choice nobe */
 		Q_SEARCH(h, &ss->current->children, sibling,
@@ -312,6 +313,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		assert(h->trigger_count == ls->trigger_count);
 		assert(h->oldsched == NULL);
 		assert(h->oldtest == NULL);
+		assert(!h->all_explored); /* exploration invariant */
 	}
 
 	h->oldsched = MM_MALLOC(1, struct sched_state);
@@ -322,8 +324,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	assert(h->oldtest && "failed allocate oldtest");
 	copy_test(h->oldtest, &ls->test);
 
-	ss->current = h;
-
+	ss->current  = h;
 	ss->next_tid = new_tid;
 
 	SIM_run_alone(bookmark, (lang_void *)h);

@@ -236,9 +236,10 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 			struct hax *h;
 
 			lsprintf("test case ended!\n");
-			ls->save.current->end_of_test = true;
+			save_setjmp(&ls->save, ls, -1, true, true);
 			if ((h = explore(ls->save.root, ls->save.current, &tid))
 			    != NULL) {
+				assert(!h->all_explored);
 				arbiter_append_choice(&ls->arbiter, tid);
 				save_longjmp(&ls->save, ls, h);
 			} else {
