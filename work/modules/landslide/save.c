@@ -5,9 +5,11 @@
  */
 
 #include <assert.h>
-#include <stdlib.h> /* for mktemp */
 #include <string.h> /* for memcmp, strlen */
-#include <unistd.h> /* for write, unlink */
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h> /* for open */
+#include <unistd.h> /* for write */
 
 #include <simics/alloc.h>
 #include <simics/api.h>
@@ -25,7 +27,7 @@
 #include "tree.h"
 
 /******************************************************************************
- * helpers
+ * simics goo
  ******************************************************************************/
 
 /* The bookmark name is this prefix concatenated with the hexadecimal address
@@ -34,56 +36,65 @@
 #define BOOKMARK_SUFFIX_LEN ((int)(2*sizeof(unsigned long long))) /* for hex */
 #define BOOKMARK_MAX_LEN (strlen(BOOKMARK_PREFIX) + 16)
 
+#define CMD_PROLOGUE "stop"
 #define CMD_BOOKMARK "set-bookmark"
+#define CMD_DELETE   "delete-bookmark"
 #define CMD_SKIPTO   "skip-to"
 #define CMD_BUF_LEN 64
+#define MAX_CMD_LEN (MAX(strlen(CMD_BOOKMARK), \
+			 MAX(strlen(CMD_DELETE),strlen(CMD_SKIPTO))))
 
-static void run_command(const char *which_cmd, unsigned long long label)
+/* Running commands is done by use of SIM_run_alone. We write the command out to
+ * a file, and pause simics's execution. Our wrapper will cause the command file
+ * to get executed. (This is necessary because simics refuses to run "skip-to"
+ * from execution context.) */
+struct cmd_packet {
+	const char *file;
+	const char *cmd;
+	unsigned long long label;
+};
+
+static void run_command_cb(lang_void *addr)
 {
-	// this use of run_command_file is deprecated; TODO delete
-#if 0
-	char filename[] = "/tmp/landslide-cmd-XXXXXX";
+	struct cmd_packet *p = (struct cmd_packet *)addr;
 	char buf[CMD_BUF_LEN];
 	int ret;
-	int fd = mkstemp(filename);
-	assert(fd != -1 && "mktemp failed create command file");
+	int fd = open(p->file, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+	assert(fd != -1 && "failed open command file");
 
 	/* Generate command */
-	STATIC_ASSERT(CMD_BUF_LEN > MAX(strlen(CMD_BOOKMARK),strlen(CMD_SKIPTO))
-				    + 1 + BOOKMARK_MAX_LEN + 1);
-	ret = snprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx\n",
-		       which_cmd, BOOKMARK_SUFFIX_LEN, label);
+	assert(CMD_BUF_LEN > strlen(p->cmd) + 1 + BOOKMARK_MAX_LEN);
+	ret = snprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx",
+		       p->cmd, BOOKMARK_SUFFIX_LEN, p->label);
 	assert(ret > 0 && "failed snprintf");
 	ret = write(fd, buf, ret);
 	assert(ret > 0 && "failed write");
 
-	lsprintf("Using temp file '%s' for cmd '%s'\n", filename, buf);
-	SIM_run_command_file(filename, true /* ?!? */);
+	lsprintf("Using file '%s' for cmd '%s'\n", p->file, buf);
 
 	/* Clean-up */
 	ret = close(fd);
 	assert(ret == 0 && "failed close");
-	ret = unlink(filename);
-	assert(ret == 0 && "failed unlink");
-#else
-	int ret;
-	char buf[CMD_BUF_LEN];
-	STATIC_ASSERT(CMD_BUF_LEN > MAX(strlen(CMD_BOOKMARK),strlen(CMD_SKIPTO))
-				    + 1 + BOOKMARK_MAX_LEN + 1);
-	ret = snprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx\n",
-		       which_cmd, BOOKMARK_SUFFIX_LEN, label);
-	assert(ret > 0 && "failed snprintf");
-	SIM_run_command(buf);
-#endif
+
+	MM_FREE(p);
 }
-static void bookmark(lang_void *addr)
+
+static void run_command(const char *file, const char *cmd, struct hax *h)
 {
-	run_command(CMD_BOOKMARK, (unsigned long long)addr);
+	struct cmd_packet *p = MM_MALLOC(1, struct cmd_packet);
+	assert(p && "failed allocate command packet");
+
+	p->cmd   = cmd;
+	p->label = (unsigned long long)h;
+	p->file  = file;
+
+	SIM_break_simulation(NULL);
+	SIM_run_alone(run_command_cb, (lang_void *)p);
 }
-static void skip_to(lang_void *addr)
-{
-	run_command(CMD_SKIPTO, (unsigned long long)addr);
-}
+
+/******************************************************************************
+ * helpers
+ ******************************************************************************/
 
 static struct agent *copy_agent(struct agent *a_src)
 {
@@ -331,7 +342,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	ss->current  = h;
 	ss->next_tid = new_tid;
 
-	SIM_run_alone(bookmark, (lang_void *)h);
+	run_command(ls->cmd_file, CMD_BOOKMARK, (lang_void *)h);
 }
 
 void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
@@ -344,11 +355,12 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 	/* The caller is allowed to say NULL, which means jump to the root. */
 	if (h == NULL)
 		h = ss->root;
-	
+
 	/* Find the target choice point from among our ancestors. */
 	while (ss->current != h) {
 		/* This node will soon be in the future. Reclaim memory. */
 		free_hax(ss->current);
+		run_command(ls->cmd_file, CMD_DELETE, (lang_void *)h);
 
 		ss->current = ss->current->parent;
 
@@ -366,5 +378,5 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 
 	ss->just_jumped = true;
 
-	SIM_run_alone(skip_to, (lang_void *)h);
+	run_command(ls->cmd_file, CMD_SKIPTO, (lang_void *)h);
 }

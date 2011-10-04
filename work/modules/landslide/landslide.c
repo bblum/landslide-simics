@@ -57,6 +57,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	SIM_log_constructor(&ls->log, parse_obj);
 	ls->trigger_count = 0;
 	ls->absolute_trigger_count = 0;
+	ls->cmd_file = NULL;
 
 	ls->cpu0 = SIM_get_object("cpu0");
 	assert(ls->cpu0 && "failed to find cpu");
@@ -110,6 +111,26 @@ static attr_value_t get_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *idx)
 {
 	return SIM_make_attr_integer(-42);
+}
+
+static set_error_t set_ls_cmd_file_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	struct ls_state *ls = (struct ls_state *)obj;
+	if (ls->cmd_file == NULL) {
+		ls->cmd_file = MM_STRDUP(SIM_attr_string(*val));
+		assert(ls->cmd_file != NULL && "failed strdup!");
+		return Sim_Set_Ok;
+	} else {
+		return Sim_Set_Not_Writable;
+	}
+}
+static attr_value_t get_ls_cmd_file_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	struct ls_state *ls = (struct ls_state *)obj;
+	const char *path = ls->cmd_file != NULL ? ls->cmd_file : "/dev/null";
+	return SIM_make_attr_string(path);
 }
 
 // save_path is deprecated. TODO remove
@@ -187,6 +208,8 @@ void init_local(void)
 #endif
 	LS_ATTR_REGISTER(conf_class, test_case, "s",
 			 "Which test case should we run?");
+	LS_ATTR_REGISTER(conf_class, cmd_file, "s",
+			 "Filename to use for communication with the wrapper");
 
 	lsprintf("welcome to landslide.\n");
 }

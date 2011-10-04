@@ -23,6 +23,8 @@ struct ls_state {
 	int trigger_count; /* in this branch of the tree */
 	int absolute_trigger_count; /* in the whole execution */
 
+	char *cmd_file;
+
 	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;
 	conf_object_t *kbd0;

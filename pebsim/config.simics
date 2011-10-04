@@ -76,13 +76,16 @@ add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 
 ## symbol tables (should be in 410mods.py but isn't)
 
-deflsym.load-symbols "kernel"
+deflsym.load-symbols "kern-race/kernel"
 ## deflsym.source-path "kern"
+deflsym.source-path "kern-race"
 
 ## setting up landslide
 
 load-module landslide
 @landslide = SIM_create_object("landslide", "landslide0", [])
+@cmd_file = "./landslide-save.simics"
+@SIM_set_attribute(landslide, "cmd_file", cmd_file)
 
 break (sym _start)
 run
@@ -90,3 +93,7 @@ delete 1
 new-tracer
 trace0.start
 @SIM_set_attribute(SIM_get_object("trace0"), "consumer", landslide)
+continue
+@SIM_set_attribute(landslide, "test_case", "vanish_vanish")
+
+@SIM_source_python("landslide.py")
