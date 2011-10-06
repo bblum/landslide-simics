@@ -29,10 +29,11 @@ void arbiter_append_choice(struct arbiter_state *r, int tid)
 	Q_INSERT_FRONT(&r->choices, c, nobe);
 }
 
-static bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
+bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 {
 	struct choice *c = Q_GET_TAIL(&r->choices);
 	if (c) {
+		lsprintf("using requested tid %d\n", c->tid);
 		Q_REMOVE(&r->choices, c, nobe);
 		*tid = c->tid;
 		MM_FREE(c);
