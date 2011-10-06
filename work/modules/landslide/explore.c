@@ -60,12 +60,13 @@ struct hax *explore(struct hax *root, struct hax *current, int *new_tid)
 		/* Examine children */
 		if (!current->all_explored) {
 			if (find_unsearched_child(current, new_tid)) {
-				lsprintf("chose tid %d from tid %d\n", *new_tid,
-					 current->chosen_thread);
+				lsprintf("chose tid %d from tid %d (%p)\n",
+					 *new_tid, current->chosen_thread,
+					 current);
 				return current;
 			} else {
-				lsprintf("node with tid %d all_explored\n",
-					 current->chosen_thread);
+				lsprintf("tid %d (%p) all_explored\n",
+					 current->chosen_thread, current);
 				current->all_explored = true;
 			}
 		}
