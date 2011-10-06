@@ -8,6 +8,10 @@
 
 #include <simics/api.h>
 
+#define MODULE_NAME "X86"
+#define MODULE_COLOUR COLOUR_DARK COLOUR_GREEN
+
+#include "common.h"
 #include "x86.h"
 #include "kernel_specifics.h"
 
@@ -16,11 +20,14 @@
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
 #define KERNEL_SEGSEL_CS 0x10
-void cause_timer_interrupt_immediately(conf_object_t *cpu)
+int cause_timer_interrupt_immediately(conf_object_t *cpu)
 {
 	int esp = GET_CPU_ATTR(cpu, esp);
 	int eip = GET_CPU_ATTR(cpu, eip);
 	int eflags = GET_CPU_ATTR(cpu, eflags);
+	int handler = kern_get_timer_wrap_begin();
+
+	lsprintf("tock! (0x%x)\n", eip);
 
 	/* 12 is the size of an IRET frame only when already in kernel mode. */
 	SET_CPU_ATTR(cpu, esp, esp - 12);
@@ -28,7 +35,9 @@ void cause_timer_interrupt_immediately(conf_object_t *cpu)
 	SIM_write_phys_memory(cpu, esp + 8, eflags, 4);
 	SIM_write_phys_memory(cpu, esp + 4, KERNEL_SEGSEL_CS, 4);
 	SIM_write_phys_memory(cpu, esp + 0, eip, 4);
-	SET_CPU_ATTR(cpu, eip, kern_get_timer_wrap_begin());
+	SET_CPU_ATTR(cpu, eip, handler);
+
+	return handler;
 }
 
 /* i.e., with stallin' */
@@ -40,6 +49,8 @@ static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
 #define TIMER_INTERRUPT_NUMBER 0x20
 void cause_timer_interrupt(conf_object_t *cpu)
 {
+	lsprintf("tick! (0x%x)\n", (int)GET_CPU_ATTR(cpu, eip));
+
 	if (GET_CPU_ATTR(cpu, pending_vector_valid)) {
 		SET_CPU_ATTR(cpu, pending_vector,
 			     GET_CPU_ATTR(cpu, pending_vector)

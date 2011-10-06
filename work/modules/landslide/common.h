@@ -18,6 +18,7 @@
 #endif
 
 #define COLOUR_BOLD "\033[01m"
+#define COLOUR_DARK "\033[00m"
 #define COLOUR_RED "\033[31m"
 #define COLOUR_GREEN "\033[32m"
 #define COLOUR_YELLOW "\033[33m"

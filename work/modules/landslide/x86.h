@@ -29,7 +29,7 @@
 		cpu, GET_CPU_ATTR(cpu, esp) + ((offset) * WORD_SIZE), WORD_SIZE)
 
 void cause_timer_interrupt(conf_object_t *cpu);
-void cause_timer_interrupt_immediately(conf_object_t *cpu);
+int cause_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
 
