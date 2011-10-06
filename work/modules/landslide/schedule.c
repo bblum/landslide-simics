@@ -215,11 +215,24 @@ void sched_update(struct ls_state *ls)
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
-		/* TODO: would it be right to assert !handling_timer? */
+		// XXX: same as the comment in the below condition.
+		if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
+			assert(!ACTION(s, handling_timer));
+		} else {
+			lsprintf("WARNING: allowing a nested timer on tid %d's "
+				 "stack\n", s->cur_agent->tid);
+		}
 		ACTION(s, handling_timer) = true;
+		lsprintf("%d timer enter from 0x%x\n", s->cur_agent->tid,
+			 (unsigned int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls->eip)) {
 		assert(ACTION(s, handling_timer));
-		ACTION(s, handling_timer) = false;
+		// XXX: This condition is a hack to compensate for when simics
+		// "sometimes", when keeping a schedule-in-flight, takes the
+		// caused timer interrupt immediately, even before the iret.
+		if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
+			ACTION(s, handling_timer) = false;
+		}
 		/* If the schedule target was in a timer interrupt when we
 		 * decided to schedule him, then now is when the operation
 		 * finishes landing. (otherwise, see below) */
@@ -330,6 +343,10 @@ void sched_update(struct ls_state *ls)
 			     kern_context_switch_exiting(ls->eip))) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
+				// XXX: this seems to get taken too soon? change
+				// it somehow to cause_.._immediately. and then
+				// see the asserts/comments in the action
+				// handling_timer sections above.
 				lsprintf("keeping schedule in-flight at 0x%x\n",
 					 ls->eip);
 				cause_timer_interrupt(ls->cpu0);
@@ -397,4 +414,54 @@ void sched_update(struct ls_state *ls)
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
 	 * switch, so we should watch out if a handler doesn't enter the c-s. */
+}
+
+void sched_recover(struct ls_state *ls)
+{
+	struct sched_state *s = &ls->sched;
+	int tid;
+
+	assert(ls->just_jumped);
+
+	if (arbiter_pop_choice(&ls->arbiter, &tid)) {
+		if (tid == s->cur_agent->tid) {
+			/* Hmmmm */
+			if (kern_timer_entering(ls->eip)) {
+				/* Oops, we ended up trying to leave the thread
+				 * we want to be running. Make sure to go
+				 * back... */
+				s->schedule_in_flight = s->cur_agent;
+				s->cur_agent->action.schedule_target = true;
+				assert(s->entering_timer);
+				lsprintf("Explorer-chosen tid %d wants to run; "
+					 "not switching away\n", tid);
+			} else {
+				lsprintf("Explorer-chosen tid %d already "
+					 "running!\n", tid);
+			}
+		} else {
+			// TODO: duplicate agent search logic (arbiter.c)
+			struct agent *a = agent_by_tid_or_null(&s->rq, tid);
+			if (a == NULL) {
+				a = agent_by_tid_or_null(&s->sq, tid);
+			}
+
+			assert(a != NULL && "bogus explorer-chosen tid!");
+			lsprintf("Recovering to explorer-chosen tid %d from "
+				 "tid %d\n", tid, s->cur_agent->tid);
+			s->schedule_in_flight = a;
+			a->action.schedule_target = true;
+			/* Hmmmm */
+			if (!kern_timer_entering(ls->eip)) {
+				ls->eip = cause_timer_interrupt_immediately(
+					ls->cpu0);
+			}
+			s->entering_timer = true;
+		}
+	} else {
+		tid = s->cur_agent->tid;
+		lsprintf("Explorer chose no tid; defaulting to %d\n", tid);
+	}
+
+	save_recover(&ls->save, ls, tid);
 }

@@ -242,6 +242,8 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	free_test(&ls->test);
 	copy_test(&ls->test, h->oldtest);
 	free_arbiter_choices(&ls->arbiter);
+
+	ls->just_jumped = true;
 }
 
 /******************************************************************************
@@ -253,7 +255,16 @@ void save_init(struct save_state *ss)
 	ss->root = NULL;
 	ss->current = NULL;
 	ss->next_tid = -1;
-	ss->just_jumped = false;
+}
+
+void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
+{
+	/* After a longjmp, we will be on exactly the node we jumped to, but
+	 * there must be a special call to let us know what our new course is
+	 * (see sched_recover). */
+	assert(ls->just_jumped);
+	ss->next_tid = new_tid;
+	lsprintf("explorer chose tid %d; ready for action\n", new_tid);
 }
 
 /* In the typical case, this signifies that we have reached a new decision
@@ -267,15 +278,6 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		 int new_tid, bool our_choice, bool end_of_test)
 {
 	struct hax *h;
-
-	/* The first setjmp call after a longjmp is a special case, since it
-	 * will be on exactly the node we jumped to. There is nothing to do in
-	 * this case. */
-	if (ss->just_jumped) {
-		ss->next_tid = new_tid;
-		lsprintf("explorer chose tid %d; ready for action\n", new_tid);
-		return;
-	}
 
 	lsprintf("tid %d to eip 0x%x, where we %s tid %d\n", ss->next_tid,
 		 ls->eip, our_choice ? "choose" : "follow", new_tid);
@@ -297,14 +299,14 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		if (ss->root == NULL) {
 			/* First/root choice. */
 			assert(ss->current == NULL);
-			assert(ss->next_tid == -1);
+			assert(end_of_test || ss->next_tid == -1);
 
 			h->parent = NULL;
 			ss->root  = h;
 		} else {
 			/* Subsequent choice. */
 			assert(ss->current != NULL);
-			assert(ss->next_tid != -1);
+			assert(end_of_test || ss->next_tid != -1);
 
 			// XXX: Q_INSERT_TAIL causes a sigsegv
 			Q_INSERT_HEAD(&ss->current->children, h, sibling);
@@ -316,7 +318,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	} else {
 		assert(ss->root != NULL);
 		assert(ss->current != NULL);
-		assert(ss->next_tid != -1);
+		assert(end_of_test || ss->next_tid != -1);
 		assert(!end_of_test);
 
 		/* Find already-existing previous choice nobe */
@@ -375,8 +377,6 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 	}
 
 	restore_ls(ls, h);
-
-	ss->just_jumped = true;
 
 	run_command(ls->cmd_file, CMD_SKIPTO, (lang_void *)h);
 }

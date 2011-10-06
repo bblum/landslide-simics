@@ -57,7 +57,6 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	SIM_log_constructor(&ls->log, parse_obj);
 	ls->trigger_count = 0;
 	ls->absolute_trigger_count = 0;
-	ls->cmd_file = NULL;
 
 	ls->cpu0 = SIM_get_object("cpu0");
 	assert(ls->cpu0 && "failed to find cpu");
@@ -68,6 +67,9 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	arbiter_init(&ls->arbiter);
 	save_init(&ls->save);
 	test_init(&ls->test);
+
+	ls->cmd_file = NULL;
+	ls->just_jumped = false;
 
 	return &ls->log.obj;
 }
@@ -103,9 +105,15 @@ LS_ATTR_SET_GET_FNS(absolute_trigger_count, integer);
 static set_error_t set_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
-	arbiter_append_choice(&((struct ls_state *)obj)->arbiter,
-			      SIM_attr_integer(*val));
-	return Sim_Set_Ok;
+	int tid = SIM_attr_integer(*val);
+
+	/* XXX: dum hack */
+	if (tid == -42) {
+		return Sim_Set_Not_Writable;
+	} else {
+		arbiter_append_choice(&((struct ls_state *)obj)->arbiter, tid);
+		return Sim_Set_Ok;
+	}
 }
 static attr_value_t get_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *idx)
@@ -244,7 +252,11 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 		return;
 	}
 
-	// TODO: conditions for calling this?
+	if (ls->just_jumped) {
+		sched_recover(ls);
+		ls->just_jumped = false;
+	}
+
 	sched_update(ls);
 
 	/* When a test case finishes, break the simulation so the wrapper can

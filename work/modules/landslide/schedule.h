@@ -78,7 +78,8 @@ void print_q(const char *, struct agent_q *, const char *);
 void print_qs(struct sched_state *);
 
 /* called at every "interesting" point ... */
-// TODO: is this the right interface?
 void sched_update(struct ls_state *);
+/* called after time-travel */
+void sched_recover(struct ls_state *);
 
 #endif

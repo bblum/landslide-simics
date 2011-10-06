@@ -19,10 +19,11 @@ struct save_state {
 	/* If root is set, this points to the "current" node in the tree */
 	struct hax *current;
 	int next_tid;
-	bool just_jumped;
 };
 
 void save_init(struct save_state *);
+
+void save_recover(struct save_state *, struct ls_state *, int new_tid);
 
 /* Current state, and the next_tid/our_choice is about the next in-flight
  * choice. */
