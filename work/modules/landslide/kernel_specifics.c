@@ -73,6 +73,22 @@ bool kern_scheduler_locked(conf_object_t *cpu)
 	return GUEST_SCHEDULER_LOCKED(x);
 }
 
+bool kern_thread_blocking(conf_object_t *cpu, int eip, int *tid)
+{
+	if (eip == GUEST_BLOCKED_WINDOW_ENTER) {
+		/* First argument to yield. */
+		*tid = READ_STACK(cpu, 0);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_thread_unblocked(int eip)
+{
+	return eip == GUEST_BLOCKED_WINDOW_EXIT;
+}
+
 /******************************************************************************
  * Lifecycle
  ******************************************************************************/

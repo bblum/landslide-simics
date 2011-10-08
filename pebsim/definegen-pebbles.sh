@@ -111,4 +111,14 @@ echo "#define GUEST_READLINE_WINDOW_ENTER 0x$READLINE_WINDOW"
 echo "#define GUEST_READLINE_WINDOW_EXIT 0x$READLINE_WINDOW_END"
 
 echo
+
+# for noob deadlock detection
+
+BLOCKED_WINDOW=`objdump -d $KERNEL_IMG | grep -A10000 "<mutex_lock>:" | grep -m 1 "call.*<yield>" | sed 's/ //g' | cut -d":" -f1`
+BLOCKED_WINDOW_END=`get_func_end mutex_lock`
+echo "#define GUEST_BLOCKED_WINDOW_ENTER 0x$BLOCKED_WINDOW"
+echo "#define GUEST_BLOCKED_WINDOW_EXIT  0x$BLOCKED_WINDOW_END"
+
+
+echo
 echo "#endif"

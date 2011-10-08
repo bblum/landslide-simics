@@ -21,6 +21,8 @@ bool kern_context_switch_entering(int eip);
 bool kern_context_switch_exiting(int eip);
 bool kern_sched_init_done(int eip);
 bool kern_scheduler_locked(conf_object_t *cpu);
+bool kern_thread_blocking(conf_object_t *cpu, int eip, int *);
+bool kern_thread_unblocked(int eip);
 
 /* Lifecycle */
 bool kern_forking(int eip);
