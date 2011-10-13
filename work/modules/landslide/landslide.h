@@ -38,4 +38,7 @@ struct ls_state {
 	bool just_jumped;
 };
 
+#define LS_NO_KNOWN_BUG 0
+#define LS_BUG_FOUND 1
+
 #endif

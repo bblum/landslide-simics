@@ -99,7 +99,6 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 				     desc);
 
 LS_ATTR_SET_GET_FNS(trigger_count, integer);
-LS_ATTR_SET_GET_FNS(absolute_trigger_count, integer);
 
 // XXX: figure out how to use simics list/string attributes
 static set_error_t set_ls_arbiter_choice_attribute(
@@ -205,8 +204,6 @@ void init_local(void)
 
 	/* Register attributes for the class. */
 	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
-	LS_ATTR_REGISTER(conf_class, absolute_trigger_count, "i",
-			 "Count of all haxes ever");
 	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
 			 "Tell the arbiter which thread to choose next "
 			 "(buffered, FIFO)");
@@ -279,7 +276,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 				save_longjmp(&ls->save, ls, h);
 			} else {
 				lsprintf("choice tree explored; you passed!\n");
-				SIM_quit(0);
+				SIM_quit(LS_NO_KNOWN_BUG);
 			}
 		} else {
 			lsprintf("ready to roll!\n");

@@ -38,6 +38,10 @@ struct agent {
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
+	/* For noob deadlock detection. The pointer might not be set; if it is
+	 * NULL but the tid field is not -1, it should be computed. */
+	struct agent *blocked_on;
+	int blocked_on_tid;
 };
 
 Q_NEW_HEAD(struct agent_q, struct agent);

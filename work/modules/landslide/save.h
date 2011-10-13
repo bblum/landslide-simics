@@ -19,6 +19,9 @@ struct save_state {
 	/* If root is set, this points to the "current" node in the tree */
 	struct hax *current;
 	int next_tid;
+	/* Statistics */
+	int total_choices;
+	int total_jumps;
 };
 
 void save_init(struct save_state *);

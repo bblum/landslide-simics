@@ -12,6 +12,7 @@
 
 #include "arbiter.h"
 #include "common.h"
+#include "found_a_bug.h"
 #include "landslide.h"
 #include "kernel_specifics.h"
 #include "schedule.h"
@@ -52,6 +53,8 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 	a->action.vanishing = false;
 	a->action.readlining = false;
 	a->action.schedule_target = false;
+	a->blocked_on = NULL;
+	a->blocked_on_tid = -1;
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
 
@@ -95,6 +98,50 @@ static void agent_vanish(struct sched_state *s, int tid)
 		MM_FREE(s->last_vanished_agent);
 	}
 	s->last_vanished_agent = a;
+}
+
+static struct agent *get_blocked_on(struct sched_state *s, struct agent *src)
+{
+	if (src->blocked_on != NULL) {
+		return src->blocked_on;
+	} else {
+		int tid = src->blocked_on_tid;
+		struct agent *dest     = agent_by_tid_or_null(&s->rq, tid);
+		if (dest == NULL) dest = agent_by_tid_or_null(&s->dq, tid);
+		if (dest == NULL) dest = agent_by_tid_or_null(&s->sq, tid);
+		/* Could still be null. */
+		src->blocked_on = dest;
+		return dest;
+	}
+}
+
+static bool deadlocked(struct sched_state *s)
+{
+	struct agent *tortoise = s->cur_agent;
+	struct agent *rabbit = get_blocked_on(s, tortoise);
+
+	while (rabbit != NULL) {
+		if (rabbit == tortoise) {
+			return true;
+		}
+		tortoise = get_blocked_on(s, tortoise);
+		rabbit = get_blocked_on(s, rabbit);
+		if (rabbit != NULL) {
+			rabbit = get_blocked_on(s, rabbit);
+		}
+	}
+	return false;
+}
+
+static void print_deadlock(struct agent *a)
+{
+	struct agent *start = a;
+	printf("(%d", a->tid);
+	for (a = a->blocked_on; a != start; a = a->blocked_on) {
+		assert(a != NULL && "a wasn't deadlocked!");
+		printf(" -> %d", a->tid);
+	}
+	printf(" -> %d)", a->tid);
 }
 
 /******************************************************************************
@@ -273,11 +320,13 @@ void sched_update(struct ls_state *ls)
 		/* A thread is about to become runnable. Was it just spawned? */
 		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
 			lsprintf("agent %d forked -- ", target_tid);
+			print_qs(s);
+			printf("\n");
 			agent_fork(s, target_tid, kern_fork_returns_to_cs());
 			/* don't need this flag anymore; fork only forks once */
 			ACTION(s, forking) = false;
 		} else {
-			lsprintf("agent %d wake -- ", target_tid);
+			// lsprintf("agent %d wake -- ", target_tid);
 			agent_wake(s, target_tid);
 		}
 		/* If this is happening from the context switcher, we also need
@@ -287,14 +336,14 @@ void sched_update(struct ls_state *ls)
 			s->cur_agent = agent_by_tid(&s->rq, target_tid);
 			s->context_switch_pending = false;
 		}
-		print_qs(s);
-		printf("\n");
 	} else if (kern_thread_descheduling(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to deschedule. Is it vanishing? */
 		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
 			agent_vanish(s, target_tid);
 			lsprintf("agent %d vanished -- ", target_tid);
+			print_qs(s);
+			printf("\n");
 			/* Future actions by this thread, such as scheduling
 			 * somebody else, shouldn't count as them vanishing too! */
 			ACTION(s, vanishing) = false;
@@ -302,13 +351,27 @@ void sched_update(struct ls_state *ls)
 			assert(s->cur_agent->tid == target_tid);
 			agent_sleep(s, target_tid);
 			lsprintf("agent %d sleep -- ", target_tid);
+			print_qs(s);
+			printf("\n");
 			ACTION(s, sleeping) = false;
 		} else {
 			agent_deschedule(s, target_tid);
-			lsprintf("agent %d desch -- ", target_tid);
+			// lsprintf("agent %d desch -- ", target_tid);
 		}
-		print_qs(s);
-		printf("\n");
+	/* Noob deadlock detection*/
+	} else if (kern_thread_blocking(ls->cpu0, ls->eip, &target_tid)) {
+		//assert(s->cur_agent->blocked_on == NULL);
+		//assert(s->cur_agent->blocked_on_tid == -1);
+		s->cur_agent->blocked_on_tid = target_tid;
+		if (deadlocked(s)) {
+			lsprintf("DEADLOCK! ");
+			print_deadlock(s->cur_agent);
+			printf("\n");
+			found_a_bug(ls);
+		}
+	} else if (kern_thread_unblocked(ls->eip)) {
+		s->cur_agent->blocked_on = NULL;
+		s->cur_agent->blocked_on_tid = -1;
 	}
 
 	/**********************************************************************

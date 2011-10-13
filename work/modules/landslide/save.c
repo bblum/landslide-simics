@@ -114,6 +114,9 @@ static struct agent *copy_agent(struct agent *a_src)
 		      sizeof(a_dest->action)) == 0 &&
 	       "Did you update agent->action without updating save.c?");
 
+	a_dest->blocked_on     = NULL;
+	a_dest->blocked_on_tid = a_src->blocked_on_tid;
+
 	return a_dest;
 }
 
@@ -255,6 +258,8 @@ void save_init(struct save_state *ss)
 	ss->root = NULL;
 	ss->current = NULL;
 	ss->next_tid = -1;
+	ss->total_choices = 0;
+	ss->total_jumps = 0;
 }
 
 void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
@@ -345,6 +350,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	ss->next_tid = new_tid;
 
 	run_command(ls->cmd_file, CMD_BOOKMARK, (lang_void *)h);
+	ss->total_choices++;
 }
 
 void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
@@ -379,4 +385,5 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 	restore_ls(ls, h);
 
 	run_command(ls->cmd_file, CMD_SKIPTO, (lang_void *)h);
+	ss->total_jumps++;
 }
