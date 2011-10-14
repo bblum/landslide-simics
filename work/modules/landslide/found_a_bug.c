@@ -7,7 +7,7 @@
 #include <simics/api.h>
 
 #define MODULE_NAME "BUG!"
-#define MODULE_COLOUR COLOUR_DARK COLOUR_YELLOW
+#define MODULE_COLOUR COLOUR_RED
 
 #include "common.h"
 #include "landslide.h"

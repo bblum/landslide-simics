@@ -36,7 +36,7 @@
 #include "trace.h"
 
 #define MODULE_NAME "LANDSLIDE"
-#define MODULE_COLOUR COLOUR_RED
+#define MODULE_COLOUR COLOUR_DARK COLOUR_MAGENTA
 
 #include "common.h"
 #include "explore.h"
