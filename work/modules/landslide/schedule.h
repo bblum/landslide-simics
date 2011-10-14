@@ -57,6 +57,7 @@ struct sched_state {
 	struct agent_q sq;
 	/* Currently active thread */
 	struct agent *cur_agent;
+	struct agent *last_agent;
 	/* Are we about to context-switch? (see inside sched_update) */
 	bool context_switch_pending; /* valid flag for target below */
 	int context_switch_target;

@@ -137,6 +137,8 @@ static void copy_sched_q(struct agent_q *q_dest, const struct agent_q *q_src,
 		Q_INSERT_HEAD(q_dest, a_dest, nobe);
 		if (src->cur_agent == a_src)
 			dest->cur_agent = a_dest;
+		if (src->last_agent != NULL && src->last_agent == a_src)
+			dest->last_agent = a_dest;
 		if (src->schedule_in_flight == a_src)
 			dest->schedule_in_flight = a_dest;
 	}
@@ -144,6 +146,7 @@ static void copy_sched_q(struct agent_q *q_dest, const struct agent_q *q_src,
 static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 {
 	dest->cur_agent           = NULL;
+	dest->last_agent          = NULL;
 	dest->last_vanished_agent = NULL;
 	dest->schedule_in_flight  = NULL;
 	Q_INIT_HEAD(&dest->rq);
@@ -162,9 +165,18 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	if (src->last_vanished_agent != NULL) {
 		dest->last_vanished_agent =
 			copy_agent(src->last_vanished_agent);
+		if (src->last_agent == src->last_vanished_agent) {
+			assert(dest->last_agent == NULL &&
+			       "but last_agent was already found!");
+			dest->last_agent = dest->last_vanished_agent;
+		}
 	} else {
 		dest->last_vanished_agent = NULL;
 	}
+
+	/* Must be after the last_vanished copy in case it was the last_agent */
+	assert((src->last_agent == NULL || dest->last_agent != NULL) &&
+	       "copy_sched couldn't set last_agent!");
 
 	dest->context_switch_pending = src->context_switch_pending;
 	dest->context_switch_target  = src->context_switch_target;

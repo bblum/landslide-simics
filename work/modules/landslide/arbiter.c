@@ -11,6 +11,7 @@
 #define MODULE_COLOUR COLOUR_YELLOW
 
 #include "common.h"
+#include "kernel_specifics.h"
 #include "landslide.h"
 #include "schedule.h"
 #include "x86.h"
@@ -53,6 +54,25 @@ bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 bool arbiter_interested(struct ls_state *ls)
 {
 	// TODO: more interesting choice points
+
+	/* Attempt to see if a "voluntary" reschedule is just ending */
+	if (ls->sched.last_agent != NULL &&
+	    !ls->sched.last_agent->action.handling_timer) {
+		if (ls->sched.cur_agent->action.handling_timer &&
+		    kern_timer_exiting(ls->eip)) {
+			lsprintf("%d voluntarily switched to %dt\n",
+				 ls->sched.last_agent->tid,
+				 ls->sched.cur_agent->tid);
+			return true;
+		} else if (kern_context_switch_exiting(ls->eip)) {
+			lsprintf("%d voluntarily switched to %dc\n",
+				 ls->sched.last_agent->tid,
+				 ls->sched.cur_agent->tid);
+			return true;
+		}
+	}
+
+	// any call to mutex_lock from within vanish
 	int called_from = READ_STACK(ls->cpu0, 0);
 	return ls->eip == GUEST_MUTEX_LOCK
 	    && called_from >= GUEST_VANISH

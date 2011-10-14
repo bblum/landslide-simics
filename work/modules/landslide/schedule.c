@@ -154,6 +154,7 @@ void sched_init(struct sched_state *s)
 	Q_INIT_HEAD(&s->dq);
 	kern_init_runqueue(s, agent_fork);
 	s->cur_agent = agent_by_tid(&s->rq, kern_get_first_tid());
+	s->last_agent = NULL;
 	s->context_switch_pending = false;
 	s->context_switch_target = 0xdeadd00d; /* poison value */
 	s->last_vanished_agent = NULL;
@@ -246,6 +247,7 @@ void sched_update(struct ls_state *ls)
 		if (next) {
 			lsprintf("switched threads %d -> %d\n", old_tid,
 				 new_tid);
+			s->last_agent = s->cur_agent;
 			s->cur_agent = next;
 		} else {
 			/* there is also a possibility of searching s->dq, to
@@ -333,6 +335,7 @@ void sched_update(struct ls_state *ls)
 		 * to update the currently-running thread. */
 		if (s->context_switch_pending) {
 			assert(s->context_switch_target == target_tid);
+			s->last_agent = s->cur_agent;
 			s->cur_agent = agent_by_tid(&s->rq, target_tid);
 			s->context_switch_pending = false;
 		}
