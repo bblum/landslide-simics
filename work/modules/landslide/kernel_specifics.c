@@ -160,6 +160,49 @@ bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
 }
 
 /******************************************************************************
+ * LMM
+ ******************************************************************************/
+
+bool kern_lmm_alloc_entering(conf_object_t *cpu, int eip, int *size)
+{
+	if (eip == GUEST_LMM_ALLOC_ENTER) {
+		*size = READ_STACK(cpu, GUEST_LMM_ALLOC_SIZE_ARGNUM);
+		return true;
+	} else if (eip == GUEST_LMM_ALLOC_GEN_ENTER) {
+		*size = READ_STACK(cpu, GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_lmm_alloc_exiting(conf_object_t *cpu, int eip, int *base)
+{
+	if (eip == GUEST_LMM_ALLOC_EXIT || eip == GUEST_LMM_ALLOC_GEN_EXIT) {
+		*base = GET_CPU_ATTR(cpu, eax);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size)
+{
+	if (eip == GUEST_LMM_FREE_ENTER) {
+		*base = READ_STACK(cpu, GUEST_LMM_FREE_BASE_ARGNUM);
+		*size = READ_STACK(cpu, GUEST_LMM_FREE_SIZE_ARGNUM);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_lmm_free_exiting(int eip)
+{
+	return (eip == GUEST_LMM_FREE_EXIT);
+}
+
+/******************************************************************************
  * Other / Init
  ******************************************************************************/
 

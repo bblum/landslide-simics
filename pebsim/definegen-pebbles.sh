@@ -28,7 +28,7 @@ function get_func {
 }
 
 function get_func_end {
-	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
 }
 
 echo "/**"
@@ -119,6 +119,18 @@ BLOCKED_WINDOW_END=`get_func_end mutex_lock`
 echo "#define GUEST_BLOCKED_WINDOW_ENTER 0x$BLOCKED_WINDOW"
 echo "#define GUEST_BLOCKED_WINDOW_EXIT  0x$BLOCKED_WINDOW_END"
 
+echo
+
+echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func lmm_alloc`"
+echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_end lmm_alloc`"
+echo "#define GUEST_LMM_ALLOC_SIZE_ARGNUM 2"
+echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func lmm_alloc_gen`"
+echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_end lmm_alloc_gen`"
+echo "#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM 2"
+echo "#define GUEST_LMM_FREE_ENTER       0x`get_func lmm_free`"
+echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_end lmm_free`"
+echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
+echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
 
 echo
 echo "#endif"

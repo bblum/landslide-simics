@@ -33,6 +33,12 @@ bool kern_readline_exit(int eip);
 bool kern_thread_runnable(conf_object_t *cpu, int eip, int *);
 bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *);
 
+/* Dynamic memory allocation */
+bool kern_lmm_alloc_entering(conf_object_t *cpu, int eip, int *size);
+bool kern_lmm_alloc_exiting(conf_object_t *cpu, int eip, int *base);
+bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size);
+bool kern_lmm_free_exiting(int eip);
+
 /* Other / init */
 int kern_get_init_tid(void);
 int kern_get_idle_tid(void);
