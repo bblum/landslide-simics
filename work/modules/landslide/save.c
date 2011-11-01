@@ -270,8 +270,10 @@ void save_init(struct save_state *ss)
 	ss->root = NULL;
 	ss->current = NULL;
 	ss->next_tid = -1;
+	ss->total_choice_poince = 0;
 	ss->total_choices = 0;
 	ss->total_jumps = 0;
+	ss->depth_total = 0;
 }
 
 void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
@@ -319,6 +321,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			assert(end_of_test || ss->next_tid == -1);
 
 			h->parent = NULL;
+			h->depth = 1;
 			ss->root  = h;
 		} else {
 			/* Subsequent choice. */
@@ -328,10 +331,13 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			// XXX: Q_INSERT_TAIL causes a sigsegv
 			Q_INSERT_HEAD(&ss->current->children, h, sibling);
 			h->parent = ss->current;
+			h->depth = 1 + h->parent->depth;
 		}
 
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
+
+		ss->total_choice_poince++;
 	} else {
 		assert(ss->root != NULL);
 		assert(ss->current != NULL);
@@ -371,6 +377,8 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 
 	assert(ss->root != NULL && "Can't longjmp with no decision tree!");
 	assert(ss->current != NULL);
+
+	ss->depth_total += ss->current->depth;
 
 	/* The caller is allowed to say NULL, which means jump to the root. */
 	if (h == NULL)

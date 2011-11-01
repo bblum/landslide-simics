@@ -20,8 +20,10 @@ struct save_state {
 	struct hax *current;
 	int next_tid;
 	/* Statistics */
+	int total_choice_poince;
 	int total_choices;
 	int total_jumps;
+	int depth_total;
 };
 
 void save_init(struct save_state *);

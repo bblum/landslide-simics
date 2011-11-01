@@ -38,8 +38,9 @@ void found_a_bug(struct ls_state *ls)
 
 	lsprintf("Current eip 0x%.8x, trigger_count %d, total triggers %d\n",
 		 ls->eip, ls->trigger_count, ls->absolute_trigger_count);
-	lsprintf("Total choices %d, total backtracks %d\n",
-		 ls->save.total_choices, ls->save.total_jumps);
+	lsprintf("Total choices %d, points %d, total backtracks %d, depths %d\n",
+		 ls->save.total_choices, ls->save.total_choice_poince,
+		 ls->save.total_jumps, ls->save.depth_total);
 
 	// FIXME: this should probably be SIM_break_simulation instead.
 	SIM_quit(LS_BUG_FOUND);

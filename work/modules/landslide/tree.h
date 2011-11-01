@@ -35,6 +35,7 @@ struct hax {
 
 	/* Tree link data. */
 	struct hax *parent;
+	int depth; /* for stat counting */
 	Q_NEW_LINK(struct hax) sibling;
 	Q_NEW_HEAD(struct, struct hax) children;
 
