@@ -1,0 +1,164 @@
+/**
+ * @file memory.c
+ * @brief routines for tracking dynamic allocations and otherwise shared memory
+ * @author Ben Blum <bblum@andrew.cmu.edu>
+ */
+
+#include <assert.h>
+#include <simics/api.h>
+
+#define MODULE_NAME "MEMORY"
+#define MODULE_COLOUR COLOUR_DARK COLOUR_YELLOW
+
+#include "common.h"
+#include "found_a_bug.h"
+#include "memory.h"
+#include "rbtree.h"
+
+/******************************************************************************
+ * Helpers
+ ******************************************************************************/
+
+/* Returns NULL (and sets chunk) if a chunk containing addr (i.e., base <= addr
+ * && addr < base + len) already exists.
+ * Does not set parent if the heap is empty. */
+static struct rb_node **find_insert_location(struct mem_state *m, int addr,
+					     struct chunk **chunk)
+{
+	struct rb_node **p = &m->heap.rb_node;
+	// struct chunk *c;
+
+	while (*p) {
+		*chunk = rb_entry(*p, struct chunk, nobe);
+
+		/* branch left */
+		if (addr < (*chunk)->base) {
+			p = &(*p)->rb_left;
+		/* does this chunk contain addr? */
+		} else if (addr < (*chunk)->base + (*chunk)->len) {
+			return NULL;
+		/* branch right */
+		} else {
+			p = &(*p)->rb_right;
+		}
+	}
+
+	return p;
+}
+
+/* finds the chunk with the nearest start address lower than this address.
+ * if the address is lower than anything currently in the heap, returns null. */
+static struct chunk *find_containing_chunk(struct mem_state *m, int addr)
+{
+	struct chunk *target = NULL;
+	struct rb_node **p = find_insert_location(m, addr, &target);
+
+	if (p == NULL) {
+		return target;
+	} else {
+		return NULL;
+	}
+}
+
+static void new_chunk(struct mem_state *m, int addr, int len)
+{
+	struct chunk *parent = NULL;
+	struct rb_node **p = find_insert_location(m, addr, &parent);
+
+	assert(p != NULL && "allocated a block already contained in the heap?");
+
+	struct chunk *c = MM_MALLOC(1, struct chunk);
+	assert(c != NULL && "failed allocate chunk");
+	c->base = addr;
+	c->len = len;
+	rb_init_node(&c->nobe);
+
+	rb_link_node(&c->nobe, parent != NULL ? &parent->nobe : NULL, p);
+	rb_insert_color(&c->nobe, &m->heap);
+}
+
+static struct chunk *remove_chunk(struct mem_state *m, int addr, int len)
+{
+	struct chunk *target = NULL;
+	struct rb_node **p = find_insert_location(m, addr, &target);
+	
+	if (p == NULL) {
+		assert(target != NULL);
+		//assert(target->base == addr && target->len == len);
+		rb_erase(&target->nobe, &m->heap);
+		return target;
+	} else {
+		/* no containing block found */
+		return NULL;
+	}
+}
+
+/******************************************************************************
+ * Interface
+ ******************************************************************************/
+
+void mem_init(struct mem_state *m)
+{
+	m->heap.rb_node = NULL;
+	m->in_alloc = false;
+	m->in_free = false;
+}
+
+/* bad place == mal loc */
+void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m, int size)
+{
+	if (m->in_alloc || m->in_free) {
+		lsprintf("Malloc reentered %s!\n",
+			 m->in_alloc ? "Malloc" : "Free");
+		found_a_bug(ls);
+	}
+	
+	m->in_alloc = true;
+	m->alloc_request_size = size;
+}
+
+void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m, int base)
+{
+	assert(m->in_alloc && "attempt to exit malloc without being in!");
+	assert(!m->in_free && "attempt to exit malloc while in free!");
+	new_chunk(m, base, m->alloc_request_size);
+	lsprintf("Malloc chunk [0x%x | %d]\n", base, m->alloc_request_size);
+	m->in_alloc = false;
+}
+
+void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size)
+{
+	struct chunk *chunk;
+
+	if (m->in_alloc || m->in_free) {
+		lsprintf("Free reentered %s!\n",
+			 m->in_alloc ? "Malloc" : "Free");
+		found_a_bug(ls);
+	}
+
+	chunk = remove_chunk(m, base, size);
+
+	if (chunk == NULL) {
+		lsprintf("Attempted to free non-existent chunk [0x%x | %d] "
+			 "(double free?)!\n", base, size);
+		found_a_bug(ls);
+	} else if (chunk->base != base) {
+		lsprintf("Attempted to free [0x%x | %d], contained within "
+			 "[0x%x | %d]\n", base, size, chunk->base, chunk->len);
+	} else if (chunk->len != size) {
+		lsprintf("Attempted to free [0x%x | %d], but [0x%x | %d]!\n",
+			 base, size, base, chunk->len);
+		found_a_bug(ls);
+	} else {
+		lsprintf("Free() chunk [0x%x | %d]\n", base, size);
+	}
+
+	m->in_free = true;
+}
+
+void mem_exit_free(struct ls_state *ls, struct mem_state *m)
+{
+	assert(m->in_free && "attempt to exit free without being in!");
+	assert(!m->in_alloc && "attempt to exit free while in malloc!");
+	m->in_free = false;
+}

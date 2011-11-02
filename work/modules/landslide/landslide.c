@@ -67,6 +67,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	arbiter_init(&ls->arbiter);
 	save_init(&ls->save);
 	test_init(&ls->test);
+	mem_init(&ls->mem);
 
 	ls->cmd_file = NULL;
 	ls->just_jumped = false;

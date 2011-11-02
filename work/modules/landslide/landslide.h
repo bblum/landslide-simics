@@ -10,6 +10,7 @@
 #include <simics/api.h>
 
 #include "arbiter.h"
+#include "memory.h"
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
@@ -32,6 +33,7 @@ struct ls_state {
 	struct arbiter_state arbiter;
 	struct save_state save;
 	struct test_state test;
+	struct mem_state mem;
 
 	char *cmd_file;
 

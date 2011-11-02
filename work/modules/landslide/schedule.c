@@ -15,6 +15,7 @@
 #include "found_a_bug.h"
 #include "landslide.h"
 #include "kernel_specifics.h"
+#include "memory.h"
 #include "schedule.h"
 #include "variable_queue.h"
 #include "x86.h"
@@ -375,6 +376,20 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_thread_unblocked(ls->eip)) {
 		s->cur_agent->blocked_on = NULL;
 		s->cur_agent->blocked_on_tid = -1;
+	/* Dynamic memory allocation tracking */
+	} else {
+		int size;
+		int base;
+
+		if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
+			mem_enter_bad_place(ls, &ls->mem, size);
+		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
+			mem_exit_bad_place(ls, &ls->mem, base);
+		} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
+			mem_enter_free(ls, &ls->mem, base, size);
+		} else if (kern_lmm_free_exiting(ls->eip)) {
+			mem_exit_free(ls, &ls->mem);
+		}
 	}
 
 	/**********************************************************************
