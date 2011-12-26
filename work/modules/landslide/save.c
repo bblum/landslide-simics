@@ -21,6 +21,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "landslide.h"
+#include "memory.h"
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
@@ -193,6 +194,36 @@ static void copy_test(struct test_state *dest, const struct test_state *src)
 		assert(dest->current_test != NULL && "couldn't strdup test");
 	}
 }
+static struct rb_node *dup_chunk(const struct rb_node *nobe,
+				 const struct rb_node *parent)
+{
+	if (nobe == NULL)
+		return NULL;
+
+	struct chunk *src = rb_entry(nobe, struct chunk, nobe);
+	struct chunk *dest = MM_MALLOC(1, struct chunk);
+
+	assert(dest != NULL && "failed alloc dest");
+
+	/* dup rb node contents */
+	int colour_flag = src->nobe.rb_parent_color & 1;
+
+	assert(((unsigned long)parent & 1) == 0);
+	dest->nobe.rb_parent_color = (unsigned long)parent | colour_flag;
+	dest->nobe.rb_right = dup_chunk(src->nobe.rb_right, &dest->nobe);
+	dest->nobe.rb_left  = dup_chunk(src->nobe.rb_left, &dest->nobe);
+
+	dest->base = src->base;
+	dest->len = src->len;
+	return &dest->nobe;
+}
+static void copy_mem(struct mem_state *dest, const struct mem_state *src)
+{
+	dest->in_alloc           = src->in_alloc;
+	dest->in_free            = src->in_free;
+	dest->alloc_request_size = src->alloc_request_size;
+	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
+}
 
 /* To free copied state data structures. None of these free the arg pointer. */
 static void free_sched_q(struct agent_q *q)
@@ -212,6 +243,23 @@ static void free_sched(struct sched_state *s)
 static void free_test(const struct test_state *t)
 {
 	MM_FREE(t->current_test);
+}
+
+static void free_chunk(struct rb_node *nobe)
+{
+	if (nobe == NULL)
+		return;
+
+	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
+
+	free_chunk(c->nobe.rb_right);
+	free_chunk(c->nobe.rb_left);
+	MM_FREE(c);
+}
+
+static void free_mem(const struct mem_state *m)
+{
+	free_chunk(m->heap.rb_node);
 }
 static void free_arbiter_choices(struct arbiter_state *a)
 {
@@ -237,8 +285,11 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->oldsched);
 	free_test(h->oldtest);
 	MM_FREE(h->oldtest);
+	free_mem(h->oldmem);
+	MM_FREE(h->oldmem);
 	h->oldsched = NULL;
 	h->oldtest = NULL;
+	h->oldmem = NULL;
 }
 
 /* Reverse that which is not glowing green. */
@@ -252,10 +303,13 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	ls->eip           = h->eip;
 	ls->trigger_count = h->trigger_count;
 
+	// TODO: can have "move" instead of "copy" for these
 	free_sched(&ls->sched);
 	copy_sched(&ls->sched, h->oldsched);
 	free_test(&ls->test);
 	copy_test(&ls->test, h->oldtest);
+	free_mem(&ls->mem);
+	copy_mem(&ls->mem, h->oldmem);
 	free_arbiter_choices(&ls->arbiter);
 
 	ls->just_jumped = true;
@@ -353,6 +407,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		assert(h->trigger_count == ls->trigger_count);
 		assert(h->oldsched == NULL);
 		assert(h->oldtest == NULL);
+		assert(h->oldmem == NULL);
 		assert(!h->all_explored); /* exploration invariant */
 	}
 
@@ -363,6 +418,10 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	h->oldtest = MM_MALLOC(1, struct test_state);
 	assert(h->oldtest && "failed allocate oldtest");
 	copy_test(h->oldtest, &ls->test);
+
+	h->oldmem = MM_MALLOC(1, struct mem_state);
+	assert(h->oldmem && "failed allocate oldmem");
+	copy_mem(h->oldmem, &ls->mem);
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
