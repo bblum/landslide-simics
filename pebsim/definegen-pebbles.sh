@@ -48,6 +48,9 @@ echo "#define GUEST_CURRENT_TCB 0x$CURRENT_TCB"
 echo "#define GUEST_TCB_TID_OFFSET 0"
 echo "#define TID_FROM_TCB(cpu, tcb) \\"
 echo -e "\tSIM_read_phys_memory(cpu, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)"
+echo "#define GUEST_TCB_STACK_OFFSET 7"
+echo "#define STACK_FROM_TCB(tcb) ((tcb)+(GUEST_TCB_STACK_OFFSET*WORD_SIZE))"
+echo "#define GUEST_STACK_SIZE 4096"
 echo
 
 RQ=`get_sym runqueue`
@@ -131,6 +134,10 @@ echo "#define GUEST_LMM_FREE_ENTER       0x`get_func lmm_free`"
 echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_end lmm_free`"
 echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
 echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
+
+echo
+
+echo "#define GUEST_IMG_END 0x`get_sym _end`"
 
 echo
 echo "#endif"

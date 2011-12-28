@@ -12,6 +12,8 @@
 
 #include "common.h"
 #include "found_a_bug.h"
+#include "kernel_specifics.h"
+#include "landslide.h"
 #include "memory.h"
 #include "rbtree.h"
 
@@ -81,7 +83,7 @@ static struct chunk *remove_chunk(struct mem_state *m, int addr, int len)
 {
 	struct chunk *target = NULL;
 	struct rb_node **p = find_insert_location(m, addr, &target);
-	
+
 	if (p == NULL) {
 		assert(target != NULL);
 		//assert(target->base == addr && target->len == len);
@@ -91,6 +93,20 @@ static struct chunk *remove_chunk(struct mem_state *m, int addr, int len)
 		/* no containing block found */
 		return NULL;
 	}
+}
+
+static void print_heap(struct rb_node *nobe, bool rightmost)
+{
+	if (nobe == NULL)
+		return;
+
+	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
+
+	print_heap(c->nobe.rb_left, false);
+	printf("[0x%x | %d]", c->base, c->len);
+	if (!rightmost || c->nobe.rb_right != NULL)
+		printf(", ");
+	print_heap(c->nobe.rb_right, rightmost);
 }
 
 /******************************************************************************
@@ -112,7 +128,7 @@ void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m, int size)
 			 m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
-	
+
 	m->in_alloc = true;
 	m->alloc_request_size = size;
 }
@@ -161,4 +177,34 @@ void mem_exit_free(struct ls_state *ls, struct mem_state *m)
 	assert(m->in_free && "attempt to exit free without being in!");
 	assert(!m->in_alloc && "attempt to exit free while in malloc!");
 	m->in_free = false;
+}
+
+void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
+			     bool write)
+{
+	// TODO: check for global accesses
+
+	if (!ls->sched.guest_init_done)
+		return;
+
+	/* the allocator has a free pass */
+	if (m->in_alloc || m->in_free)
+		return;
+
+	/* ignore certain "probably innocent" accesses */
+	if (!kern_address_in_heap(addr) ||
+	    kern_address_own_kstack(ls->cpu0, addr))
+		return;
+
+	struct chunk *c = find_containing_chunk(m, addr);
+	if (c == NULL) {
+		lsprintf("USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
+			 write ? "write to" : "read from", addr, ls->eip);
+		lsprintf("Heap contents: {");
+		print_heap(m->heap.rb_node, true);
+		printf("}\n");
+		found_a_bug(ls);
+	} else {
+		// TODO
+	}
 }

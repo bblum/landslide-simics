@@ -39,6 +39,9 @@ bool kern_lmm_alloc_exiting(conf_object_t *cpu, int eip, int *base);
 bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size);
 bool kern_lmm_free_exiting(int eip);
 
+bool kern_address_in_heap(int addr);
+bool kern_address_own_kstack(conf_object_t *cpu, int addr);
+
 /* Other / init */
 int kern_get_init_tid(void);
 int kern_get_idle_tid(void);

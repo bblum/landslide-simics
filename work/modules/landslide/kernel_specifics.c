@@ -202,6 +202,17 @@ bool kern_lmm_free_exiting(int eip)
 	return (eip == GUEST_LMM_FREE_EXIT);
 }
 
+bool kern_address_in_heap(int addr)
+{
+	return (addr >= GUEST_IMG_END && addr < USER_MEM_START);
+}
+
+bool kern_address_own_kstack(conf_object_t *cpu, int addr)
+{
+	int stack_bottom = STACK_FROM_TCB(kern_get_current_tcb(cpu));
+	return (addr >= stack_bottom && addr < stack_bottom + GUEST_STACK_SIZE);
+}
+
 /******************************************************************************
  * Other / Init
  ******************************************************************************/

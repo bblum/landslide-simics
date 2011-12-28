@@ -229,8 +229,13 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
 	struct ls_state *ls = (struct ls_state *)obj;
 
-	if (entry->trace_type != TR_Instruction)
+	if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
+		mem_check_shared_access(ls, &ls->mem, entry->pa,
+					(entry->read_or_write == Sim_RW_Write));
 		return;
+	} else if (entry->trace_type != TR_Instruction) {
+		return;
+	}
 
 	ls->trigger_count++;
 	ls->absolute_trigger_count++;

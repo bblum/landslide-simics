@@ -26,9 +26,13 @@ struct mem_state {
 };
 
 void mem_init(struct mem_state *);
+
 void mem_enter_bad_place(struct ls_state *, struct mem_state *, int size);
 void mem_exit_bad_place(struct ls_state *, struct mem_state *, int base);
 void mem_enter_free(struct ls_state *, struct mem_state *, int base, int size);
 void mem_exit_free(struct ls_state *, struct mem_state *);
+
+void mem_check_shared_access(struct ls_state *, struct mem_state *, int addr,
+			     bool write);
 
 #endif

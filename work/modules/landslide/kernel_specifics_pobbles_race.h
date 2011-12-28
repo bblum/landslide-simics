@@ -11,6 +11,9 @@
 #define GUEST_TCB_TID_OFFSET 0
 #define TID_FROM_TCB(cpu, tcb) \
 	SIM_read_phys_memory(cpu, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)
+#define GUEST_TCB_STACK_OFFSET 7
+#define STACK_FROM_TCB(tcb) ((tcb)+(GUEST_TCB_STACK_OFFSET*WORD_SIZE))
+#define GUEST_STACK_SIZE 4096
 
 #define GUEST_RQ_ADDR 0x001564a4
 
@@ -51,5 +54,7 @@
 #define GUEST_LMM_FREE_EXIT        0x1097c7
 #define GUEST_LMM_FREE_BASE_ARGNUM 2
 #define GUEST_LMM_FREE_SIZE_ARGNUM 3
+
+#define GUEST_IMG_END 0x001564cc
 
 #endif
