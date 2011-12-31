@@ -113,7 +113,8 @@ static void print_heap(struct rb_node *nobe, bool rightmost)
  * shm helpers
  ******************************************************************************/
 
-#define MEM_ENTRY(rb) rb_entry(rb, struct mem_access, nobe)
+#define MEM_ENTRY(rb) \
+	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
 
 static void add_shm(struct mem_state *m, int addr, bool write)
 {
@@ -255,8 +256,8 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 }
 
 /* Compute the intersection of two transitions' shm accesses */
-bool mem_intersect(struct mem_state *m0, struct mem_state *m1,
-		   int depth0, int depth1)
+bool mem_shm_intersect(struct mem_state *m0, struct mem_state *m1,
+		       int depth0, int depth1)
 {
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
@@ -280,9 +281,9 @@ bool mem_intersect(struct mem_state *m0, struct mem_state *m1,
 				conflict = true;
 				ma0->conflict = true;
 				ma1->conflict = true;
-				printf("[0x%.8x %c/%c]", ma0->addr,
-				       ma0->write ? 'w' : 'r',
-				       ma1->write ? 'w' : 'r');
+				printf("[0x%.8x %c%d/%c%d]", ma0->addr,
+				       ma0->write ? 'w' : 'r', ma0->count,
+				       ma1->write ? 'w' : 'r', ma1->count);
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));

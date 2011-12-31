@@ -245,22 +245,40 @@ static void free_test(const struct test_state *t)
 	MM_FREE(t->current_test);
 }
 
-static void free_chunk(struct rb_node *nobe)
+#define FREE_RBTREE(container, member) ({				\
+	void __free_rbtree(struct rb_node *nobe) 			\
+	{								\
+		if (nobe == NULL)					\
+			return;						\
+		__free_rbtree(nobe->rb_right);				\
+		__free_rbtree(nobe->rb_left);				\
+		MM_FREE(rb_entry(nobe, container, member));		\
+	};								\
+	&__free_rbtree; })
+
+static void free_mem(struct mem_state *m)
 {
-	if (nobe == NULL)
-		return;
-
-	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
-
-	free_chunk(c->nobe.rb_right);
-	free_chunk(c->nobe.rb_left);
-	MM_FREE(c);
+	FREE_RBTREE(struct chunk, nobe)(m->heap.rb_node);
+	m->heap.rb_node = NULL;
+	FREE_RBTREE(struct mem_access, nobe)(m->shm.rb_node);
+	m->shm.rb_node = NULL;
 }
 
-static void free_mem(const struct mem_state *m)
+static void shuffle_shm(struct hax *h, struct mem_state *m)
 {
-	free_chunk(m->heap.rb_node);
+	/* store shared memory accesses from this transition; reset to empty */
+	h->oldmem->shm.rb_node = m->shm.rb_node;
+	m->shm.rb_node = NULL;
+
+	/* compute newly-completed transition's conflicts with previous ones */
+	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
+		if (mem_shm_intersect(h->oldmem, old->oldmem,
+				      h->depth, old->depth)) {
+			// TODO: record conflict here
+		}
+	}
 }
+
 static void free_arbiter_choices(struct arbiter_state *a)
 {
 // TODO: deprecate one of these
@@ -309,7 +327,7 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	free_test(&ls->test);
 	copy_test(&ls->test, h->oldtest);
 	free_mem(&ls->mem);
-	copy_mem(&ls->mem, h->oldmem);
+	copy_mem(&ls->mem, h->oldmem); /* note: leaves shm empty, as we want */
 	free_arbiter_choices(&ls->arbiter);
 
 	ls->just_jumped = true;
@@ -422,6 +440,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	h->oldmem = MM_MALLOC(1, struct mem_state);
 	assert(h->oldmem && "failed allocate oldmem");
 	copy_mem(h->oldmem, &ls->mem);
+	shuffle_shm(h, &ls->mem);
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
