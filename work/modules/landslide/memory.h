@@ -60,6 +60,5 @@ void mem_exit_free(struct ls_state *, struct mem_state *);
 void mem_check_shared_access(struct ls_state *, struct mem_state *, int addr,
 			     bool write);
 bool mem_shm_intersect(struct mem_state *, struct mem_state *, int, int);
-void mem_shm_clear(struct mem_state *);
 
 #endif

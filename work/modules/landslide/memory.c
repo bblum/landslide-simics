@@ -149,17 +149,6 @@ static void add_shm(struct mem_state *m, int addr, bool write)
 	rb_insert_color(&ma->nobe, &m->shm);
 }
 
-static void free_shm(struct rb_node *nobe)
-{
-	if (nobe == NULL)
-		return;
-
-	struct mem_access *m = MEM_ENTRY(nobe);
-	free_shm(m->nobe.rb_right);
-	free_shm(m->nobe.rb_left);
-	MM_FREE(m);
-}
-
 /******************************************************************************
  * Interface
  ******************************************************************************/
@@ -303,10 +292,4 @@ bool mem_intersect(struct mem_state *m0, struct mem_state *m1,
 	printf("}\n");
 
 	return conflict;
-}
-
-void mem_shm_clear(struct mem_state *m)
-{
-	free_shm(m->shm.rb_node);
-	m->shm.rb_node = NULL;
 }
