@@ -11,6 +11,24 @@
 
 #include "rbtree.h"
 
+/******************************************************************************
+ * Shared memory access tracking
+ ******************************************************************************/
+
+/* represents an access to shared memory */
+struct mem_access {
+	int addr;      /* byte granularity */
+	bool write;    /* false == read; true == write */
+	int count;     /* how many times accessed? (stats) */
+	bool conflict; /* does this conflict with another transition? (stats) */
+	struct rb_node nobe;
+};
+
+/******************************************************************************
+ * Heap state tracking
+ ******************************************************************************/
+
+/* a heap-allocated block. */
 struct chunk {
 	int base;
 	int len;
@@ -23,7 +41,14 @@ struct mem_state {
 	bool in_alloc;
 	bool in_free;
 	int alloc_request_size; /* valid iff in_alloc */
+	/* set of all shared accesses that happened during this transition;
+	 * cleared after each save point - done in save.c */
+	struct rb_root shm;
 };
+
+/******************************************************************************
+ * Interface
+ ******************************************************************************/
 
 void mem_init(struct mem_state *);
 
@@ -34,5 +59,7 @@ void mem_exit_free(struct ls_state *, struct mem_state *);
 
 void mem_check_shared_access(struct ls_state *, struct mem_state *, int addr,
 			     bool write);
+bool mem_shm_intersect(struct mem_state *, struct mem_state *, int, int);
+void mem_shm_clear(struct mem_state *);
 
 #endif

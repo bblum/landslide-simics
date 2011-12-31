@@ -18,7 +18,7 @@
 #include "rbtree.h"
 
 /******************************************************************************
- * Helpers
+ * Heap helpers
  ******************************************************************************/
 
 /* Returns NULL (and sets chunk) if a chunk containing addr (i.e., base <= addr
@@ -110,6 +110,57 @@ static void print_heap(struct rb_node *nobe, bool rightmost)
 }
 
 /******************************************************************************
+ * shm helpers
+ ******************************************************************************/
+
+#define MEM_ENTRY(rb) rb_entry(rb, struct mem_access, nobe)
+
+static void add_shm(struct mem_state *m, int addr, bool write)
+{
+	struct rb_node **p = &m->shm.rb_node;
+	struct rb_node *parent = NULL;
+	struct mem_access *ma;
+
+	while (*p) {
+		parent = *p;
+		ma = MEM_ENTRY(parent);
+
+		if (addr < ma->addr) {
+			p = &(*p)->rb_left;
+		} else if (addr > ma->addr) {
+			p = &(*p)->rb_right;
+		} else {
+			/* access already exists */
+			ma->count++;
+			ma->write = ma->write || write;
+			return;
+		}
+	}
+
+	/* doesn't exist; create a new one */
+	ma = MM_MALLOC(1, struct mem_access);
+	assert(ma != NULL && "failed allocate mem_access");
+	ma->addr     = addr;
+	ma->write    = write;
+	ma->count    = 1;
+	ma->conflict = false;
+
+	rb_link_node(&ma->nobe, parent, p);
+	rb_insert_color(&ma->nobe, &m->shm);
+}
+
+static void free_shm(struct rb_node *nobe)
+{
+	if (nobe == NULL)
+		return;
+
+	struct mem_access *m = MEM_ENTRY(nobe);
+	free_shm(m->nobe.rb_right);
+	free_shm(m->nobe.rb_left);
+	MM_FREE(m);
+}
+
+/******************************************************************************
  * Interface
  ******************************************************************************/
 
@@ -118,7 +169,10 @@ void mem_init(struct mem_state *m)
 	m->heap.rb_node = NULL;
 	m->in_alloc = false;
 	m->in_free = false;
+	m->shm.rb_node = NULL;
 }
+
+/* heap interface */
 
 /* bad place == mal loc */
 void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m, int size)
@@ -179,6 +233,8 @@ void mem_exit_free(struct ls_state *ls, struct mem_state *m)
 	m->in_free = false;
 }
 
+/* shm interface */
+
 void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 			     bool write)
 {
@@ -204,7 +260,53 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		print_heap(m->heap.rb_node, true);
 		printf("}\n");
 		found_a_bug(ls);
-	} else {
-		// TODO
+	} else { // TODO - add check for in scheduler or not
+		add_shm(m, addr, write);
 	}
+}
+
+/* Compute the intersection of two transitions' shm accesses */
+bool mem_intersect(struct mem_state *m0, struct mem_state *m1,
+		   int depth0, int depth1)
+{
+	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
+	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
+	bool conflict = false;
+
+	lsprintf("Intersecting transition %d with %d: {", depth0, depth1);
+
+	while (ma0 != NULL && ma1 != NULL) {
+		if (ma0->addr < ma1->addr) {
+			/* advance ma0 */
+			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
+		} else if (ma0->addr > ma1->addr) {
+			/* advance ma1 */
+			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
+		} else {
+			/* found a match; advance both */
+			if (ma0->write || ma1->write) {
+				if (conflict)
+					printf(", ");
+				/* the match is also a conflict */
+				conflict = true;
+				ma0->conflict = true;
+				ma1->conflict = true;
+				printf("[0x%.8x %c/%c]", ma0->addr,
+				       ma0->write ? 'w' : 'r',
+				       ma1->write ? 'w' : 'r');
+			}
+			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
+			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
+		}
+	}
+
+	printf("}\n");
+
+	return conflict;
+}
+
+void mem_shm_clear(struct mem_state *m)
+{
+	free_shm(m->shm.rb_node);
+	m->shm.rb_node = NULL;
 }
