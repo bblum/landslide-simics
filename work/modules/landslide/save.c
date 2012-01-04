@@ -264,7 +264,7 @@ static void free_mem(struct mem_state *m)
 	m->shm.rb_node = NULL;
 }
 
-static void shuffle_shm(struct hax *h, struct mem_state *m)
+static void shuffle_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 {
 	/* store shared memory accesses from this transition; reset to empty */
 	h->oldmem->shm.rb_node = m->shm.rb_node;
@@ -272,7 +272,16 @@ static void shuffle_shm(struct hax *h, struct mem_state *m)
 
 	/* compute newly-completed transition's conflicts with previous ones */
 	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
-		if (mem_shm_intersect(h->oldmem, old->oldmem,
+		if (h->chosen_thread == old->chosen_thread) {
+			lsprintf("Same TID %d for transitions %d and %d\n",
+				 h->chosen_thread, h->depth, old->depth);
+			continue;
+		} else {
+			lsprintf("Transitions %d (TID %d) and %d (TID %d)...\n",
+				 h->depth, h->chosen_thread, old->depth,
+				 old->chosen_thread);
+		}
+		if (mem_shm_intersect(cpu, h->oldmem, old->oldmem,
 				      h->depth, old->depth)) {
 			// TODO: record conflict here
 		}
@@ -440,7 +449,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	h->oldmem = MM_MALLOC(1, struct mem_state);
 	assert(h->oldmem && "failed allocate oldmem");
 	copy_mem(h->oldmem, &ls->mem);
-	shuffle_shm(h, &ls->mem);
+	shuffle_shm(ls->cpu0, h, &ls->mem);
 
 	ss->current  = h;
 	ss->next_tid = new_tid;

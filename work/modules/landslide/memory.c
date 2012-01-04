@@ -255,9 +255,44 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 	}
 }
 
+#define BUF_SIZE 256
+
+static void print_shm_conflict(conf_object_t *cpu,
+			       struct mem_state *m0, struct mem_state *m1,
+			       struct mem_access *ma0, struct mem_access *ma1)
+{
+	char buf[BUF_SIZE];
+	struct chunk *c0 = find_containing_chunk(m0, ma0->addr);
+	struct chunk *c1 = find_containing_chunk(m1, ma1->addr);
+
+	assert(ma0->addr == ma1->addr);
+
+	if (c0 == NULL && c1 == NULL) {
+		if (kern_address_in_heap(ma0->addr)) {
+			/* This could happen if both transitions did a heap
+			 * access, then did free() on the corresponding chunk
+			 * before the next choice point. TODO: free() might
+			 * itself be a good place to set choice points... */
+			snprintf(buf, BUF_SIZE, "heap0x%.8x", ma0->addr);
+		} else {
+			snprintf(buf, BUF_SIZE, "global0x%.8x", ma0->addr);
+		}
+	} else {
+		if (c0 == NULL)
+			c0 = c1; /* default to "later" state if both exist */
+		assert(c1 == NULL ||
+		       (c0->base == c1->base && c0->len == c1->len &&
+		       "If this trips, replace with real code for this case"));
+		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
+				  c0->base, c0->len);
+	}
+	printf("[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
+	       ma1->write ? 'w' : 'r', ma1->count);
+}
+
 /* Compute the intersection of two transitions' shm accesses */
-bool mem_shm_intersect(struct mem_state *m0, struct mem_state *m1,
-		       int depth0, int depth1)
+bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
+		       struct mem_state *m1, int depth0, int depth1)
 {
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
@@ -278,12 +313,10 @@ bool mem_shm_intersect(struct mem_state *m0, struct mem_state *m1,
 				if (conflict)
 					printf(", ");
 				/* the match is also a conflict */
+				print_shm_conflict(cpu, m0, m1, ma0, ma1);
 				conflict = true;
 				ma0->conflict = true;
 				ma1->conflict = true;
-				printf("[0x%.8x %c%d/%c%d]", ma0->addr,
-				       ma0->write ? 'w' : 'r', ma0->count,
-				       ma1->write ? 'w' : 'r', ma1->count);
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
