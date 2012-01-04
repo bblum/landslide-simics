@@ -45,6 +45,7 @@ echo
 CURRENT_TCB=`get_sym thr_current`
 echo "#define GUEST_CURRENT_TCB 0x$CURRENT_TCB"
 
+# TODO: make like the predecessor of that which infected mushroom cooks, and generalised it
 echo "#define GUEST_TCB_TID_OFFSET 0"
 echo "#define TID_FROM_TCB(cpu, tcb) \\"
 echo -e "\tSIM_read_phys_memory(cpu, tcb + GUEST_TCB_TID_OFFSET, WORD_SIZE)"
@@ -52,6 +53,9 @@ echo "#define GUEST_TCB_STACK_OFFSET 7"
 echo "#define STACK_FROM_TCB(tcb) ((tcb)+(GUEST_TCB_STACK_OFFSET*WORD_SIZE))"
 echo "#define GUEST_STACK_SIZE 4096"
 echo
+echo "#define GUEST_PCB_PID_OFFSET 0"
+echo "#define PID_FROM_PCB(cpu, pcb) \\"
+echo -e "\tSIM_read_phys_memory(cpu, pcb + GUEST_PCB_PID_OFFSET, WORD_SIZE)"
 
 RQ=`get_sym runqueue`
 echo "#define GUEST_RQ_ADDR 0x$RQ"

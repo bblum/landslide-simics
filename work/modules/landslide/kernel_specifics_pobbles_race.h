@@ -15,6 +15,9 @@
 #define STACK_FROM_TCB(tcb) ((tcb)+(GUEST_TCB_STACK_OFFSET*WORD_SIZE))
 #define GUEST_STACK_SIZE 4096
 
+#define GUEST_PCB_PID_OFFSET 0
+#define PID_FROM_PCB(cpu, pcb) \
+	SIM_read_phys_memory(cpu, pcb + GUEST_PCB_PID_OFFSET, WORD_SIZE)
 #define GUEST_RQ_ADDR 0x001564a4
 
 #define GUEST_Q_ADD                0x001056a1
