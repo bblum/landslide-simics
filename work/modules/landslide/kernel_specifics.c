@@ -16,8 +16,10 @@
 
 #if defined(GUEST_POBBLES)
 #include "kernel_specifics_pobbles.h"
+#include "kernel_specifics_types.h"
 #elif defined(GUEST_POBBLES_RACE)
 #include "kernel_specifics_pobbles_race.h"
+#include "kernel_specifics_types.h"
 
 // TODO: elsif ...
 #endif
@@ -211,6 +213,22 @@ bool kern_address_own_kstack(conf_object_t *cpu, int addr)
 {
 	int stack_bottom = STACK_FROM_TCB(kern_get_current_tcb(cpu));
 	return (addr >= stack_bottom && addr < stack_bottom + GUEST_STACK_SIZE);
+}
+
+void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
+		       int chunk, int size)
+{
+	if (size == KERN_TCB_SIZE) {
+		snprintf(buf, buflen, "tcb%d->%s",
+			 (int)TID_FROM_TCB(cpu, chunk),
+			 kern_tcb_field_name(addr-chunk));
+	} else if (size == KERN_PCB_SIZE) {
+		snprintf(buf, buflen, "pcb%d->%s",
+			 (int)PID_FROM_PCB(cpu, chunk),
+			 kern_pcb_field_name(addr-chunk));
+	} else {
+		snprintf(buf, buflen, "0x%.8x", addr);
+	}
 }
 
 /******************************************************************************
