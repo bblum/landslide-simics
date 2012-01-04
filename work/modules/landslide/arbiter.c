@@ -79,8 +79,6 @@ bool arbiter_interested(struct ls_state *ls)
 	    && called_from <= GUEST_VANISH_END;
 }
 
-#define BUF_SIZE 512
-
 /* Returns true if a thread was chosen. If true, sets 'target' (to either the
  * current thread or any other thread), and sets 'our_choice' to false if
  * somebody else already made this choice for us, true otherwise. */
