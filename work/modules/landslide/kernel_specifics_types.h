@@ -7,6 +7,8 @@
 #ifndef __LS_KERNEL_SPECIFICS_TYPES_H
 #define __LS_KERNEL_SPECIFICS_TYPES_H
 
+#include "compiler.h"
+
 #define KSTACK_NUM_INDICES (4096/WORD_SIZE)
 
 /** @brief Thread Control Block - holds information specific to a thread */
@@ -127,7 +129,7 @@ static inline const char *kern_pcb_field_name(int offset)
 		  "child_prev", "parent", "parent_mutex.locked",
 		  "parent_mutex.owner", "cr3", "page_count", "stack_region",
 		  "page_lock.locked", "page_lock.owner" };
-	if (offset / WORD_SIZE < sizeof(names)/sizeof(names[0]))
+	if (offset / WORD_SIZE < ARRAY_SIZE(names))
 		return names[offset / WORD_SIZE];
 	else
 		return "((unknown))";
