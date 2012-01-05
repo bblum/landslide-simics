@@ -67,6 +67,18 @@ bool kern_sched_init_done(int eip)
 	return eip == GUEST_SCHED_INIT_EXIT;
 }
 
+bool kern_in_scheduler(int eip)
+{
+	static const int sched_funx[][2] = GUEST_SCHEDULER_FUNCTIONS;
+
+	for (int i = 0; i < ARRAY_SIZE(sched_funx); i++) {
+		if (eip >= sched_funx[i][0] && eip < sched_funx[i][1])
+			return true;
+	}
+
+	return false;
+}
+
 /* Anything that would prevent timer interrupts from triggering context
  * switches */
 bool kern_scheduler_locked(conf_object_t *cpu)

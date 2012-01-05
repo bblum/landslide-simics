@@ -144,4 +144,23 @@ echo
 echo "#define GUEST_IMG_END 0x`get_sym _end`"
 
 echo
+
+function add_sched_func {
+	echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
+}
+
+echo "#define GUEST_SCHEDULER_FUNCTIONS { \\"
+add_sched_func sch_queue_append
+add_sched_func sch_queue_pop
+add_sched_func sch_queue_remove
+add_sched_func sch_queue_search
+add_sched_func sch_runqueue_add_nolock
+add_sched_func sch_runqueue_add
+add_sched_func sch_runqueue_remove
+add_sched_func sch_runqueue_next
+add_sched_func context_switch
+add_sched_func magic_jar
+echo -e "\t}"
+
+echo
 echo "#endif"
