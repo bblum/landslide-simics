@@ -237,6 +237,10 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 	if (m->in_alloc || m->in_free)
 		return;
 
+	/* so does the scheduler - TODO: make this configurable */
+	if (kern_in_scheduler(ls->eip))
+		return;
+
 	/* ignore certain "probably innocent" accesses */
 	if (!kern_address_in_heap(addr) ||
 	    kern_address_own_kstack(ls->cpu0, addr))
@@ -292,13 +296,15 @@ static void print_shm_conflict(conf_object_t *cpu,
 
 /* Compute the intersection of two transitions' shm accesses */
 bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
-		       struct mem_state *m1, int depth0, int depth1)
+		       struct mem_state *m1, int depth0, int tid0,
+		       int depth1, int tid1)
 {
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
 	bool conflict = false;
 
-	lsprintf("Intersecting transition %d with %d: {", depth0, depth1);
+	lsprintf("Intersecting transition %d (TID %d) with %d (TID %d): {",
+		 depth0, tid0, depth1, tid1);
 
 	while (ma0 != NULL && ma1 != NULL) {
 		if (ma0->addr < ma1->addr) {

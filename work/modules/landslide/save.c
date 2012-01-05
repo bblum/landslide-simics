@@ -276,13 +276,13 @@ static void shuffle_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 			lsprintf("Same TID %d for transitions %d and %d\n",
 				 h->chosen_thread, h->depth, old->depth);
 			continue;
-		} else {
 			lsprintf("Transitions %d (TID %d) and %d (TID %d)...\n",
 				 h->depth, h->chosen_thread, old->depth,
 				 old->chosen_thread);
 		}
-		if (mem_shm_intersect(cpu, h->oldmem, old->oldmem,
-				      h->depth, old->depth)) {
+		if (mem_shm_intersect(cpu, h->oldmem, old->oldmem, h->depth,
+				      h->chosen_thread, old->depth,
+				      old->chosen_thread)) {
 			// TODO: record conflict here
 		}
 	}
@@ -402,7 +402,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			assert(end_of_test || ss->next_tid == -1);
 
 			h->parent = NULL;
-			h->depth = 1;
+			h->depth = 0;
 			ss->root  = h;
 		} else {
 			/* Subsequent choice. */
