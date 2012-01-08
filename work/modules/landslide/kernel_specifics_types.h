@@ -8,6 +8,7 @@
 #define __LS_KERNEL_SPECIFICS_TYPES_H
 
 #include "compiler.h"
+#include "x86.h"
 
 #define KSTACK_NUM_INDICES (4096/WORD_SIZE)
 

@@ -9,6 +9,18 @@
 
 #include <simics/api.h>
 
+#define GUEST_POBBLES_RACE
+
+#if defined(GUEST_POBBLES)
+#include "kernel_specifics_pobbles.h"
+#include "kernel_specifics_types.h"
+#elif defined(GUEST_POBBLES_RACE)
+#include "kernel_specifics_pobbles_race.h"
+#include "kernel_specifics_types.h"
+
+// TODO: elsif ...
+#endif
+
 struct sched_state;
 
 /* Miscellaneous simple information */

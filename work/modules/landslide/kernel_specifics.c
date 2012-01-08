@@ -7,22 +7,9 @@
 #include <assert.h>
 #include <simics/api.h>
 
+#include "kernel_specifics.h"
 #include "schedule.h" /* TODO: separate the struct part into schedule_type.h */
 #include "x86.h"
-
-/* Assumptions we need to make about the kernel */
-
-#define GUEST_POBBLES_RACE
-
-#if defined(GUEST_POBBLES)
-#include "kernel_specifics_pobbles.h"
-#include "kernel_specifics_types.h"
-#elif defined(GUEST_POBBLES_RACE)
-#include "kernel_specifics_pobbles_race.h"
-#include "kernel_specifics_types.h"
-
-// TODO: elsif ...
-#endif
 
 /******************************************************************************
  * Miscellaneous information
