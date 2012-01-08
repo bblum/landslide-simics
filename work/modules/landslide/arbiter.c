@@ -44,13 +44,6 @@ bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 	}
 }
 
-
-// TODO move this elsewhere
-// #define GUEST_MUTEX_LOCK 0x001068a0
-#define GUEST_MUTEX_LOCK 0x106930
-#define GUEST_VANISH 0x104223
-#define GUEST_VANISH_END 0x104593
-
 bool arbiter_interested(struct ls_state *ls)
 {
 	// TODO: more interesting choice points

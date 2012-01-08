@@ -41,6 +41,10 @@ echo "#ifndef __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
 echo "#define __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
 echo
 
+########################
+#### TCB management ####
+########################
+
 
 CURRENT_TCB=`get_sym thr_current`
 echo "#define GUEST_CURRENT_TCB 0x$CURRENT_TCB"
@@ -56,6 +60,10 @@ echo
 echo "#define GUEST_PCB_PID_OFFSET 0"
 echo "#define PID_FROM_PCB(cpu, pcb) \\"
 echo -e "\tSIM_read_phys_memory(cpu, pcb + GUEST_PCB_PID_OFFSET, WORD_SIZE)"
+
+###################################
+#### Thread lifecycle tracking ####
+###################################
 
 RQ=`get_sym runqueue`
 echo "#define GUEST_RQ_ADDR 0x$RQ"
@@ -119,7 +127,9 @@ echo "#define GUEST_READLINE_WINDOW_EXIT 0x$READLINE_WINDOW_END"
 
 echo
 
-# for noob deadlock detection
+############################
+#### Deadlock detection ####
+############################
 
 BLOCKED_WINDOW=`objdump -d $KERNEL_IMG | grep -A10000 "<mutex_lock>:" | grep -m 1 "call.*<yield>" | sed 's/ //g' | cut -d":" -f1`
 BLOCKED_WINDOW_END=`get_func_end mutex_lock`
@@ -127,6 +137,10 @@ echo "#define GUEST_BLOCKED_WINDOW_ENTER 0x$BLOCKED_WINDOW"
 echo "#define GUEST_BLOCKED_WINDOW_EXIT  0x$BLOCKED_WINDOW_END"
 
 echo
+
+###################################
+#### Dynamic memory allocation ####
+###################################
 
 echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func lmm_alloc`"
 echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_end lmm_alloc`"
@@ -141,9 +155,17 @@ echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
 
 echo
 
+##############################
+#### Kernel image regions ####
+##############################
+
 echo "#define GUEST_IMG_END 0x`get_sym _end`"
 
 echo
+
+##############################
+#### Scheduler boundaries ####
+##############################
 
 function add_sched_func {
 	echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
@@ -163,4 +185,15 @@ add_sched_func magic_jar
 echo -e "\t}"
 
 echo
+
+#######################
+#### Choice points ####
+#######################
+
+echo "#define GUEST_MUTEX_LOCK 0x`get_func mutex_lock`"
+echo "#define GUEST_VANISH 0x`get_func vanish`"
+echo "#define GUEST_VANISH_END 0x`get_func_end vanish`"
+
+echo
+
 echo "#endif"
