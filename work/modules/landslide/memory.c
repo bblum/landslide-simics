@@ -116,7 +116,8 @@ static void print_heap(struct rb_node *nobe, bool rightmost)
 #define MEM_ENTRY(rb) \
 	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
 
-static void add_shm(struct mem_state *m, int addr, bool write)
+static void add_shm(conf_object_t *cpu, struct mem_state *m, struct chunk *c,
+		    int addr, bool write)
 {
 	struct rb_node **p = &m->shm.rb_node;
 	struct rb_node *parent = NULL;
@@ -141,10 +142,12 @@ static void add_shm(struct mem_state *m, int addr, bool write)
 	/* doesn't exist; create a new one */
 	ma = MM_MALLOC(1, struct mem_access);
 	assert(ma != NULL && "failed allocate mem_access");
-	ma->addr     = addr;
-	ma->write    = write;
-	ma->count    = 1;
-	ma->conflict = false;
+	ma->addr      = addr;
+	ma->write     = write;
+	ma->count     = 1;
+	ma->conflict  = false;
+	ma->other_tid = 0;
+	kern_address_other_kstack(cpu, addr, c->base, c->len, &ma->other_tid);
 
 	rb_link_node(&ma->nobe, parent, p);
 	rb_insert_color(&ma->nobe, &m->shm);
@@ -254,8 +257,8 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		print_heap(m->heap.rb_node, true);
 		printf("}\n");
 		found_a_bug(ls);
-	} else { // TODO - add check for in scheduler or not
-		add_shm(m, addr, write);
+	} else {
+		add_shm(ls->cpu0, m, c, addr, write);
 	}
 }
 
@@ -294,6 +297,24 @@ static void print_shm_conflict(conf_object_t *cpu,
 	       ma1->write ? 'w' : 'r', ma1->count);
 }
 
+static void check_stack_conflict(struct mem_access *ma, int other_tid,
+				 bool *conflict)
+{
+	/* The motivation for this function is that, as an optimisation, we
+	 * don't record shm accesses to a thread's own stack. The flip-side of
+	 * this is that if another thread accesses your stack, it is guaranteed
+	 * to be a conflict, and also won't be recorded in your transitions. So
+	 * we have to check every recorded access that doesn't match. */
+	if (ma->other_tid == other_tid) {
+		if (*conflict)
+			printf(", ");
+		ma->conflict = true;
+		*conflict = true;
+		printf("[tid%d stack %c%d]", other_tid, ma->write ? 'w' : 'r',
+		       ma->count);
+	}
+}
+
 /* Compute the intersection of two transitions' shm accesses */
 bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 		       struct mem_state *m1, int depth0, int tid0,
@@ -308,9 +329,11 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 
 	while (ma0 != NULL && ma1 != NULL) {
 		if (ma0->addr < ma1->addr) {
+			check_stack_conflict(ma0, tid1, &conflict);
 			/* advance ma0 */
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 		} else if (ma0->addr > ma1->addr) {
+			check_stack_conflict(ma1, tid0, &conflict);
 			/* advance ma1 */
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 		} else {
@@ -327,6 +350,17 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 		}
+	}
+
+	/* even if one transition runs out of recorded accesses, we still need
+	 * to check the other one's remaining accesses for the one's stack. */
+	while (ma0 != NULL) {
+		check_stack_conflict(ma0, tid1, &conflict);
+		ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
+	}
+	while (ma1 != NULL) {
+		check_stack_conflict(ma1, tid0, &conflict);
+		ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 	}
 
 	printf("}\n");

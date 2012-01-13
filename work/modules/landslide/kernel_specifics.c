@@ -214,6 +214,20 @@ bool kern_address_own_kstack(conf_object_t *cpu, int addr)
 	return (addr >= stack_bottom && addr < stack_bottom + GUEST_STACK_SIZE);
 }
 
+bool kern_address_other_kstack(conf_object_t *cpu, int addr, int chunk,
+			       int size, int *tid)
+{
+	if (size == KERN_TCB_SIZE) {
+		int stack_bottom = STACK_FROM_TCB(chunk);
+		if (addr >= stack_bottom &&
+		    addr < stack_bottom + GUEST_STACK_SIZE) {
+			*tid = TID_FROM_TCB(cpu, chunk);
+			return true;
+		}
+	}
+	return false;
+}
+
 void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 		       int chunk, int size)
 {

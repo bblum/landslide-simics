@@ -55,6 +55,8 @@ bool kern_lmm_free_exiting(int eip);
 /* Other memory operations */
 bool kern_address_in_heap(int addr);
 bool kern_address_own_kstack(conf_object_t *cpu, int addr);
+bool kern_address_other_kstack(conf_object_t *, int addr, int chunk, int size,
+			       int *tid);
 void kern_address_hint(conf_object_t *, char *buf, int buflen,
 		       int addr, int chunk, int size);
 

@@ -19,6 +19,7 @@
 struct mem_access {
 	int addr;      /* byte granularity */
 	bool write;    /* false == read; true == write */
+	int other_tid; /* does this access another thread's stack? 0 if none */
 	int count;     /* how many times accessed? (stats) */
 	bool conflict; /* does this conflict with another transition? (stats) */
 	struct rb_node nobe;
