@@ -147,7 +147,11 @@ static void add_shm(conf_object_t *cpu, struct mem_state *m, struct chunk *c,
 	ma->count     = 1;
 	ma->conflict  = false;
 	ma->other_tid = 0;
-	kern_address_other_kstack(cpu, addr, c->base, c->len, &ma->other_tid);
+
+	if (c != NULL) {
+		kern_address_other_kstack(cpu, addr, c->base, c->len,
+					  &ma->other_tid);
+	}
 
 	rb_link_node(&ma->nobe, parent, p);
 	rb_insert_color(&ma->nobe, &m->shm);
@@ -231,8 +235,6 @@ void mem_exit_free(struct ls_state *ls, struct mem_state *m)
 void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 			     bool write)
 {
-	// TODO: check for global accesses
-
 	if (!ls->sched.guest_init_done)
 		return;
 
@@ -241,24 +243,28 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		return;
 
 	/* so does the scheduler - TODO: make this configurable */
-	if (kern_in_scheduler(ls->eip))
+	if (kern_in_scheduler(ls->eip) || kern_access_in_scheduler(addr))
 		return;
 
 	/* ignore certain "probably innocent" accesses */
-	if (!kern_address_in_heap(addr) ||
-	    kern_address_own_kstack(ls->cpu0, addr))
+	if (kern_address_own_kstack(ls->cpu0, addr))
 		return;
 
-	struct chunk *c = find_containing_chunk(m, addr);
-	if (c == NULL) {
-		lsprintf("USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
-			 write ? "write to" : "read from", addr, ls->eip);
-		lsprintf("Heap contents: {");
-		print_heap(m->heap.rb_node, true);
-		printf("}\n");
-		found_a_bug(ls);
-	} else {
-		add_shm(ls->cpu0, m, c, addr, write);
+	if (kern_address_in_heap(addr)) {
+		struct chunk *c = find_containing_chunk(m, addr);
+		if (c == NULL) {
+			lsprintf("USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
+				 write ? "write to" : "read from",
+				 addr, ls->eip);
+			lsprintf("Heap contents: {");
+			print_heap(m->heap.rb_node, true);
+			printf("}\n");
+			found_a_bug(ls);
+		} else {
+			add_shm(ls->cpu0, m, c, addr, write);
+		}
+	} else if (kern_address_global(addr)) {
+		add_shm(ls->cpu0, m, NULL, addr, write);
 	}
 }
 

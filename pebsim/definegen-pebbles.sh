@@ -20,7 +20,7 @@ KERNEL_NAME_LOWER=`echo $KERNEL_NAME | tr '[:upper:]' '[:lower:]'`
 KERNEL_NAME_UPPER=`echo $KERNEL_NAME | tr '[:lower:]' '[:upper:]'`
 
 function get_sym {
-	objdump -t $KERNEL_IMG | grep "\<$1\>" | cut -d" " -f1
+	objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1
 }
 
 function get_func {
@@ -160,6 +160,10 @@ echo
 ##############################
 
 echo "#define GUEST_IMG_END 0x`get_sym _end`"
+echo "#define GUEST_DATA_START 0x`get_sym .data`"
+echo "#define GUEST_DATA_END 0x`get_sym _edata`" # Everything is awful forever.
+echo "#define GUEST_BSS_START 0x`get_sym __bss_start`"
+echo "#define GUEST_BSS_END GUEST_IMG_END"
 
 echo
 
@@ -169,6 +173,10 @@ echo
 
 function add_sched_func {
 	echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
+}
+
+function add_sched_sym {
+	echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
 }
 
 echo "#define GUEST_SCHEDULER_FUNCTIONS { \\"
@@ -182,6 +190,21 @@ add_sched_func sch_runqueue_remove
 add_sched_func sch_runqueue_next
 add_sched_func context_switch
 add_sched_func magic_jar
+add_sched_func timer_handler
+echo -e "\t}"
+
+INT_SIZE=4
+PTR_SIZE=4
+MUTEX_SIZE=`echo $(($INT_SIZE+$INT_SIZE))`
+RQ_SIZE=`echo $(($PTR_SIZE+$PTR_SIZE+$MUTEX_SIZE))`
+
+echo "#define GUEST_SCHEDULER_GLOBALS { \\"
+add_sched_sym scheduler_locked $INT_SIZE
+add_sched_sym thr_current $PTR_SIZE
+add_sched_sym timer_count $INT_SIZE
+add_sched_sym sleeping $RQ_SIZE
+add_sched_sym cas2i_queue $RQ_SIZE
+add_sched_sym runqueue $RQ_SIZE
 echo -e "\t}"
 
 echo

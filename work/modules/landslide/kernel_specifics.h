@@ -33,6 +33,7 @@ bool kern_context_switch_entering(int eip);
 bool kern_context_switch_exiting(int eip);
 bool kern_sched_init_done(int eip);
 bool kern_in_scheduler(int eip);
+bool kern_access_in_scheduler(int addr);
 bool kern_scheduler_locked(conf_object_t *cpu);
 bool kern_thread_blocking(conf_object_t *cpu, int eip, int *);
 bool kern_thread_unblocked(int eip);
@@ -54,6 +55,7 @@ bool kern_lmm_free_exiting(int eip);
 
 /* Other memory operations */
 bool kern_address_in_heap(int addr);
+bool kern_address_global(int addr);
 bool kern_address_own_kstack(conf_object_t *cpu, int addr);
 bool kern_address_other_kstack(conf_object_t *, int addr, int chunk, int size,
 			       int *tid);

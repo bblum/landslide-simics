@@ -66,6 +66,19 @@ bool kern_in_scheduler(int eip)
 	return false;
 }
 
+bool kern_access_in_scheduler(int addr)
+{
+	static const int sched_syms[][2] = GUEST_SCHEDULER_GLOBALS;
+
+	for (int i = 0; i < ARRAY_SIZE(sched_syms); i++) {
+		if (addr >= sched_syms[i][0] &&
+		    addr < sched_syms[i][0] + sched_syms[i][1])
+			return true;
+	}
+
+	return false;
+}
+
 /* Anything that would prevent timer interrupts from triggering context
  * switches */
 bool kern_scheduler_locked(conf_object_t *cpu)
@@ -206,6 +219,12 @@ bool kern_lmm_free_exiting(int eip)
 bool kern_address_in_heap(int addr)
 {
 	return (addr >= GUEST_IMG_END && addr < USER_MEM_START);
+}
+
+bool kern_address_global(int addr)
+{
+	return ((addr >= GUEST_DATA_START && addr < GUEST_DATA_END) ||
+		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
 }
 
 bool kern_address_own_kstack(conf_object_t *cpu, int addr)
