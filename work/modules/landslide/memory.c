@@ -116,7 +116,7 @@ static void print_heap(struct rb_node *nobe, bool rightmost)
 #define MEM_ENTRY(rb) \
 	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
 
-static void add_shm(conf_object_t *cpu, struct mem_state *m, struct chunk *c,
+static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 		    int addr, bool write)
 {
 	struct rb_node **p = &m->shm.rb_node;
@@ -144,12 +144,13 @@ static void add_shm(conf_object_t *cpu, struct mem_state *m, struct chunk *c,
 	assert(ma != NULL && "failed allocate mem_access");
 	ma->addr      = addr;
 	ma->write     = write;
+	ma->eip       = ls->eip;
 	ma->count     = 1;
 	ma->conflict  = false;
 	ma->other_tid = 0;
 
 	if (c != NULL) {
-		kern_address_other_kstack(cpu, addr, c->base, c->len,
+		kern_address_other_kstack(ls->cpu0, addr, c->base, c->len,
 					  &ma->other_tid);
 	}
 
@@ -243,7 +244,9 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		return;
 
 	/* so does the scheduler - TODO: make this configurable */
-	if (kern_in_scheduler(ls->eip) || kern_access_in_scheduler(addr))
+	if (kern_in_scheduler(ls->eip) || kern_access_in_scheduler(addr) ||
+	    ls->sched.cur_agent->action.handling_timer || /* XXX: a hack */
+	    ls->sched.cur_agent->action.context_switch)
 		return;
 
 	/* ignore certain "probably innocent" accesses */
@@ -261,10 +264,10 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 			printf("}\n");
 			found_a_bug(ls);
 		} else {
-			add_shm(ls->cpu0, m, c, addr, write);
+			add_shm(ls, m, c, addr, write);
 		}
 	} else if (kern_address_global(addr)) {
-		add_shm(ls->cpu0, m, NULL, addr, write);
+		add_shm(ls, m, NULL, addr, write);
 	}
 }
 
@@ -316,8 +319,8 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid,
 			printf(", ");
 		ma->conflict = true;
 		*conflict = true;
-		printf("[tid%d stack %c%d]", other_tid, ma->write ? 'w' : 'r',
-		       ma->count);
+		printf("[tid%d stack %c%d 0x%x]", other_tid,
+		       ma->write ? 'w' : 'r', ma->count, ma->eip);
 	}
 }
 

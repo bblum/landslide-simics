@@ -59,7 +59,8 @@ bool kern_in_scheduler(int eip)
 	static const int sched_funx[][2] = GUEST_SCHEDULER_FUNCTIONS;
 
 	for (int i = 0; i < ARRAY_SIZE(sched_funx); i++) {
-		if (eip >= sched_funx[i][0] && eip < sched_funx[i][1])
+		/* The get_func_end returns the last instr, so be inclusive */
+		if (eip >= sched_funx[i][0] && eip <= sched_funx[i][1])
 			return true;
 	}
 
