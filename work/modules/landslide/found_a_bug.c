@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "landslide.h"
+#include "schedule.h"
 #include "tree.h"
 
 static int print_tree_from(struct hax *h, int choose_thread)
@@ -23,8 +24,9 @@ static int print_tree_from(struct hax *h, int choose_thread)
 	}
 	
 	num = 1 + print_tree_from(h->parent, h->chosen_thread);
-	lsprintf("Choice %d:\tat eip 0x%.8x, trigger_count %d, TID %d\n", num,
+	lsprintf("%d:\teip 0x%.8x, trigger_count %d, TID %d, ", num,
 		 h->eip, h->trigger_count, choose_thread);
+	print_q("RQ [", &h->oldsched->rq, "]\n");
 
 	return num;
 }

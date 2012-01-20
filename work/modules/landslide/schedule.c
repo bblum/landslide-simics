@@ -53,9 +53,12 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 	a->action.sleeping = false;
 	a->action.vanishing = false;
 	a->action.readlining = false;
+	a->action.mutex_locking = false;
+	a->action.mutex_unlocking = false;
 	a->action.schedule_target = false;
 	a->blocked_on = NULL;
 	a->blocked_on_tid = -1;
+	a->blocked_on_addr = -1;
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
 
@@ -145,6 +148,22 @@ static void print_deadlock(struct agent *a)
 	printf(" -> %d)", a->tid);
 }
 
+static void mutex_block_others(struct agent_q *q, int mutex_addr,
+			       struct agent *blocked_on, int blocked_on_tid)
+{
+	struct agent *a;
+	Q_FOREACH(a, q, nobe) {
+		if (a->blocked_on_addr == mutex_addr) {
+			lsprintf("mutex: on 0x%x tid %d now blocks on %d "
+				 "(was %d)\n", mutex_addr, a->tid,
+				 blocked_on_tid, a->blocked_on_tid);
+			assert(a->action.mutex_locking);
+			a->blocked_on = blocked_on;
+			a->blocked_on_tid = blocked_on_tid;
+		}
+	}
+}
+
 /******************************************************************************
  * Scheduler
  ******************************************************************************/
@@ -174,6 +193,7 @@ void print_agent(struct agent *a)
 	if (a->action.vanishing)       printf("v");
 	if (a->action.readlining)      printf("r");
 	if (a->action.schedule_target) printf("*");
+	if (a->blocked_on_tid != -1)   printf("<?%d>", a->blocked_on_tid);
 }
 
 void print_q(const char *start, struct agent_q *q, const char *end)
@@ -262,6 +282,7 @@ void sched_update(struct ls_state *ls)
 	}
 
 	int target_tid;
+	int mutex_addr;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -362,10 +383,20 @@ void sched_update(struct ls_state *ls)
 			agent_deschedule(s, target_tid);
 			// lsprintf("agent %d desch -- ", target_tid);
 		}
-	/* Noob deadlock detection*/
-	} else if (kern_thread_blocking(ls->cpu0, ls->eip, &target_tid)) {
-		//assert(s->cur_agent->blocked_on == NULL);
-		//assert(s->cur_agent->blocked_on_tid == -1);
+	/* Mutex tracking and noob deadlock detection */
+	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &mutex_addr)) {
+		assert(!ACTION(s, mutex_locking));
+		assert(!ACTION(s, mutex_unlocking));
+		ACTION(s, mutex_locking) = true;
+		s->cur_agent->blocked_on_addr = mutex_addr;
+	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
+		/* Possibly not the case - if this thread entered mutex_lock,
+		 * then switched and someone took it, these would be set already
+		 * assert(s->cur_agent->blocked_on == NULL);
+		 * assert(s->cur_agent->blocked_on_tid == -1); */
+		lsprintf("mutex: on 0x%x tid %d blocks, owned by %d\n",
+			 s->cur_agent->blocked_on_addr, s->cur_agent->tid,
+			 target_tid);
 		s->cur_agent->blocked_on_tid = target_tid;
 		if (deadlocked(s)) {
 			lsprintf("DEADLOCK! ");
@@ -373,9 +404,25 @@ void sched_update(struct ls_state *ls)
 			printf("\n");
 			found_a_bug(ls);
 		}
-	} else if (kern_thread_unblocked(ls->eip)) {
+	} else if (kern_mutex_locking_done(ls->eip)) {
+		assert(ACTION(s, mutex_locking));
+		assert(!ACTION(s, mutex_unlocking));
+		ACTION(s, mutex_locking) = false;
 		s->cur_agent->blocked_on = NULL;
 		s->cur_agent->blocked_on_tid = -1;
+		s->cur_agent->blocked_on_addr = -1;
+		/* no need to check for deadlock; this can't create a cycle. */
+		mutex_block_others(&s->rq, mutex_addr, s->cur_agent,
+				   s->cur_agent->tid);
+	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &mutex_addr)) {
+		/* It's allowed to have a mutex_unlock call inside a mutex_lock
+		 * (and it can happen), but not the other way around. */
+		assert(!ACTION(s, mutex_unlocking));
+		ACTION(s, mutex_unlocking) = true;
+		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
+	} else if (kern_mutex_unlocking_done(ls->eip)) {
+		assert(ACTION(s, mutex_unlocking));
+		ACTION(s, mutex_unlocking) = false;
 	/* Dynamic memory allocation tracking */
 	} else {
 		int size;
@@ -464,6 +511,11 @@ void sched_update(struct ls_state *ls)
 	/* TODO: have an extra mode which will allow us to preempt the timer
 	 * handler. */
 	if (HANDLING_INTERRUPT(s) || kern_scheduler_locked(ls->cpu0)) {
+		return;
+	}
+
+	/* As kernel_specifics.h says, no preempting during mutex unblocking. */
+	if (ACTION(s, mutex_unlocking)) {
 		return;
 	}
 

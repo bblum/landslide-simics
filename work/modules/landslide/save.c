@@ -110,13 +110,16 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->action.sleeping        = a_src->action.sleeping;
 	a_dest->action.vanishing       = a_src->action.vanishing;
 	a_dest->action.readlining      = a_src->action.readlining;
+	a_dest->action.mutex_locking   = a_src->action.mutex_locking;
+	a_dest->action.mutex_unlocking = a_src->action.mutex_unlocking;
 	a_dest->action.schedule_target = a_src->action.schedule_target;
 	assert(memcmp(&a_dest->action, &a_src->action,
 		      sizeof(a_dest->action)) == 0 &&
 	       "Did you update agent->action without updating save.c?");
 
-	a_dest->blocked_on     = NULL;
-	a_dest->blocked_on_tid = a_src->blocked_on_tid;
+	a_dest->blocked_on      = NULL; /* Will be recomputed later if needed */
+	a_dest->blocked_on_tid  = a_src->blocked_on_tid;
+	a_dest->blocked_on_addr = a_src->blocked_on_addr;
 
 	return a_dest;
 }

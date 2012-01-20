@@ -35,6 +35,9 @@ struct agent {
 		bool vanishing;
 		/* are they reading lines */
 		bool readlining;
+		/* are they taking or releasing a mutex? */
+		bool mutex_locking;
+		bool mutex_unlocking;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
@@ -42,6 +45,9 @@ struct agent {
 	 * NULL but the tid field is not -1, it should be computed. */
 	struct agent *blocked_on;
 	int blocked_on_tid;
+	/* action.locking implies addr is valid; also blocked_on set implies
+	 * locking, which implies addr is valid. -1 if nothing. */
+	int blocked_on_addr;
 };
 
 Q_NEW_HEAD(struct agent_q, struct agent);

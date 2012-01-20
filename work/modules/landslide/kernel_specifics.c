@@ -88,9 +88,32 @@ bool kern_scheduler_locked(conf_object_t *cpu)
 	return GUEST_SCHEDULER_LOCKED(x);
 }
 
-bool kern_thread_blocking(conf_object_t *cpu, int eip, int *tid)
+/******************************************************************************
+ * Yielding mutexes
+ ******************************************************************************/
+
+/* If the kernel uses yielding mutexes, we need to explicitly keep track of when
+ * threads are blocked on them. (If mutexes deschedule, it should be safe to
+ * have all these functions just return false.)
+ * A "race" may happen if we decide on a choice point between when this says
+ * a mutex-owning thread "enables" a blocked thread and when the actual enabling
+ * instruction is executed. Hence (as a small-hammer solution) we don't allow
+ * choice points to happen inside mutex_{,un}lock. */
+
+bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex)
 {
-	if (eip == GUEST_BLOCKED_WINDOW_ENTER) {
+	if (eip == GUEST_MUTEX_LOCK_ENTER) {
+		*mutex = READ_STACK(cpu, GUEST_MUTEX_LOCK_MUTEX_ARGNUM);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+/* Is the thread becoming "disabled" because the mutex is owned? */
+bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *tid)
+{
+	if (eip == GUEST_MUTEX_BLOCKED) {
 		/* First argument to yield. */
 		*tid = READ_STACK(cpu, 0);
 		return true;
@@ -99,9 +122,26 @@ bool kern_thread_blocking(conf_object_t *cpu, int eip, int *tid)
 	}
 }
 
-bool kern_thread_unblocked(int eip)
+/* This one also tells if the thread is re-enabled. */
+bool kern_mutex_locking_done(int eip)
 {
-	return eip == GUEST_BLOCKED_WINDOW_EXIT;
+	return eip == GUEST_MUTEX_LOCK_EXIT;
+}
+
+/* Need to re-read the mutex addr because of unlocking mutexes in any order. */
+bool kern_mutex_unlocking(conf_object_t *cpu, int eip, int *mutex)
+{
+	if (eip == GUEST_MUTEX_UNLOCK_ENTER) {
+		*mutex = READ_STACK(cpu, GUEST_MUTEX_UNLOCK_MUTEX_ARGNUM);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_mutex_unlocking_done(int eip)
+{
+	return eip == GUEST_MUTEX_UNLOCK_EXIT;
 }
 
 /******************************************************************************
