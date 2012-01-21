@@ -7,6 +7,7 @@
 #ifndef __LS_COMMON_H
 #define __LS_COMMON_H
 
+#include <simics/api.h>
 #include <stdio.h>
 
 #ifndef MODULE_NAME
@@ -37,5 +38,10 @@
 #undef printf
 #endif
 #define printf(...) fprintf(stderr, __VA_ARGS__);
+
+#define MM_XMALLOC(x,t) ({				\
+	typeof(t) *__ptr = MM_MALLOC(x,t);		\
+	assert(__ptr != NULL && "malloc failed");	\
+	__ptr; })
 
 #endif
