@@ -41,6 +41,11 @@ struct hax {
 	Q_NEW_LINK(struct hax) sibling;
 	Q_NEW_HEAD(struct, struct hax) children;
 
+	/* Other transitions (ancestors) that conflict with or happen-before
+	 * this one. The length of each array is given by 'depth'. */
+	bool *conflicts;      /* if true, then they aren't independent. */
+	bool *happens_before; /* "happens_after", really. */
+
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! (TODO: is this sufficient, if sched gets wiped sometimes?) */
 

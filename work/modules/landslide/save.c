@@ -267,30 +267,6 @@ static void free_mem(struct mem_state *m)
 	m->shm.rb_node = NULL;
 }
 
-static void shuffle_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
-{
-	/* store shared memory accesses from this transition; reset to empty */
-	h->oldmem->shm.rb_node = m->shm.rb_node;
-	m->shm.rb_node = NULL;
-
-	/* compute newly-completed transition's conflicts with previous ones */
-	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
-		if (h->chosen_thread == old->chosen_thread) {
-			lsprintf("Same TID %d for transitions %d and %d\n",
-				 h->chosen_thread, h->depth, old->depth);
-			continue;
-			lsprintf("Transitions %d (TID %d) and %d (TID %d)...\n",
-				 h->depth, h->chosen_thread, old->depth,
-				 old->chosen_thread);
-		}
-		if (mem_shm_intersect(cpu, h->oldmem, old->oldmem, h->depth,
-				      h->chosen_thread, old->depth,
-				      old->chosen_thread)) {
-			// TODO: record conflict here
-		}
-	}
-}
-
 static void free_arbiter_choices(struct arbiter_state *a)
 {
 // TODO: deprecate one of these
@@ -320,6 +296,10 @@ static void free_hax(struct hax *h)
 	h->oldsched = NULL;
 	h->oldtest = NULL;
 	h->oldmem = NULL;
+	MM_FREE(h->conflicts);
+	MM_FREE(h->happens_before);
+	h->conflicts = NULL;
+	h->happens_before = NULL;
 }
 
 /* Reverse that which is not glowing green. */
@@ -343,6 +323,93 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	free_arbiter_choices(&ls->arbiter);
 
 	ls->just_jumped = true;
+}
+
+/******************************************************************************
+ * Independence and happens-before computation
+ ******************************************************************************/
+
+static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
+{
+	/* store shared memory accesses from this transition; reset to empty */
+	h->oldmem->shm.rb_node = m->shm.rb_node;
+	m->shm.rb_node = NULL;
+
+	/* compute newly-completed transition's conflicts with previous ones */
+	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
+		if (h->chosen_thread == old->chosen_thread) {
+			lsprintf("Same TID %d for transitions %d and %d\n",
+				 h->chosen_thread, h->depth, old->depth);
+			continue;
+		}
+		/* The haxes are independent if there was no intersection. */
+		assert(old->depth >= 0 && old->depth < h->depth);
+		h->conflicts[old->depth] =
+			mem_shm_intersect(cpu, h->oldmem, old->oldmem, h->depth,
+					  h->chosen_thread, old->depth,
+					  old->chosen_thread);
+	}
+}
+
+static void inherit_happens_before(struct hax *h, struct hax *old)
+{
+	for (int i = 0; i < old->depth; i++) {
+		h->happens_before[i] =
+			h->happens_before[i] || old->happens_before[i];
+	}
+}
+
+static bool enabled_by(struct hax *h, struct hax *old)
+{
+	if (old->parent == NULL) {
+		return true;
+	} else {
+		struct agent *a;
+		lsprintf("Searching for #%d/tid%d among siblings of #%d/tid%d: ",
+			 h->depth, h->chosen_thread, old->depth,
+			 old->chosen_thread);
+		print_q("RQ [", &old->parent->oldsched->rq, "]: ");
+		Q_SEARCH(a, &old->parent->oldsched->rq, nobe,
+			 a->tid == h->chosen_thread && a->blocked_on_tid == -1);
+		/* Transition A enables transition B if B was not a sibling of
+		 * A; i.e., if before A was run B could not have been chosen. */
+		printf("%s enabled_by\n", a == NULL ? "yes" : "not");
+		return (a == NULL);
+	}
+}
+
+static void compute_happens_before(struct hax *h)
+{
+	int i;
+
+	for (i = 0; i < h->depth; i++) {
+		h->happens_before[i] = false;
+	}
+
+	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
+		assert(--i == old->depth); /* sanity check */
+		assert(old->depth >= 0 && old->depth < h->depth);
+		if (h->chosen_thread == old->chosen_thread) {
+			h->happens_before[old->depth] = true;
+			inherit_happens_before(h, old);
+			/* Computing any further would be redundant. */
+			break;
+		} else if (enabled_by(h, old)) {
+			h->happens_before[old->depth] = true;
+			inherit_happens_before(h, old);
+			// TODO: do we stop here, or keep going?
+		} else {
+			h->happens_before[old->depth] = false;
+		}
+	}
+
+	lsprintf("Transitions { ");
+	for (i = 0; i < h->depth; i++) {
+		if (h->happens_before[i]) {
+			printf("#%d ", i);
+		}
+	}
+	printf("} happen-before #%d/tid%d.\n", h->depth, h->chosen_thread);
 }
 
 /******************************************************************************
@@ -452,7 +519,16 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	h->oldmem = MM_MALLOC(1, struct mem_state);
 	assert(h->oldmem && "failed allocate oldmem");
 	copy_mem(h->oldmem, &ls->mem);
-	shuffle_shm(ls->cpu0, h, &ls->mem);
+
+	if (h->depth > 0) {
+		h->conflicts      = MM_XMALLOC(h->depth, bool);
+		h->happens_before = MM_XMALLOC(h->depth, bool);
+	} else {
+		h->conflicts      = NULL;
+		h->happens_before = NULL;
+	}
+	shimsham_shm(ls->cpu0, h, &ls->mem);
+	compute_happens_before(h);
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
