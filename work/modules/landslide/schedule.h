@@ -48,9 +48,13 @@ struct agent {
 	/* action.locking implies addr is valid; also blocked_on set implies
 	 * locking, which implies addr is valid. -1 if nothing. */
 	int blocked_on_addr;
+	/* Used by partial order reduction, only in "oldsched"s in the tree. */
+	bool do_explore;
 };
 
 Q_NEW_HEAD(struct agent_q, struct agent);
+
+#define BLOCKED(a) ((a)->blocked_on_tid != -1)
 
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */

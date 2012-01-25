@@ -37,7 +37,7 @@ struct hax {
 
 	/* Tree link data. */
 	struct hax *parent;
-	int depth; /* for stat counting */
+	int depth; /* starts at 0 */
 	Q_NEW_LINK(struct hax) sibling;
 	Q_NEW_HEAD(struct, struct hax) children;
 
@@ -47,7 +47,8 @@ struct hax {
 	bool *happens_before; /* "happens_after", really. */
 
 	/* Note: a list of available tids to run next is implicit in the copied
-	 * sched! (TODO: is this sufficient, if sched gets wiped sometimes?) */
+	 * sched! Also, the "tags" that POR uses to denote to-be-explored
+	 * siblings are in the agent structs on the scheduler queues. */
 
 	bool all_explored;
 };

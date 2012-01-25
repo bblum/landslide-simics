@@ -121,6 +121,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->blocked_on_tid  = a_src->blocked_on_tid;
 	a_dest->blocked_on_addr = a_src->blocked_on_addr;
 
+	a_dest->do_explore = false;
+
 	return a_dest;
 }
 
@@ -362,6 +364,7 @@ static void inherit_happens_before(struct hax *h, struct hax *old)
 static bool enabled_by(struct hax *h, struct hax *old)
 {
 	if (old->parent == NULL) {
+		lsprintf("#%d/tid%d has no parent", old->depth, old->chosen_thread);
 		return true;
 	} else {
 		struct agent *a;
@@ -370,7 +373,7 @@ static bool enabled_by(struct hax *h, struct hax *old)
 			 old->chosen_thread);
 		print_q("RQ [", &old->parent->oldsched->rq, "]: ");
 		Q_SEARCH(a, &old->parent->oldsched->rq, nobe,
-			 a->tid == h->chosen_thread && a->blocked_on_tid == -1);
+			 a->tid == h->chosen_thread && !BLOCKED(a));
 		/* Transition A enables transition B if B was not a sibling of
 		 * A; i.e., if before A was run B could not have been chosen. */
 		printf("%s enabled_by\n", a == NULL ? "yes" : "not");

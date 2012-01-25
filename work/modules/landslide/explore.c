@@ -45,7 +45,7 @@ static bool find_unsearched_child(struct hax *h, int *new_tid) {
 	return false;
 }
 
-struct hax *explore(struct hax *root, struct hax *current, int *new_tid)
+static void branch_sanity(struct hax *root, struct hax *current)
 {
 	struct hax *our_branch = NULL;
 	struct hax *rabbit = current;
@@ -53,10 +53,29 @@ struct hax *explore(struct hax *root, struct hax *current, int *new_tid)
 	assert(root != NULL);
 	assert(current != NULL);
 
-	/* Find the most recent spot in our branch that is not all explored. */
 	while (1) {
 		assert(current->oldsched != NULL);
+		/* our_branch chases, indicating where we came from */
+		our_branch = current;
+		if ((current = current->parent) == NULL) {
+			assert(our_branch == root && "two roots?!?");
+			return;
+		}
+		/* cycle check */
+		if (rabbit) rabbit = rabbit->parent;
+		if (rabbit) rabbit = rabbit->parent;
+		assert(rabbit != current && "tree has cycle??");
+	}
+}
 
+/******************************************************************************
+ * Simple, comprehensive, depth-first exploration strategy.
+ ******************************************************************************/
+
+static struct hax *simple(struct hax *root, struct hax *current, int *new_tid)
+{
+	/* Find the most recent spot in our branch that is not all explored. */
+	while (1) {
 		/* Examine children */
 		if (!current->all_explored) {
 			if (find_unsearched_child(current, new_tid)) {
@@ -71,18 +90,126 @@ struct hax *explore(struct hax *root, struct hax *current, int *new_tid)
 			}
 		}
 
-		/* our_branch chases, indicating where we came from */
-		our_branch = current;
 		/* 'current' finds the most recent unexplored */
 		if ((current = current->parent) == NULL) {
-			assert(our_branch == root && "two roots?!?");
 			lsprintf("root of tree all_explored!\n");
 			return NULL;
 		}
-		/* cycle check */
-		if (rabbit) rabbit = rabbit->parent;
-		if (rabbit) rabbit = rabbit->parent;
-		assert(rabbit != current && "tree has cycle??");
 	}
 }
 
+/******************************************************************************
+ * Dynamic partial-order reduction
+ ******************************************************************************/
+
+static bool is_evil_ancestor(struct hax *h0, struct hax *h)
+{
+	return !h0->happens_before[h->depth] && h0->conflicts[h->depth];
+}
+
+static bool tag_good_sibling(struct hax *h0, struct hax *h)
+{
+	int tid = h0->chosen_thread;
+
+	struct agent *a  = agent_by_tid_or_null(&h->parent->oldsched->rq, tid);
+	if (a == NULL) a = agent_by_tid_or_null(&h->parent->oldsched->sq, tid);
+
+	if (a != NULL && !BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
+		a->do_explore = true;
+		lsprintf("from #%d/tid%d, tagged TID %d sibling of #%d/tid%d\n",
+			 h0->depth, h0->chosen_thread, a->tid,
+			 h->depth, h->chosen_thread);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+static void tag_all_siblings(struct hax *h0, struct hax *h)
+{
+	struct agent *a;
+	Q_FOREACH(a, &h->parent->oldsched->rq, nobe) {
+		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid))
+			a->do_explore = true;
+	}
+	Q_FOREACH(a, &h->parent->oldsched->sq, nobe) {
+		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid))
+			a->do_explore = true;
+	}
+	lsprintf("from #%d/tid%d, tagged all siblings of #%d/tid%d\n",
+		 h0->depth, h0->chosen_thread, h->depth, h->chosen_thread);
+}
+
+static bool any_tagged_child(struct hax *h, int *new_tid)
+{
+	struct agent *a;
+
+	/* do_explore doesn't get set on blocked threads, but might get set
+	 * on threads we've already looked at. */
+	Q_SEARCH(a, &h->oldsched->rq, nobe,
+		 a->do_explore && !is_child_searched(h, a->tid));
+
+	if (a == NULL) {
+		Q_SEARCH(a, &h->oldsched->sq, nobe,
+			 a->do_explore && !is_child_searched(h, a->tid));
+	}
+
+	if (a != NULL) {
+		*new_tid = a->tid;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+static struct hax *dpor(struct hax *root, struct hax *current, int *new_tid)
+{
+	current->all_explored = true;
+
+	/* Compare each transition along this branch against each of its
+	 * ancestors. */
+	for (struct hax *h = current; h != NULL; h = h->parent) {
+		for (struct hax *ancestor = h->parent; ancestor != NULL;
+		     ancestor = ancestor->parent) {
+			if (ancestor->parent == NULL) {
+				// ????
+			/* Is the ancestor "evil"? */
+			} else if (is_evil_ancestor(h, ancestor)) {
+				/* Find which siblings need to be explored. */
+				if (!tag_good_sibling(h, ancestor))
+					tag_all_siblings(h, ancestor);
+
+				/* Stopping after the first baddie is fine;
+				 * the others are handled "by induction". */
+				break;
+			}
+		}
+	}
+
+	/* We will choose a tagged sibling that's deepest, to maintain a
+	 * depth-first ordering. This allows us to avoid having tagged siblings
+	 * outside of the current branch of the tree. A trail of "all_explored"
+	 * flags gets left behind. */
+	for (struct hax *h = current->parent; h != NULL; h = h->parent) {
+		if (any_tagged_child(h, new_tid)) {
+			lsprintf("from #%d/tid%d (%p), chose tid %d, "
+				 "child of #%d/tid%d (%p)\n",
+				 current->depth, current->chosen_thread, current,
+				 *new_tid, h->depth, h->chosen_thread, h);
+			return h;
+		} else {
+			lsprintf("#%d/tid%d (%p) all_explored\n",
+				 h->depth, h->chosen_thread, h);
+			h->all_explored = true;
+		}
+	}
+
+	lsprintf("found no tagged siblings on current branch!\n");
+	return NULL;
+}
+
+struct hax *explore(struct hax *root, struct hax *current, int *new_tid)
+{
+	branch_sanity(root, current);
+	return dpor(root, current, new_tid);
+}

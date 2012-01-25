@@ -193,7 +193,7 @@ void print_agent(struct agent *a)
 	if (a->action.vanishing)       printf("v");
 	if (a->action.readlining)      printf("r");
 	if (a->action.schedule_target) printf("*");
-	if (a->blocked_on_tid != -1)   printf("<?%d>", a->blocked_on_tid);
+	if (BLOCKED(a))                printf("<?%d>", a->blocked_on_tid);
 }
 
 void print_q(const char *start, struct agent_q *q, const char *end)
