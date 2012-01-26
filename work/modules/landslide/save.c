@@ -60,12 +60,13 @@ static void run_command_cb(lang_void *addr)
 	struct cmd_packet *p = (struct cmd_packet *)addr;
 	char buf[CMD_BUF_LEN];
 	int ret;
-	int fd = open(p->file, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+	int fd = open(p->file, O_CREAT | O_WRONLY | O_APPEND,
+		      S_IRUSR | S_IWUSR);
 	assert(fd != -1 && "failed open command file");
 
 	/* Generate command */
 	assert(CMD_BUF_LEN > strlen(p->cmd) + 1 + BOOKMARK_MAX_LEN);
-	ret = snprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx",
+	ret = snprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx\n",
 		       p->cmd, BOOKMARK_SUFFIX_LEN, p->label);
 	assert(ret > 0 && "failed snprintf");
 	ret = write(fd, buf, ret);
@@ -564,7 +565,7 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 	while (ss->current != h) {
 		/* This node will soon be in the future. Reclaim memory. */
 		free_hax(ss->current);
-		run_command(ls->cmd_file, CMD_DELETE, (lang_void *)h);
+		run_command(ls->cmd_file, CMD_DELETE, (lang_void *)ss->current);
 
 		ss->current = ss->current->parent;
 
