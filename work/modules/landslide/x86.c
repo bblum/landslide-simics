@@ -111,7 +111,7 @@ static bool i8042_shift_key(char *c)
 void cause_keypress(conf_object_t *kbd, char key)
 {
 	bool do_shift = i8042_shift_key(&key);
-	
+
 	int keycode = i8042_key(key);
 
 	attr_value_t i = SIM_make_attr_integer(keycode);
@@ -134,7 +134,7 @@ void cause_keypress(conf_object_t *kbd, char key)
 	v = SIM_make_attr_integer(1);
 	ret = SIM_set_attribute_idx(kbd, "key_event", &i, &v);
 	assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
-	
+
 	if (do_shift) {
 		ret = SIM_set_attribute_idx(kbd, "key_event", &shift, &v);
 		assert(ret == Sim_Set_Ok && "cause_keypress release failed!");
@@ -147,4 +147,27 @@ bool interrupts_enabled(conf_object_t *cpu)
 {
 	int eflags = GET_CPU_ATTR(cpu, eflags);
 	return (eflags & EFL_IF) != 0;
+}
+
+/* Performs a stack trace to see if the current call stack has the given
+ * function somewhere on it. */
+bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
+{
+	if (eip >= func && eip < func_end)
+		return true;
+
+	eip = READ_STACK(cpu, 0);
+
+	if (eip >= func && eip < func_end)
+		return true;
+
+	for (int ebp = GET_CPU_ATTR(cpu, ebp);
+	     ebp != 0 && (unsigned)ebp < USER_MEM_START;
+	     ebp = READ_MEMORY(cpu, ebp)) {
+		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
+		if (eip >= func && eip < func_end)
+			return true;
+	}
+
+	return false;
 }
