@@ -296,9 +296,11 @@ static void print_shm_conflict(conf_object_t *cpu,
 	} else {
 		if (c0 == NULL)
 			c0 = c1; /* default to "later" state if both exist */
-		assert(c1 == NULL ||
-		       (c0->base == c1->base && c0->len == c1->len &&
-		       "If this trips, replace with real code for this case"));
+		/* If this happens, c0 and c1 were both not null and also got
+		 * reallocated in-between. TODO: have better printing code.
+		 * assert(c1 == NULL ||
+		 *        (c0->base == c1->base && c0->len == c1->len));
+		 */
 		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
 				  c0->base, c0->len);
 	}
