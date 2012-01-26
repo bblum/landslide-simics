@@ -88,6 +88,17 @@ bool kern_scheduler_locked(conf_object_t *cpu)
 	return GUEST_SCHEDULER_LOCKED(x);
 }
 
+/* Various global mutexes which should be ignored */
+bool kern_mutex_ignore(int addr)
+{
+	static const int ignores[] = GUEST_MUTEX_IGNORES;
+	for (int i = 0; i < ARRAY_SIZE(ignores); i++) {
+		if (addr == ignores[i])
+			return true;
+	}
+	return false;
+}
+
 /******************************************************************************
  * Yielding mutexes
  ******************************************************************************/

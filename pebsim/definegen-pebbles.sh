@@ -217,9 +217,15 @@ echo
 #### Choice points ####
 #######################
 
-echo "#define GUEST_MUTEX_LOCK 0x`get_func mutex_lock`"
+echo "#define GUEST_MUTEX_LOCK GUEST_MUTEX_LOCK_ENTER"
 echo "#define GUEST_VANISH 0x`get_func vanish`"
 echo "#define GUEST_VANISH_END 0x`get_func_end vanish`"
+
+echo "#define GUEST_MUTEX_IGNORES { \\"
+echo -e "\t0x`get_sym vm_mutex`, \\"
+echo -e "\t0x`get_sym malloc_lock`, \\"
+echo -e "\t0x`get_sym cmutex`, \\"
+echo -e "\t}"
 
 echo
 

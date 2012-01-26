@@ -35,6 +35,7 @@ bool kern_sched_init_done(int eip);
 bool kern_in_scheduler(int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_scheduler_locked(conf_object_t *cpu);
+bool kern_mutex_ignore(int addr);
 
 /* Yielding-mutex interactions. */
 bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex);
