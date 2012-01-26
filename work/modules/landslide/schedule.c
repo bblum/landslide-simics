@@ -490,6 +490,11 @@ void sched_update(struct ls_state *ls)
 	}
 	assert(!s->schedule_in_flight);
 
+	/* Can't do anything before the test actually starts. */
+	if (ls->test.current_test == NULL) {
+		return;
+	}
+
 	/* XXX TODO: This will "leak" an undesirable thread to execute an
 	 * instruction if the timer/kbd handler is an interrupt gate, so check
 	 * also if we're about to iret and then examine the eflags on the
