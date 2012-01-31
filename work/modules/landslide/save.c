@@ -72,6 +72,9 @@ static void run_command_cb(lang_void *addr)
 	ret = write(fd, buf, ret);
 	assert(ret > 0 && "failed write");
 
+	if (buf[strlen(buf)-1] == '\n') {
+		buf[strlen(buf)-1] = '\0';
+	}
 	lsprintf("Using file '%s' for cmd '%s'\n", p->file, buf);
 
 	/* Clean-up */
@@ -365,7 +368,7 @@ static void inherit_happens_before(struct hax *h, struct hax *old)
 static bool enabled_by(struct hax *h, struct hax *old)
 {
 	if (old->parent == NULL) {
-		lsprintf("#%d/tid%d has no parent", old->depth, old->chosen_thread);
+		lsprintf("#%d/tid%d has no parent\n", old->depth, old->chosen_thread);
 		return true;
 	} else {
 		struct agent *a;
@@ -543,6 +546,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
+	lsprintf("After committing #%d/tid%d, next_tid %d\n",
+		 h->depth, h->chosen_thread, ss->next_tid);
 
 	run_command(ls->cmd_file, CMD_BOOKMARK, (lang_void *)h);
 	ss->total_choices++;
