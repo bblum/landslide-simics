@@ -175,9 +175,9 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 
 #define MAX_TRACE_LEN 4096
 #define ADD_STR(buf, pos, maxlen, ...) \
-	do { lsprintf("Adding string pos %d\n", pos); pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
+	do { pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
 #define ADD_FRAME(buf, pos, maxlen, eip) \
-	do { lsprintf("Adding frame pos %d eip 0x%.8x\n", pos, eip); pos += symtable_lookup(buf + pos, maxlen - pos, eip); } while (0)
+	do { pos += symtable_lookup(buf + pos, maxlen - pos, eip); } while (0)
 #define OPCODE_PUSH_EBP 0x55
 #define OPCODE_RET  0xc3
 #define OPCODE_IRET 0xcf
@@ -237,7 +237,6 @@ char *stack_trace(conf_object_t *cpu, int eip)
 
 		/* pushed return address behind the base pointer */
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
-		lsprintf("Adding real frame for eip 0x%.8x\n", eip);
 		stack_offset = ebp + 2;
 		ADD_STR(buf, pos, MAX_TRACE_LEN, ", 0x%.8x in ", eip);
 		ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
