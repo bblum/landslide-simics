@@ -76,5 +76,6 @@ int kern_get_first_tid(void);
 void kern_init_runqueue(struct sched_state *,
 			void (*)(struct sched_state *, int, bool));
 bool kern_fork_returns_to_cs(void);
+bool kern_fork_return_spot(int eip);
 
 #endif

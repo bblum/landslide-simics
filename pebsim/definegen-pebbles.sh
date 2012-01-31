@@ -119,6 +119,8 @@ echo "#define GUEST_THRFORK_WINDOW_ENTER 0x$THRFORK_WINDOW"
 echo "#define GUEST_SLEEP_WINDOW_ENTER   0x$SLEEP_WINDOW"
 echo "#define GUEST_VANISH_WINDOW_ENTER  0x$VANISH_WINDOW"
 
+echo "#define GUEST_FORK_RETURN_SPOT     0x`get_sym return_zero`"
+
 READLINE_WINDOW=`get_func readline`
 READLINE_WINDOW_END=`get_func_end readline`
 

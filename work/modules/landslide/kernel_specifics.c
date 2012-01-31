@@ -355,3 +355,9 @@ bool kern_fork_returns_to_cs()
 {
 	return false;
 }
+
+bool kern_fork_return_spot(int eip)
+{
+	// If kern_fork_returns_to_cs, this function should always return false.
+	return eip == GUEST_FORK_RETURN_SPOT;
+}
