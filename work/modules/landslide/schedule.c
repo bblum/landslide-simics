@@ -104,6 +104,20 @@ static void agent_vanish(struct sched_state *s, int tid)
 	s->last_vanished_agent = a;
 }
 
+static void set_schedule_target(struct sched_state *s, struct agent *a)
+{
+	if (s->schedule_in_flight != NULL) {
+		lsprintf("warning: overriding old schedule target ");
+		print_agent(s->schedule_in_flight);
+		printf(" with new ");
+		print_agent(a);
+		printf("\n");
+		s->schedule_in_flight->action.schedule_target = false;
+	}
+	s->schedule_in_flight = a;
+	a->action.schedule_target = true;
+}
+
 static struct agent *get_blocked_on(struct sched_state *s, struct agent *src)
 {
 	if (src->blocked_on != NULL) {
@@ -251,6 +265,9 @@ void sched_update(struct ls_state *ls)
 		assert(ls->eip == kern_get_timer_wrap_begin() &&
 		       "simics is a clown and tried to delay our interrupt :<");
 		s->entering_timer = false;
+	} else {
+		assert(ls->eip != kern_get_timer_wrap_begin() &&
+		       "a timer interrupt that wasn't ours....");
 	}
 
 	/**********************************************************************
@@ -295,7 +312,7 @@ void sched_update(struct ls_state *ls)
 		}
 		ACTION(s, handling_timer) = true;
 		lsprintf("%d timer enter from 0x%x\n", s->cur_agent->tid,
-			 (unsigned int)READ_STACK(ls->cpu0, 0));
+		         (unsigned int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls->eip)) {
 		assert(ACTION(s, handling_timer));
 		// XXX: This condition is a hack to compensate for when simics
@@ -309,6 +326,7 @@ void sched_update(struct ls_state *ls)
 		 * finishes landing. (otherwise, see below) */
 		if (ACTION(s, schedule_target)) {
 			ACTION(s, schedule_target) = false;
+			s->schedule_in_flight = NULL;
 		}
 	/* Context switching. */
 	} else if (kern_context_switch_entering(ls->eip)) {
@@ -322,6 +340,7 @@ void sched_update(struct ls_state *ls)
 		/* For threads that context switched of their own accord. */
 		if (ACTION(s, schedule_target) && !HANDLING_INTERRUPT(s)) {
 			ACTION(s, schedule_target) = false;
+			s->schedule_in_flight = NULL;
 		}
 	/* Lifecycle. */
 	} else if (kern_forking(ls->eip)) {
@@ -458,7 +477,9 @@ void sched_update(struct ls_state *ls)
 			 * why we leave the schedule_target flag turned on. */
 			assert(ACTION(s, context_switch) ||
 			       HANDLING_INTERRUPT(s));
-			s->schedule_in_flight = NULL;
+			/* The schedule_in_flight flag itself is cleared above,
+			 * along with schedule_target. Sometimes sched_recover
+			 * sets in_flight and needs it not cleared here. */
 		} else {
 			/* An undesirable thread has been context-switched away
 			 * from either from an interrupt handler (timer/kbd) or
@@ -484,9 +505,9 @@ void sched_update(struct ls_state *ls)
 				assert(ACTION(s, context_switch) ||
 				       HANDLING_INTERRUPT(s));
 			}
-			/* in any case we have no more decisions to make here */
-			return;
 		}
+		/* in any case we have no more decisions to make here */
+		return;
 	}
 	assert(!s->schedule_in_flight);
 
@@ -539,8 +560,7 @@ void sched_update(struct ls_state *ls)
 					 "0x%x (called at 0x%x)\n",
 					 s->cur_agent->tid, a->tid, ls->eip,
 					 (unsigned int)READ_STACK(ls->cpu0, 0));
-				s->schedule_in_flight = a;
-				a->action.schedule_target = true;
+				set_schedule_target(s, a);
 				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 			}
@@ -568,11 +588,19 @@ void sched_recover(struct ls_state *ls)
 				/* Oops, we ended up trying to leave the thread
 				 * we want to be running. Make sure to go
 				 * back... */
-				s->schedule_in_flight = s->cur_agent;
-				s->cur_agent->action.schedule_target = true;
+				set_schedule_target(s, s->cur_agent);
 				assert(s->entering_timer);
 				lsprintf("Explorer-chosen tid %d wants to run; "
 					 "not switching away\n", tid);
+				/* Make sure the arbiter knows this isn't a
+				 * voluntary reschedule. The handling_timer flag
+				 * won't be on now, but sched_update sets it. */
+				lsprintf("Updating the last_agent: ");
+				print_agent(s->last_agent);
+				printf(" to ");
+				print_agent(s->cur_agent);
+				printf("\n");
+				s->last_agent = s->cur_agent;
 			} else {
 				lsprintf("Explorer-chosen tid %d already "
 					 "running!\n", tid);
@@ -587,8 +615,7 @@ void sched_recover(struct ls_state *ls)
 			assert(a != NULL && "bogus explorer-chosen tid!");
 			lsprintf("Recovering to explorer-chosen tid %d from "
 				 "tid %d\n", tid, s->cur_agent->tid);
-			s->schedule_in_flight = a;
-			a->action.schedule_target = true;
+			set_schedule_target(s, a);
 			/* Hmmmm */
 			if (!kern_timer_entering(ls->eip)) {
 				ls->eip = cause_timer_interrupt_immediately(

@@ -48,28 +48,45 @@ bool arbiter_interested(struct ls_state *ls)
 {
 	// TODO: more interesting choice points
 
-	/* Attempt to see if a "voluntary" reschedule is just ending */
+	/* Attempt to see if a "voluntary" reschedule is just ending - did the
+	 * last thread context switch not because of a timer? */
 	if (ls->sched.last_agent != NULL &&
 	    !ls->sched.last_agent->action.handling_timer) {
-		if (ls->sched.cur_agent->action.handling_timer &&
-		    kern_timer_exiting(ls->eip)) {
-			lsprintf("%d voluntarily switched to %dt\n",
-				 ls->sched.last_agent->tid,
-				 ls->sched.cur_agent->tid);
-			return true;
-		} else if (kern_context_switch_exiting(ls->eip)) {
-			lsprintf("%d voluntarily switched to %dc\n",
-				 ls->sched.last_agent->tid,
-				 ls->sched.cur_agent->tid);
+		/* And the current thread is just resuming execution? Either
+		 * exiting the timer handler, */
+		if ((kern_timer_exiting(ls->eip) &&
+		     // XXX: see kern_timer_exiting case in schedule.c for why.
+		     !kern_timer_exiting(READ_STACK(ls->cpu0, 0))) ||
+		    /* ...or never was in timer and exiting context switch. */
+		    (!ls->sched.cur_agent->action.handling_timer &&
+		     kern_context_switch_exiting(ls->eip)) ||
+		    /* ...or this. */
+		    kern_fork_return_spot(ls->eip)) {
+			lsprintf("a voluntary reschedule: ");
+			print_agent(ls->sched.last_agent);
+			printf(" to ");
+			print_agent(ls->sched.cur_agent);
+			printf("\n");
+			assert((ls->save.next_tid == -1 ||
+			        ls->save.next_tid == ls->sched.cur_agent->tid ||
+			        ls->save.next_tid == ls->sched.last_agent->tid)
+			       && "Two threads in one transition?");
 			return true;
 		}
 	}
 
-	// any call to mutex_lock from within vanish
-	int called_from = READ_STACK(ls->cpu0, 0);
-	return ls->eip == GUEST_MUTEX_LOCK
-	    && called_from >= GUEST_VANISH
-	    && called_from <= GUEST_VANISH_END;
+	if (ls->eip == GUEST_MUTEX_LOCK &&
+	    !kern_mutex_ignore(READ_STACK(ls->cpu0,
+	                       GUEST_MUTEX_LOCK_MUTEX_ARGNUM)) &&
+	    within_function(ls->cpu0, ls->eip,
+	                    GUEST_VANISH, GUEST_VANISH_END)) {
+		assert((ls->save.next_tid == -1 ||
+		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
+		       "Two threads in one transition?");
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /* Returns true if a thread was chosen. If true, sets 'target' (to either the
@@ -78,38 +95,33 @@ bool arbiter_interested(struct ls_state *ls)
 bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		    bool *our_choice)
 {
-	struct arbiter_state *r = &ls->arbiter;
 	struct agent *a;
-	int tid;
+	int count = 0;
 
-	/* Has the user specified something for us to do? */
-	if (arbiter_pop_choice(r, &tid)) {
-		lsprintf("looking for requested agent %d\n", tid);
-		a = agent_by_tid_or_null(&ls->sched.rq, tid);
-		if (!a) {
-			a = agent_by_tid_or_null(&ls->sched.sq, tid);
-		}
-		if (a) {
-			*target = a;
-			*our_choice = false;
-			return true;
-		} else {
-			lsprintf("failed to choose agent %d\n", tid);
-			return false;
-		}
-	/* automatically choose a thread */
+	/* We shouldn't be asked to choose if somebody else already did. */
+	assert(Q_GET_SIZE(&ls->arbiter.choices) == 0);
+
+	/* Count the number of available threads. */
+	Q_FOREACH(a, &ls->sched.rq, nobe) {
+		if (!BLOCKED(a))
+			count++;
+	}
+	Q_FOREACH(a, &ls->sched.sq, nobe) {
+		if (!BLOCKED(a))
+			count++;
+	}
+
+	count = 1; // Comment this out to enable "hard mode"
+	int i = 0;
+	Q_SEARCH(a, &ls->sched.rq, nobe, !BLOCKED(a) && ++i == count);
+	if (a == NULL)
+		Q_SEARCH(a, &ls->sched.sq, nobe, !BLOCKED(a) && ++i == count);
+	if (a != NULL) {
+		lsprintf("Figured I'd look at TID %d next.\n", a->tid);
+		*target = a;
+		*our_choice = true;
+		return true;
 	} else {
-		/* TODO: sleep queue */
-		int size = Q_GET_SIZE(&ls->sched.rq);
-		int i = 0;
-
-		Q_SEARCH(a, &ls->sched.rq, nobe, ++i == size);
-		if (a) {
-			*target = a;
-			*our_choice = true;
-			return true;
-		} else {
-			return false;
-		}
+		return false;
 	}
 }
