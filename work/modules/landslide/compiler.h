@@ -11,7 +11,9 @@
 /* Function annotations */
 // XXX: simics's headers need this not to be defined here
 // # define NORETURN __attribute__((noreturn))
-# define MUST_CHECK __attribute__((warn_unused_result))
+#define MUST_CHECK __attribute__((warn_unused_result))
+
+#define MAYBE_UNUSED __attribute__((unused))
 
 /* Force a compilation error if condition is false, but also produce a result
  * (of value 0 and type size_t), so it can be used e.g. in a structure

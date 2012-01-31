@@ -72,7 +72,8 @@ static void branch_sanity(struct hax *root, struct hax *current)
  * Simple, comprehensive, depth-first exploration strategy.
  ******************************************************************************/
 
-static struct hax *simple(struct hax *root, struct hax *current, int *new_tid)
+static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
+				       int *new_tid)
 {
 	/* Find the most recent spot in our branch that is not all explored. */
 	while (1) {
@@ -162,7 +163,37 @@ static bool any_tagged_child(struct hax *h, int *new_tid)
 	}
 }
 
-static struct hax *dpor(struct hax *root, struct hax *current, int *new_tid)
+static void print_pruned_children(struct hax *h)
+{
+	bool any_pruned = false;
+	struct agent *a;
+
+	Q_FOREACH(a, &h->oldsched->rq, nobe) {
+		if (!is_child_searched(h, a->tid)) {
+			if (!any_pruned) {
+				lsprintf("at #%d/tid%d pruned tids ", h->depth,
+					 h->chosen_thread);
+			}
+			printf("%d ", a->tid);
+			any_pruned = true;
+		}
+	}
+	Q_FOREACH(a, &h->oldsched->sq, nobe) {
+		if (!is_child_searched(h, a->tid)) {
+			if (!any_pruned) {
+				lsprintf("at #%d/tid%d pruned tids ", h->depth,
+					 h->chosen_thread);
+			}
+			printf("%d ", a->tid);
+			any_pruned = true;
+		}
+	}
+	if (any_pruned)
+		printf("\n");
+}
+
+static MAYBE_UNUSED struct hax *dpor(struct hax *root, struct hax *current,
+				     int *new_tid)
 {
 	current->all_explored = true;
 
@@ -200,6 +231,7 @@ static struct hax *dpor(struct hax *root, struct hax *current, int *new_tid)
 		} else {
 			lsprintf("#%d/tid%d (%p) all_explored\n",
 				 h->depth, h->chosen_thread, h);
+			print_pruned_children(h);
 			h->all_explored = true;
 		}
 	}
