@@ -12,8 +12,9 @@
 #define MODULE_COLOUR COLOUR_DARK COLOUR_GREEN
 
 #include "common.h"
-#include "x86.h"
 #include "kernel_specifics.h"
+#include "landslide.h"
+#include "x86.h"
 
 /* two possible methods for causing a timer interrupt - the lolol version crafts
  * an iret stack frame by hand and changes the cpu's registers manually; the
@@ -170,4 +171,81 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	}
 
 	return false;
+}
+
+#define MAX_TRACE_LEN 4096
+#define ADD_STR(buf, pos, maxlen, ...) \
+	do { lsprintf("Adding string pos %d\n", pos); pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
+#define ADD_FRAME(buf, pos, maxlen, eip) \
+	do { lsprintf("Adding frame pos %d eip 0x%.8x\n", pos, eip); pos += symtable_lookup(buf + pos, maxlen - pos, eip); } while (0)
+#define OPCODE_PUSH_EBP 0x55
+#define OPCODE_RET  0xc3
+#define OPCODE_IRET 0xcf
+#define IRET_BLOCK_WORDS 3
+/* Caller has to free the return value. */
+char *stack_trace(conf_object_t *cpu, int eip)
+{
+	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
+	int pos = 0;
+	int stack_offset = 0; /* Counts by 1 - READ_STACK already multiplies */
+
+	ADD_STR(buf, pos, MAX_TRACE_LEN, "0x%.8x in ", eip);
+	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+
+	for (int ebp = GET_CPU_ATTR(cpu, ebp);
+	     ebp != 0 && (unsigned)ebp < USER_MEM_START;
+	     ebp = READ_MEMORY(cpu, ebp)) {
+		bool extra_frame;
+
+		do {
+			int eip_offset;
+			bool iret_block = false;
+
+			extra_frame = false;
+			/* at the beginning or end of a function, there is no
+			 * frame, but a return address is still on the stack. */
+			if (function_eip_offset(eip, &eip_offset)) {
+				if (eip_offset == 0) {
+					extra_frame = true;
+				} else if (eip_offset == 1 &&
+				           READ_BYTE(cpu, eip - 1)
+				           == OPCODE_PUSH_EBP) {
+					stack_offset++;
+					extra_frame = true;
+				}
+			}
+			if (!extra_frame) {
+				int opcode = READ_BYTE(cpu, eip);
+				if (opcode == OPCODE_RET) {
+					extra_frame = true;
+				} else if (opcode == OPCODE_IRET) {
+					iret_block = true;
+					extra_frame = true;
+				}
+			}
+			if (extra_frame) {
+				eip = READ_STACK(cpu, stack_offset);
+				ADD_STR(buf, pos, MAX_TRACE_LEN, ", 0x%.8x in ",
+					eip);
+				ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+				if (iret_block)
+					stack_offset += IRET_BLOCK_WORDS;
+				else
+					stack_offset++;;
+			}
+		} while (extra_frame);
+
+		/* pushed return address behind the base pointer */
+		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
+		lsprintf("Adding real frame for eip 0x%.8x\n", eip);
+		stack_offset = ebp + 2;
+		ADD_STR(buf, pos, MAX_TRACE_LEN, ", 0x%.8x in ", eip);
+		ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+	}
+
+	char *buf2 = MM_XSTRDUP(buf); /* truncate to save space */
+	MM_FREE(buf);
+
+	lsprintf("Stack trace: \"%s\"\n", buf2);
+	return buf2;
 }

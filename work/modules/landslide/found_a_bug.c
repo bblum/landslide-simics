@@ -14,6 +14,9 @@
 #include "schedule.h"
 #include "tree.h"
 
+// TODO: make this an ls_state attribute
+#define VERBOSE_TRACE false
+
 static int print_tree_from(struct hax *h, int choose_thread)
 {
 	int num;
@@ -24,9 +27,13 @@ static int print_tree_from(struct hax *h, int choose_thread)
 	}
 	
 	num = 1 + print_tree_from(h->parent, h->chosen_thread);
-	lsprintf("%d:\teip 0x%.8x, tc %d, old %d new %d, ", num,
-		 h->eip, h->trigger_count, h->chosen_thread, choose_thread);
-	print_q("RQ [", &h->oldsched->rq, "]\n");
+
+	if (h->chosen_thread != choose_thread || VERBOSE_TRACE) {
+		lsprintf("%d:\ttrigger_count %d, old %d new %d, ", num,
+			 h->trigger_count, h->chosen_thread, choose_thread);
+		print_q("RQ [", &h->oldsched->rq, "]\n");
+		lsprintf("\t%s\n", h->stack_trace);
+	}
 
 	return num;
 }

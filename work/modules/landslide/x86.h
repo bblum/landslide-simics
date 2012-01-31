@@ -21,6 +21,7 @@
 
 #define USER_MEM_START 0x01000000
 
+#define READ_BYTE(cpu, addr) SIM_read_phys_memory(cpu, addr, 1)
 #define READ_MEMORY(cpu, addr) SIM_read_phys_memory(cpu, addr, WORD_SIZE)
 
 /* reading the stack. can be used to examine function arguments, if used either
@@ -34,5 +35,6 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
+char *stack_trace(conf_object_t *cpu, int eip);
 
 #endif

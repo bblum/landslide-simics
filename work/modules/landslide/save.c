@@ -26,6 +26,7 @@
 #include "schedule.h"
 #include "test.h"
 #include "tree.h"
+#include "x86.h"
 
 /******************************************************************************
  * simics goo
@@ -306,6 +307,7 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->happens_before);
 	h->conflicts = NULL;
 	h->happens_before = NULL;
+	MM_FREE(h->stack_trace);
 }
 
 /* Reverse that which is not glowing green. */
@@ -501,6 +503,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
+
+		h->stack_trace = stack_trace(ls->cpu0, ls->eip);
 
 		ss->total_choice_poince++;
 	} else {

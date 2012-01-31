@@ -51,6 +51,8 @@ struct hax {
 	 * siblings are in the agent structs on the scheduler queues. */
 
 	bool all_explored;
+
+	char *stack_trace;
 };
 
 #endif

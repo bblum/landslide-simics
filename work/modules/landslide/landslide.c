@@ -221,6 +221,57 @@ void init_local(void)
 }
 
 /******************************************************************************
+ * Other simics goo
+ ******************************************************************************/
+
+// TODO: move the command running from save.c over to here
+
+#define SYMTABLE_NAME "deflsym"
+
+int symtable_lookup(char *buf, int maxlen, int addr)
+{
+	// TODO: store deflsym in struct ls_state
+	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
+	if (table == NULL) {
+		return snprintf(buf, maxlen, "<no symtable>");
+	}
+
+	attr_value_t idx = SIM_make_attr_integer(addr);
+	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
+	if (!SIM_attr_is_list(result)) {
+		return snprintf(buf, maxlen, "<unknown>");
+	}
+	assert(SIM_attr_list_size(result) >= 3);
+
+	const char *file = SIM_attr_string(SIM_attr_list_item(result, 0));
+	int line = SIM_attr_integer(SIM_attr_list_item(result, 1));
+	const char *func = SIM_attr_string(SIM_attr_list_item(result, 2));
+
+	return snprintf(buf, maxlen, "%s (%s:%d)", func, file, line);
+}
+
+bool function_eip_offset(int eip, int *offset)
+{
+	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
+	if (table == NULL) {
+		return false;
+	}
+
+	attr_value_t idx = SIM_make_attr_integer(eip);
+	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
+	if (!SIM_attr_is_list(result)) {
+		return false;
+	}
+	assert(SIM_attr_list_size(result) >= 3);
+
+	attr_value_t name = SIM_attr_list_item(result, 2);
+	attr_value_t func = SIM_get_attribute_idx(table, "symbol_value", &name);
+
+	*offset = eip - SIM_attr_integer(func);
+	return true;
+}
+
+/******************************************************************************
  * actual interesting landslide logic
  ******************************************************************************/
 

@@ -44,4 +44,9 @@
 	assert(__ptr != NULL && "malloc failed");	\
 	__ptr; })
 
+#define MM_XSTRDUP(s) ({				\
+	char *__ptr = MM_STRDUP(s);			\
+	assert(__ptr != NULL && "strdup failed");	\
+	__ptr; })
+
 #endif
