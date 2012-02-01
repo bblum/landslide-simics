@@ -393,8 +393,12 @@ static void compute_happens_before(struct hax *h)
 
 	/* Between two transitions of a thread X, X_0 before X_1, while there
 	 * may be many transitions Y that for which enabled_by(X_1, Y), only the
-	 * earliest such Y (the one soonest after X_0) is the actual enabler. */
+	 * earliest such Y (the one soonest after X_0) is the actual enabler.
+	 * However, if this thread has never run before, instead use the most
+	 * recent such Y. */
 	struct hax *enabler = NULL;
+	struct hax *recent_enabler = NULL;
+	bool ever_ran_before = false;
 
 	for (i = 0; i < h->depth; i++) {
 		h->happens_before[i] = false;
@@ -406,12 +410,20 @@ static void compute_happens_before(struct hax *h)
 		if (h->chosen_thread == old->chosen_thread) {
 			h->happens_before[old->depth] = true;
 			inherit_happens_before(h, old);
+			ever_ran_before = true;
 			/* Computing any further would be redundant, and would
 			 * break the true-enabler finding alg. */
 			break;
 		} else if (enabled_by(h, old)) {
 			enabler = old;
+			if (recent_enabler == NULL) {
+				recent_enabler = old;
+			}
 		}
+	}
+
+	if (!ever_ran_before) {
+		enabler = recent_enabler;
 	}
 
 	if (enabler != NULL) {
