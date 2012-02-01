@@ -1,7 +1,18 @@
-performance
-	language
-		how fast would hasqel be? how easy?
-	simics uses JIT for speed - how many orders of magnitude slowdown?
+stack
+	to add another stack trace per choice point, capture the trace at the kern_context_switch_entering point in schedule and store it in the agence..
+	memory leak checking at end of test case
+	deadlock detection should also look for nobody on RQ
+	go clean up old haxes once you mark all_explored
+	add shm choice points, start with parent
+	attribuce
+		arbiter_choice attribute - -42 is retarded
+		test_case attribute - durr
+	"bookmark blah moved to current time" wha??
+
+landslide debugging guide...
+	"cpu0_mem - uncleared memory read raised frontend exception" x100 + assert?
+		this happened last with a stale kernel_specifics_pobbles_race.h
+		try make clean; make
 
 algs
 	execution poince of interest:
@@ -21,9 +32,6 @@ algs
 			malloc
 				(just set eax to 0 and jump to the return)
 	
-	or the same for p1 only:
-		keyboard 
-
 	NOTE: list the particular bugs we're looking for, and possibly only use
 	NOTE: the poince of interest relevant to them at one time.
 
@@ -34,11 +42,8 @@ algs
 		memory validation races
 		a mutex_lock/yield/switch/etc while interrupts off / scheduler locked
 	
-	how to deal with sleeping threads?
-
 impl details
 	how to run the wrapper
-		landslide can talk to its past/future selves with a file
 		test failed detection
 			- easy mode: trap on a panic() and be like "welp"
 			- deadlock: START__TYPE_COMPLETE & ... 
@@ -60,16 +65,7 @@ impl details
 miscellaneous todo
 	figure out symbol table manipulation
 	make simics stop throwing timer interrupts of its own (and control kbd)
-	how to tell when a call blocks (spinning vs otherwise?)
-		add a "is this spinning mutex blocked? skip over it" logic
-	make arbiter know when it is making the null choice
 
-
-questions from the papers
-	steady state hmm
-	need to understand the partial order reduction; will it need porting (no?)
-	'stateless exploration' we might be able to do better
-	what is up with the erroneous thing (double unlock)?
 
 write a guide to using landslide ... 
 	We assume...
@@ -79,8 +75,5 @@ write a guide to using landslide ...
 		readline must not spin-wait.
 		memory below USER_MEM_START is direct-mapped.
 	The more asserts you have in your kernel, the easier it will be for landslide to detect if something has gone wrong.
-
-
-on save state and restore state
-	save state: fix internal state tracking
-	hook in smashing the opponent
+	Edit 410user/progs/shell.c to add: "#define printf(...)" and "#define print(...)" !
+	Use the mutex ignores to specify global mutexes - malloc, vm, console
