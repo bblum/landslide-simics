@@ -93,7 +93,7 @@ bool kern_mutex_ignore(int addr)
 {
 	static const int ignores[] = GUEST_MUTEX_IGNORES;
 	for (int i = 0; i < ARRAY_SIZE(ignores); i++) {
-		if (addr == ignores[i])
+		if (addr >= ignores[i] && addr < ignores[i] + KERN_MUTEX_SIZE)
 			return true;
 	}
 	return false;

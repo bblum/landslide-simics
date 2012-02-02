@@ -123,6 +123,10 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	struct rb_node *parent = NULL;
 	struct mem_access *ma;
 
+	/* Some accesses we should ignore. */
+	if (kern_mutex_ignore(addr))
+		return;
+
 	while (*p) {
 		parent = *p;
 		ma = MEM_ENTRY(parent);
