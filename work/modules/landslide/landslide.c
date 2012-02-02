@@ -164,8 +164,9 @@ static attr_value_t get_ls_save_path_attribute(
 static set_error_t set_ls_test_case_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
-	if (cause_test(&((struct ls_state *)obj)->test,
-		       ((struct ls_state *)obj)->kbd0,
+	if (cause_test(((struct ls_state *)obj)->kbd0,
+		       &((struct ls_state *)obj)->test,
+		       &((struct ls_state *)obj)->sched,
 		       SIM_attr_string(*val))) {
 		return Sim_Set_Ok;
 	} else {
@@ -315,7 +316,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 	/* When a test case finishes, break the simulation so the wrapper can
 	 * decide what to do. */
-	if (test_update_state(&ls->test, &ls->sched) &&
+	if (test_update_state(ls->cpu0, &ls->test, &ls->sched) &&
 	    !ls->test.test_is_running) {
 		/* See if it's time to try again... */
 		if (ls->test.test_ever_caused) {

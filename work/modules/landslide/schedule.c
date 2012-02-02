@@ -60,6 +60,11 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 	a->blocked_on_tid = -1;
 	a->blocked_on_addr = -1;
 	Q_INSERT_FRONT(&s->rq, a, nobe);
+
+	s->num_agents++;
+	if (s->num_agents > s->most_agents_ever) {
+		s->most_agents_ever = s->num_agents;
+	}
 }
 
 static void agent_wake(struct sched_state *s, int tid)
@@ -102,6 +107,7 @@ static void agent_vanish(struct sched_state *s, int tid)
 		MM_FREE(s->last_vanished_agent);
 	}
 	s->last_vanished_agent = a;
+	s->num_agents--;
 }
 
 static void set_schedule_target(struct sched_state *s, struct agent *a)
@@ -186,6 +192,8 @@ void sched_init(struct sched_state *s)
 {
 	Q_INIT_HEAD(&s->rq);
 	Q_INIT_HEAD(&s->dq);
+	s->num_agents = 0;
+	s->most_agents_ever = 0;
 	kern_init_runqueue(s, agent_fork);
 	s->cur_agent = agent_by_tid(&s->rq, kern_get_first_tid());
 	s->last_agent = NULL;
@@ -266,8 +274,12 @@ void sched_update(struct ls_state *ls)
 		       "simics is a clown and tried to delay our interrupt :<");
 		s->entering_timer = false;
 	} else {
-		assert(ls->eip != kern_get_timer_wrap_begin() &&
-		       "a timer interrupt that wasn't ours....");
+		if (ls->eip == kern_get_timer_wrap_begin()) {
+		       lsprintf("a timer interrupt that wasn't ours....");
+		       print_qs(s);
+		       printf("\n");
+		       assert(0);
+		}
 	}
 
 	/**********************************************************************

@@ -189,6 +189,8 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	assert((src->last_agent == NULL || dest->last_agent != NULL) &&
 	       "copy_sched couldn't set last_agent!");
 
+	dest->num_agents             = src->num_agents;
+	dest->most_agents_ever       = src->most_agents_ever;
 	dest->context_switch_pending = src->context_switch_pending;
 	dest->context_switch_target  = src->context_switch_target;
 	dest->guest_init_done        = src->guest_init_done;
@@ -196,7 +198,9 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 }
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
-	dest->test_is_running = src->test_is_running;
+	dest->test_is_running  = src->test_is_running;
+	dest->start_population = src->start_population;
+
 	if (src->current_test == NULL) {
 		dest->current_test = NULL;
 	} else {
