@@ -40,6 +40,7 @@
 
 #include "common.h"
 #include "explore.h"
+#include "found_a_bug.h"
 #include "landslide.h"
 #include "save.h"
 #include "test.h"
@@ -165,8 +166,7 @@ static set_error_t set_ls_test_case_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
 	if (cause_test(((struct ls_state *)obj)->kbd0,
-		       &((struct ls_state *)obj)->test,
-		       &((struct ls_state *)obj)->sched,
+		       &((struct ls_state *)obj)->test, (struct ls_state *)obj,
 		       SIM_attr_string(*val))) {
 		return Sim_Set_Ok;
 	} else {
@@ -276,6 +276,36 @@ bool function_eip_offset(int eip, int *offset)
  * actual interesting landslide logic
  ******************************************************************************/
 
+static bool check_test_failure(struct ls_state *ls)
+{
+	/* Anything that would indicate failure - e.g. return code... */
+
+	if (ls->test.start_heap_size > ls->mem.heap_size) {
+		// TODO: the test could copy the heap to indicate which blocks
+		lsprintf("MEMORY LEAK (%d bytes)!\n",
+			 ls->test.start_heap_size - ls->mem.heap_size);
+		return true;
+	}
+
+	return false;
+}
+
+static void time_travel(struct ls_state *ls)
+{
+	int tid;
+	struct hax *h;
+
+	/* find where we want to go in the tree, and choose what to do there */
+	if ((h = explore(ls->save.root, ls->save.current, &tid)) != NULL) {
+		assert(!h->all_explored);
+		arbiter_append_choice(&ls->arbiter, tid);
+		save_longjmp(&ls->save, ls, h);
+	} else {
+		lsprintf("choice tree explored; you passed!\n");
+		SIM_quit(LS_NO_KNOWN_BUG);
+	}
+}
+
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
@@ -320,21 +350,13 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	    !ls->test.test_is_running) {
 		/* See if it's time to try again... */
 		if (ls->test.test_ever_caused) {
-			/* find where we want to go in the tree, and emit one or
-			 * more choices to do upon getting there. */
-			int tid;
-			struct hax *h;
-
 			lsprintf("test case ended!\n");
-			save_setjmp(&ls->save, ls, -1, true, true);
-			if ((h = explore(ls->save.root, ls->save.current, &tid))
-			    != NULL) {
-				assert(!h->all_explored);
-				arbiter_append_choice(&ls->arbiter, tid);
-				save_longjmp(&ls->save, ls, h);
+
+			if (check_test_failure(ls)) {
+				found_a_bug(ls);
 			} else {
-				lsprintf("choice tree explored; you passed!\n");
-				SIM_quit(LS_NO_KNOWN_BUG);
+				save_setjmp(&ls->save, ls, -1, true, true);
+				time_travel(ls);
 			}
 		} else {
 			lsprintf("ready to roll!\n");

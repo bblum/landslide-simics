@@ -39,6 +39,7 @@ struct chunk {
 
 struct mem_state {
 	struct rb_root heap;
+	int heap_size;
 	/* dynamic allocation request state */
 	bool in_alloc;
 	bool in_free;

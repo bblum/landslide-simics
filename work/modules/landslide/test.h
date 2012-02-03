@@ -16,12 +16,13 @@ struct test_state {
 	bool test_ever_caused;
 	char *current_test;
 	int start_population; /* valid iff test_ever_caused */
+	int start_heap_size;
 };
 
 void test_init(struct test_state *);
 bool test_update_state(conf_object_t *cpu, struct test_state *,
 		       struct sched_state *);
-bool cause_test(conf_object_t *kbd, struct test_state *, struct sched_state *,
+bool cause_test(conf_object_t *kbd, struct test_state *, struct ls_state *,
 		const char *test_string);
 
 #endif

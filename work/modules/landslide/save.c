@@ -200,6 +200,7 @@ static void copy_test(struct test_state *dest, const struct test_state *src)
 {
 	dest->test_is_running  = src->test_is_running;
 	dest->start_population = src->start_population;
+	dest->start_heap_size  = src->start_heap_size;
 
 	if (src->current_test == NULL) {
 		dest->current_test = NULL;
@@ -237,6 +238,7 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->in_free            = src->in_free;
 	dest->alloc_request_size = src->alloc_request_size;
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
+	dest->heap_size          = src->heap_size;
 }
 
 /* To free copied state data structures. None of these free the arg pointer. */
@@ -504,7 +506,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			assert(end_of_test || ss->next_tid == -1);
 
 			h->parent = NULL;
-			h->depth = 0;
+			h->depth  = 0;
 			ss->root  = h;
 		} else {
 			/* Subsequent choice. */

@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "kernel_specifics.h"
+#include "landslide.h"
 #include "schedule.h"
 #include "test.h"
 #include "variable_queue.h"
@@ -94,7 +95,7 @@ bool test_update_state(conf_object_t *cpu, struct test_state *t,
 	return false;
 }
 
-bool cause_test(conf_object_t *kbd, struct test_state *t, struct sched_state *s,
+bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
 		const char *test_string)
 {
 	if (t->test_is_running || t->current_test) {
@@ -119,10 +120,16 @@ bool cause_test(conf_object_t *kbd, struct test_state *t, struct sched_state *s,
 	}
 
 	t->test_ever_caused = true;
-	// FIXME: this might fail on some valid kernels? not sure how to fix
-	assert(s->num_agents == s->most_agents_ever &&
-	       "trying to start a test after somebody has already died?");
-	t->start_population = s->num_agents;
+
+	/* Record how many people are alive at the start of the test */
+	if (ls->sched.num_agents != ls->sched.most_agents_ever) {
+	       lsprintf("WARNING: somebody died before the test started!\n");
+	       ls->sched.most_agents_ever = ls->sched.num_agents;
+	}
+	t->start_population = ls->sched.num_agents;
+
+	/* Record the size of the heap at the start of the test */
+	t->start_heap_size = ls->mem.heap_size;
 
 	return true;
 }

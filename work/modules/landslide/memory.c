@@ -77,6 +77,8 @@ static void new_chunk(struct mem_state *m, int addr, int len)
 
 	rb_link_node(&c->nobe, parent != NULL ? &parent->nobe : NULL, p);
 	rb_insert_color(&c->nobe, &m->heap);
+
+	m->heap_size += len;
 }
 
 static struct chunk *remove_chunk(struct mem_state *m, int addr, int len)
@@ -172,6 +174,7 @@ void mem_init(struct mem_state *m)
 	m->in_alloc = false;
 	m->in_free = false;
 	m->shm.rb_node = NULL;
+	m->heap_size = 0;
 }
 
 /* heap interface */
@@ -217,12 +220,18 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 	} else if (chunk->base != base) {
 		lsprintf("Attempted to free [0x%x | %d], contained within "
 			 "[0x%x | %d]\n", base, size, chunk->base, chunk->len);
+		found_a_bug(ls);
 	} else if (chunk->len != size) {
 		lsprintf("Attempted to free [0x%x | %d], but [0x%x | %d]!\n",
 			 base, size, base, chunk->len);
 		found_a_bug(ls);
 	} else {
 		lsprintf("Free() chunk [0x%x | %d]\n", base, size);
+	}
+
+	if (chunk != NULL) {
+		MM_FREE(chunk);
+		m->heap_size -= chunk->len;
 	}
 
 	m->in_free = true;
