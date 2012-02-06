@@ -276,7 +276,47 @@ bool function_eip_offset(int eip, int *offset)
  * actual interesting landslide logic
  ******************************************************************************/
 
-static bool check_test_failure(struct ls_state *ls)
+/* How many transitions deeper than the average branch should this branch be
+ * before we call it stuck? */
+#define PROGRESS_DEPTH_FACTOR 20
+/* How many branches should we already have explored before we have a stable
+ * enough average to judge an abnormally deep branch? FIXME see below */
+#define PROGRESS_MIN_BRANCHES 20
+/* How many times more instructions should a given transition be than the
+ * average previous transition before we proclaim it stuck? */
+#define PROGRESS_TRIGGER_FACTOR 2000
+
+static bool ensure_progress(struct ls_state *ls)
+{
+	/* FIXME: find a less false-negative way to tell when we have enough
+	 * data */
+	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
+		return true;
+
+	/* Have we been spinning since the last choice point? */
+	int most_recent = ls->trigger_count - ls->save.current->trigger_count;
+	int average_triggers = ls->save.total_triggers / ls->save.total_choices;
+	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
+		lsprintf("NO PROGRESS (infinite loop?)\n");
+		lsprintf("%d instructions since last decision; average %d\n",
+			 most_recent, average_triggers);
+		return false;
+	}
+
+	/* Have we been spinning around a choice point (so this branch would
+	 * end up being infinitely deep)? */
+	int average_depth = ls->save.depth_total / ls->save.total_jumps;
+	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
+		lsprintf("NO PROGRESS (stuck thread(s)?)\n");
+		lsprintf("Current branch depth %d; average depth %d\n",
+			 ls->save.current->depth, average_depth);
+		return false;
+	}
+
+	return true;
+}
+
+static bool test_ended_safely(struct ls_state *ls)
 {
 	/* Anything that would indicate failure - e.g. return code... */
 
@@ -284,13 +324,13 @@ static bool check_test_failure(struct ls_state *ls)
 		// TODO: the test could copy the heap to indicate which blocks
 		lsprintf("MEMORY LEAK (%d bytes)!\n",
 			 ls->test.start_heap_size - ls->mem.heap_size);
-		return true;
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
-static void time_travel(struct ls_state *ls)
+static bool time_travel(struct ls_state *ls)
 {
 	int tid;
 	struct hax *h;
@@ -300,9 +340,9 @@ static void time_travel(struct ls_state *ls)
 		assert(!h->all_explored);
 		arbiter_append_choice(&ls->arbiter, tid);
 		save_longjmp(&ls->save, ls, h);
+		return true;
 	} else {
-		lsprintf("choice tree explored; you passed!\n");
-		SIM_quit(LS_NO_KNOWN_BUG);
+		return false;
 	}
 }
 
@@ -352,15 +392,21 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 		if (ls->test.test_ever_caused) {
 			lsprintf("test case ended!\n");
 
-			if (check_test_failure(ls)) {
-				found_a_bug(ls);
-			} else {
+			if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true);
-				time_travel(ls);
+				if (!time_travel(ls)) {
+					lsprintf("choice tree explored; "
+						 "you passed!\n");
+					SIM_quit(LS_NO_KNOWN_BUG);
+				}
+			} else {
+				found_a_bug(ls);
 			}
 		} else {
 			lsprintf("ready to roll!\n");
 			SIM_break_simulation(NULL);
 		}
+	} else if (!ensure_progress(ls)) {
+		found_a_bug(ls);
 	}
 }

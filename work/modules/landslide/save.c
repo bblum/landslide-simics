@@ -458,6 +458,7 @@ void save_init(struct save_state *ss)
 	ss->total_choice_poince = 0;
 	ss->total_choices = 0;
 	ss->total_jumps = 0;
+	ss->total_triggers = 0;
 	ss->depth_total = 0;
 }
 
@@ -559,6 +560,9 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	if (h->depth > 0) {
 		h->conflicts      = MM_XMALLOC(h->depth, bool);
 		h->happens_before = MM_XMALLOC(h->depth, bool);
+		/* For progress sense. */
+		ss->total_triggers +=
+			ls->trigger_count - h->parent->trigger_count;
 	} else {
 		h->conflicts      = NULL;
 		h->happens_before = NULL;
