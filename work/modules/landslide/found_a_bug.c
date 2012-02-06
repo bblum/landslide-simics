@@ -13,6 +13,7 @@
 #include "landslide.h"
 #include "schedule.h"
 #include "tree.h"
+#include "x86.h"
 
 // TODO: make this an ls_state attribute
 #define VERBOSE_TRACE false
@@ -45,8 +46,12 @@ void found_a_bug(struct ls_state *ls)
 
 	print_tree_from(ls->save.current, ls->save.next_tid);
 
-	lsprintf("Current eip 0x%.8x, trigger_count %d, total triggers %d\n",
-		 ls->eip, ls->trigger_count, ls->absolute_trigger_count);
+	char *stack = stack_trace(ls->cpu0, ls->eip);
+	lsprintf("Stack: %s\n", stack);
+	MM_FREE(stack);
+
+	lsprintf("Current trigger_count %d, total triggers %d\n",
+		 ls->trigger_count, ls->absolute_trigger_count);
 	lsprintf("Total choices %d, points %d, total backtracks %d, depths %d\n",
 		 ls->save.total_choices, ls->save.total_choice_poince,
 		 ls->save.total_jumps, ls->save.depth_total);

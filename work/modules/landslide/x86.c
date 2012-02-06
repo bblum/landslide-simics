@@ -152,6 +152,7 @@ bool interrupts_enabled(conf_object_t *cpu)
 
 /* Performs a stack trace to see if the current call stack has the given
  * function somewhere on it. */
+// FIXME: make this as intelligent as stack_trace.
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 {
 	if (eip >= func && eip < func_end)
@@ -189,7 +190,8 @@ char *stack_trace(conf_object_t *cpu, int eip)
 	int pos = 0;
 	int stack_offset = 0; /* Counts by 1 - READ_STACK already multiplies */
 
-	ADD_STR(buf, pos, MAX_TRACE_LEN, "0x%.8x in ", eip);
+	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ",
+		kern_get_current_tid(cpu), eip);
 	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
 
 	for (int ebp = GET_CPU_ATTR(cpu, ebp);
@@ -245,6 +247,5 @@ char *stack_trace(conf_object_t *cpu, int eip)
 	char *buf2 = MM_XSTRDUP(buf); /* truncate to save space */
 	MM_FREE(buf);
 
-	lsprintf("Stack trace: \"%s\"\n", buf2);
 	return buf2;
 }
