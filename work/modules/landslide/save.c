@@ -87,8 +87,7 @@ static void run_command_cb(lang_void *addr)
 
 static void run_command(const char *file, const char *cmd, struct hax *h)
 {
-	struct cmd_packet *p = MM_MALLOC(1, struct cmd_packet);
-	assert(p && "failed allocate command packet");
+	struct cmd_packet *p = MM_XMALLOC(1, struct cmd_packet);
 
 	p->cmd   = cmd;
 	p->label = (unsigned long long)h;
@@ -104,8 +103,7 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
 
 static struct agent *copy_agent(struct agent *a_src)
 {
-	struct agent *a_dest = MM_MALLOC(1, struct agent);
-	assert(a_dest != NULL && "failed allocate agent");
+	struct agent *a_dest = MM_XMALLOC(1, struct agent);
 	assert(a_src != NULL && "cannot copy null agent");
 
 	a_dest->tid                    = a_src->tid;
@@ -205,8 +203,7 @@ static void copy_test(struct test_state *dest, const struct test_state *src)
 	if (src->current_test == NULL) {
 		dest->current_test = NULL;
 	} else {
-		dest->current_test = MM_STRDUP(src->current_test);
-		assert(dest->current_test != NULL && "couldn't strdup test");
+		dest->current_test = MM_XSTRDUP(src->current_test);
 	}
 }
 static struct rb_node *dup_chunk(const struct rb_node *nobe,
@@ -216,9 +213,7 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 		return NULL;
 
 	struct chunk *src = rb_entry(nobe, struct chunk, nobe);
-	struct chunk *dest = MM_MALLOC(1, struct chunk);
-
-	assert(dest != NULL && "failed alloc dest");
+	struct chunk *dest = MM_XMALLOC(1, struct chunk);
 
 	/* dup rb node contents */
 	int colour_flag = src->nobe.rb_parent_color & 1;
@@ -493,8 +488,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	 * at that point we won't have the info to create the node until we go
 	 * one step further. */
 	if (our_choice) {
-		h = MM_MALLOC(1, struct hax);
-		assert(h && "failed allocate choice node");
+		h = MM_XMALLOC(1, struct hax);
 
 		h->eip           = ls->eip;
 		h->trigger_count = ls->trigger_count;
@@ -545,16 +539,13 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		assert(!h->all_explored); /* exploration invariant */
 	}
 
-	h->oldsched = MM_MALLOC(1, struct sched_state);
-	assert(h->oldsched && "failed allocate oldsched");
+	h->oldsched = MM_XMALLOC(1, struct sched_state);
 	copy_sched(h->oldsched, &ls->sched);
 
-	h->oldtest = MM_MALLOC(1, struct test_state);
-	assert(h->oldtest && "failed allocate oldtest");
+	h->oldtest = MM_XMALLOC(1, struct test_state);
 	copy_test(h->oldtest, &ls->test);
 
-	h->oldmem = MM_MALLOC(1, struct mem_state);
-	assert(h->oldmem && "failed allocate oldmem");
+	h->oldmem = MM_XMALLOC(1, struct mem_state);
 	copy_mem(h->oldmem, &ls->mem);
 
 	if (h->depth > 0) {

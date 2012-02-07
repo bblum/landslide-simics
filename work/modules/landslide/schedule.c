@@ -42,8 +42,7 @@ struct agent *agent_by_tid(struct agent_q *q, int tid)
  * crafted on its stack. Most threads would be; "init" may not be. */
 static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 {
-	struct agent *a = MM_MALLOC(1, struct agent);
-	assert(a && "failed to allocate new agent");
+	struct agent *a = MM_XMALLOC(1, struct agent);
 	
 	a->tid = tid;
 	a->action.handling_timer = false;

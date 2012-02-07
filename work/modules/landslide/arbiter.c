@@ -24,8 +24,7 @@ void arbiter_init(struct arbiter_state *r)
 // FIXME: do these need to be threadsafe?
 void arbiter_append_choice(struct arbiter_state *r, int tid)
 {
-	struct choice *c = MM_MALLOC(1, struct choice);
-	assert(c && "failed to allocate arbiter choice");
+	struct choice *c = MM_XMALLOC(1, struct choice);
 	c->tid = tid;
 	Q_INSERT_FRONT(&r->choices, c, nobe);
 }

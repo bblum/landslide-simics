@@ -69,8 +69,7 @@ static void new_chunk(struct mem_state *m, int addr, int len)
 
 	assert(p != NULL && "allocated a block already contained in the heap?");
 
-	struct chunk *c = MM_MALLOC(1, struct chunk);
-	assert(c != NULL && "failed allocate chunk");
+	struct chunk *c = MM_XMALLOC(1, struct chunk);
 	c->base = addr;
 	c->len = len;
 	rb_init_node(&c->nobe);
@@ -146,8 +145,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	}
 
 	/* doesn't exist; create a new one */
-	ma = MM_MALLOC(1, struct mem_access);
-	assert(ma != NULL && "failed allocate mem_access");
+	ma = MM_XMALLOC(1, struct mem_access);
 	ma->addr      = addr;
 	ma->write     = write;
 	ma->eip       = ls->eip;

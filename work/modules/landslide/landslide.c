@@ -128,8 +128,7 @@ static set_error_t set_ls_cmd_file_attribute(
 {
 	struct ls_state *ls = (struct ls_state *)obj;
 	if (ls->cmd_file == NULL) {
-		ls->cmd_file = MM_STRDUP(SIM_attr_string(*val));
-		assert(ls->cmd_file != NULL && "failed strdup!");
+		ls->cmd_file = MM_XSTRDUP(SIM_attr_string(*val));
 		return Sim_Set_Ok;
 	} else {
 		return Sim_Set_Not_Writable;

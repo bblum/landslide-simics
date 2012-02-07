@@ -105,8 +105,7 @@ bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
 	}
 
 	/* save the test string */
-	t->current_test = MM_STRDUP(test_string);
-	assert(t->current_test && "couldn't allocate memory for test string");
+	t->current_test = MM_XSTRDUP(test_string);
 
 	/* feed input */
 	for (int i = 0; i < strlen(test_string); i++) {
