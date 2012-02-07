@@ -23,6 +23,7 @@ struct save_state {
 	int total_choice_poince;
 	int total_choices;
 	int total_jumps;
+	int total_triggers;
 	int depth_total;
 };
 
