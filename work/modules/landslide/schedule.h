@@ -9,6 +9,7 @@
 
 #include <simics/api.h>
 
+#include "common.h"
 #include "variable_queue.h"
 
 struct ls_state;
@@ -91,9 +92,9 @@ struct agent *agent_by_tid(struct agent_q *, int);
 
 void sched_init(struct sched_state *);
 
-void print_agent(struct agent *);
-void print_q(const char *, struct agent_q *, const char *);
-void print_qs(struct sched_state *);
+void print_agent(verbosity v, struct agent *);
+void print_q(verbosity v, const char *, struct agent_q *, const char *);
+void print_qs(verbosity v, struct sched_state *);
 
 /* called at every "interesting" point ... */
 void sched_update(struct ls_state *);

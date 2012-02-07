@@ -76,7 +76,7 @@ static void run_command_cb(lang_void *addr)
 	if (buf[strlen(buf)-1] == '\n') {
 		buf[strlen(buf)-1] = '\0';
 	}
-	lsprintf("Using file '%s' for cmd '%s'\n", p->file, buf);
+	lsprintf(INFO, "Using file '%s' for cmd '%s'\n", p->file, buf);
 
 	/* Clean-up */
 	ret = close(fd);
@@ -282,13 +282,13 @@ static void free_arbiter_choices(struct arbiter_state *a)
 	while (Q_GET_SIZE(&a->choices) > 0) {
 		struct choice *c = Q_GET_HEAD(&a->choices);
 		Q_REMOVE(&a->choices, c, nobe);
-		lsprintf("discarding buffered arbiter choice %d\n", c->tid);
+		lsprintf(INFO, "discarding buffered arbiter choice %d\n", c->tid);
 		MM_FREE(c);
 	}
 #else
 	struct choice *c;
 	Q_FOREACH(c, &a->choices, nobe) {
-		lsprintf("Preserving buffered arbiter choice %d\n", c->tid);
+		lsprintf(INFO, "Preserving buffered arbiter choice %d\n", c->tid);
 	}
 #endif
 }
@@ -314,8 +314,8 @@ static void free_hax(struct hax *h)
 /* Reverse that which is not glowing green. */
 static void restore_ls(struct ls_state *ls, struct hax *h)
 {
-	lsprintf("88 MPH: eip 0x%x -> 0x%x; triggers %d -> %d (absolute %d); "
-		 "last choice %d\n",
+	lsprintf(BRANCH, "88 MPH: eip 0x%x -> 0x%x; "
+		 "triggers %d -> %d (absolute %d); last choice %d\n",
 		 ls->eip, h->eip, ls->trigger_count, h->trigger_count,
 		 ls->absolute_trigger_count, h->chosen_thread);
 
@@ -347,7 +347,7 @@ static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 	/* compute newly-completed transition's conflicts with previous ones */
 	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
 		if (h->chosen_thread == old->chosen_thread) {
-			lsprintf("Same TID %d for transitions %d and %d\n",
+			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
 				 h->chosen_thread, h->depth, old->depth);
 			continue;
 		}
@@ -371,19 +371,20 @@ static void inherit_happens_before(struct hax *h, struct hax *old)
 static bool enabled_by(struct hax *h, struct hax *old)
 {
 	if (old->parent == NULL) {
-		lsprintf("#%d/tid%d has no parent\n", old->depth, old->chosen_thread);
+		lsprintf(INFO, "#%d/tid%d has no parent\n",
+			 old->depth, old->chosen_thread);
 		return true;
 	} else {
 		struct agent *a;
-		lsprintf("Searching for #%d/tid%d among siblings of #%d/tid%d: ",
-			 h->depth, h->chosen_thread, old->depth,
+		lsprintf(INFO, "Searching for #%d/tid%d among siblings of "
+			 "#%d/tid%d: ", h->depth, h->chosen_thread, old->depth,
 			 old->chosen_thread);
-		print_q("RQ [", &old->parent->oldsched->rq, "]: ");
+		print_q(INFO, "RQ [", &old->parent->oldsched->rq, "]: ");
 		Q_SEARCH(a, &old->parent->oldsched->rq, nobe,
 			 a->tid == h->chosen_thread && !BLOCKED(a));
 		/* Transition A enables transition B if B was not a sibling of
 		 * A; i.e., if before A was run B could not have been chosen. */
-		printf("%s enabled_by\n", a == NULL ? "yes" : "not");
+		printf(INFO, "%s enabled_by\n", a == NULL ? "yes" : "not");
 		return (a == NULL);
 	}
 }
@@ -432,13 +433,13 @@ static void compute_happens_before(struct hax *h)
 		inherit_happens_before(h, enabler);
 	}
 
-	lsprintf("Transitions { ");
+	lsprintf(DEV, "Transitions { ");
 	for (i = 0; i < h->depth; i++) {
 		if (h->happens_before[i]) {
-			printf("#%d ", i);
+			printf(DEV, "#%d ", i);
 		}
 	}
-	printf("} happen-before #%d/tid%d.\n", h->depth, h->chosen_thread);
+	printf(DEV, "} happen-before #%d/tid%d.\n", h->depth, h->chosen_thread);
 }
 
 /******************************************************************************
@@ -464,7 +465,7 @@ void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
 	 * (see sched_recover). */
 	assert(ls->just_jumped);
 	ss->next_tid = new_tid;
-	lsprintf("explorer chose tid %d; ready for action\n", new_tid);
+	lsprintf(DEV, "explorer chose tid %d; ready for action\n", new_tid);
 }
 
 /* In the typical case, this signifies that we have reached a new decision
@@ -479,7 +480,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 {
 	struct hax *h;
 
-	lsprintf("tid %d to eip 0x%x, where we %s tid %d\n", ss->next_tid,
+	lsprintf(INFO, "tid %d to eip 0x%x, where we %s tid %d\n", ss->next_tid,
 		 ls->eip, our_choice ? "choose" : "follow", new_tid);
 
 	/* Whether there should be a choice node in the tree is dependent on
@@ -563,7 +564,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
-	lsprintf("After committing #%d/tid%d, next_tid %d\n",
+	lsprintf(CHOICE, "After committing #%d/tid%d, next_tid %d\n",
 		 h->depth, h->chosen_thread, ss->next_tid);
 
 	run_command(ls->cmd_file, CMD_BOOKMARK, (lang_void *)h);

@@ -30,10 +30,10 @@ static int print_tree_from(struct hax *h, int choose_thread)
 	num = 1 + print_tree_from(h->parent, h->chosen_thread);
 
 	if (h->chosen_thread != choose_thread || VERBOSE_TRACE) {
-		lsprintf("%d:\ttrigger_count %d, old %d new %d, ", num,
+		lsprintf(BUG, "%d:\ttrigger_count %d, old %d new %d, ", num,
 			 h->trigger_count, h->chosen_thread, choose_thread);
-		print_q("RQ [", &h->oldsched->rq, "]\n");
-		lsprintf("\t%s\n", h->stack_trace);
+		print_q(BUG, "RQ [", &h->oldsched->rq, "]\n");
+		lsprintf(BUG, "\t%s\n", h->stack_trace);
 	}
 
 	return num;
@@ -41,20 +41,20 @@ static int print_tree_from(struct hax *h, int choose_thread)
 
 void found_a_bug(struct ls_state *ls)
 {
-	lsprintf("****    A bug was found!   ****\n");
-	lsprintf("**** Choice trace follows. ****\n");
+	lsprintf(BUG, "****    A bug was found!   ****\n");
+	lsprintf(BUG, "**** Choice trace follows. ****\n");
 
 	print_tree_from(ls->save.current, ls->save.next_tid);
 
 	char *stack = stack_trace(ls->cpu0, ls->eip);
-	lsprintf("Stack: %s\n", stack);
+	lsprintf(BUG, "Stack: %s\n", stack);
 	MM_FREE(stack);
 
-	lsprintf("Current trigger_count %d, total triggers %d\n",
+	lsprintf(BUG, "Current trigger_count %d, total triggers %d\n",
 		 ls->trigger_count, ls->absolute_trigger_count);
-	lsprintf("Total choices %d, points %d, total backtracks %d, depths %d\n",
-		 ls->save.total_choices, ls->save.total_choice_poince,
-		 ls->save.total_jumps, ls->save.depth_total);
+	lsprintf(BUG, "Total choices %d, total backtracks %d, depths %d\n",
+		 ls->save.total_choices, ls->save.total_jumps,
+		 ls->save.depth_total);
 
 	// FIXME: this should probably be SIM_break_simulation instead.
 	SIM_quit(LS_BUG_FOUND);

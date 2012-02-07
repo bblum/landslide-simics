@@ -80,20 +80,19 @@ static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
 		/* Examine children */
 		if (!current->all_explored) {
 			if (find_unsearched_child(current, new_tid)) {
-				lsprintf("chose tid %d from tid %d (%p)\n",
-					 *new_tid, current->chosen_thread,
-					 current);
+				lsprintf(BRANCH, "chose tid %d from tid %d\n",
+					 *new_tid, current->chosen_thread);
 				return current;
 			} else {
-				lsprintf("tid %d (%p) all_explored\n",
-					 current->chosen_thread, current);
+				lsprintf(BRANCH, "tid %d all_explored\n",
+					 current->chosen_thread);
 				current->all_explored = true;
 			}
 		}
 
 		/* 'current' finds the most recent unexplored */
 		if ((current = current->parent) == NULL) {
-			lsprintf("root of tree all_explored!\n");
+			lsprintf(ALWAYS, "root of tree all_explored!\n");
 			return NULL;
 		}
 	}
@@ -117,8 +116,8 @@ static bool tag_good_sibling(struct hax *h0, struct hax *h)
 
 	if (a != NULL && !BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
 		a->do_explore = true;
-		lsprintf("from #%d/tid%d, tagged TID %d sibling of #%d/tid%d\n",
-			 h0->depth, h0->chosen_thread, a->tid,
+		lsprintf(DEV, "from #%d/tid%d, tagged TID %d, sibling of "
+			 "#%d/tid%d\n", h0->depth, h0->chosen_thread, a->tid,
 			 h->depth, h->chosen_thread);
 		return true;
 	} else {
@@ -137,7 +136,7 @@ static void tag_all_siblings(struct hax *h0, struct hax *h)
 		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid))
 			a->do_explore = true;
 	}
-	lsprintf("from #%d/tid%d, tagged all siblings of #%d/tid%d\n",
+	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d\n",
 		 h0->depth, h0->chosen_thread, h->depth, h->chosen_thread);
 }
 
@@ -171,25 +170,25 @@ static void print_pruned_children(struct hax *h)
 	Q_FOREACH(a, &h->oldsched->rq, nobe) {
 		if (!is_child_searched(h, a->tid)) {
 			if (!any_pruned) {
-				lsprintf("at #%d/tid%d pruned tids ", h->depth,
-					 h->chosen_thread);
+				lsprintf(DEV, "at #%d/tid%d pruned tids ",
+					 h->depth, h->chosen_thread);
 			}
-			printf("%d ", a->tid);
+			printf(DEV, "%d ", a->tid);
 			any_pruned = true;
 		}
 	}
 	Q_FOREACH(a, &h->oldsched->sq, nobe) {
 		if (!is_child_searched(h, a->tid)) {
 			if (!any_pruned) {
-				lsprintf("at #%d/tid%d pruned tids ", h->depth,
-					 h->chosen_thread);
+				lsprintf(DEV, "at #%d/tid%d pruned tids ",
+					 h->depth, h->chosen_thread);
 			}
-			printf("%d ", a->tid);
+			printf(DEV, "%d ", a->tid);
 			any_pruned = true;
 		}
 	}
 	if (any_pruned)
-		printf("\n");
+		printf(DEV, "\n");
 }
 
 static MAYBE_UNUSED struct hax *dpor(struct hax *root, struct hax *current,
@@ -223,20 +222,20 @@ static MAYBE_UNUSED struct hax *dpor(struct hax *root, struct hax *current,
 	 * flags gets left behind. */
 	for (struct hax *h = current->parent; h != NULL; h = h->parent) {
 		if (any_tagged_child(h, new_tid)) {
-			lsprintf("from #%d/tid%d (%p), chose tid %d, "
+			lsprintf(BRANCH, "from #%d/tid%d (%p), chose tid %d, "
 				 "child of #%d/tid%d (%p)\n",
 				 current->depth, current->chosen_thread, current,
 				 *new_tid, h->depth, h->chosen_thread, h);
 			return h;
 		} else {
-			lsprintf("#%d/tid%d (%p) all_explored\n",
+			lsprintf(DEV, "#%d/tid%d (%p) all_explored\n",
 				 h->depth, h->chosen_thread, h);
 			print_pruned_children(h);
 			h->all_explored = true;
 		}
 	}
 
-	lsprintf("found no tagged siblings on current branch!\n");
+	lsprintf(ALWAYS, "found no tagged siblings on current branch!\n");
 	return NULL;
 }
 

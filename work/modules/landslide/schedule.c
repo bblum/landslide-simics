@@ -112,11 +112,11 @@ static void agent_vanish(struct sched_state *s, int tid)
 static void set_schedule_target(struct sched_state *s, struct agent *a)
 {
 	if (s->schedule_in_flight != NULL) {
-		lsprintf("warning: overriding old schedule target ");
-		print_agent(s->schedule_in_flight);
-		printf(" with new ");
-		print_agent(a);
-		printf("\n");
+		lsprintf(DEV, "warning: overriding old schedule target ");
+		print_agent(DEV, s->schedule_in_flight);
+		printf(DEV, " with new ");
+		print_agent(DEV, a);
+		printf(DEV, "\n");
 		s->schedule_in_flight->action.schedule_target = false;
 	}
 	s->schedule_in_flight = a;
@@ -156,15 +156,15 @@ static bool deadlocked(struct sched_state *s)
 	return false;
 }
 
-static void print_deadlock(struct agent *a)
+static void print_deadlock(verbosity v, struct agent *a)
 {
 	struct agent *start = a;
-	printf("(%d", a->tid);
+	printf(v, "(%d", a->tid);
 	for (a = a->blocked_on; a != start; a = a->blocked_on) {
 		assert(a != NULL && "a wasn't deadlocked!");
-		printf(" -> %d", a->tid);
+		printf(v, " -> %d", a->tid);
 	}
-	printf(" -> %d)", a->tid);
+	printf(v, " -> %d)", a->tid);
 }
 
 static void mutex_block_others(struct agent_q *q, int mutex_addr,
@@ -173,7 +173,7 @@ static void mutex_block_others(struct agent_q *q, int mutex_addr,
 	struct agent *a;
 	Q_FOREACH(a, q, nobe) {
 		if (a->blocked_on_addr == mutex_addr) {
-			lsprintf("mutex: on 0x%x tid %d now blocks on %d "
+			lsprintf(DEV, "mutex: on 0x%x tid %d now blocks on %d "
 				 "(was %d)\n", mutex_addr, a->tid,
 				 blocked_on_tid, a->blocked_on_tid);
 			assert(a->action.mutex_locking);
@@ -204,42 +204,42 @@ void sched_init(struct sched_state *s)
 	s->entering_timer = false;
 }
 
-void print_agent(struct agent *a)
+void print_agent(verbosity v, struct agent *a)
 {
-	printf("%d", a->tid);
-	if (a->action.handling_timer)  printf("t");
-	if (a->action.context_switch)  printf("c");
-	if (a->action.forking)         printf("f");
-	if (a->action.sleeping)        printf("s");
-	if (a->action.vanishing)       printf("v");
-	if (a->action.readlining)      printf("r");
-	if (a->action.schedule_target) printf("*");
-	if (BLOCKED(a))                printf("<?%d>", a->blocked_on_tid);
+	printf(v, "%d", a->tid);
+	if (a->action.handling_timer)  printf(v, "t");
+	if (a->action.context_switch)  printf(v, "c");
+	if (a->action.forking)         printf(v, "f");
+	if (a->action.sleeping)        printf(v, "s");
+	if (a->action.vanishing)       printf(v, "v");
+	if (a->action.readlining)      printf(v, "r");
+	if (a->action.schedule_target) printf(v, "*");
+	if (BLOCKED(a))                printf(v, "<?%d>", a->blocked_on_tid);
 }
 
-void print_q(const char *start, struct agent_q *q, const char *end)
+void print_q(verbosity v, const char *start, struct agent_q *q, const char *end)
 {
 	struct agent *a;
 	bool first = true;
 
-	printf("%s", start);
+	printf(v, "%s", start);
 	Q_FOREACH(a, q, nobe) {
 		if (first)
 			first = false;
 		else
-			printf(", ");
-		print_agent(a);
+			printf(v, ", ");
+		print_agent(v, a);
 	}
-	printf("%s", end);
+	printf(v, "%s", end);
 }
-void print_qs(struct sched_state *s)
+void print_qs(verbosity v, struct sched_state *s)
 {
-	printf("current ");
-	print_agent(s->cur_agent);
-	printf(" ");
-	print_q(" RQ [", &s->rq, "] ");
-	print_q(" SQ {", &s->sq, "} ");
-	print_q(" DQ (", &s->dq, ") ");
+	printf(v, "current ");
+	print_agent(v, s->cur_agent);
+	printf(v, " ");
+	print_q(v, " RQ [", &s->rq, "] ");
+	print_q(v, " SQ {", &s->sq, "} ");
+	print_q(v, " DQ (", &s->dq, ") ");
 }
 
 /* what is the current thread doing? */
@@ -274,9 +274,9 @@ void sched_update(struct ls_state *ls)
 		s->entering_timer = false;
 	} else {
 		if (ls->eip == kern_get_timer_wrap_begin()) {
-		       lsprintf("a timer interrupt that wasn't ours....");
-		       print_qs(s);
-		       printf("\n");
+		       lsprintf(BUG, "a timer interrupt that wasn't ours....");
+		       print_qs(BUG, s);
+		       printf(BUG, "\n");
 		       assert(0);
 		}
 	}
@@ -294,7 +294,7 @@ void sched_update(struct ls_state *ls)
 		 * find it later. (see the kern_thread_runnable case below.) */
 		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
 		if (next) {
-			lsprintf("switched threads %d -> %d\n", old_tid,
+			lsprintf(DEV, "switched threads %d -> %d\n", old_tid,
 				 new_tid);
 			s->last_agent = s->cur_agent;
 			s->cur_agent = next;
@@ -302,7 +302,7 @@ void sched_update(struct ls_state *ls)
 			/* there is also a possibility of searching s->dq, to
 			 * find the thread, but the kern_thread_runnable case
 			 * below can handle it for us anyway with less code. */
-			lsprintf("about to switch threads %d -> %d\n", old_tid,
+			lsprintf(DEV, "about to switch threads %d -> %d\n", old_tid,
 				 new_tid);
 			s->context_switch_pending = true;
 			s->context_switch_target = new_tid;
@@ -318,11 +318,11 @@ void sched_update(struct ls_state *ls)
 		if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
 			assert(!ACTION(s, handling_timer));
 		} else {
-			lsprintf("WARNING: allowing a nested timer on tid %d's "
-				 "stack\n", s->cur_agent->tid);
+			lsprintf(DEV, "WARNING: allowing a nested timer on "
+				 "tid %d's stack\n", s->cur_agent->tid);
 		}
 		ACTION(s, handling_timer) = true;
-		lsprintf("%d timer enter from 0x%x\n", s->cur_agent->tid,
+		lsprintf(INFO, "%d timer enter from 0x%x\n", s->cur_agent->tid,
 		         (unsigned int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls->eip)) {
 		assert(ACTION(s, handling_timer));
@@ -373,14 +373,14 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_thread_runnable(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
 		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
-			lsprintf("agent %d forked -- ", target_tid);
-			print_qs(s);
-			printf("\n");
+			lsprintf(DEV, "agent %d forked -- ", target_tid);
+			print_qs(DEV, s);
+			printf(DEV, "\n");
 			agent_fork(s, target_tid, kern_fork_returns_to_cs());
 			/* don't need this flag anymore; fork only forks once */
 			ACTION(s, forking) = false;
 		} else {
-			// lsprintf("agent %d wake -- ", target_tid);
+			// lsprintf(INFO, "agent %d wake -- ", target_tid);
 			agent_wake(s, target_tid);
 		}
 		/* If this is happening from the context switcher, we also need
@@ -396,22 +396,22 @@ void sched_update(struct ls_state *ls)
 		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
 			agent_vanish(s, target_tid);
-			lsprintf("agent %d vanished -- ", target_tid);
-			print_qs(s);
-			printf("\n");
+			lsprintf(DEV, "agent %d vanished -- ", target_tid);
+			print_qs(DEV, s);
+			printf(DEV, "\n");
 			/* Future actions by this thread, such as scheduling
 			 * somebody else, shouldn't count as them vanishing too! */
 			ACTION(s, vanishing) = false;
 		} else if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
 			assert(s->cur_agent->tid == target_tid);
 			agent_sleep(s, target_tid);
-			lsprintf("agent %d sleep -- ", target_tid);
-			print_qs(s);
-			printf("\n");
+			lsprintf(DEV, "agent %d sleep -- ", target_tid);
+			print_qs(DEV, s);
+			printf(DEV, "\n");
 			ACTION(s, sleeping) = false;
 		} else {
 			agent_deschedule(s, target_tid);
-			// lsprintf("agent %d desch -- ", target_tid);
+			// lsprintf(INFO, "agent %d desch -- ", target_tid);
 		}
 	/* Mutex tracking and noob deadlock detection */
 	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &mutex_addr)) {
@@ -424,14 +424,14 @@ void sched_update(struct ls_state *ls)
 		 * then switched and someone took it, these would be set already
 		 * assert(s->cur_agent->blocked_on == NULL);
 		 * assert(s->cur_agent->blocked_on_tid == -1); */
-		lsprintf("mutex: on 0x%x tid %d blocks, owned by %d\n",
+		lsprintf(DEV, "mutex: on 0x%x tid %d blocks, owned by %d\n",
 			 s->cur_agent->blocked_on_addr, s->cur_agent->tid,
 			 target_tid);
 		s->cur_agent->blocked_on_tid = target_tid;
 		if (deadlocked(s)) {
-			lsprintf("DEADLOCK! ");
-			print_deadlock(s->cur_agent);
-			printf("\n");
+			lsprintf(BUG, "DEADLOCK! ");
+			print_deadlock(BUG, s->cur_agent);
+			printf(BUG, "\n");
 			found_a_bug(ls);
 		}
 	} else if (kern_mutex_locking_done(ls->eip)) {
@@ -507,8 +507,8 @@ void sched_update(struct ls_state *ls)
 				// it somehow to cause_.._immediately. and then
 				// see the asserts/comments in the action
 				// handling_timer sections above.
-				lsprintf("keeping schedule in-flight at 0x%x\n",
-					 ls->eip);
+				lsprintf(INFO, "keeping schedule in-flight "
+					 "at 0x%x\n", ls->eip);
 				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 			} else {
@@ -567,8 +567,8 @@ void sched_update(struct ls_state *ls)
 		if (arbiter_choose(ls, &a, &our_choice)) {
 			/* Effect the choice that was made... */
 			if (a != s->cur_agent) {
-				lsprintf("from agent %d, arbiter chose %d at "
-					 "0x%x (called at 0x%x)\n",
+				lsprintf(CHOICE, "from agent %d, arbiter chose "
+					 "%d at 0x%x (called at 0x%x)\n",
 					 s->cur_agent->tid, a->tid, ls->eip,
 					 (unsigned int)READ_STACK(ls->cpu0, 0));
 				set_schedule_target(s, a);
@@ -578,7 +578,8 @@ void sched_update(struct ls_state *ls)
 			/* Record the choice that was just made. */
 			save_setjmp(&ls->save, ls, a->tid, our_choice, false);
 		} else {
-			lsprintf("no agent was chosen at eip 0x%x\n", ls->eip);
+			lsprintf(BUG, "no agent was chosen at eip 0x%x\n",
+				 ls->eip);
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
@@ -601,19 +602,19 @@ void sched_recover(struct ls_state *ls)
 				 * back... */
 				set_schedule_target(s, s->cur_agent);
 				assert(s->entering_timer);
-				lsprintf("Explorer-chosen tid %d wants to run; "
-					 "not switching away\n", tid);
+				lsprintf(DEV, "Explorer-chosen tid %d wants "
+					 "to run; not switching away\n", tid);
 				/* Make sure the arbiter knows this isn't a
 				 * voluntary reschedule. The handling_timer flag
 				 * won't be on now, but sched_update sets it. */
-				lsprintf("Updating the last_agent: ");
-				print_agent(s->last_agent);
-				printf(" to ");
-				print_agent(s->cur_agent);
-				printf("\n");
+				lsprintf(INFO, "Updating the last_agent: ");
+				print_agent(INFO, s->last_agent);
+				printf(INFO, " to ");
+				print_agent(INFO, s->cur_agent);
+				printf(INFO, "\n");
 				s->last_agent = s->cur_agent;
 			} else {
-				lsprintf("Explorer-chosen tid %d already "
+				lsprintf(INFO, "Explorer-chosen tid %d already "
 					 "running!\n", tid);
 			}
 		} else {
@@ -624,7 +625,7 @@ void sched_recover(struct ls_state *ls)
 			}
 
 			assert(a != NULL && "bogus explorer-chosen tid!");
-			lsprintf("Recovering to explorer-chosen tid %d from "
+			lsprintf(DEV, "Recovering to explorer-chosen tid %d from "
 				 "tid %d\n", tid, s->cur_agent->tid);
 			set_schedule_target(s, a);
 			/* Hmmmm */
@@ -636,7 +637,7 @@ void sched_recover(struct ls_state *ls)
 		}
 	} else {
 		tid = s->cur_agent->tid;
-		lsprintf("Explorer chose no tid; defaulting to %d\n", tid);
+		lsprintf(BUG, "Explorer chose no tid; defaulting to %d\n", tid);
 	}
 
 	save_recover(&ls->save, ls, tid);

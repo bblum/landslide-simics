@@ -28,7 +28,7 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 	int eflags = GET_CPU_ATTR(cpu, eflags);
 	int handler = kern_get_timer_wrap_begin();
 
-	lsprintf("tock! (0x%x)\n", eip);
+	lsprintf(DEV, "tock! (0x%x)\n", eip);
 
 	/* 12 is the size of an IRET frame only when already in kernel mode. */
 	SET_CPU_ATTR(cpu, esp, esp - 12);
@@ -50,7 +50,7 @@ static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
 #define TIMER_INTERRUPT_NUMBER 0x20
 void cause_timer_interrupt(conf_object_t *cpu)
 {
-	lsprintf("tick! (0x%x)\n", (int)GET_CPU_ATTR(cpu, eip));
+	lsprintf(DEV, "tick! (0x%x)\n", (int)GET_CPU_ATTR(cpu, eip));
 
 	if (GET_CPU_ATTR(cpu, pending_vector_valid)) {
 		SET_CPU_ATTR(cpu, pending_vector,

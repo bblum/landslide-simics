@@ -73,17 +73,17 @@ bool test_update_state(conf_object_t *cpu, struct test_state *t,
 {
 	if (anybody_alive(cpu, t, s)) {
 		if (!t->test_is_running) {
-			lsprintf("a test appears to be starting - ");
-			print_qs(s);
-			printf("\n");
+			lsprintf(BRANCH, "a test appears to be starting - ");
+			print_qs(BRANCH, s);
+			printf(BRANCH, "\n");
 			t->test_is_running = true;
 			return true;
 		}
 	} else {
 		if (t->test_is_running) {
-			lsprintf("a test appears to be ending - ");
-			print_qs(s);
-			printf("\n");
+			lsprintf(BRANCH, "a test appears to be ending - ");
+			print_qs(BRANCH, s);
+			printf(BRANCH, "\n");
 			if (t->current_test) {
 				MM_FREE(t->current_test);
 				t->current_test = NULL;
@@ -99,7 +99,7 @@ bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
 		const char *test_string)
 {
 	if (t->test_is_running || t->current_test) {
-		lsprintf("can't run \"%s\" with another test running\n",
+		lsprintf(INFO, "can't run \"%s\" with another test running\n",
 			 test_string);
 		return false;
 	}
@@ -113,16 +113,16 @@ bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
 	}
 	if (test_string[strlen(test_string)-1] != '\n') {
 		cause_keypress(kbd, '\n');
-		lsprintf("caused test %s\n", test_string);
+		lsprintf(BRANCH, "caused test %s\n", test_string);
 	} else {
-		lsprintf("caused test %s", test_string);
+		lsprintf(BRANCH, "caused test %s", test_string);
 	}
 
 	t->test_ever_caused = true;
 
 	/* Record how many people are alive at the start of the test */
 	if (ls->sched.num_agents != ls->sched.most_agents_ever) {
-	       lsprintf("WARNING: somebody died before the test started!\n");
+	       lsprintf(BUG, "WARNING: somebody died before test started!\n");
 	       ls->sched.most_agents_ever = ls->sched.num_agents;
 	}
 	t->start_population = ls->sched.num_agents;

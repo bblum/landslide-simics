@@ -33,7 +33,7 @@ bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 {
 	struct choice *c = Q_GET_TAIL(&r->choices);
 	if (c) {
-		lsprintf("using requested tid %d\n", c->tid);
+		lsprintf(DEV, "using requested tid %d\n", c->tid);
 		Q_REMOVE(&r->choices, c, nobe);
 		*tid = c->tid;
 		MM_FREE(c);
@@ -61,11 +61,11 @@ bool arbiter_interested(struct ls_state *ls)
 		     kern_context_switch_exiting(ls->eip)) ||
 		    /* ...or this. */
 		    kern_fork_return_spot(ls->eip)) {
-			lsprintf("a voluntary reschedule: ");
-			print_agent(ls->sched.last_agent);
-			printf(" to ");
-			print_agent(ls->sched.cur_agent);
-			printf("\n");
+			lsprintf(DEV, "a voluntary reschedule: ");
+			print_agent(DEV, ls->sched.last_agent);
+			printf(DEV, " to ");
+			print_agent(DEV, ls->sched.cur_agent);
+			printf(DEV, "\n");
 			assert((ls->save.next_tid == -1 ||
 			        ls->save.next_tid == ls->sched.cur_agent->tid ||
 			        ls->save.next_tid == ls->sched.last_agent->tid)
@@ -116,7 +116,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	if (a == NULL)
 		Q_SEARCH(a, &ls->sched.sq, nobe, !BLOCKED(a) && ++i == count);
 	if (a != NULL) {
-		lsprintf("Figured I'd look at TID %d next.\n", a->tid);
+		lsprintf(CHOICE, "Figured I'd look at TID %d next.\n", a->tid);
 		*target = a;
 		*our_choice = true;
 		return true;

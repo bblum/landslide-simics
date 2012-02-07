@@ -218,7 +218,7 @@ void init_local(void)
 	LS_ATTR_REGISTER(conf_class, cmd_file, "s",
 			 "Filename to use for communication with the wrapper");
 
-	lsprintf("welcome to landslide.\n");
+	lsprintf(ALWAYS, "welcome to landslide.\n");
 }
 
 /******************************************************************************
@@ -290,7 +290,7 @@ static bool ensure_progress(struct ls_state *ls)
 {
 	char *buf;
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
-		lsprintf("KERNEL PANIC: %s\n", buf);
+		lsprintf(BUG, "KERNEL PANIC: %s\n", buf);
 		MM_FREE(buf);
 		return false;
 	}
@@ -304,8 +304,8 @@ static bool ensure_progress(struct ls_state *ls)
 	int most_recent = ls->trigger_count - ls->save.current->trigger_count;
 	int average_triggers = ls->save.total_triggers / ls->save.total_choices;
 	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
-		lsprintf("NO PROGRESS (infinite loop?)\n");
-		lsprintf("%d instructions since last decision; average %d\n",
+		lsprintf(BUG, "NO PROGRESS (infinite loop?)\n");
+		lsprintf(BUG, "%d instructions since last decision; average %d\n",
 			 most_recent, average_triggers);
 		return false;
 	}
@@ -314,8 +314,8 @@ static bool ensure_progress(struct ls_state *ls)
 	 * end up being infinitely deep)? */
 	int average_depth = ls->save.depth_total / ls->save.total_jumps;
 	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
-		lsprintf("NO PROGRESS (stuck thread(s)?)\n");
-		lsprintf("Current branch depth %d; average depth %d\n",
+		lsprintf(BUG, "NO PROGRESS (stuck thread(s)?)\n");
+		lsprintf(BUG, "Current branch depth %d; average depth %d\n",
 			 ls->save.current->depth, average_depth);
 		return false;
 	}
@@ -329,7 +329,7 @@ static bool test_ended_safely(struct ls_state *ls)
 
 	if (ls->test.start_heap_size > ls->mem.heap_size) {
 		// TODO: the test could copy the heap to indicate which blocks
-		lsprintf("MEMORY LEAK (%d bytes)!\n",
+		lsprintf(BUG, "MEMORY LEAK (%d bytes)!\n",
 			 ls->test.start_heap_size - ls->mem.heap_size);
 		return false;
 	}
@@ -373,10 +373,8 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (ls->trigger_count % 1000000 == 0) {
-		lsprintf("hax number %d (%d) with trace-type %s at 0x%x\n",
+		lsprintf(INFO, "hax number %d (%d) at 0x%x\n",
 			 ls->trigger_count, ls->absolute_trigger_count,
-			 entry->trace_type == TR_Data ? "DATA" :
-			 entry->trace_type == TR_Instruction ? "INSTR" : "EXN",
 			 ls->eip);
 	}
 
@@ -397,12 +395,12 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	    !ls->test.test_is_running) {
 		/* See if it's time to try again... */
 		if (ls->test.test_ever_caused) {
-			lsprintf("test case ended!\n");
+			lsprintf(BRANCH, "test case ended!\n");
 
 			if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true);
 				if (!time_travel(ls)) {
-					lsprintf("choice tree explored; "
+					lsprintf(ALWAYS, "choice tree explored; "
 						 "you passed!\n");
 					SIM_quit(LS_NO_KNOWN_BUG);
 				}
@@ -410,7 +408,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 				found_a_bug(ls);
 			}
 		} else {
-			lsprintf("ready to roll!\n");
+			lsprintf(ALWAYS, "ready to roll!\n");
 			SIM_break_simulation(NULL);
 		}
 	} else if (!ensure_progress(ls)) {

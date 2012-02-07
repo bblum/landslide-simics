@@ -96,18 +96,18 @@ static struct chunk *remove_chunk(struct mem_state *m, int addr, int len)
 	}
 }
 
-static void print_heap(struct rb_node *nobe, bool rightmost)
+static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
 {
 	if (nobe == NULL)
 		return;
 
 	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
 
-	print_heap(c->nobe.rb_left, false);
-	printf("[0x%x | %d]", c->base, c->len);
+	print_heap(v, c->nobe.rb_left, false);
+	printf(v, "[0x%x | %d]", c->base, c->len);
 	if (!rightmost || c->nobe.rb_right != NULL)
-		printf(", ");
-	print_heap(c->nobe.rb_right, rightmost);
+		printf(v, ", ");
+	print_heap(v, c->nobe.rb_right, rightmost);
 }
 
 /******************************************************************************
@@ -181,7 +181,7 @@ void mem_init(struct mem_state *m)
 void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m, int size)
 {
 	if (m->in_alloc || m->in_free) {
-		lsprintf("Malloc reentered %s!\n",
+		lsprintf(BUG, "Malloc reentered %s!\n",
 			 m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
@@ -195,7 +195,7 @@ void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m, int base)
 	assert(m->in_alloc && "attempt to exit malloc without being in!");
 	assert(!m->in_free && "attempt to exit malloc while in free!");
 	new_chunk(m, base, m->alloc_request_size);
-	lsprintf("Malloc chunk [0x%x | %d]\n", base, m->alloc_request_size);
+	lsprintf(INFO, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
 	m->in_alloc = false;
 }
 
@@ -204,7 +204,7 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 	struct chunk *chunk;
 
 	if (m->in_alloc || m->in_free) {
-		lsprintf("Free reentered %s!\n",
+		lsprintf(BUG, "Free reentered %s!\n",
 			 m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
@@ -212,19 +212,19 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 	chunk = remove_chunk(m, base, size);
 
 	if (chunk == NULL) {
-		lsprintf("Attempted to free non-existent chunk [0x%x | %d] "
-			 "(double free?)!\n", base, size);
+		lsprintf(BUG, "Attempted to free non-existent chunk [0x%x | %d]"
+			 " -- (double free?)!\n", base, size);
 		found_a_bug(ls);
 	} else if (chunk->base != base) {
-		lsprintf("Attempted to free [0x%x | %d], contained within "
+		lsprintf(BUG, "Attempted to free [0x%x | %d], contained within "
 			 "[0x%x | %d]\n", base, size, chunk->base, chunk->len);
 		found_a_bug(ls);
 	} else if (chunk->len != size) {
-		lsprintf("Attempted to free [0x%x | %d], but [0x%x | %d]!\n",
-			 base, size, base, chunk->len);
+		lsprintf(BUG, "Attempted to free [0x%x | %d] "
+			 "with wrong size %d!\n", base, chunk->len, size);
 		found_a_bug(ls);
 	} else {
-		lsprintf("Free() chunk [0x%x | %d]\n", base, size);
+		lsprintf(INFO, "Free() chunk [0x%x | %d]\n", base, size);
 	}
 
 	if (chunk != NULL) {
@@ -267,12 +267,12 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 	if (kern_address_in_heap(addr)) {
 		struct chunk *c = find_containing_chunk(m, addr);
 		if (c == NULL) {
-			lsprintf("USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
-				 write ? "write to" : "read from",
+			lsprintf(BUG, "USE AFTER FREE - %s 0x%.8x at eip "
+				 "0x%.8x\n", write ? "write to" : "read from",
 				 addr, ls->eip);
-			lsprintf("Heap contents: {");
-			print_heap(m->heap.rb_node, true);
-			printf("}\n");
+			lsprintf(BUG, "Heap contents: {");
+			print_heap(BUG, m->heap.rb_node, true);
+			printf(BUG, "}\n");
 			found_a_bug(ls);
 		} else {
 			add_shm(ls, m, c, addr, write);
@@ -315,7 +315,7 @@ static void print_shm_conflict(conf_object_t *cpu,
 		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
 				  c0->base, c0->len);
 	}
-	printf("[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
+	printf(DEV, "[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
 	       ma1->write ? 'w' : 'r', ma1->count);
 }
 
@@ -329,10 +329,10 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid,
 	 * we have to check every recorded access that doesn't match. */
 	if (ma->other_tid == other_tid) {
 		if (*conflict)
-			printf(", ");
+			printf(DEV, ", ");
 		ma->conflict = true;
 		*conflict = true;
-		printf("[tid%d stack %c%d 0x%x]", other_tid,
+		printf(DEV, "[tid%d stack %c%d 0x%x]", other_tid,
 		       ma->write ? 'w' : 'r', ma->count, ma->eip);
 	}
 }
@@ -346,7 +346,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
 	bool conflict = false;
 
-	lsprintf("Intersecting transition %d (TID %d) with %d (TID %d): {",
+	lsprintf(DEV, "Intersecting transition %d (TID %d) with %d (TID %d): {",
 		 depth0, tid0, depth1, tid1);
 
 	while (ma0 != NULL && ma1 != NULL) {
@@ -362,7 +362,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 			/* found a match; advance both */
 			if (ma0->write || ma1->write) {
 				if (conflict)
-					printf(", ");
+					printf(DEV, ", ");
 				/* the match is also a conflict */
 				print_shm_conflict(cpu, m0, m1, ma0, ma1);
 				conflict = true;
@@ -385,7 +385,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 		ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 	}
 
-	printf("}\n");
+	printf(DEV, "}\n");
 
 	return conflict;
 }
