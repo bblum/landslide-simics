@@ -36,5 +36,6 @@ void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
 char *stack_trace(conf_object_t *cpu, int eip);
+char *read_string(conf_object_t *cpu, int eip);
 
 #endif

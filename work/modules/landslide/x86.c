@@ -249,3 +249,20 @@ char *stack_trace(conf_object_t *cpu, int eip)
 
 	return buf2;
 }
+
+char *read_string(conf_object_t *cpu, int addr)
+{
+	int length = 0;
+
+	while (READ_BYTE(cpu, addr + length) != 0) {
+		length++;
+	}
+
+	char *buf = MM_XMALLOC(length + 1, char);
+
+	for (int i = 0; i <= length; i++) {
+		buf[i] = READ_BYTE(cpu, addr + i);
+	}
+
+	return buf;
+}

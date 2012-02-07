@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <simics/api.h>
 
+#define MODULE_NAME "glue"
+
+#include "common.h"
 #include "kernel_specifics.h"
 #include "schedule.h" /* TODO: separate the struct part into schedule_type.h */
 #include "x86.h"
@@ -97,6 +100,36 @@ bool kern_mutex_ignore(int addr)
 			return true;
 	}
 	return false;
+}
+
+#define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
+
+bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
+{
+	if (eip == GUEST_PANIC) {
+		*buf = read_string(cpu, READ_STACK(cpu, 1));
+		/* Can't call out to snprintf in the general case because it
+		 * would need repeated calls to read_string, and would basically
+		 * need to be reimplemented entirely. Instead, special-case. */
+		if (strcmp(*buf, GUEST_ASSERT_MSG) == 0) {
+			char *file_str   = read_string(cpu, READ_STACK(cpu, 2));
+			int line         = READ_STACK(cpu, 3);
+			char *assert_msg = read_string(cpu, READ_STACK(cpu, 4));
+			/* 12 is enough space for any stringified int. This will
+			 * allocate a little extra, but we don't care. */
+			int length = strlen(GUEST_ASSERT_MSG) + strlen(file_str)
+			             + strlen(assert_msg) + 12;
+			MM_FREE(*buf);
+			*buf = MM_XMALLOC(length, char);
+			snprintf(*buf, length, GUEST_ASSERT_MSG, file_str, line,
+				 assert_msg);
+			MM_FREE(file_str);
+			MM_FREE(assert_msg);
+		}
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /******************************************************************************

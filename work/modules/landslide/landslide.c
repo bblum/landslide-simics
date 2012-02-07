@@ -41,6 +41,7 @@
 #include "common.h"
 #include "explore.h"
 #include "found_a_bug.h"
+#include "kernel_specifics.h"
 #include "landslide.h"
 #include "save.h"
 #include "test.h"
@@ -288,6 +289,13 @@ bool function_eip_offset(int eip, int *offset)
 
 static bool ensure_progress(struct ls_state *ls)
 {
+	char *buf;
+	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
+		lsprintf("KERNEL PANIC: %s\n", buf);
+		MM_FREE(buf);
+		return false;
+	}
+
 	/* FIXME: find a less false-negative way to tell when we have enough
 	 * data */
 	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)

@@ -9,13 +9,16 @@
 
 #include <simics/api.h>
 
-#define GUEST_POBBLES_RACE
+#define GUEST_POBBLES_PARENT
 
 #if defined(GUEST_POBBLES)
 #include "kernel_specifics_pobbles.h"
 #include "kernel_specifics_types.h"
 #elif defined(GUEST_POBBLES_RACE)
 #include "kernel_specifics_pobbles_race.h"
+#include "kernel_specifics_types.h"
+#elif defined(GUEST_POBBLES_PARENT)
+#include "kernel_specifics_pobbles_parent.h"
 #include "kernel_specifics_types.h"
 
 // TODO: elsif ...
@@ -36,6 +39,7 @@ bool kern_in_scheduler(int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_scheduler_locked(conf_object_t *cpu);
 bool kern_mutex_ignore(int addr);
+bool kern_panicked(conf_object_t *cpu, int eip, char **buf);
 
 /* Yielding-mutex interactions. */
 bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex);

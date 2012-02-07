@@ -102,6 +102,10 @@ echo "#define GUEST_SCHEDULER_LOCKED(x)  (x)"
 
 echo
 
+echo "#define GUEST_PANIC 0x`get_sym panic`"
+
+echo
+
 function get_fork_window {
 	# XXX this is a terrible hack
 	MISBEHAVE_MODE=`get_sym misbehave_mode`
