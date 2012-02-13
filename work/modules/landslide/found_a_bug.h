@@ -26,8 +26,8 @@ struct ls_state;
 	lsprintf(v, "Total choice points %d, total backtracks %d\n",	\
 		 ls->save.total_choices, ls->save.total_jumps);		\
 	lsprintf(v, "Average triggers/choice %d, average branch depth %d\n", \
-		 ls->save.total_triggers / ls->save.total_choices,	\
-		 ls->save.depth_total / ls->save.total_jumps);		\
+		 ls->save.total_triggers / (1+ls->save.total_choices),	\
+		 ls->save.depth_total / (1+ls->save.total_jumps));	\
 	} while (0)
 
 

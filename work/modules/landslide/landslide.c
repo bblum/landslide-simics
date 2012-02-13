@@ -297,6 +297,7 @@ static bool ensure_progress(struct ls_state *ls)
 
 	/* FIXME: find a less false-negative way to tell when we have enough
 	 * data */
+	STATIC_ASSERT(PROGRESS_MIN_BRANCHES > 0); /* prevent div-by-zero */
 	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
 		return true;
 
@@ -312,7 +313,7 @@ static bool ensure_progress(struct ls_state *ls)
 
 	/* Have we been spinning around a choice point (so this branch would
 	 * end up being infinitely deep)? */
-	int average_depth = ls->save.depth_total / ls->save.total_jumps;
+	int average_depth = ls->save.depth_total / (1 + ls->save.total_jumps);
 	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
 		lsprintf(BUG, "NO PROGRESS (stuck thread(s)?)\n");
 		lsprintf(BUG, "Current branch depth %d; average depth %d\n",
