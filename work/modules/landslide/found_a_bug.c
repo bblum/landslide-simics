@@ -10,6 +10,7 @@
 #define MODULE_COLOUR COLOUR_RED
 
 #include "common.h"
+#include "found_a_bug.h"
 #include "landslide.h"
 #include "schedule.h"
 #include "tree.h"
@@ -50,11 +51,7 @@ void found_a_bug(struct ls_state *ls)
 	lsprintf(BUG, "Stack: %s\n", stack);
 	MM_FREE(stack);
 
-	lsprintf(BUG, "Current trigger_count %d, total triggers %d\n",
-		 ls->trigger_count, ls->absolute_trigger_count);
-	lsprintf(BUG, "Total choices %d, total backtracks %d, depths %d\n",
-		 ls->save.total_choices, ls->save.total_jumps,
-		 ls->save.depth_total);
+	PRINT_TREE_INFO(BUG, ls);
 
 	// FIXME: this should probably be SIM_break_simulation instead.
 	SIM_quit(LS_BUG_FOUND);

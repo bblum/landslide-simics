@@ -11,12 +11,25 @@
 #error "must include common.h before found_a_bug.h"
 #endif
 
+#include "landslide.h"
+
 struct ls_state;
 
 #define FOUND_A_BUG(ls, ...) do { 	\
 		lsprintf(__VA_ARGS__);	\
 		found_a_bug(ls);	\
 	} while (0)
+
+#define PRINT_TREE_INFO(v, ls) do {	\
+	lsprintf(v, "Current trigger_count %d, total triggers %d\n",	\
+		 ls->trigger_count, ls->absolute_trigger_count);	\
+	lsprintf(v, "Total choice points %d, total backtracks %d\n",	\
+		 ls->save.total_choices, ls->save.total_jumps);		\
+	lsprintf(v, "Average triggers/choice %d, average branch depth %d\n", \
+		 ls->save.total_triggers / ls->save.total_choices,	\
+		 ls->save.depth_total / ls->save.total_jumps);		\
+	} while (0)
+
 
 void found_a_bug(struct ls_state *);
 

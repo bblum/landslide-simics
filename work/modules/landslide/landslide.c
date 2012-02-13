@@ -353,6 +353,13 @@ static bool time_travel(struct ls_state *ls)
 	}
 }
 
+static void found_no_bug(struct ls_state *ls)
+{
+	lsprintf(ALWAYS, "**** Choice tree explored; you passed! ****\n");
+	PRINT_TREE_INFO(ALWAYS, ls);
+	SIM_quit(LS_NO_KNOWN_BUG);
+}
+
 /* Main entry point. Called every instruction, data access, and extensible. */
 static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
@@ -400,9 +407,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 			if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true);
 				if (!time_travel(ls)) {
-					lsprintf(ALWAYS, "choice tree explored; "
-						 "you passed!\n");
-					SIM_quit(LS_NO_KNOWN_BUG);
+					found_no_bug(ls);
 				}
 			} else {
 				found_a_bug(ls);
