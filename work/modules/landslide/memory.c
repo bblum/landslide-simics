@@ -24,10 +24,10 @@
 /* Returns NULL (and sets chunk) if a chunk containing addr (i.e., base <= addr
  * && addr < base + len) already exists.
  * Does not set parent if the heap is empty. */
-static struct rb_node **find_insert_location(struct mem_state *m, int addr,
+static struct rb_node **find_insert_location(struct rb_root *root, int addr,
 					     struct chunk **chunk)
 {
-	struct rb_node **p = &m->heap.rb_node;
+	struct rb_node **p = &root->rb_node;
 	// struct chunk *c;
 
 	while (*p) {
@@ -50,10 +50,10 @@ static struct rb_node **find_insert_location(struct mem_state *m, int addr,
 
 /* finds the chunk with the nearest start address lower than this address.
  * if the address is lower than anything currently in the heap, returns null. */
-static struct chunk *find_containing_chunk(struct mem_state *m, int addr)
+static struct chunk *find_containing_chunk(struct rb_root *root, int addr)
 {
 	struct chunk *target = NULL;
-	struct rb_node **p = find_insert_location(m, addr, &target);
+	struct rb_node **p = find_insert_location(root, addr, &target);
 
 	if (p == NULL) {
 		return target;
@@ -62,33 +62,28 @@ static struct chunk *find_containing_chunk(struct mem_state *m, int addr)
 	}
 }
 
-static void new_chunk(struct mem_state *m, int addr, int len)
+// FIXME - separate this out into a "insert chunk" and separate alloc code
+static void insert_chunk(struct rb_root *root, struct chunk *c)
 {
 	struct chunk *parent = NULL;
-	struct rb_node **p = find_insert_location(m, addr, &parent);
+	struct rb_node **p = find_insert_location(root, c->base, &parent);
 
 	assert(p != NULL && "allocated a block already contained in the heap?");
 
-	struct chunk *c = MM_XMALLOC(1, struct chunk);
-	c->base = addr;
-	c->len = len;
 	rb_init_node(&c->nobe);
-
 	rb_link_node(&c->nobe, parent != NULL ? &parent->nobe : NULL, p);
-	rb_insert_color(&c->nobe, &m->heap);
-
-	m->heap_size += len;
+	rb_insert_color(&c->nobe, root);
 }
 
-static struct chunk *remove_chunk(struct mem_state *m, int addr, int len)
+static struct chunk *remove_chunk(struct rb_root *root, int addr, int len)
 {
 	struct chunk *target = NULL;
-	struct rb_node **p = find_insert_location(m, addr, &target);
+	struct rb_node **p = find_insert_location(root, addr, &target);
 
 	if (p == NULL) {
 		assert(target != NULL);
 		//assert(target->base == addr && target->len == len);
-		rb_erase(&target->nobe, &m->heap);
+		rb_erase(&target->nobe, root);
 		return target;
 	} else {
 		/* no containing block found */
@@ -169,10 +164,11 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 void mem_init(struct mem_state *m)
 {
 	m->heap.rb_node = NULL;
+	m->heap_size = 0;
 	m->in_alloc = false;
 	m->in_free = false;
 	m->shm.rb_node = NULL;
-	m->heap_size = 0;
+	m->freed.rb_node = NULL;
 }
 
 /* heap interface */
@@ -194,8 +190,19 @@ void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m, int base)
 {
 	assert(m->in_alloc && "attempt to exit malloc without being in!");
 	assert(!m->in_free && "attempt to exit malloc while in free!");
-	new_chunk(m, base, m->alloc_request_size);
+
 	lsprintf(INFO, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
+
+	if (base == 0) {
+		lsprintf(INFO, "Kernel seems to be out of memory.\n");
+	} else {
+		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
+		chunk->base = base;
+		chunk->len = m->alloc_request_size;
+		m->heap_size += m->alloc_request_size;
+		insert_chunk(&m->heap, chunk);
+	}
+
 	m->in_alloc = false;
 }
 
@@ -209,9 +216,12 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 		found_a_bug(ls);
 	}
 
-	chunk = remove_chunk(m, base, size);
+	chunk = remove_chunk(&m->heap, base, size);
 
-	if (chunk == NULL) {
+	if (base == 0) {
+		assert(chunk == NULL);
+		lsprintf(INFO, "Free() NULL; ok, I guess...\n");
+	} else if (chunk == NULL) {
 		lsprintf(BUG, "Attempted to free non-existent chunk [0x%x | %d]"
 			 " -- (double free?)!\n", base, size);
 		found_a_bug(ls);
@@ -228,8 +238,8 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 	}
 
 	if (chunk != NULL) {
-		MM_FREE(chunk);
 		m->heap_size -= chunk->len;
+		insert_chunk(&m->freed, chunk);
 	}
 
 	m->in_free = true;
@@ -265,7 +275,7 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		return;
 
 	if (kern_address_in_heap(addr)) {
-		struct chunk *c = find_containing_chunk(m, addr);
+		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
 			lsprintf(BUG, "USE AFTER FREE - %s 0x%.8x at eip "
 				 "0x%.8x\n", write ? "write to" : "read from",
@@ -289,8 +299,8 @@ static void print_shm_conflict(conf_object_t *cpu,
 			       struct mem_access *ma0, struct mem_access *ma1)
 {
 	char buf[BUF_SIZE];
-	struct chunk *c0 = find_containing_chunk(m0, ma0->addr);
-	struct chunk *c1 = find_containing_chunk(m1, ma1->addr);
+	struct chunk *c0 = find_containing_chunk(&m0->heap, ma0->addr);
+	struct chunk *c1 = find_containing_chunk(&m1->heap, ma1->addr);
 
 	assert(ma0->addr == ma1->addr);
 
@@ -337,6 +347,27 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid,
 	}
 }
 
+static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
+				 struct mem_state *m1, int other_tid,
+				 bool *conflict)
+{
+	struct chunk *c = find_containing_chunk(&m1->freed, ma0->addr);
+
+	if (c != NULL) {
+		char buf[BUF_SIZE];
+		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
+				  c->base, c->len);
+
+		if (*conflict)
+			printf(DEV, ", ");
+		ma0->conflict = true;
+		*conflict = true;
+
+		printf(DEV, "[%s %c%d (tid%d freed)]", buf, ma0->write ? 'w' : 'r',
+		       ma0->count, other_tid);
+	}
+}
+
 /* Compute the intersection of two transitions' shm accesses */
 bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 		       struct mem_state *m1, int depth0, int tid0,
@@ -352,10 +383,12 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 	while (ma0 != NULL && ma1 != NULL) {
 		if (ma0->addr < ma1->addr) {
 			check_stack_conflict(ma0, tid1, &conflict);
+			check_freed_conflict(cpu, ma0, m1, tid1, &conflict);
 			/* advance ma0 */
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 		} else if (ma0->addr > ma1->addr) {
 			check_stack_conflict(ma1, tid0, &conflict);
+			check_freed_conflict(cpu, ma1, m0, tid0, &conflict);
 			/* advance ma1 */
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 		} else {
@@ -378,10 +411,12 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 	 * to check the other one's remaining accesses for the one's stack. */
 	while (ma0 != NULL) {
 		check_stack_conflict(ma0, tid1, &conflict);
+		check_freed_conflict(cpu, ma0, m1, tid1, &conflict);
 		ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 	}
 	while (ma1 != NULL) {
 		check_stack_conflict(ma1, tid0, &conflict);
+		check_freed_conflict(cpu, ma1, m0, tid0, &conflict);
 		ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 	}
 

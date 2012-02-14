@@ -273,6 +273,8 @@ static void free_mem(struct mem_state *m)
 	m->heap.rb_node = NULL;
 	FREE_RBTREE(struct mem_access, nobe)(m->shm.rb_node);
 	m->shm.rb_node = NULL;
+	FREE_RBTREE(struct chunk, nobe)(m->freed.rb_node);
+	m->freed.rb_node = NULL;
 }
 
 static void free_arbiter_choices(struct arbiter_state *a)
@@ -343,6 +345,10 @@ static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 	/* store shared memory accesses from this transition; reset to empty */
 	h->oldmem->shm.rb_node = m->shm.rb_node;
 	m->shm.rb_node = NULL;
+
+	/* do the same for the list of freed chunks in this transition */
+	h->oldmem->freed.rb_node = m->freed.rb_node;
+	m->freed.rb_node = NULL;
 
 	/* compute newly-completed transition's conflicts with previous ones */
 	for (struct hax *old = h->parent; old != NULL; old = old->parent) {

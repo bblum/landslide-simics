@@ -47,6 +47,9 @@ struct mem_state {
 	/* set of all shared accesses that happened during this transition;
 	 * cleared after each save point - done in save.c */
 	struct rb_root shm;
+	/* set of all chunks that were freed during this transition; cleared
+	 * after each save point just like the shared memory one above */
+	struct rb_root freed;
 };
 
 /******************************************************************************
