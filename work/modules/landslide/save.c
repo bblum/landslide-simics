@@ -256,24 +256,35 @@ static void free_test(const struct test_state *t)
 	MM_FREE(t->current_test);
 }
 
-#define FREE_RBTREE(container, member) ({				\
-	void __free_rbtree(struct rb_node *nobe) 			\
-	{								\
-		if (nobe == NULL)					\
-			return;						\
-		__free_rbtree(nobe->rb_right);				\
-		__free_rbtree(nobe->rb_left);				\
-		MM_FREE(rb_entry(nobe, container, member));		\
-	};								\
-	&__free_rbtree; })
+static void free_heap(struct rb_node *nobe)
+{
+	if (nobe == NULL)
+		return;
+	free_heap(nobe->rb_left);
+	free_heap(nobe->rb_right);
+
+	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
+	if (c->malloc_trace != NULL) MM_FREE(c->malloc_trace);
+	if (c->free_trace   != NULL) MM_FREE(c->free_trace);
+	MM_FREE(c);
+}
+
+static void free_shm(struct rb_node *nobe)
+{
+	if (nobe == NULL)
+		return;
+	free_shm(nobe->rb_left);
+	free_shm(nobe->rb_right);
+	MM_FREE(rb_entry(nobe, struct mem_access, nobe));
+}
 
 static void free_mem(struct mem_state *m)
 {
-	FREE_RBTREE(struct chunk, nobe)(m->heap.rb_node);
+	free_heap(m->heap.rb_node);
 	m->heap.rb_node = NULL;
-	FREE_RBTREE(struct mem_access, nobe)(m->shm.rb_node);
+	free_shm(m->shm.rb_node);
 	m->shm.rb_node = NULL;
-	FREE_RBTREE(struct chunk, nobe)(m->freed.rb_node);
+	free_heap(m->freed.rb_node);
 	m->freed.rb_node = NULL;
 }
 

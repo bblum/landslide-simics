@@ -35,6 +35,9 @@ struct chunk {
 	int base;
 	int len;
 	struct rb_node nobe;
+	/* for use-after-free reporting */
+	char *malloc_trace;
+	char *free_trace;
 };
 
 struct mem_state {

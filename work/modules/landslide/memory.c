@@ -16,6 +16,7 @@
 #include "landslide.h"
 #include "memory.h"
 #include "rbtree.h"
+#include "tree.h"
 
 /******************************************************************************
  * Heap helpers
@@ -199,6 +200,9 @@ void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m, int base)
 		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
 		chunk->base = base;
 		chunk->len = m->alloc_request_size;
+		chunk->malloc_trace = stack_trace(ls->cpu0, ls->eip);
+		chunk->free_trace = NULL;
+
 		m->heap_size += m->alloc_request_size;
 		insert_chunk(&m->heap, chunk);
 	}
@@ -239,6 +243,8 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 
 	if (chunk != NULL) {
 		m->heap_size -= chunk->len;
+		assert(chunk->free_trace == NULL);
+		chunk->free_trace = stack_trace(ls->cpu0, ls->eip);
 		insert_chunk(&m->freed, chunk);
 	}
 
@@ -253,6 +259,77 @@ void mem_exit_free(struct ls_state *ls, struct mem_state *m)
 }
 
 /* shm interface */
+
+#define BUF_SIZE 256
+
+/* Attempt to find a freed chunk among all transitions */
+static struct chunk *find_freed_chunk(struct ls_state *ls, int addr,
+				      struct hax **before, struct hax **after)
+{
+	struct mem_state *m = &ls->mem;
+	*before = NULL;
+	*after = ls->save.current;
+
+	do {
+		struct chunk *c = find_containing_chunk(&m->freed, addr);
+		if (c != NULL) {
+			assert(c->malloc_trace != NULL);
+			assert(c->free_trace != NULL);
+			return c;
+		}
+
+		/* Walk up the choice tree branch */
+		*before = *after;
+		m = (*before)->oldmem;
+		if (*after != NULL) {
+			*after = (*after)->parent;
+		}
+	} while (*before != NULL);
+
+	return NULL;
+}
+
+static void use_after_free(struct ls_state *ls, struct mem_state *m, int addr,
+			   bool write)
+{
+	lsprintf(BUG, COLOUR_BOLD "USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
+		 write ? "write to" : "read from", addr, ls->eip);
+	lsprintf(BUG, "Heap contents: {");
+	print_heap(BUG, m->heap.rb_node, true);
+	printf(BUG, "}\n");
+
+	/* Find the chunk and print stack traces for it */
+	struct hax *before;
+	struct hax *after;
+	char before_buf[BUF_SIZE];
+	char after_buf[BUF_SIZE];
+	struct chunk *c = find_freed_chunk(ls, addr, &before, &after);
+
+	if (c == NULL) {
+		lsprintf(BUG, "0x%x was never allocated...\n", addr);
+		return;
+	}
+
+	if (after == NULL) {
+		snprintf(after_buf, BUF_SIZE, "<root>");
+	} else {
+		snprintf(after_buf, BUF_SIZE, "#%d/tid%d", after->depth,
+			 after->chosen_thread);
+	}
+	if (before == NULL) {
+		snprintf(before_buf, BUF_SIZE, "<current>");
+	} else {
+		snprintf(before_buf, BUF_SIZE, "#%d/tid%d", before->depth,
+			 before->chosen_thread);
+	}
+
+	lsprintf(BUG, "[0x%x | %d] was allocated by %s\n",
+		 c->base, c->len, c->malloc_trace);
+	lsprintf(BUG, "...and, between choices %s and %s, freed by %s\n",
+		 after_buf, before_buf, c->free_trace);
+
+	found_a_bug(ls);
+}
 
 void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 			     bool write)
@@ -277,13 +354,7 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 	if (kern_address_in_heap(addr)) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
-			lsprintf(BUG, "USE AFTER FREE - %s 0x%.8x at eip "
-				 "0x%.8x\n", write ? "write to" : "read from",
-				 addr, ls->eip);
-			lsprintf(BUG, "Heap contents: {");
-			print_heap(BUG, m->heap.rb_node, true);
-			printf(BUG, "}\n");
-			found_a_bug(ls);
+			use_after_free(ls, m, addr, write);
 		} else {
 			add_shm(ls, m, c, addr, write);
 		}
@@ -291,8 +362,6 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		add_shm(ls, m, NULL, addr, write);
 	}
 }
-
-#define BUF_SIZE 256
 
 static void print_shm_conflict(conf_object_t *cpu,
 			       struct mem_state *m0, struct mem_state *m1,
