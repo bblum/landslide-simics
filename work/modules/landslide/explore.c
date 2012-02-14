@@ -128,16 +128,23 @@ static bool tag_good_sibling(struct hax *h0, struct hax *h)
 static void tag_all_siblings(struct hax *h0, struct hax *h)
 {
 	struct agent *a;
+	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d: ",
+		 h0->depth, h0->chosen_thread, h->depth, h->chosen_thread);
 	Q_FOREACH(a, &h->parent->oldsched->rq, nobe) {
-		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid))
+		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
 			a->do_explore = true;
+			print_agent(DEV, a);
+			printf(DEV, " ");
+		}
 	}
 	Q_FOREACH(a, &h->parent->oldsched->sq, nobe) {
-		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid))
+		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
 			a->do_explore = true;
+			print_agent(DEV, a);
+			printf(DEV, " ");
+		}
 	}
-	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d\n",
-		 h0->depth, h0->chosen_thread, h->depth, h->chosen_thread);
+	printf(DEV, "\n");
 }
 
 static bool any_tagged_child(struct hax *h, int *new_tid)
