@@ -87,6 +87,34 @@ struct sched_state {
 	 * per-agent flag (only violated by interrupts we don't control) */
 };
 
+#define EVAPORATE_FLOW_CONTROL(code) \
+	do {								\
+	bool __nested_loop_guard = true;				\
+	do {								\
+		assert(__nested_loop_guard &&				\
+		       "Illegal 'continue' in nested loop macro");	\
+		__nested_loop_guard = false;				\
+		code;							\
+		__nested_loop_guard = true;				\
+	} while (!__nested_loop_guard);					\
+	assert(__nested_loop_guard &&					\
+	       "Illegal 'break' in nested loop macro");			\
+	} while (0)
+
+/* Can't be used with 'break' or 'continue', though 'return' is fine. */
+#define FOR_EACH_RUNNABLE_AGENT(a, s, code) do {	\
+	if ((s)->current_extra_runnable) {		\
+		a = (s)->cur_agent;			\
+		EVAPORATE_FLOW_CONTROL(code);		\
+	}						\
+	Q_FOREACH(a, &(s)->rq, nobe) {			\
+		EVAPORATE_FLOW_CONTROL(code);		\
+	}						\
+	Q_FOREACH(a, &(s)->sq, nobe) {			\
+		EVAPORATE_FLOW_CONTROL(code);		\
+	}						\
+	} while (0)
+
 struct agent *agent_by_tid_or_null(struct agent_q *, int);
 struct agent *agent_by_tid(struct agent_q *, int);
 

@@ -25,22 +25,12 @@ static bool is_child_searched(struct hax *h, int child_tid) {
 static bool find_unsearched_child(struct hax *h, int *new_tid) {
 	struct agent *a;
 
-	Q_FOREACH(a, &h->oldsched->rq, nobe) {
-		if (is_child_searched(h, a->tid)) {
-			continue;
-		} else {
+	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
+		if (!is_child_searched(h, a->tid)) {
 			*new_tid = a->tid;
 			return true;
 		}
-	}
-	Q_FOREACH(a, &h->oldsched->sq, nobe) {
-		if (is_child_searched(h, a->tid)) {
-			continue;
-		} else {
-			*new_tid = a->tid;
-			return true;
-		}
-	}
+	);
 
 	return false;
 }
@@ -111,18 +101,24 @@ static bool tag_good_sibling(struct hax *h0, struct hax *h)
 {
 	int tid = h0->chosen_thread;
 
-	struct agent *a  = agent_by_tid_or_null(&h->parent->oldsched->rq, tid);
-	if (a == NULL) a = agent_by_tid_or_null(&h->parent->oldsched->sq, tid);
+	struct agent *a;
+	FOR_EACH_RUNNABLE_AGENT(a, h->parent->oldsched,
+		if (a->tid == tid) {
+			if (!BLOCKED(a) &&
+			    !is_child_searched(h->parent, a->tid)) {
+				a->do_explore = true;
+				lsprintf(DEV, "from #%d/tid%d, tagged TID %d, "
+					 "sibling of #%d/tid%d\n", h0->depth,
+					 h0->chosen_thread, a->tid, h->depth,
+					 h->chosen_thread);
+				return true;
+			} else {
+				return false;
+			}
+		}
+	);
 
-	if (a != NULL && !BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
-		a->do_explore = true;
-		lsprintf(DEV, "from #%d/tid%d, tagged TID %d, sibling of "
-			 "#%d/tid%d\n", h0->depth, h0->chosen_thread, a->tid,
-			 h->depth, h->chosen_thread);
-		return true;
-	} else {
-		return false;
-	}
+	return false;
 }
 
 static void tag_all_siblings(struct hax *h0, struct hax *h)
@@ -130,20 +126,15 @@ static void tag_all_siblings(struct hax *h0, struct hax *h)
 	struct agent *a;
 	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d: ",
 		 h0->depth, h0->chosen_thread, h->depth, h->chosen_thread);
-	Q_FOREACH(a, &h->parent->oldsched->rq, nobe) {
+
+	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
 		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
 			a->do_explore = true;
 			print_agent(DEV, a);
 			printf(DEV, " ");
 		}
-	}
-	Q_FOREACH(a, &h->parent->oldsched->sq, nobe) {
-		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
-			a->do_explore = true;
-			print_agent(DEV, a);
-			printf(DEV, " ");
-		}
-	}
+	);
+
 	printf(DEV, "\n");
 }
 
@@ -153,20 +144,14 @@ static bool any_tagged_child(struct hax *h, int *new_tid)
 
 	/* do_explore doesn't get set on blocked threads, but might get set
 	 * on threads we've already looked at. */
-	Q_SEARCH(a, &h->oldsched->rq, nobe,
-		 a->do_explore && !is_child_searched(h, a->tid));
+	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
+		if (a->do_explore && !is_child_searched(h, a->tid)) {
+			*new_tid = a->tid;
+			return true;
+		}
+	);
 
-	if (a == NULL) {
-		Q_SEARCH(a, &h->oldsched->sq, nobe,
-			 a->do_explore && !is_child_searched(h, a->tid));
-	}
-
-	if (a != NULL) {
-		*new_tid = a->tid;
-		return true;
-	} else {
-		return false;
-	}
+	return false;
 }
 
 static void print_pruned_children(struct hax *h)
@@ -174,7 +159,7 @@ static void print_pruned_children(struct hax *h)
 	bool any_pruned = false;
 	struct agent *a;
 
-	Q_FOREACH(a, &h->oldsched->rq, nobe) {
+	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
 		if (!is_child_searched(h, a->tid)) {
 			if (!any_pruned) {
 				lsprintf(DEV, "at #%d/tid%d pruned tids ",
@@ -183,17 +168,7 @@ static void print_pruned_children(struct hax *h)
 			printf(DEV, "%d ", a->tid);
 			any_pruned = true;
 		}
-	}
-	Q_FOREACH(a, &h->oldsched->sq, nobe) {
-		if (!is_child_searched(h, a->tid)) {
-			if (!any_pruned) {
-				lsprintf(DEV, "at #%d/tid%d pruned tids ",
-					 h->depth, h->chosen_thread);
-			}
-			printf(DEV, "%d ", a->tid);
-			any_pruned = true;
-		}
-	}
+	);
 	if (any_pruned)
 		printf(DEV, "\n");
 }

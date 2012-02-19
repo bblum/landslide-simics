@@ -101,26 +101,25 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	assert(Q_GET_SIZE(&ls->arbiter.choices) == 0);
 
 	/* Count the number of available threads. */
-	Q_FOREACH(a, &ls->sched.rq, nobe) {
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a))
 			count++;
-	}
-	Q_FOREACH(a, &ls->sched.sq, nobe) {
-		if (!BLOCKED(a))
-			count++;
-	}
+	);
 
-	count = 1; // Comment this out to enable "hard mode"
+	//count = 1; // Comment this out to enable "hard mode"
+
+	/* Find the count-th thread. */
 	int i = 0;
-	Q_SEARCH(a, &ls->sched.rq, nobe, !BLOCKED(a) && ++i == count);
-	if (a == NULL)
-		Q_SEARCH(a, &ls->sched.sq, nobe, !BLOCKED(a) && ++i == count);
-	if (a != NULL) {
-		lsprintf(CHOICE, "Figured I'd look at TID %d next.\n", a->tid);
-		*target = a;
-		*our_choice = true;
-		return true;
-	} else {
-		return false;
-	}
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
+		if (!BLOCKED(a) && ++i == count) {
+			lsprintf(CHOICE, "Figured I'd look at TID %d next.\n",
+				 a->tid);
+			*target = a;
+			*our_choice = true;
+			return true;
+		}
+	);
+
+	lsprintf(CHOICE, "Nobody runnable?!\n");
+	return false;
 }
