@@ -225,6 +225,18 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 
 	dest->base = src->base;
 	dest->len = src->len;
+
+	if (src->malloc_trace == NULL) {
+		dest->malloc_trace = NULL;
+	} else {
+		dest->malloc_trace = MM_XSTRDUP(src->malloc_trace);
+	}
+	if (src->free_trace == NULL) {
+		dest->free_trace = NULL;
+	} else {
+		dest->free_trace = MM_XSTRDUP(src->free_trace);
+	}
+
 	return &dest->nobe;
 }
 static void copy_mem(struct mem_state *dest, const struct mem_state *src)
