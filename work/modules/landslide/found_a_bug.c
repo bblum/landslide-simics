@@ -33,7 +33,8 @@ static int print_tree_from(struct hax *h, int choose_thread)
 	if (h->chosen_thread != choose_thread || VERBOSE_TRACE) {
 		lsprintf(BUG, "%d:\ttrigger_count %d, old %d new %d, ", num,
 			 h->trigger_count, h->chosen_thread, choose_thread);
-		print_q(BUG, "RQ [", &h->oldsched->rq, "]\n");
+		print_qs(BUG, h->oldsched);
+		printf(BUG, "\n");
 		lsprintf(BUG, "\t%s\n", h->stack_trace);
 	}
 
