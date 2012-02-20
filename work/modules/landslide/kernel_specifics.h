@@ -77,9 +77,11 @@ int kern_get_init_tid(void);
 int kern_get_idle_tid(void);
 int kern_get_shell_tid(void);
 int kern_get_first_tid(void);
+bool kern_has_idle(void);
 void kern_init_runqueue(struct sched_state *,
 			void (*)(struct sched_state *, int, bool));
 bool kern_fork_returns_to_cs(void);
 bool kern_fork_return_spot(int eip);
+bool kern_current_extra_runnable(conf_object_t *cpu);
 
 #endif

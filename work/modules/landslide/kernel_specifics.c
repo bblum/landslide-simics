@@ -374,6 +374,12 @@ int kern_get_first_tid()
 	return 1;
 }
 
+/* Does an idle thread live on the runqueue? */
+bool kern_has_idle()
+{
+	return false;
+}
+
 void kern_init_runqueue(struct sched_state *s,
 			void (*add_thread)(struct sched_state *, int, bool))
 {
@@ -393,4 +399,12 @@ bool kern_fork_return_spot(int eip)
 {
 	// If kern_fork_returns_to_cs, this function should always return false.
 	return eip == GUEST_FORK_RETURN_SPOT;
+}
+
+/* Is the currently-running thread not on the runqueue, and is runnable
+ * anyway? For kernels that keep the current thread on the runqueue, this
+ * function should return false always. */
+bool kern_current_extra_runnable(conf_object_t *cpu)
+{
+	return false;
 }

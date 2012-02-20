@@ -309,6 +309,8 @@ void sched_update(struct ls_state *ls)
 		}
 	}
 
+	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
+
 	int target_tid;
 	int mutex_addr;
 

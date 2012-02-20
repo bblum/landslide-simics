@@ -55,9 +55,13 @@ static bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 	if ((shell = agent_by_tid_or_null(&s->rq, kern_get_shell_tid())) ||
 	    (shell = agent_by_tid_or_null(&s->dq, kern_get_shell_tid()))) {
 		if (shell->action.readlining) {
-			// FIXME: some kernels might have an idle thread
-			return (Q_GET_SIZE(&s->rq) != 0 ||
-				Q_GET_SIZE(&s->sq) != 0);
+			if (kern_has_idle()) {
+				return kern_get_current_tid(cpu) !=
+					kern_get_idle_tid();
+			} else {
+				return (Q_GET_SIZE(&s->rq) != 0 ||
+					Q_GET_SIZE(&s->sq) != 0);
+			}
 		} else {
 			return true;
 		}

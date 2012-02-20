@@ -69,6 +69,9 @@ struct sched_state {
 	/* Currently active thread */
 	struct agent *cur_agent;
 	struct agent *last_agent;
+	/* Denotes whether the current thread is not on the runqueue and yet is
+	 * runnable anyway. (True only in some kernels.) */
+	bool current_extra_runnable;
 	/* Counters - useful for telling when tests begin and end */
 	int num_agents;
 	int most_agents_ever;
