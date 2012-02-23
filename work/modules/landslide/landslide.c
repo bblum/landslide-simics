@@ -396,6 +396,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	}
 
 	sched_update(ls);
+	mem_update(ls);
 
 	/* When a test case finishes, break the simulation so the wrapper can
 	 * decide what to do. */

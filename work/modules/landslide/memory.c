@@ -175,7 +175,8 @@ void mem_init(struct mem_state *m)
 /* heap interface */
 
 /* bad place == mal loc */
-void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m, int size)
+static void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m,
+				int size)
 {
 	if (m->in_alloc || m->in_free) {
 		lsprintf(BUG, "Malloc reentered %s!\n",
@@ -187,7 +188,8 @@ void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m, int size)
 	m->alloc_request_size = size;
 }
 
-void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m, int base)
+static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
+			       int base)
 {
 	assert(m->in_alloc && "attempt to exit malloc without being in!");
 	assert(!m->in_free && "attempt to exit malloc while in free!");
@@ -210,7 +212,8 @@ void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m, int base)
 	m->in_alloc = false;
 }
 
-void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size)
+static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
+			   int size)
 {
 	struct chunk *chunk;
 
@@ -251,11 +254,28 @@ void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base, int size
 	m->in_free = true;
 }
 
-void mem_exit_free(struct ls_state *ls, struct mem_state *m)
+static void mem_exit_free(struct ls_state *ls, struct mem_state *m)
 {
 	assert(m->in_free && "attempt to exit free without being in!");
 	assert(!m->in_alloc && "attempt to exit free while in malloc!");
 	m->in_free = false;
+}
+
+void mem_update(struct ls_state *ls)
+{
+	/* Dynamic memory allocation tracking */
+	int size;
+	int base;
+
+	if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
+		mem_enter_bad_place(ls, &ls->mem, size);
+	} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
+		mem_exit_bad_place(ls, &ls->mem, base);
+	} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
+		mem_enter_free(ls, &ls->mem, base, size);
+	} else if (kern_lmm_free_exiting(ls->eip)) {
+		mem_exit_free(ls, &ls->mem);
+	}
 }
 
 /* shm interface */
@@ -280,9 +300,9 @@ static struct chunk *find_freed_chunk(struct ls_state *ls, int addr,
 
 		/* Walk up the choice tree branch */
 		*before = *after;
-		m = (*before)->oldmem;
 		if (*after != NULL) {
 			*after = (*after)->parent;
+			m = (*before)->oldmem;
 		}
 	} while (*before != NULL);
 
@@ -293,7 +313,8 @@ static void use_after_free(struct ls_state *ls, struct mem_state *m, int addr,
 			   bool write)
 {
 	lsprintf(BUG, COLOUR_BOLD "USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
-		 write ? "write to" : "read from", addr, ls->eip);
+		 write ? "write to" : "read from", addr,
+		 (int)GET_CPU_ATTR(ls->cpu0, eip));
 	lsprintf(BUG, "Heap contents: {");
 	print_heap(BUG, m->heap.rb_node, true);
 	printf(BUG, "}\n");
@@ -307,6 +328,7 @@ static void use_after_free(struct ls_state *ls, struct mem_state *m, int addr,
 
 	if (c == NULL) {
 		lsprintf(BUG, "0x%x was never allocated...\n", addr);
+		found_a_bug(ls);
 		return;
 	}
 

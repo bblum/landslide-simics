@@ -455,20 +455,6 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = false;
-	/* Dynamic memory allocation tracking */
-	} else {
-		int size;
-		int base;
-
-		if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
-			mem_enter_bad_place(ls, &ls->mem, size);
-		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
-			mem_exit_bad_place(ls, &ls->mem, base);
-		} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
-			mem_enter_free(ls, &ls->mem, base, size);
-		} else if (kern_lmm_free_exiting(ls->eip)) {
-			mem_exit_free(ls, &ls->mem);
-		}
 	}
 
 	/**********************************************************************
