@@ -183,11 +183,12 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 #define OPCODE_RET  0xc3
 #define OPCODE_IRET 0xcf
 #define IRET_BLOCK_WORDS 3
+#define ENTRY_POINT "_start "
 /* Caller has to free the return value. */
 char *stack_trace(conf_object_t *cpu, int eip)
 {
 	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
-	int pos = 0;
+	int pos = 0, old_pos;
 	int stack_offset = 0; /* Counts by 1 - READ_STACK already multiplies */
 
 	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ",
@@ -241,7 +242,14 @@ char *stack_trace(conf_object_t *cpu, int eip)
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
 		stack_offset = ebp + 2;
 		ADD_STR(buf, pos, MAX_TRACE_LEN, ", 0x%.8x in ", eip);
+		old_pos = pos;
 		ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+		/* special-case termination condition */
+		if (pos - old_pos >= strlen(ENTRY_POINT) &&
+		    strncmp(buf + old_pos, ENTRY_POINT,
+		            strlen(ENTRY_POINT)) == 0) {
+			break;
+		}
 	}
 
 	char *buf2 = MM_XSTRDUP(buf); /* truncate to save space */
