@@ -68,6 +68,27 @@ void cause_timer_interrupt(conf_object_t *cpu)
 	SIM_run_unrestricted(cpu, cause_timer_interrupt_soviet_style, NULL);
 }
 
+#define INT_CTL_PORT 0x20 /* MASTER_ICW == ADDR_PIC_BASE + OFF_ICW */
+#define INT_ACK_CURRENT 0x20 /* NON_SPEC_EOI */
+#define CUSTOM_ASSEMBLY_CODES 0xcf0cc483 /* add $12,%esp; iret */
+int avoid_timer_interrupt_immediately(conf_object_t *cpu)
+{
+	int esp = GET_CPU_ATTR(cpu, esp);
+	int outb = kern_get_outb();
+
+	lsprintf(DEV, "Cuckoo!\n");
+
+	SET_CPU_ATTR(cpu, esp, esp - 16);
+	esp = esp - 16;
+	SIM_write_phys_memory(cpu, esp + 12, CUSTOM_ASSEMBLY_CODES, 4);
+	SIM_write_phys_memory(cpu, esp + 8, INT_ACK_CURRENT, 4);
+	SIM_write_phys_memory(cpu, esp + 4, INT_CTL_PORT, 4);
+	SIM_write_phys_memory(cpu, esp + 0, esp + 12, 4);
+	SET_CPU_ATTR(cpu, eip, outb);
+
+	return outb;
+}
+
 /* keycodes for the keyboard buffer */
 static int i8042_key(char c)
 {

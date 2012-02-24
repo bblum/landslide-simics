@@ -18,6 +18,8 @@
 	} while (0)
 
 #define WORD_SIZE 4
+#define PAGE_SIZE 4096
+#define PAGE_ALIGN(x) ((x) & ~(PAGE_SIZE-1))
 
 #define USER_MEM_START 0x01000000
 
@@ -32,6 +34,7 @@
 
 void cause_timer_interrupt(conf_object_t *cpu);
 int cause_timer_interrupt_immediately(conf_object_t *cpu);
+int avoid_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
