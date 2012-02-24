@@ -44,6 +44,7 @@ struct mem_state {
 	struct rb_root heap;
 	int heap_size;
 	/* dynamic allocation request state */
+	bool guest_init_done;
 	bool in_alloc;
 	bool in_free;
 	int alloc_request_size; /* valid iff in_alloc */

@@ -166,6 +166,7 @@ void mem_init(struct mem_state *m)
 {
 	m->heap.rb_node = NULL;
 	m->heap_size = 0;
+	m->guest_init_done = false;
 	m->in_alloc = false;
 	m->in_free = false;
 	m->shm.rb_node = NULL;
@@ -266,6 +267,16 @@ void mem_update(struct ls_state *ls)
 	/* Dynamic memory allocation tracking */
 	int size;
 	int base;
+
+	/* Only start tracking allocations after kernel_main is entered - the
+	 * multiboot code that runs before kernel_main may confuse us. */
+	if (!ls->mem.guest_init_done) {
+		if (kern_kernel_main(ls->eip)) {
+			ls->mem.guest_init_done = true;
+		} else {
+			return;
+		}
+	}
 
 	if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
 		mem_enter_bad_place(ls, &ls->mem, size);
