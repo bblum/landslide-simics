@@ -29,7 +29,6 @@ static struct rb_node **find_insert_location(struct rb_root *root, int addr,
 					     struct chunk **chunk)
 {
 	struct rb_node **p = &root->rb_node;
-	// struct chunk *c;
 
 	while (*p) {
 		*chunk = rb_entry(*p, struct chunk, nobe);
@@ -63,11 +62,20 @@ static struct chunk *find_containing_chunk(struct rb_root *root, int addr)
 	}
 }
 
-// FIXME - separate this out into a "insert chunk" and separate alloc code
-static void insert_chunk(struct rb_root *root, struct chunk *c)
+static void insert_chunk(struct rb_root *root, struct chunk *c, bool coalesce)
 {
 	struct chunk *parent = NULL;
 	struct rb_node **p = find_insert_location(root, c->base, &parent);
+
+	// XXX: If inserting [x|y] into a heap that has [z|w] with x<z<x+y,
+	// find_insert_location will have no clue. I can't imagine that this
+	// would cause any sort of bug, though...
+	if (coalesce && p == NULL) {
+		assert(parent != NULL);
+		parent->len = MAX(parent->len, c->len + c->base - parent->base);
+		MM_FREE(c);
+		return;
+	}
 
 	assert(p != NULL && "allocated a block already contained in the heap?");
 
@@ -207,7 +215,7 @@ static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
 		chunk->free_trace = NULL;
 
 		m->heap_size += m->alloc_request_size;
-		insert_chunk(&m->heap, chunk);
+		insert_chunk(&m->heap, chunk, false);
 	}
 
 	m->in_alloc = false;
@@ -249,7 +257,7 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
 		m->heap_size -= chunk->len;
 		assert(chunk->free_trace == NULL);
 		chunk->free_trace = stack_trace(ls->cpu0, ls->eip);
-		insert_chunk(&m->freed, chunk);
+		insert_chunk(&m->freed, chunk, true);
 	}
 
 	m->in_free = true;
