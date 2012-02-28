@@ -36,6 +36,8 @@ struct agent {
 		bool vanishing;
 		/* are they reading lines */
 		bool readlining;
+		/* have they not even had a chance to run yet? */
+		bool just_forked;
 		/* are they taking or releasing a mutex? */
 		bool mutex_locking;
 		bool mutex_unlocking;

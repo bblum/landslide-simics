@@ -53,6 +53,7 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch,
 	a->action.sleeping = false;
 	a->action.vanishing = false;
 	a->action.readlining = false;
+	a->action.just_forked = true;
 	a->action.mutex_locking = false;
 	a->action.mutex_unlocking = false;
 	a->action.schedule_target = false;
@@ -356,7 +357,6 @@ void sched_update(struct ls_state *ls)
 				s->schedule_in_flight = NULL;
 			}
 		} else {
-			// FIXME: replace this with a kernel_specifics hook
 			lsprintf(INFO, "WARNING: exiting a non-timer interrupt "
 				 "through a path shared with the timer..?\n");
 		}
@@ -496,9 +496,22 @@ void sched_update(struct ls_state *ls)
 			assert(ACTION(s, schedule_target));
 			/* this condition should trigger in the middle of the
 			 * switch, rather than after it finishes. (which is also
-			 * why we leave the schedule_target flag turned on. */
-			assert(ACTION(s, context_switch) ||
-			       HANDLING_INTERRUPT(s));
+			 * why we leave the schedule_target flag turned on).
+			 * the special case is for newly forked agents that are
+			 * schedule targets - they won't exit timer or c-s above
+			 * so here is where we have to clear it for them. */
+			if (!kern_fork_returns_to_cs() &&
+			    ACTION(s, just_forked)) {
+				/* Setting just_finished_reschedule isn't useful
+				 * here - interrupts are "probably" off, and
+				 * also arbiter knows to also look for
+				 * kern_fork_return_spot. */
+				ACTION(s, schedule_target) = false;
+				s->schedule_in_flight = NULL;
+			} else {
+				assert(ACTION(s, context_switch) ||
+				       HANDLING_INTERRUPT(s));
+			}
 			/* The schedule_in_flight flag itself is cleared above,
 			 * along with schedule_target. Sometimes sched_recover
 			 * sets in_flight and needs it not cleared here. */
@@ -530,6 +543,8 @@ void sched_update(struct ls_state *ls)
 		}
 		/* in any case we have no more decisions to make here */
 		return;
+	} else if (ACTION(s, just_forked)) {
+		ACTION(s, just_forked) = false;
 	}
 	assert(!s->schedule_in_flight);
 
