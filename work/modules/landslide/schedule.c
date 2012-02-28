@@ -40,10 +40,11 @@ struct agent *agent_by_tid(struct agent_q *q, int tid)
 
 /* Call with whether or not the thread is created with a context-switch frame
  * crafted on its stack. Most threads would be; "init" may not be. */
-static void agent_fork(struct sched_state *s, int tid, bool context_switch)
+static void agent_fork(struct sched_state *s, int tid, bool context_switch,
+		       bool on_runqueue)
 {
 	struct agent *a = MM_XMALLOC(1, struct agent);
-	
+
 	a->tid = tid;
 	a->action.handling_timer = false;
 	/* XXX: may not be true in some kernels; also a huge hack */
@@ -58,7 +59,12 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch)
 	a->blocked_on = NULL;
 	a->blocked_on_tid = -1;
 	a->blocked_on_addr = -1;
-	Q_INSERT_FRONT(&s->rq, a, nobe);
+
+	if (on_runqueue) {
+		Q_INSERT_FRONT(&s->rq, a, nobe);
+	} else {
+		Q_INSERT_FRONT(&s->dq, a, nobe);
+	}
 
 	s->num_agents++;
 	if (s->num_agents > s->most_agents_ever) {
@@ -193,8 +199,10 @@ void sched_init(struct sched_state *s)
 	Q_INIT_HEAD(&s->dq);
 	s->num_agents = 0;
 	s->most_agents_ever = 0;
-	kern_init_runqueue(s, agent_fork);
-	s->cur_agent = agent_by_tid(&s->rq, kern_get_first_tid());
+	kern_init_threads(s, agent_fork);
+	s->cur_agent = agent_by_tid_or_null(&s->rq, kern_get_first_tid());
+	if (s->cur_agent == NULL)
+		s->cur_agent = agent_by_tid(&s->dq, kern_get_first_tid());
 	s->last_agent = NULL;
 	s->context_switch_pending = false;
 	s->context_switch_target = 0xdeadd00d; /* poison value */
@@ -292,7 +300,10 @@ void sched_update(struct ls_state *ls)
 		 * so agent_by_tid would fail. Instead, we have an option to
 		 * find it later. (see the kern_thread_runnable case below.) */
 		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
-		if (next) {
+		if (next == NULL) {
+			next = agent_by_tid_or_null(&s->dq, new_tid);
+		}
+		if (next != NULL) {
 			lsprintf(DEV, "switched threads %d -> %d\n", old_tid,
 				 new_tid);
 			s->last_agent = s->cur_agent;
@@ -332,6 +343,7 @@ void sched_update(struct ls_state *ls)
 		// caused timer interrupt immediately, even before the iret.
 		if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
 			ACTION(s, handling_timer) = false;
+			just_finished_reschedule = true;
 		}
 		/* If the schedule target was in a timer interrupt when we
 		 * decided to schedule him, then now is when the operation
@@ -377,7 +389,8 @@ void sched_update(struct ls_state *ls)
 			lsprintf(DEV, "agent %d forked -- ", target_tid);
 			print_qs(DEV, s);
 			printf(DEV, "\n");
-			agent_fork(s, target_tid, kern_fork_returns_to_cs());
+			agent_fork(s, target_tid, kern_fork_returns_to_cs(),
+				   true);
 			/* don't need this flag anymore; fork only forks once */
 			ACTION(s, forking) = false;
 		} else {
@@ -524,7 +537,7 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* If a schedule operation is just finishing, we should allow the thread
-	 * to get back to its own execution before making another choice. Note 
+	 * to get back to its own execution before making another choice. Note
 	 * that when we previously decided to interrupt the thread, it will have
 	 * executed the single instruction we made the choice at then taken the
 	 * interrupt, so we return to the next instruction, not the same one. */
