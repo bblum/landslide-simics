@@ -1,0 +1,101 @@
+/**
+ * @file kernel_specifics_ludicros.h
+ * @brief #defines for the ludicros guest kernel (automatically generated)
+ * @author Ben Blum <bblum@andrew.cmu.edu>
+ */
+
+#ifndef __LS_KERNEL_SPECIFICS_LUDICROS_H
+#define __LS_KERNEL_SPECIFICS_LUDICROS_H
+
+#include "x86.h"
+
+#define GUEST_ESP0_ADDR (0x00100930 + 4)
+#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)
+#define GUEST_TCB_TID_OFFSET 8
+#define TID_FROM_TCB(cpu, tcb) READ_MEMORY(cpu, tcb + GUEST_TCB_TID_OFFSET)
+#define STACK_FROM_TCB(tcb) PAGE_ALIGN(tcb)
+#define GUEST_STACK_SIZE (PAGE_SIZE-GUEST_TCB_T_SIZE)
+
+#define GUEST_TCB_STATE_FLAG_OFFSET 20
+
+#define GUEST_PCB_PID_OFFSET 24
+#define PID_FROM_PCB(cpu, pcb) READ_MEMORY(cpu, pcb + GUEST_PCB_PID_OFFSET)
+#define GUEST_Q_ADD_HEAD           0x00104289
+#define GUEST_Q_ADD_TAIL           0x001042b9
+#define GUEST_Q_ADD_TCB_ARGNUM     1
+#define GUEST_Q_REMOVE             0x00104260
+#define GUEST_Q_REMOVE_TCB_ARGNUM  1
+
+#define GUEST_TIMER_WRAP_ENTER     0x00101298
+#define GUEST_TIMER_WRAP_EXIT      0x101c21
+#define GUEST_CONTEXT_SWITCH_ENTER 0x001048dc
+#define GUEST_CONTEXT_SWITCH_EXIT  0x104969
+#define GUEST_SCHED_INIT_EXIT      0x108661
+
+#define GUEST_FORK_WINDOW_ENTER    0x104c51
+#define GUEST_THRFORK_WINDOW_ENTER 0x10540d
+#define GUEST_SLEEP_WINDOW_ENTER   0x1051aa
+#define GUEST_VANISH_WINDOW_ENTER  0x10543a
+#define GUEST_FORK_RETURN_SPOT     0x001025f8
+#define GUEST_READLINE_WINDOW_ENTER 0x00104fe0
+#define GUEST_READLINE_WINDOW_EXIT 0x10508b
+
+#define GUEST_MUTEX_LOCK_MUTEX_ARGNUM 1
+
+#define GUEST_LMM_ALLOC_ENTER      0x0010a004
+#define GUEST_LMM_ALLOC_EXIT       0x10a233
+#define GUEST_LMM_ALLOC_SIZE_ARGNUM 2
+#define GUEST_LMM_ALLOC_GEN_ENTER  0x00106934
+#define GUEST_LMM_ALLOC_GEN_EXIT   0x106c80
+#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM 2
+#define GUEST_LMM_FREE_ENTER       0x001065d0
+#define GUEST_LMM_FREE_EXIT        0x10680e
+#define GUEST_LMM_FREE_BASE_ARGNUM 2
+#define GUEST_LMM_FREE_SIZE_ARGNUM 3
+
+#define GUEST_IMG_END 0x00256a8c
+#define GUEST_DATA_START 0x0024e000
+#define GUEST_DATA_END 0x00256014
+#define GUEST_BSS_START 0x00256014
+#define GUEST_BSS_END GUEST_IMG_END
+#define GUEST_PANIC 0x00108338
+#define GUEST_KERNEL_MAIN 0x001055b0
+#define GUEST_OUTB 0x001085ea
+
+
+#define GUEST_SCHEDULER_FUNCTIONS { \
+	{ 0x00104422, 0x10447f }, \
+	{ 0x001043ae, 0x104421 }, \
+	{ 0x0010435f, 0x1043ad }, \
+	{ 0x00104316, 0x10435e }, \
+	{ 0x001045fa, 0x104675 }, \
+	{ 0x001048dc, 0x104969 }, \
+	{ 0x001045af, 0x1045f9 }, \
+	{ 0x00104a18, 0x104a30 }, \
+	{ 0x00104a31, 0x104a34 }, \
+	{ 0x00104480, 0x1045ae }, \
+	{ 0x0010496a, 0x1049cb }, \
+	}
+#define GUEST_SCHEDULER_GLOBALS { \
+	{ 0x0025604c, 4 }, \
+	{ 0x00256948, 4 }, \
+	{ 0x0025694c, 4 }, \
+	{ 0x00256a74, 8 }, \
+	{ 0x00256a84, 8 }, \
+	{ 0x00256a6c, 8 }, \
+	{ 0x00256a64, 8 }, \
+	{ 0x00256a7c, 8 }, \
+	{ 0x00256a5c, 8 }, \
+	}
+
+#define GUEST_MUTEX_LOCK 0x00102bbb
+#define GUEST_VANISH 0x0010260c
+#define GUEST_VANISH_END 0x1028ac
+#define GUEST_MUTEX_IGNORES { \
+	{ 0x00256960, 8 }, \
+	{ 0x002569d4, 8 }, \
+	{ 0x002569dc, 8 }, \
+	{ 0x00256920, 40 }, \
+	}
+
+#endif
