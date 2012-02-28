@@ -20,7 +20,6 @@
  * an iret stack frame by hand and changes the cpu's registers manually; the
  * other way just manipulates the cpu's interrupt pending flags to make it do
  * the interrupt itself. */
-#define KERNEL_SEGSEL_CS 0x10
 int cause_timer_interrupt_immediately(conf_object_t *cpu)
 {
 	int esp = GET_CPU_ATTR(cpu, esp);
@@ -47,7 +46,6 @@ static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
 	SIM_stall_cycle(cpu, 0);
 }
 
-#define TIMER_INTERRUPT_NUMBER 0x20
 void cause_timer_interrupt(conf_object_t *cpu)
 {
 	lsprintf(DEV, "tick! (0x%x)\n", (int)GET_CPU_ATTR(cpu, eip));
@@ -68,8 +66,6 @@ void cause_timer_interrupt(conf_object_t *cpu)
 	SIM_run_unrestricted(cpu, cause_timer_interrupt_soviet_style, NULL);
 }
 
-#define INT_CTL_PORT 0x20 /* MASTER_ICW == ADDR_PIC_BASE + OFF_ICW */
-#define INT_ACK_CURRENT 0x20 /* NON_SPEC_EOI */
 #define CUSTOM_ASSEMBLY_CODES 0xcf0cc483 /* add $12,%esp; iret */
 int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 {
@@ -163,8 +159,6 @@ void cause_keypress(conf_object_t *kbd, char key)
 	}
 }
 
-#define EFL_IF          0x00000200 /* from 410kern/inc/x86/eflags.h */
-
 bool interrupts_enabled(conf_object_t *cpu)
 {
 	int eflags = GET_CPU_ATTR(cpu, eflags);
@@ -200,10 +194,6 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	do { pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
 #define ADD_FRAME(buf, pos, maxlen, eip) \
 	do { pos += symtable_lookup(buf + pos, maxlen - pos, eip); } while (0)
-#define OPCODE_PUSH_EBP 0x55
-#define OPCODE_RET  0xc3
-#define OPCODE_IRET 0xcf
-#define IRET_BLOCK_WORDS 3
 #define ENTRY_POINT "_start "
 /* Caller has to free the return value. */
 char *stack_trace(conf_object_t *cpu, int eip)

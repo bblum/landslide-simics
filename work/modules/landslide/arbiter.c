@@ -43,7 +43,7 @@ bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 	}
 }
 
-bool arbiter_interested(struct ls_state *ls)
+bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule)
 {
 	// TODO: more interesting choice points
 
@@ -53,12 +53,7 @@ bool arbiter_interested(struct ls_state *ls)
 	    !ls->sched.last_agent->action.handling_timer) {
 		/* And the current thread is just resuming execution? Either
 		 * exiting the timer handler, */
-		if ((kern_timer_exiting(ls->eip) &&
-		     // XXX: see kern_timer_exiting case in schedule.c for why.
-		     !kern_timer_exiting(READ_STACK(ls->cpu0, 0))) ||
-		    /* ...or never was in timer and exiting context switch. */
-		    (!ls->sched.cur_agent->action.handling_timer &&
-		     kern_context_switch_exiting(ls->eip)) ||
+		if (just_finished_reschedule ||
 		    /* ...or this. */
 		    kern_fork_return_spot(ls->eip)) {
 			lsprintf(DEV, "a voluntary reschedule: ");
@@ -72,6 +67,11 @@ bool arbiter_interested(struct ls_state *ls)
 			       && "Two threads in one transition?");
 			return true;
 		}
+	}
+
+	if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_HLT) {
+		lsprintf(INFO, "What are you waiting for?\n");
+		return true;
 	}
 
 	if (ls->eip == GUEST_MUTEX_LOCK &&

@@ -23,6 +23,17 @@
 
 #define USER_MEM_START 0x01000000
 
+#define KERNEL_SEGSEL_CS 0x10
+#define TIMER_INTERRUPT_NUMBER 0x20
+#define INT_CTL_PORT 0x20 /* MASTER_ICW == ADDR_PIC_BASE + OFF_ICW */
+#define INT_ACK_CURRENT 0x20 /* NON_SPEC_EOI */
+#define EFL_IF          0x00000200 /* from 410kern/inc/x86/eflags.h */
+#define OPCODE_PUSH_EBP 0x55
+#define OPCODE_RET  0xc3
+#define OPCODE_IRET 0xcf
+#define IRET_BLOCK_WORDS 3
+#define OPCODE_HLT 0xf4
+
 #define READ_BYTE(cpu, addr) SIM_read_phys_memory(cpu, addr, 1)
 #define READ_MEMORY(cpu, addr) SIM_read_phys_memory(cpu, addr, WORD_SIZE)
 
