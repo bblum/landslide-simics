@@ -323,6 +323,7 @@ void sched_update(struct ls_state *ls)
 
 	int target_tid;
 	int mutex_addr;
+	bool just_finished_reschedule = false;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -337,20 +338,27 @@ void sched_update(struct ls_state *ls)
 		lsprintf(INFO, "%d timer enter from 0x%x\n", s->cur_agent->tid,
 		         (unsigned int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls->eip)) {
-		// assert(ACTION(s, handling_timer)); // fails in ludicros
-		// XXX: This condition is a hack to compensate for when simics
-		// "sometimes", when keeping a schedule-in-flight, takes the
-		// caused timer interrupt immediately, even before the iret.
-		if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
-			ACTION(s, handling_timer) = false;
-			just_finished_reschedule = true;
-		}
-		/* If the schedule target was in a timer interrupt when we
-		 * decided to schedule him, then now is when the operation
-		 * finishes landing. (otherwise, see below) */
-		if (ACTION(s, schedule_target)) {
-			ACTION(s, schedule_target) = false;
-			s->schedule_in_flight = NULL;
+		if (ACTION(s, handling_timer)) {
+			// XXX: This condition is a hack to compensate for when
+			// simics "sometimes", when keeping a schedule-in-
+			// flight, takes the caused timer interrupt immediately,
+			// even before the iret.
+			if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
+				ACTION(s, handling_timer) = false;
+				just_finished_reschedule = true;
+			}
+			/* If the schedule target was in a timer interrupt when we
+			 * decided to schedule him, then now is when the operation
+			 * finishes landing. (otherwise, see below)
+			 * FIXME: should this be inside the above if statement? */
+			if (ACTION(s, schedule_target)) {
+				ACTION(s, schedule_target) = false;
+				s->schedule_in_flight = NULL;
+			}
+		} else {
+			// FIXME: replace this with a kernel_specifics hook
+			lsprintf(INFO, "WARNING: exiting a non-timer interrupt "
+				 "through a path shared with the timer..?\n");
 		}
 	/* Context switching. */
 	} else if (kern_context_switch_entering(ls->eip)) {
@@ -362,9 +370,12 @@ void sched_update(struct ls_state *ls)
 		assert(ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
 		/* For threads that context switched of their own accord. */
-		if (ACTION(s, schedule_target) && !HANDLING_INTERRUPT(s)) {
-			ACTION(s, schedule_target) = false;
-			s->schedule_in_flight = NULL;
+		if (!HANDLING_INTERRUPT(s)) {
+			just_finished_reschedule = true;
+			if (ACTION(s, schedule_target)) {
+				ACTION(s, schedule_target) = false;
+				s->schedule_in_flight = NULL;
+			}
 		}
 	/* Lifecycle. */
 	} else if (kern_forking(ls->eip)) {
@@ -558,7 +569,7 @@ void sched_update(struct ls_state *ls)
 
 	/* Okay, are we at a choice point? */
 	/* TODO: arbiter may also want to see the trace_entry_t */
-	if (arbiter_interested(ls)) {
+	if (arbiter_interested(ls, just_finished_reschedule)) {
 		struct agent *a;
 		bool our_choice;
 		/* TODO: as an optimisation (in serialisation state / etc), the
