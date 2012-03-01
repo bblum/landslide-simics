@@ -87,23 +87,35 @@ static void agent_wake(struct sched_state *s, int tid)
 
 static void agent_deschedule(struct sched_state *s, int tid)
 {
-	struct agent *a = agent_by_tid(&s->rq, tid);
-	Q_REMOVE(&s->rq, a, nobe);
-	Q_INSERT_FRONT(&s->dq, a, nobe);
+	struct agent *a = agent_by_tid_or_null(&s->rq, tid);
+	if (a != NULL) {
+		Q_REMOVE(&s->rq, a, nobe);
+		Q_INSERT_FRONT(&s->dq, a, nobe);
+	/* If it's not on the runqueue, we must have already special-case moved
+	 * it off in the thread-change event. */
+	} else if (agent_by_tid_or_null(&s->sq, tid) == NULL) {
+		/* Either it's on the sleep queue, or it vanished. */
+		assert(agent_by_tid_or_null(&s->dq, tid) == NULL &&
+		       "thread oughta've vanished or slept but is still on DQ");
+	}
 }
 
-static void agent_sleep(struct sched_state *s, int tid)
+static void current_dequeue(struct sched_state *s)
 {
-	struct agent *a = agent_by_tid(&s->rq, tid);
-	Q_REMOVE(&s->rq, a, nobe);
-	Q_INSERT_FRONT(&s->sq, a, nobe);
+	struct agent_q *q = s->current_extra_runnable ? &s->dq : &s->rq;
+	assert(agent_by_tid(q, s->cur_agent->tid) == s->cur_agent);
+	Q_REMOVE(q, s->cur_agent, nobe);
 }
 
-static void agent_vanish(struct sched_state *s, int tid)
+static void agent_sleep(struct sched_state *s)
 {
-	struct agent *a = agent_by_tid(&s->rq, tid);
-	Q_REMOVE(&s->rq, a, nobe);
-	assert(a == s->cur_agent);
+	current_dequeue(s);
+	Q_INSERT_FRONT(&s->sq, s->cur_agent, nobe);
+}
+
+static void agent_vanish(struct sched_state *s)
+{
+	current_dequeue(s);
 	/* It turns out kernels tend to have vanished threads continue to be the
 	 * "current thread" after our trigger point. It's only safe to free them
 	 * after somebody else gets scheduled. */
@@ -112,7 +124,7 @@ static void agent_vanish(struct sched_state *s, int tid)
 		assert(s->last_vanished_agent->action.context_switch);
 		MM_FREE(s->last_vanished_agent);
 	}
-	s->last_vanished_agent = a;
+	s->last_vanished_agent = s->cur_agent;
 	s->num_agents--;
 }
 
@@ -258,6 +270,56 @@ void print_qs(verbosity v, struct sched_state *s)
 			|| ACTION(s, forking) || ACTION(s, sleeping)           \
 			|| ACTION(s, vanishing) || ACTION(s, readlining)))
 
+static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
+{
+	if (ACTION(s, forking) && !HANDLING_INTERRUPT(s) &&
+	    s->cur_agent->tid != target_tid) {
+		lsprintf(DEV, "agent %d forked (%s) -- ", target_tid,
+			 add_to_rq ? "rq" : "dq");
+		print_qs(DEV, s);
+		printf(DEV, "\n");
+		agent_fork(s, target_tid, kern_fork_returns_to_cs(), add_to_rq);
+		/* don't need this flag anymore; fork only forks once */
+		ACTION(s, forking) = false;
+		return true;
+	} else {
+		return false;
+	}
+}
+static void handle_sleep(struct sched_state *s)
+{
+	if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
+		lsprintf(DEV, "agent %d sleep -- ", s->cur_agent->tid);
+		print_qs(DEV, s);
+		printf(DEV, "\n");
+		agent_sleep(s);
+		/* it doesn't quite matter where this flag gets turned off, but
+		 * there are two places where it can get woken up (wake/unsleep)
+		 * so may as well do it here. */
+		ACTION(s, sleeping) = false;
+	}
+}
+static void handle_vanish(struct sched_state *s)
+{
+	if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
+		lsprintf(DEV, "agent %d vanish -- ", s->cur_agent->tid);
+		print_qs(DEV, s);
+		printf(DEV, "\n");
+		agent_vanish(s);
+		/* the vanishing flag stays on (TODO: is it needed?) */
+	}
+}
+static void handle_unsleep(struct sched_state *s, int tid)
+{
+	/* If a thread-change happens to an agent on the sleep queue, that means
+	 * it has woken up but runnable() hasn't seen it yet. So put it on the
+	 * dq, which will satisfy whether or not runnable() triggers. */
+	struct agent *a = agent_by_tid_or_null(&s->sq, tid);
+	if (a != NULL) {
+		Q_REMOVE(&s->sq, a, nobe);
+		Q_INSERT_FRONT(&s->dq, a, nobe);
+	}
+}
 
 void sched_update(struct ls_state *ls)
 {
@@ -294,6 +356,25 @@ void sched_update(struct ls_state *ls)
 	 **********************************************************************/
 
 	if (old_tid != new_tid && !s->context_switch_pending) {
+		/*
+		 * So, fork needs to be handled twice, both here and below in the
+		 * runnable case. And for kernels that trigger both, both places will
+		 * need to have a check for whether the newly forked thread exists
+		 * already.
+		 *
+		 * Sleep and vanish actually only need to happen here. They should
+		 * check both the rq and the dq, 'cause there's no telling where the
+		 * thread got moved to before. As for the descheduling case, that needs
+		 * to check for a new type of action flag "asleep" or "vanished" (and
+		 * I guess using last_vanished_agent might work), and probably just
+		 * assert that that condition holds if the thread couldn't be found
+		 * for the normal descheduling case.
+		 */
+		/* Has to be handled before updating cur_agent, of course. */
+		handle_sleep(s);
+		handle_vanish(s);
+		handle_unsleep(s, new_tid);
+
 		/* Careful! On some kernels, the trigger for a new agent forking
 		 * (where it first gets added to the RQ) may happen AFTER its
 		 * tcb is set to be the currently running thread. This would
@@ -301,18 +382,25 @@ void sched_update(struct ls_state *ls)
 		 * so agent_by_tid would fail. Instead, we have an option to
 		 * find it later. (see the kern_thread_runnable case below.) */
 		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
-		if (next == NULL) {
-			next = agent_by_tid_or_null(&s->dq, new_tid);
-		}
+		if (next == NULL) next = agent_by_tid_or_null(&s->dq, new_tid);
+
 		if (next != NULL) {
 			lsprintf(DEV, "switched threads %d -> %d\n", old_tid,
 				 new_tid);
 			s->last_agent = s->cur_agent;
 			s->cur_agent = next;
-		} else {
+		/* This fork check is for kernels which context switch to a
+		 * newly-forked thread before adding it to the runqueue - and
+		 * possibly won't do so at all (if current_extra_runnable). We
+		 * need to do agent_fork now. (agent_fork *also* needs to be
+		 * handled below, for kernels which don't c-s to the new thread
+		 * immediately.) The */
+		} else if (!handle_fork(s, new_tid, false)) {
 			/* there is also a possibility of searching s->dq, to
 			 * find the thread, but the kern_thread_runnable case
 			 * below can handle it for us anyway with less code. */
+			// TODO: deprecate this (context_switch_pending). remove that shit.
+			assert(0);
 			lsprintf(DEV, "about to switch threads %d -> %d\n", old_tid,
 				 new_tid);
 			s->context_switch_pending = true;
@@ -358,7 +446,7 @@ void sched_update(struct ls_state *ls)
 			}
 		} else {
 			lsprintf(INFO, "WARNING: exiting a non-timer interrupt "
-				 "through a path shared with the timer..?\n");
+				 "through a path shared with the timer..? (from 0x%x, #%d)\n", (int)READ_STACK(ls->cpu0, 0), (int)READ_STACK(ls->cpu0, -2));
 		}
 	/* Context switching. */
 	} else if (kern_context_switch_entering(ls->eip)) {
@@ -396,16 +484,7 @@ void sched_update(struct ls_state *ls)
 	/* Runnable state change (incl. consequences of fork, vanish, sleep). */
 	} else if (kern_thread_runnable(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to become runnable. Was it just spawned? */
-		if (ACTION(s, forking) && !HANDLING_INTERRUPT(s)) {
-			lsprintf(DEV, "agent %d forked -- ", target_tid);
-			print_qs(DEV, s);
-			printf(DEV, "\n");
-			agent_fork(s, target_tid, kern_fork_returns_to_cs(),
-				   true);
-			/* don't need this flag anymore; fork only forks once */
-			ACTION(s, forking) = false;
-		} else {
-			// lsprintf(INFO, "agent %d wake -- ", target_tid);
+		if (!handle_fork(s, target_tid, true)) {
 			agent_wake(s, target_tid);
 		}
 		/* If this is happening from the context switcher, we also need
@@ -417,27 +496,8 @@ void sched_update(struct ls_state *ls)
 			s->context_switch_pending = false;
 		}
 	} else if (kern_thread_descheduling(ls->cpu0, ls->eip, &target_tid)) {
-		/* A thread is about to deschedule. Is it vanishing? */
-		if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
-			assert(s->cur_agent->tid == target_tid);
-			agent_vanish(s, target_tid);
-			lsprintf(DEV, "agent %d vanished -- ", target_tid);
-			print_qs(DEV, s);
-			printf(DEV, "\n");
-			/* Future actions by this thread, such as scheduling
-			 * somebody else, shouldn't count as them vanishing too! */
-			ACTION(s, vanishing) = false;
-		} else if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
-			assert(s->cur_agent->tid == target_tid);
-			agent_sleep(s, target_tid);
-			lsprintf(DEV, "agent %d sleep -- ", target_tid);
-			print_qs(DEV, s);
-			printf(DEV, "\n");
-			ACTION(s, sleeping) = false;
-		} else {
-			agent_deschedule(s, target_tid);
-			// lsprintf(INFO, "agent %d desch -- ", target_tid);
-		}
+		/* A thread is about to deschedule. Is it vanishing/sleeping? */
+		agent_deschedule(s, target_tid);
 	/* Mutex tracking and noob deadlock detection */
 	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &mutex_addr)) {
 		assert(!ACTION(s, mutex_locking));
