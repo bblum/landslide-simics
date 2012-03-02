@@ -191,9 +191,12 @@ static MAYBE_UNUSED struct hax *dpor(struct hax *root, struct hax *current,
 				if (!tag_good_sibling(h, ancestor))
 					tag_all_siblings(h, ancestor);
 
-				/* Stopping after the first baddie is fine;
-				 * the others are handled "by induction". */
-				break;
+				/* In theory, stopping after the first baddie
+				 * is fine; the others would be handled "by
+				 * induction". But that relies on choice points
+				 * being comprehensive enough, which we almost
+				 * always do not satisfy. So continue. */
+				/* break; */
 			}
 		}
 	}
