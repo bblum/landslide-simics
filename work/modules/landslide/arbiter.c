@@ -11,6 +11,7 @@
 #define MODULE_COLOUR COLOUR_YELLOW
 
 #include "common.h"
+#include "found_a_bug.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "schedule.h"
@@ -70,15 +71,31 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule)
 	}
 
 	if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_HLT) {
-		lsprintf(INFO, "What are you waiting for?\n");
+		lsprintf(INFO, "What are you waiting for? (HLT state)\n");
+		assert((ls->save.next_tid == -1 ||
+		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
+		       "Two threads in one transition?");
 		return true;
 	}
+
+	/* Skip the instructions before the test case itself gets started. In
+	 * many kernels' cases this will be redundant, but just in case. */
+	if (!ls->test.test_ever_caused ||
+	    ls->test.start_population == ls->sched.most_agents_ever) {
+		return false;
+	}
+
+	// TODO: have a check, tunable, to skip this if it's the shell or init
 
 	if (ls->eip == GUEST_MUTEX_LOCK &&
 	    !kern_mutex_ignore(READ_STACK(ls->cpu0,
 	                       GUEST_MUTEX_LOCK_MUTEX_ARGNUM)) &&
 	    within_function(ls->cpu0, ls->eip,
 	                    GUEST_VANISH, GUEST_VANISH_END)) {
+		lsprintf(INFO, "Attempt to lock mutex 0x%x at eip 0x%x\n",
+		         (int)READ_STACK(ls->cpu0,
+		                         GUEST_MUTEX_LOCK_MUTEX_ARGNUM),
+		         (int)READ_STACK(ls->cpu0, 0));
 		assert((ls->save.next_tid == -1 ||
 		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 		       "Two threads in one transition?");
@@ -100,10 +117,15 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	/* We shouldn't be asked to choose if somebody else already did. */
 	assert(Q_GET_SIZE(&ls->arbiter.choices) == 0);
 
+	lsprintf(CHOICE, "Available choices: ");
+
 	/* Count the number of available threads. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		if (!BLOCKED(a))
+		if (!BLOCKED(a)) {
+			print_agent(CHOICE, a);
+			printf(CHOICE, " ");
 			count++;
+		}
 	);
 
 	//count = 1; // Comment this out to enable "hard mode"
@@ -112,14 +134,15 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && ++i == count) {
-			lsprintf(CHOICE, "Figured I'd look at TID %d next.\n",
-				 a->tid);
+			printf(CHOICE, "- Figured I'd look at TID %d next.\n",
+			       a->tid);
 			*target = a;
 			*our_choice = true;
 			return true;
 		}
 	);
 
-	lsprintf(CHOICE, "Nobody runnable?!\n");
+	printf(BUG, COLOUR_BOLD "Nobody runnable! All threads wedged?\n");
+	found_a_bug(ls);
 	return false;
 }
