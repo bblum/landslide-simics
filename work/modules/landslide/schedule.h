@@ -10,6 +10,7 @@
 #include <simics/api.h>
 
 #include "common.h"
+#include "kernel_specifics.h"
 #include "variable_queue.h"
 
 struct ls_state;
@@ -108,14 +109,23 @@ struct sched_state {
 
 /* Can't be used with 'break' or 'continue', though 'return' is fine. */
 #define FOR_EACH_RUNNABLE_AGENT(a, s, code) do {	\
+	bool __idle_is_runnable = true;			\
 	if ((s)->current_extra_runnable) {		\
 		a = (s)->cur_agent;			\
+		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	Q_FOREACH(a, &(s)->rq, nobe) {			\
+		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	Q_FOREACH(a, &(s)->sq, nobe) {			\
+		__idle_is_runnable = false;		\
+		EVAPORATE_FLOW_CONTROL(code);		\
+	}						\
+	if (__idle_is_runnable && kern_has_idle()) {	\
+		a = agent_by_tid_or_null(&(s)->dq, kern_get_idle_tid()); \
+		assert(a != NULL && "couldn't find idle in FOR_EACH");	\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	} while (0)
