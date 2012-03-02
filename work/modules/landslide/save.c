@@ -113,6 +113,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->action.sleeping        = a_src->action.sleeping;
 	a_dest->action.vanishing       = a_src->action.vanishing;
 	a_dest->action.readlining      = a_src->action.readlining;
+	a_dest->action.just_forked     = a_src->action.just_forked;
 	a_dest->action.mutex_locking   = a_src->action.mutex_locking;
 	a_dest->action.mutex_unlocking = a_src->action.mutex_unlocking;
 	a_dest->action.schedule_target = a_src->action.schedule_target;
