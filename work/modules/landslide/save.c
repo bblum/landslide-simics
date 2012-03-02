@@ -381,6 +381,16 @@ static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
 				 h->chosen_thread, h->depth, old->depth);
 			continue;
+		} else if (kern_has_idle() &&
+			   (h->chosen_thread == kern_get_idle_tid() ||
+			    old->chosen_thread == kern_get_idle_tid())) {
+			/* Idle shouldn't have siblings, but just in case. */
+			h->conflicts[old->depth] = true;
+			continue;
+		} else if (old->depth == 0) {
+			/* Basically guaranteed. Suppress printing. */
+			h->conflicts[0] = true;
+			continue;
 		}
 		/* The haxes are independent if there was no intersection. */
 		assert(old->depth >= 0 && old->depth < h->depth);
@@ -550,6 +560,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->all_explored = end_of_test;
 
 		h->stack_trace = stack_trace(ls->cpu0, ls->eip);
+		lsprintf(DEV, "Stack: %s\n", h->stack_trace);
 
 		ss->total_choice_poince++;
 	} else {
