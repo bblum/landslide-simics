@@ -192,8 +192,13 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 #define MAX_TRACE_LEN 4096
 #define ADD_STR(buf, pos, maxlen, ...) \
 	do { pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
-#define ADD_FRAME(buf, pos, maxlen, eip) \
-	do { pos += symtable_lookup(buf + pos, maxlen - pos, eip); } while (0)
+#define ADD_FRAME(buf, pos, maxlen, eip) do {				\
+	if (eip == kern_get_timer_wrap_begin()) {			\
+		pos += snprintf(buf + pos, maxlen - pos, "<timer_wrapper>"); \
+	} else {							\
+		pos += symtable_lookup(buf + pos, maxlen - pos, eip);	\
+	}								\
+	} while (0)
 #define ENTRY_POINT "_start "
 /* Caller has to free the return value. */
 char *stack_trace(conf_object_t *cpu, int eip)
