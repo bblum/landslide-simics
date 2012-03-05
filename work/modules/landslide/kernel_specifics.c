@@ -290,6 +290,11 @@ bool kern_address_global(int addr)
 		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
 }
 
+/* The following three functions are optional - the first two are slight speed
+ * optimisations, and the third makes landslide print pretty hints for the names
+ * of shared memory accesses ("pcb0->vm_mutex", for example). You can implement
+ * them if you want a challenge, I suppose. -- Ben */
+#ifndef STUDENT_FRIENDLY
 bool kern_address_own_kstack(conf_object_t *cpu, int addr)
 {
 	int stack_bottom = STACK_FROM_TCB(kern_get_current_tcb(cpu));
@@ -340,6 +345,7 @@ void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 		snprintf(buf, buflen, "0x%.8x", addr);
 	}
 }
+#endif
 
 /******************************************************************************
  * Other / Init

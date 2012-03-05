@@ -157,10 +157,12 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	ma->conflict  = false;
 	ma->other_tid = 0;
 
+#ifndef STUDENT_FRIENDLY
 	if (c != NULL) {
 		kern_address_other_kstack(ls->cpu0, addr, c->base, c->len,
 					  &ma->other_tid);
 	}
+#endif
 
 	rb_link_node(&ma->nobe, parent, p);
 	rb_insert_color(&ma->nobe, &m->shm);
@@ -388,9 +390,11 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 	    ls->sched.cur_agent->action.context_switch)
 		return;
 
+#ifndef STUDENT_FRIENDLY
 	/* ignore certain "probably innocent" accesses */
 	if (kern_address_own_kstack(ls->cpu0, addr))
 		return;
+#endif
 
 	if (kern_address_in_heap(addr)) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
@@ -403,6 +407,12 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		add_shm(ls, m, NULL, addr, write);
 	}
 }
+
+/* Remove the need for the student to implement kern_address_hint. */
+#ifdef STUDENT_FRIENDLY
+#define kern_address_hint(cpu, buf, size, addr, base, len) \
+	snprintf(buf, size, "0x%.8x in [0x%x | %d]", addr, base, len)
+#endif
 
 static void print_shm_conflict(conf_object_t *cpu,
 			       struct mem_state *m0, struct mem_state *m1,
