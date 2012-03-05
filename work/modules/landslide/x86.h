@@ -8,9 +8,10 @@
 #define __LS_X86_H
 
 #include <simics/api.h>
+#include <simics/core/memory.h>
 
 /* reading and writing cpu registers */
-#define GET_CPU_ATTR(cpu, name) SIM_attr_integer(SIM_get_attribute(cpu, #name))
+#define GET_CPU_ATTR(cpu, name) ((int)SIM_attr_integer(SIM_get_attribute(cpu, #name)))
 #define SET_CPU_ATTR(cpu, name, val) do {				\
 		attr_value_t noob = SIM_make_attr_integer(val);		\
 		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
@@ -33,9 +34,22 @@
 #define OPCODE_IRET 0xcf
 #define IRET_BLOCK_WORDS 3
 #define OPCODE_HLT 0xf4
+#define OPCODE_INT 0xcd
+#define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
 
-#define READ_BYTE(cpu, addr) SIM_read_phys_memory(cpu, addr, 1)
-#define READ_MEMORY(cpu, addr) SIM_read_phys_memory(cpu, addr, WORD_SIZE)
+#define MEM_TRANSLATE(cpu, addr) /* I am sorry for writing this */	\
+	((addr) < USER_MEM_START ? (addr) :				\
+	({	int upper = (addr) >> 22;				\
+		int lower = ((addr) >> 12) & 1023;			\
+		int offset = (addr) & 4095;				\
+		int pde = SIM_read_phys_memory(cpu, GET_CPU_ATTR(cpu, cr3) + (4 * upper), WORD_SIZE); \
+		int pte = SIM_read_phys_memory(cpu, (pde & ~4095) + (4 * lower), WORD_SIZE); \
+		(pte & ~4095) + offset; }))
+
+#define READ_BYTE(cpu, addr) \
+	((int)SIM_read_phys_memory(cpu, MEM_TRANSLATE(cpu, addr), 1))
+#define READ_MEMORY(cpu, addr) \
+	((int)SIM_read_phys_memory(cpu, MEM_TRANSLATE(cpu, addr), WORD_SIZE))
 
 /* reading the stack. can be used to examine function arguments, if used either
  * at the very end or the very beginning of a function, when esp points to the

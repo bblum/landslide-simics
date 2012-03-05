@@ -273,6 +273,82 @@ bool function_eip_offset(int eip, int *offset)
 }
 
 /******************************************************************************
+ * pebbles system calls
+ ******************************************************************************/
+
+#define FORK_INT            0x41
+#define EXEC_INT            0x42
+/* #define EXIT_INT            0x43 */
+#define WAIT_INT            0x44
+#define YIELD_INT           0x45
+#define DESCHEDULE_INT      0x46
+#define MAKE_RUNNABLE_INT   0x47
+#define GETTID_INT          0x48
+#define NEW_PAGES_INT       0x49
+#define REMOVE_PAGES_INT    0x4A
+#define SLEEP_INT           0x4B
+#define GETCHAR_INT         0x4C
+#define READLINE_INT        0x4D
+#define PRINT_INT           0x4E
+#define SET_TERM_COLOR_INT  0x4F
+#define SET_CURSOR_POS_INT  0x50
+#define GET_CURSOR_POS_INT  0x51
+#define THREAD_FORK_INT     0x52
+#define GET_TICKS_INT       0x53
+#define MISBEHAVE_INT       0x54
+#define HALT_INT            0x55
+#define LS_INT              0x56
+#define TASK_VANISH_INT     0x57 /* previously known as TASK_EXIT_INT */
+#define SET_STATUS_INT      0x59
+#define VANISH_INT          0x60
+/* #define CAS2I_RUNFLAG_INT   0x61 */
+#define SWEXN_INT           0x74
+
+#define CASE_SYSCALL(num, name) \
+	case (num): printf(CHOICE, "%s()\n", (name)); break
+
+static void check_user_syscall(struct ls_state *ls)
+{
+	if (READ_BYTE(ls->cpu0, ls->eip) != OPCODE_INT)
+		return;
+
+	lsprintf(CHOICE, "TID %d makes syscall ", ls->sched.cur_agent->tid);
+
+	int number = OPCODE_INT_ARG(ls->cpu0, ls->eip);
+	switch(number) {
+		CASE_SYSCALL(FORK_INT, "fork");
+		CASE_SYSCALL(EXEC_INT, "exec");
+		CASE_SYSCALL(WAIT_INT, "wait");
+		CASE_SYSCALL(YIELD_INT, "yield");
+		CASE_SYSCALL(DESCHEDULE_INT, "deschedule");
+		CASE_SYSCALL(MAKE_RUNNABLE_INT, "make_runnable");
+		CASE_SYSCALL(GETTID_INT, "gettid");
+		CASE_SYSCALL(NEW_PAGES_INT, "new_pages");
+		CASE_SYSCALL(REMOVE_PAGES_INT, "remove_pages");
+		CASE_SYSCALL(SLEEP_INT, "sleep");
+		CASE_SYSCALL(GETCHAR_INT, "getchar");
+		CASE_SYSCALL(READLINE_INT, "readline");
+		CASE_SYSCALL(PRINT_INT, "print");
+		CASE_SYSCALL(SET_TERM_COLOR_INT, "set_term_color");
+		CASE_SYSCALL(SET_CURSOR_POS_INT, "set_cursor_pos");
+		CASE_SYSCALL(GET_CURSOR_POS_INT, "get_cursor_pos");
+		CASE_SYSCALL(THREAD_FORK_INT, "thread_fork");
+		CASE_SYSCALL(GET_TICKS_INT, "get_ticks");
+		CASE_SYSCALL(MISBEHAVE_INT, "misbehave");
+		CASE_SYSCALL(HALT_INT, "halt");
+		CASE_SYSCALL(LS_INT, "ls");
+		CASE_SYSCALL(TASK_VANISH_INT, "task_vanish");
+		CASE_SYSCALL(SET_STATUS_INT, "set_status");
+		CASE_SYSCALL(VANISH_INT, "vanish");
+		CASE_SYSCALL(SWEXN_INT, "swexn");
+		default:
+			printf(CHOICE, "((unknown 0x%x))\n", number);
+			break;
+	}
+}
+#undef CASE_SYSCALL
+
+/******************************************************************************
  * actual interesting landslide logic
  ******************************************************************************/
 
@@ -387,6 +463,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	}
 
 	if (ls->eip >= USER_MEM_START) {
+		check_user_syscall(ls);
 		return;
 	}
 
