@@ -484,7 +484,8 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 			lsprintf(BRANCH, "test case ended!\n");
 
 			if (test_ended_safely(ls)) {
-				save_setjmp(&ls->save, ls, -1, true, true);
+				save_setjmp(&ls->save, ls, -1, true, true,
+					    false);
 				if (!time_travel(ls)) {
 					found_no_bug(ls);
 				}
