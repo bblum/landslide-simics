@@ -1,6 +1,7 @@
 /**
  * @file kernel_specifics.c
- * @brief Guest-implementation-specific things landslide needs to know.
+ * @brief Guest-implementation-specific things landslide needs to know
+ *        Implementation for the ludicros kernel.
  * @author Ben Blum
  */
 
@@ -21,7 +22,9 @@
 /* Returns the tcb/tid of the currently scheduled thread. */
 int kern_get_current_tcb(conf_object_t *cpu)
 {
-	return SIM_read_phys_memory(cpu, GUEST_CURRENT_TCB, WORD_SIZE);
+	int esp0 = GUEST_ESP0(cpu);
+	// from sched_find_tcb_by_ksp
+	return ((esp0 & ~(PAGE_SIZE - 1)) + PAGE_SIZE) - GUEST_TCB_T_SIZE;
 }
 int kern_get_current_tid(conf_object_t *cpu)
 {
@@ -40,6 +43,10 @@ bool kern_timer_exiting(int eip)
 int kern_get_timer_wrap_begin()
 {
 	return GUEST_TIMER_WRAP_ENTER;
+}
+int kern_get_outb()
+{
+	return GUEST_OUTB;
 }
 
 /* the boundaries of the context switcher */
@@ -87,16 +94,17 @@ bool kern_access_in_scheduler(int addr)
  * switches */
 bool kern_scheduler_locked(conf_object_t *cpu)
 {
-	int x = SIM_read_phys_memory(cpu, GUEST_SCHEDULER_LOCK, WORD_SIZE);
-	return GUEST_SCHEDULER_LOCKED(x);
+	return false;
 }
 
+// FIXME
 /* Various global mutexes which should be ignored */
 bool kern_mutex_ignore(int addr)
 {
-	static const int ignores[] = GUEST_MUTEX_IGNORES;
+	static const int ignores[][2] = GUEST_MUTEX_IGNORES;
 	for (int i = 0; i < ARRAY_SIZE(ignores); i++) {
-		if (addr >= ignores[i] && addr < ignores[i] + KERN_MUTEX_SIZE)
+		if (addr >= ignores[i][0] &&
+		    addr < ignores[i][0] + ignores[i][1])
 			return true;
 	}
 	return false;
@@ -132,6 +140,11 @@ bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
 	}
 }
 
+bool kern_kernel_main(int eip)
+{
+	return eip == GUEST_KERNEL_MAIN;
+}
+
 /******************************************************************************
  * Yielding mutexes
  ******************************************************************************/
@@ -146,46 +159,30 @@ bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
 
 bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex)
 {
-	if (eip == GUEST_MUTEX_LOCK_ENTER) {
-		*mutex = READ_STACK(cpu, GUEST_MUTEX_LOCK_MUTEX_ARGNUM);
-		return true;
-	} else {
-		return false;
-	}
+	return false;
 }
 
 /* Is the thread becoming "disabled" because the mutex is owned? */
 bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *tid)
 {
-	if (eip == GUEST_MUTEX_BLOCKED) {
-		/* First argument to yield. */
-		*tid = READ_STACK(cpu, 0);
-		return true;
-	} else {
-		return false;
-	}
+	return false;
 }
 
 /* This one also tells if the thread is re-enabled. */
 bool kern_mutex_locking_done(int eip)
 {
-	return eip == GUEST_MUTEX_LOCK_EXIT;
+	return false;
 }
 
 /* Need to re-read the mutex addr because of unlocking mutexes in any order. */
 bool kern_mutex_unlocking(conf_object_t *cpu, int eip, int *mutex)
 {
-	if (eip == GUEST_MUTEX_UNLOCK_ENTER) {
-		*mutex = READ_STACK(cpu, GUEST_MUTEX_UNLOCK_MUTEX_ARGNUM);
-		return true;
-	} else {
-		return false;
-	}
+	return false;
 }
 
 bool kern_mutex_unlocking_done(int eip)
 {
-	return eip == GUEST_MUTEX_UNLOCK_EXIT;
+	return false;
 }
 
 /******************************************************************************
@@ -216,14 +213,9 @@ bool kern_readline_exit(int eip)
 }
 
 /* How to tell if a new thread is appearing or disappearing on the runqueue. */
-static bool thread_becoming_runnable(conf_object_t *cpu, int eip)
-{
-	return (eip == GUEST_Q_ADD)
-	    && (READ_STACK(cpu, GUEST_Q_ADD_Q_ARGNUM) == GUEST_RQ_ADDR);
-}
 bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
 {
-	if (thread_becoming_runnable(cpu, eip)) {
+	if (eip == GUEST_Q_ADD_HEAD || eip == GUEST_Q_ADD_TAIL) {
 		/* 0(%esp) points to the return address; get the arg above it */
 		*tid = TID_FROM_TCB(cpu, READ_STACK(cpu,
 						    GUEST_Q_ADD_TCB_ARGNUM));
@@ -233,25 +225,11 @@ bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
 	}
 }
 
-static bool thread_is_descheduling(conf_object_t *cpu, int eip)
-{
-	return ((eip == GUEST_Q_REMOVE)
-	     && (READ_STACK(cpu, GUEST_Q_REMOVE_Q_ARGNUM) == GUEST_RQ_ADDR))
-	    || ((eip == GUEST_Q_POP_RETURN)
-	     && (READ_STACK(cpu, GUEST_Q_POP_Q_ARGNUM) == GUEST_RQ_ADDR));
-}
 bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
 {
-	if (thread_is_descheduling(cpu, eip)) {
-		int tcb;
-		if (eip == GUEST_Q_REMOVE) {
-			/* at beginning of sch_queue_remove */
-			tcb = READ_STACK(cpu, GUEST_Q_REMOVE_TCB_ARGNUM);
-		} else {
-			/* at end of sch_queue_pop; see prior assert */
-			tcb = GET_CPU_ATTR(cpu, eax);
-		}
-		*tid = TID_FROM_TCB(cpu, tcb);
+	if (eip == GUEST_Q_REMOVE) {
+		*tid = TID_FROM_TCB(cpu, READ_STACK(cpu,
+						    GUEST_Q_REMOVE_TCB_ARGNUM));
 		return true;
 	} else {
 		return false;
@@ -312,6 +290,11 @@ bool kern_address_global(int addr)
 		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
 }
 
+/* The following three functions are optional - the first two are slight speed
+ * optimisations, and the third makes landslide print pretty hints for the names
+ * of shared memory accesses ("pcb0->vm_mutex", for example). You can implement
+ * them if you want a challenge, I suppose. -- Ben */
+#ifndef STUDENT_FRIENDLY
 bool kern_address_own_kstack(conf_object_t *cpu, int addr)
 {
 	int stack_bottom = STACK_FROM_TCB(kern_get_current_tcb(cpu));
@@ -321,32 +304,48 @@ bool kern_address_own_kstack(conf_object_t *cpu, int addr)
 bool kern_address_other_kstack(conf_object_t *cpu, int addr, int chunk,
 			       int size, int *tid)
 {
-	if (size == KERN_TCB_SIZE) {
-		int stack_bottom = STACK_FROM_TCB(chunk);
+	if (size == GUEST_TCB_CHUNK_SIZE) {
+		//int stack_bottom = STACK_FROM_TCB(chunk+GUEST_TCB_OFFSET);
+		int stack_bottom = chunk;
 		if (addr >= stack_bottom &&
 		    addr < stack_bottom + GUEST_STACK_SIZE) {
-			*tid = TID_FROM_TCB(cpu, chunk);
+			*tid = TID_FROM_TCB(cpu, chunk + GUEST_TCB_OFFSET);
 			return true;
 		}
 	}
 	return false;
 }
 
+static const char *member_name(const struct struct_member *members,
+			       int num_members, int offset)
+{
+	for (int i = 0; i < num_members; i++) {
+		if (offset >= members[i].offset &&
+		    offset < members[i].offset + members[i].size) {
+			return members[i].name;
+		}
+	}
+	return "((unknown))";
+}
+
 void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 		       int chunk, int size)
 {
-	if (size == KERN_TCB_SIZE) {
+	if (size == GUEST_TCB_CHUNK_SIZE) {
 		snprintf(buf, buflen, "tcb%d->%s",
-			 (int)TID_FROM_TCB(cpu, chunk),
-			 kern_tcb_field_name(addr-chunk));
-	} else if (size == KERN_PCB_SIZE) {
+			 (int)TID_FROM_TCB(cpu, chunk + GUEST_TCB_OFFSET),
+			 member_name(guest_tcb_t, ARRAY_SIZE(guest_tcb_t),
+		                     addr - chunk));
+	} else if (size == GUEST_PCB_T_SIZE) {
 		snprintf(buf, buflen, "pcb%d->%s",
 			 (int)PID_FROM_PCB(cpu, chunk),
-			 kern_pcb_field_name(addr-chunk));
+			 member_name(guest_pcb_t, ARRAY_SIZE(guest_pcb_t),
+		                     addr - chunk));
 	} else {
 		snprintf(buf, buflen, "0x%.8x", addr);
 	}
 }
+#endif
 
 /******************************************************************************
  * Other / Init
@@ -359,7 +358,7 @@ int kern_get_init_tid()
 
 int kern_get_idle_tid()
 {
-	assert(false && "POBBLES does not have an idle tid!");
+	return 0;
 }
 
 /* the tid of the shell (OK to assume the first shell never exits). */
@@ -377,15 +376,15 @@ int kern_get_first_tid()
 /* Is there an idle thread that runs when nobody else is around? */
 bool kern_has_idle()
 {
-	return false;
+	return true;
 }
 
-void kern_init_runqueue(struct sched_state *s,
-			void (*add_thread)(struct sched_state *, int, bool))
+void kern_init_threads(struct sched_state *s,
+                       void (*add_thread)(struct sched_state *, int, bool,
+                                          bool))
 {
-	/* Only init runs first in POBBLES, but other kernels may have idle. In
-	 * POBBLES, init is not context-switched to to begin with. */
-	add_thread(s, kern_get_init_tid(), false);
+	add_thread(s, kern_get_init_tid(), false, false);
+	add_thread(s, kern_get_idle_tid(), true, false);
 }
 
 /* Do newly forked children exit to userspace through the end of the
@@ -406,5 +405,7 @@ bool kern_fork_return_spot(int eip)
  * function should return false always. */
 bool kern_current_extra_runnable(conf_object_t *cpu)
 {
-	return false;
+	int state_flag = READ_MEMORY(cpu, kern_get_current_tcb(cpu) +
+				          GUEST_TCB_STATE_FLAG_OFFSET);
+	return state_flag != 1; // SCHED_NOT_RUNNABLE
 }
