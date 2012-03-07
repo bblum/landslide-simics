@@ -44,8 +44,11 @@ bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 	}
 }
 
-bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule)
+bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
+			bool *voluntary)
 {
+	*voluntary = false;
+
 	// TODO: more interesting choice points
 
 	/* Attempt to see if a "voluntary" reschedule is just ending - did the
@@ -66,6 +69,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule)
 			        ls->save.next_tid == ls->sched.cur_agent->tid ||
 			        ls->save.next_tid == ls->sched.last_agent->tid)
 			       && "Two threads in one transition?");
+			*voluntary = true;
 			return true;
 		}
 	}

@@ -88,7 +88,13 @@ struct sched_state {
 	/* It does take many instructions for us to switch, after all. This is
 	 * NULL if we're not trying to schedule anybody. */
 	struct agent *schedule_in_flight;
-	bool entering_timer; /* only for debugging/asserting purposes */
+	/* Whether we think we ought to be entering the timer handler or not. */
+	bool entering_timer;
+	/* The stack trace for the most recent voluntary reschedule. Used in
+	 * save.c, when voluntary resched decision points are too late to get
+	 * a useful stack trace. Set at context switch entry. */
+	int voluntary_resched_tid;
+	char *voluntary_resched_stack;
 	/* TODO: have a scheduler-global schedule_landing to assert against the
 	 * per-agent flag (only violated by interrupts we don't control) */
 };

@@ -223,6 +223,8 @@ void sched_init(struct sched_state *s)
 	s->guest_init_done = false;
 	s->schedule_in_flight = NULL;
 	s->entering_timer = false;
+	s->voluntary_resched_tid = -1;
+	s->voluntary_resched_stack = NULL;
 }
 
 void print_agent(verbosity v, struct agent *a)
@@ -454,6 +456,14 @@ void sched_update(struct ls_state *ls)
 		 * context switch if a timer goes off before c-s disables
 		 * interrupts. TODO: if we care, make this an int counter. */
 		ACTION(s, context_switch) = true;
+		/* Maybe update the voluntary resched trace. See schedule.h */
+		if (!ACTION(s, handling_timer)) {
+			s->voluntary_resched_tid = s->cur_agent->tid;
+			if (s->voluntary_resched_stack != NULL)
+				MM_FREE(s->voluntary_resched_stack);
+			s->voluntary_resched_stack =
+				stack_trace(ls->cpu0, ls->eip);
+		}
 	} else if (kern_context_switch_exiting(ls->eip)) {
 		assert(ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
@@ -643,8 +653,9 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* Okay, are we at a choice point? */
+	bool voluntary;
 	/* TODO: arbiter may also want to see the trace_entry_t */
-	if (arbiter_interested(ls, just_finished_reschedule)) {
+	if (arbiter_interested(ls, just_finished_reschedule, &voluntary)) {
 		struct agent *a;
 		bool our_choice;
 		/* TODO: as an optimisation (in serialisation state / etc), the
@@ -662,7 +673,8 @@ void sched_update(struct ls_state *ls)
 				s->entering_timer = true;
 			}
 			/* Record the choice that was just made. */
-			save_setjmp(&ls->save, ls, a->tid, our_choice, false);
+			save_setjmp(&ls->save, ls, a->tid, our_choice, false,
+				    voluntary);
 		} else {
 			lsprintf(BUG, "no agent was chosen at eip 0x%x\n",
 				 ls->eip);

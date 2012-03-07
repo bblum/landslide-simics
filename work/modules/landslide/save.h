@@ -34,7 +34,8 @@ void save_recover(struct save_state *, struct ls_state *, int new_tid);
 /* Current state, and the next_tid/our_choice is about the next in-flight
  * choice. */
 void save_setjmp(struct save_state *, struct ls_state *,
-		 int next_tid, bool our_choice, bool end_of_test);
+		 int next_tid, bool our_choice, bool end_of_test,
+		 bool voluntary);
 
 /* If hax is NULL, then longjmps to the root. Otherwise, hax must be between
  * the current choice point and the root (inclusive). */

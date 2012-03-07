@@ -195,6 +195,10 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->context_switch_target  = src->context_switch_target;
 	dest->guest_init_done        = src->guest_init_done;
 	dest->entering_timer         = src->entering_timer;
+	dest->voluntary_resched_tid  = src->voluntary_resched_tid;
+	dest->voluntary_resched_stack =
+		(src->voluntary_resched_stack == NULL) ? NULL :
+			MM_XSTRDUP(src->voluntary_resched_stack);
 }
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
@@ -517,7 +521,7 @@ void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
  *  - Store the new_tid for some subsequent choice point
  */
 void save_setjmp(struct save_state *ss, struct ls_state *ls,
-		 int new_tid, bool our_choice, bool end_of_test)
+		 int new_tid, bool our_choice, bool end_of_test, bool voluntary)
 {
 	struct hax *h;
 
@@ -559,7 +563,15 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
 
-		h->stack_trace = stack_trace(ls->cpu0, ls->eip);
+		if (voluntary) {
+			assert(h->chosen_thread ==
+			       ls->sched.voluntary_resched_tid);
+			assert(ls->sched.voluntary_resched_stack != NULL);
+			h->stack_trace = ls->sched.voluntary_resched_stack;
+			ls->sched.voluntary_resched_stack = NULL;
+		} else {
+			h->stack_trace = stack_trace(ls->cpu0, ls->eip);
+		}
 		lsprintf(DEV, "Stack: %s\n", h->stack_trace);
 
 		ss->total_choice_poince++;
