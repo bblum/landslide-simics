@@ -41,6 +41,10 @@ int kern_get_timer_wrap_begin()
 {
 	return GUEST_TIMER_WRAP_ENTER;
 }
+int kern_get_outb()
+{
+	return GUEST_OUTB;
+}
 
 /* the boundaries of the context switcher */
 bool kern_context_switch_entering(int eip)
@@ -130,6 +134,11 @@ bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
 	} else {
 		return false;
 	}
+}
+
+bool kern_kernel_main(int eip)
+{
+	return eip == GUEST_KERNEL_MAIN;
 }
 
 /******************************************************************************
@@ -380,12 +389,12 @@ bool kern_has_idle()
 	return false;
 }
 
-void kern_init_runqueue(struct sched_state *s,
-			void (*add_thread)(struct sched_state *, int, bool))
+void kern_init_threads(struct sched_state *s,
+		       void (*add_thread)(struct sched_state *, int, bool, bool))
 {
 	/* Only init runs first in POBBLES, but other kernels may have idle. In
 	 * POBBLES, init is not context-switched to to begin with. */
-	add_thread(s, kern_get_init_tid(), false);
+	add_thread(s, kern_get_init_tid(), false, true);
 }
 
 /* Do newly forked children exit to userspace through the end of the
