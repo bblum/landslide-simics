@@ -102,9 +102,14 @@ static void agent_deschedule(struct sched_state *s, int tid)
 
 static void current_dequeue(struct sched_state *s)
 {
-	struct agent_q *q = s->current_extra_runnable ? &s->dq : &s->rq;
-	assert(agent_by_tid(q, s->cur_agent->tid) == s->cur_agent);
-	Q_REMOVE(q, s->cur_agent, nobe);
+	struct agent *a = agent_by_tid_or_null(&s->rq, s->cur_agent->tid);
+	if (a == NULL) {
+		a = agent_by_tid(&s->dq, s->cur_agent->tid);
+		Q_REMOVE(&s->dq, a, nobe);
+	} else {
+		Q_REMOVE(&s->rq, a, nobe);
+	}
+	assert(a == s->cur_agent);
 }
 
 static void agent_sleep(struct sched_state *s)
