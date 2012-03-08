@@ -206,6 +206,7 @@ static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
 	assert(!m->in_free && "attempt to exit malloc while in free!");
 
 	lsprintf(INFO, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
+	assert(base < USER_MEM_START);
 
 	if (base == 0) {
 		lsprintf(INFO, "Kernel seems to be out of memory.\n");
@@ -287,6 +288,10 @@ void mem_update(struct ls_state *ls)
 			return;
 		}
 	}
+
+	if (within_function(ls->cpu0, ls->eip, GUEST_LMM_REMOVE_FREE_ENTER,
+			    GUEST_LMM_REMOVE_FREE_EXIT))
+		return;
 
 	if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
 		mem_enter_bad_place(ls, &ls->mem, size);

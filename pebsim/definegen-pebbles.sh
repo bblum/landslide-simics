@@ -103,6 +103,8 @@ echo "#define GUEST_SCHEDULER_LOCKED(x)  (x)"
 echo
 
 echo "#define GUEST_PANIC 0x`get_sym panic`"
+echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
+echo "#define GUEST_OUTB 0x`get_func outb`"
 
 echo
 
@@ -162,6 +164,8 @@ echo "#define GUEST_LMM_FREE_ENTER       0x`get_func lmm_free`"
 echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_end lmm_free`"
 echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
 echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
+echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func lmm_remove_free`"
+echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_end lmm_remove_free`"
 
 echo
 
