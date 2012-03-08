@@ -564,7 +564,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->all_explored = end_of_test;
 
 		if (voluntary) {
-			assert(h->chosen_thread ==
+			assert(h->chosen_thread == -1 || h->chosen_thread ==
 			       ls->sched.voluntary_resched_tid);
 			assert(ls->sched.voluntary_resched_stack != NULL);
 			h->stack_trace = ls->sched.voluntary_resched_stack;
