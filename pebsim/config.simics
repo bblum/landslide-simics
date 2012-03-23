@@ -76,9 +76,10 @@ add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 
 ## symbol tables (should be in 410mods.py but isn't)
 
-deflsym.load-symbols "kern-race/kernel"
-## deflsym.source-path "kern"
-deflsym.source-path "kern-race"
+deflsym.load-symbols "kernel-ludicros"
+#deflsym.load-symbols "kern-race/kernel"
+#deflsym.source-path "kern"
+deflsym.source-path "ludicros"
 
 ## setting up landslide
 
