@@ -1,13 +1,17 @@
 stack
-	to add another stack trace per choice point, capture the trace at the kern_context_switch_entering point in schedule and store it in the agence..
-	memory leak checking at end of test case
-	deadlock detection should also look for nobody on RQ
-	go clean up old haxes once you mark all_explored
-	add shm choice points, start with parent
-	attribuce
+	functionality
+		deadlock detection should also look for nobody on RQ
+		add shm choice points, start with parent
+		choice point for "thread enabled" "as soon as preemption possible"
+			possibly also for scheduler locked/unlocked?
+	user friendliness
+		extra trace per choice point; capture it at context switch enter
+		memory state store last freed block; print on use after free
+	maintenance
+		go clean up old haxes once you mark all_explored
 		arbiter_choice attribute - -42 is retarded
 		test_case attribute - durr
-	"bookmark blah moved to current time" wha??
+		"bookmark blah moved to current time" / "end of input recording" wha??
 
 landslide debugging guide...
 	"cpu0_mem - uncleared memory read raised frontend exception" x100 + assert?
@@ -62,11 +66,6 @@ impl details
 		write specific tests for expected bugs?
 			how many? - common problem syscall pairs / triplets / ...
 
-miscellaneous todo
-	figure out symbol table manipulation
-	make simics stop throwing timer interrupts of its own (and control kbd)
-
-
 write a guide to using landslide ... 
 	We assume...
 		that your context switcher works
@@ -75,5 +74,7 @@ write a guide to using landslide ...
 		readline must not spin-wait.
 		memory below USER_MEM_START is direct-mapped.
 	The more asserts you have in your kernel, the easier it will be for landslide to detect if something has gone wrong.
+		Use poison values in your destroy functions!
 	Edit 410user/progs/shell.c to add: "#define printf(...)" and "#define print(...)" !
 	Use the mutex ignores to specify global mutexes - malloc, vm, console
+	Specify in arbiter.c which direction to walk the tree in - left-to-right seems to take longer than right-to-left, but produces a more concise choice trace.
