@@ -1,0 +1,88 @@
+################################################################################
+# @file config.landslide
+# @brief A place to specify names/etc of important functions/etc.
+# @author Ben Blum <bblum@andrew.cmu.edu>, and you, the student :)
+#
+# This is part of a shell script, so write in shell. Available helper functions
+# for use in writing this config file:
+#
+# get_sym        Gets the address of a global symbol in the kernel image.
+# get_func       Gets the address of the (first instruction of) a function in
+#                the kernel image.
+# get_func_end   Gets the address of the LAST instruction in a given function
+#                (not including trailing nops) (the instruction is always 'ret')
+# ignore_func, ignore_sym - See below.
+################################################################################
+
+# The path to your kernel image; the file called "kernel" that gets built.
+KERNEL_IMG=kernel-ludicros
+# The name of your kernel. Must be only one token; underscores are fine.
+# Examples: "pathos" "pathos_broken" but not "pathos-broken"
+KERNEL_NAME=ludicros
+
+# The function registered in the IDT to handle timer interrupts.
+TIMER_WRAPPER=interrupt_idt_stub_32
+TIMER_WRAPPER_DISPATCH=interrupt_dispatch
+
+# The function that all context switches go through. Preferably the outermost
+# one - e.g. if a C function calls an assembly function, and both meet this
+# criterion, use the name of the former.
+CONTEXT_SWITCH=sched_run_next_thread
+
+# The name of the function in which threads go to sleep on readline.
+READLINE=sys_readline
+
+# This function will be called later to generate the list of functions that
+# comprise your kernel's scheduler. Call 'sched_func' once per function.
+function sched_funcs {
+	sched_func sched_find_blocked_thread
+	sched_func sched_find_thread
+	sched_func sched_block
+	sched_func sched_unblock
+	sched_func sched_process_wakeups
+	sched_func sched_run_next_thread
+	sched_func sched_switch_context_and_reschedule
+	sched_func sched_do_context_switch
+	sched_func context_return
+	sched_func sched_reschedule
+	sched_func sched_yield
+}
+
+# Type sizes. Not used by anything outside of this file, so feel free to add or
+# remove some as necessary.
+INT_SIZE=4
+PTR_SIZE=4
+MUTEX_SIZE=`echo $(($INT_SIZE+$INT_SIZE))`
+Q_SIZE=`echo $(($PTR_SIZE+$PTR_SIZE))`
+COND_SIZE=`echo $(($INT_SIZE+$MUTEX_SIZE+$Q_SIZE))`
+SEM_SIZE=`echo $(($INT_SIZE+$INT_SIZE+$INT_SIZE+$MUTEX_SIZE+$COND_SIZE))`
+
+# This function will be called later to generate the list of global symbols that
+# landslide should ignore shared memory accesses to.
+# Call "ignore_sym" once per symbol; arg1 is the symbol name, arg2 is the type's
+# size in bytes.
+# Note that if you wish to also not have decision points on locking a mutex,
+# declare it below in ignore_mutexes instead of here.
+function ignore_syms {
+	ignore_sym ticks $INT_SIZE
+	ignore_sym lock_count $INT_SIZE
+	ignore_sym unlock_int_flag $INT_SIZE
+	ignore_sym sched_run_list $Q_SIZE
+	ignore_sym sched_block_list $Q_SIZE
+	ignore_sym sched_sleep_list $Q_SIZE
+	ignore_sym sched_run_list_lock $MUTEX_SIZE
+	ignore_sym sched_block_list_lock $MUTEX_SIZE
+	ignore_sym sched_sleep_list_lock $MUTEX_SIZE
+}
+
+# See above.
+function ignore_mutexes {
+	ignore_sym frame_lock $MUTEX_SIZE
+	ignore_sym zfod_sibling_lock $MUTEX_SIZE
+	ignore_sym pm_promise_lock $MUTEX_SIZE
+	ignore_sym mm_lock $SEM_SIZE
+	ignore_sym kb_input_sem $SEM_SIZE
+	ignore_sym kb_char_sem $SEM_SIZE
+}
+
+# vim: ft=sh

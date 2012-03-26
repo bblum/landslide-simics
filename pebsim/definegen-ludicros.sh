@@ -1,23 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 # this auto-generates a chunk of the kernel_specifics.c file.
 # comments can be found there... (sorry)
 
-KERNEL_IMG=$1
-KERNEL_NAME=$2
-
-if [ ! -f "$KERNEL_IMG" ]; then
-	echo "invalid kernel image specified"
-	exit 1
-fi
-
-if [ -z "$KERNEL_NAME" ]; then
-	echo "what is the name of this kernel?"
-	exit 1
-fi
-
-KERNEL_NAME_LOWER=`echo $KERNEL_NAME | tr '[:upper:]' '[:lower:]'`
-KERNEL_NAME_UPPER=`echo $KERNEL_NAME | tr '[:lower:]' '[:upper:]'`
+##########################
+#### helper functions ####
+##########################
 
 function get_sym {
 	objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1
@@ -30,6 +18,47 @@ function get_func {
 function get_func_end {
 	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
 }
+
+function sched_func {
+	echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
+}
+
+function ignore_sym {
+	echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
+}
+
+#############################
+#### Reading user config ####
+#############################
+
+# Doesn't work without the "./". Everything is awful forever.
+CONFIG=./config.landslide
+if [ ! -f "$CONFIG" ]; then
+	echo "Where's $CONFIG?"
+	exit 1
+fi
+TIMER_WRAPPER_DISPATCH=
+source $CONFIG
+
+#####################################
+#### User config sanity checking ####
+#####################################
+
+if [ ! -f "$KERNEL_IMG" ]; then
+	echo "invalid kernel image specified"
+	exit 1
+fi
+if [ -z "$KERNEL_NAME" ]; then
+	echo "what is the name of this kernel?"
+	exit 1
+fi
+
+##################
+#### Begin... ####
+##################
+
+KERNEL_NAME_LOWER=`echo $KERNEL_NAME | tr '[:upper:]' '[:lower:]'`
+KERNEL_NAME_UPPER=`echo $KERNEL_NAME | tr '[:lower:]' '[:upper:]'`
 
 echo "/**"
 echo " * @file kernel_specifics_$KERNEL_NAME_LOWER.h"
@@ -47,6 +76,7 @@ echo
 #### TCB management ####
 ########################
 
+# XXX: deal with this
 echo "#define GUEST_ESP0_ADDR (0x`get_sym init_tss` + 4)" # see 410kern/x86/asm.S
 echo "#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
 
@@ -67,13 +97,34 @@ echo "#define PID_FROM_PCB(cpu, pcb) READ_MEMORY(cpu, pcb + GUEST_PCB_PID_OFFSET
 
 echo
 
-TIMER_WRAP_ENTER=`get_func interrupt_idt_stub_32`
-TIMER_WRAP_EXIT=`get_func_end interrupt_dispatch`
+if [ ! -z "$TIMER_WRAPPER_DISPATCH" ]; then
+	# Difficult case, but handled.
+	TIMER_WRAP_EXIT=`get_func_end $TIMER_WRAPPER_DISPATCH`
+else
+	# check the end instruction for being ret, and spit out a "ask ben for help" warning
+	LAST_TIMER_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$TIMER_WRAPPER>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1`
+	if echo "$LAST_TIMER_INSTR" | grep iret 2>&1 >/dev/null; then
+		# Easy case.
+		TIMER_WRAP_EXIT=`get_func_end $TIMER_WRAPPER`
+	else
+		# Difficult case, not handled.
+		echo "!!!!"
+		echo "Something is funny about your timer handler, and Ben expected this to happen."
+		echo "Expected the last instruction to be 'iret', but got:"
+		echo "$LAST_TIMER_INSTR"
+		echo "Ask Ben for help."
+		echo "!!!!"
+		exit 1
+	fi
+fi
+
+TIMER_WRAP_ENTER=`get_func $TIMER_WRAPPER`
+
 echo "#define GUEST_TIMER_WRAP_ENTER     0x$TIMER_WRAP_ENTER"
 echo "#define GUEST_TIMER_WRAP_EXIT      0x$TIMER_WRAP_EXIT"
 
-CS_ENTER=`get_func sched_run_next_thread`
-CS_EXIT=`get_func_end sched_run_next_thread`
+CS_ENTER=`get_func $CONTEXT_SWITCH`
+CS_EXIT=`get_func_end $CONTEXT_SWITCH`
 echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x$CS_ENTER"
 echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x$CS_EXIT"
 
@@ -82,8 +133,8 @@ echo
 # TODO - find some way to kill this
 echo "#define GUEST_FORK_RETURN_SPOT     0x`get_sym get_to_userspace`"
 
-READLINE_WINDOW=`get_func sys_readline`
-READLINE_WINDOW_END=`get_func_end sys_readline`
+READLINE_WINDOW=`get_func $READLINE`
+READLINE_WINDOW_END=`get_func_end $READLINE`
 
 echo "#define GUEST_READLINE_WINDOW_ENTER 0x$READLINE_WINDOW"
 echo "#define GUEST_READLINE_WINDOW_EXIT 0x$READLINE_WINDOW_END"
@@ -94,17 +145,7 @@ echo
 #### Mutexes / Deadlock detection ####
 ######################################
 
-# No yield mutexes in ludicros.
-# BLOCKED_WINDOW=`objdump -d $KERNEL_IMG | grep -A10000 "<mutex_lock>:" | grep -m 1 "call.*<yield>" | sed 's/ //g' | cut -d":" -f1`
-# echo "#define GUEST_MUTEX_LOCK_ENTER   0x`get_func mutex_lock`"
-echo "#define GUEST_MUTEX_LOCK_MUTEX_ARGNUM 1"
-# echo "#define GUEST_MUTEX_BLOCKED      0x$BLOCKED_WINDOW"
-# echo "#define GUEST_MUTEX_LOCK_EXIT    0x`get_func_end mutex_lock`"
-# echo "#define GUEST_MUTEX_UNLOCK_ENTER 0x`get_func mutex_unlock`"
-# echo "#define GUEST_MUTEX_UNLOCK_MUTEX_ARGNUM 1"
-# echo "#define GUEST_MUTEX_UNLOCK_EXIT  0x`get_func_end mutex_unlock`"
-
-echo
+# Moved to annotations
 
 ###################################
 #### Dynamic memory allocation ####
@@ -165,48 +206,15 @@ echo
 #### Scheduler boundaries ####
 ##############################
 
-function ignore_func {
-	echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
-}
-
-function ignore_sym {
-	echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
-}
-
 # Things that are likely to always touch shared memory that you don't care about
 # such as runqueue links, but not those that the globals list filters out, such
 # as links inside each tcb.
 echo "#define GUEST_SCHEDULER_FUNCTIONS { \\"
-ignore_func sched_find_blocked_thread
-ignore_func sched_find_thread
-ignore_func sched_block
-ignore_func sched_unblock
-ignore_func sched_process_wakeups
-ignore_func sched_run_next_thread
-ignore_func sched_switch_context_and_reschedule
-ignore_func sched_do_context_switch
-ignore_func context_return
-ignore_func sched_reschedule
-ignore_func sched_yield
+sched_funcs
 echo -e "\t}"
 
-INT_SIZE=4
-PTR_SIZE=4
-MUTEX_SIZE=`echo $(($INT_SIZE+$INT_SIZE))`
-Q_SIZE=`echo $(($PTR_SIZE+$PTR_SIZE))`
-COND_SIZE=`echo $(($INT_SIZE+$MUTEX_SIZE+$Q_SIZE))`
-SEM_SIZE=`echo $(($INT_SIZE+$INT_SIZE+$INT_SIZE+$MUTEX_SIZE+$COND_SIZE))`
-
 echo "#define GUEST_SCHEDULER_GLOBALS { \\"
-ignore_sym ticks $INT_SIZE
-ignore_sym lock_count $INT_SIZE
-ignore_sym unlock_int_flag $INT_SIZE
-ignore_sym sched_run_list $Q_SIZE
-ignore_sym sched_block_list $Q_SIZE
-ignore_sym sched_sleep_list $Q_SIZE
-ignore_sym sched_run_list_lock $MUTEX_SIZE
-ignore_sym sched_block_list_lock $MUTEX_SIZE
-ignore_sym sched_sleep_list_lock $MUTEX_SIZE
+ignore_syms
 echo -e "\t}"
 
 echo
@@ -218,14 +226,10 @@ echo
 echo "#define GUEST_MUTEX_LOCK 0x`get_func mutex_lock`"
 echo "#define GUEST_VANISH 0x`get_func do_vanish`"
 echo "#define GUEST_VANISH_END 0x`get_func_end do_vanish`"
+echo "#define GUEST_MUTEX_LOCK_MUTEX_ARGNUM 1"
 
 echo "#define GUEST_MUTEX_IGNORES { \\"
-ignore_sym frame_lock $MUTEX_SIZE
-ignore_sym zfod_sibling_lock $MUTEX_SIZE
-ignore_sym pm_promise_lock $MUTEX_SIZE
-ignore_sym mm_lock $SEM_SIZE
-ignore_sym kb_input_sem $SEM_SIZE
-ignore_sym kb_char_sem $SEM_SIZE
+ignore_mutexes
 echo -e "\t}"
 
 echo
