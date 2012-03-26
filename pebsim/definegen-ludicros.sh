@@ -83,13 +83,8 @@ echo "#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
 # TODO: make like the predecessor of that which infected mushroom cooks, and generalised it
 echo "#define GUEST_TCB_TID_OFFSET 8"
 echo "#define TID_FROM_TCB(cpu, tcb) READ_MEMORY(cpu, tcb + GUEST_TCB_TID_OFFSET)"
-echo "#define STACK_FROM_TCB(tcb) PAGE_ALIGN(tcb)"
-echo "#define GUEST_STACK_SIZE (PAGE_SIZE-GUEST_TCB_T_SIZE)"
 echo
 echo "#define GUEST_TCB_STATE_FLAG_OFFSET 20" # for off_runqueue
-echo
-echo "#define GUEST_PCB_PID_OFFSET 24" # initial_tid
-echo "#define PID_FROM_PCB(cpu, pcb) READ_MEMORY(cpu, pcb + GUEST_PCB_PID_OFFSET)"
 
 ###################################
 #### Thread lifecycle tracking ####
@@ -103,7 +98,7 @@ if [ ! -z "$TIMER_WRAPPER_DISPATCH" ]; then
 else
 	# check the end instruction for being ret, and spit out a "ask ben for help" warning
 	LAST_TIMER_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$TIMER_WRAPPER>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1`
-	if echo "$LAST_TIMER_INSTR" | grep iret 2>&1 >/dev/null; then
+	if echo "$LAST_TIMER_INSTR" | grep -v jmp | grep '\<iret\>' 2>&1 >/dev/null; then
 		# Easy case.
 		TIMER_WRAP_EXIT=`get_func_end $TIMER_WRAPPER`
 	else
@@ -118,26 +113,20 @@ else
 	fi
 fi
 
-TIMER_WRAP_ENTER=`get_func $TIMER_WRAPPER`
-
-echo "#define GUEST_TIMER_WRAP_ENTER     0x$TIMER_WRAP_ENTER"
+echo "#define GUEST_TIMER_WRAP_ENTER     0x`get_func $TIMER_WRAPPER`"
 echo "#define GUEST_TIMER_WRAP_EXIT      0x$TIMER_WRAP_EXIT"
 
-CS_ENTER=`get_func $CONTEXT_SWITCH`
-CS_EXIT=`get_func_end $CONTEXT_SWITCH`
-echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x$CS_ENTER"
-echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x$CS_EXIT"
+echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x`get_func $CONTEXT_SWITCH`"
+echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x`get_func_end $CONTEXT_SWITCH`"
 
 echo
 
 # TODO - find some way to kill this
 echo "#define GUEST_FORK_RETURN_SPOT     0x`get_sym get_to_userspace`"
 
-READLINE_WINDOW=`get_func $READLINE`
-READLINE_WINDOW_END=`get_func_end $READLINE`
-
-echo "#define GUEST_READLINE_WINDOW_ENTER 0x$READLINE_WINDOW"
-echo "#define GUEST_READLINE_WINDOW_EXIT 0x$READLINE_WINDOW_END"
+# Readline
+echo "#define GUEST_READLINE_WINDOW_ENTER 0x`get_func $READLINE`"
+echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_end $READLINE`"
 
 echo
 
