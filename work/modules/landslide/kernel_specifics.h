@@ -30,8 +30,7 @@
 struct sched_state;
 
 /* Miscellaneous simple information */
-int kern_get_current_tcb(conf_object_t *cpu);
-int kern_get_current_tid(conf_object_t *cpu);
+bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid);
 bool kern_timer_entering(int eip);
 bool kern_timer_exiting(int eip);
 int kern_get_timer_wrap_begin(void);

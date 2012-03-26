@@ -201,14 +201,13 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	} while (0)
 #define ENTRY_POINT "_start "
 /* Caller has to free the return value. */
-char *stack_trace(conf_object_t *cpu, int eip)
+char *stack_trace(conf_object_t *cpu, int eip, int tid)
 {
 	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
 	int pos = 0, old_pos;
 	int stack_offset = 0; /* Counts by 1 - READ_STACK already multiplies */
 
-	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ",
-		kern_get_current_tid(cpu), eip);
+	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ", tid, eip);
 	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
 
 	for (int ebp = GET_CPU_ATTR(cpu, ebp);

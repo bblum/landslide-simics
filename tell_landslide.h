@@ -7,6 +7,7 @@
 #ifndef __LS_TELL_LANDSLIDE_H
 #define __LS_TELL_LANDSLIDE_H
 
+void tell_landslide_thread_switch(int new_tid);
 void tell_landslide_sched_init_done(void);
 void tell_landslide_forking(void);
 void tell_landslide_vanishing(void);

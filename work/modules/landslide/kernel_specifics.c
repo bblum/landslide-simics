@@ -19,16 +19,14 @@
  * Miscellaneous information
  ******************************************************************************/
 
-/* Returns the tcb/tid of the currently scheduled thread. */
-int kern_get_current_tcb(conf_object_t *cpu)
+bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid)
 {
-	int esp0 = GUEST_ESP0(cpu);
-	// from sched_find_tcb_by_ksp
-	return ((esp0 & ~(PAGE_SIZE - 1)) + PAGE_SIZE) - GUEST_TCB_T_SIZE;
-}
-int kern_get_current_tid(conf_object_t *cpu)
-{
-	return TID_FROM_TCB(cpu, kern_get_current_tcb(cpu));
+	if (eip == TELL_LANDSLIDE_THREAD_SWITCH) {
+		*new_tid = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /* The boundaries of the timer handler wrapper. */
@@ -302,11 +300,7 @@ bool kern_address_global(int addr)
 		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
 }
 
-/* The following three functions are optional - the first two are slight speed
- * optimisations, and the third makes landslide print pretty hints for the names
- * of shared memory accesses ("pcb0->vm_mutex", for example). You can implement
- * them if you want a challenge, I suppose. -- Ben */
-#ifndef STUDENT_FRIENDLY
+#if 0
 bool kern_address_own_kstack(conf_object_t *cpu, int addr)
 {
 	int stack_bottom = STACK_FROM_TCB(kern_get_current_tcb(cpu));
@@ -415,9 +409,13 @@ bool kern_fork_return_spot(int eip)
 /* Is the currently-running thread not on the runqueue, and is runnable
  * anyway? For kernels that keep the current thread on the runqueue, this
  * function should return false always. */
+// XXX
 bool kern_current_extra_runnable(conf_object_t *cpu)
 {
-	int state_flag = READ_MEMORY(cpu, kern_get_current_tcb(cpu) +
-				          GUEST_TCB_STATE_FLAG_OFFSET);
+	int esp0 = GUEST_ESP0(cpu);
+	// from sched_find_tcb_by_ksp
+	int tcb = ((esp0 & ~(PAGE_SIZE - 1)) + PAGE_SIZE) - GUEST_TCB_T_SIZE;
+
+	int state_flag = READ_MEMORY(cpu, tcb + GUEST_TCB_STATE_FLAG_OFFSET);
 	return state_flag != 1; // SCHED_NOT_RUNNABLE
 }

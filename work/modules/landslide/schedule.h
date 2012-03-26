@@ -78,9 +78,6 @@ struct sched_state {
 	/* Counters - useful for telling when tests begin and end */
 	int num_agents;
 	int most_agents_ever;
-	/* Are we about to context-switch? (see inside sched_update) */
-	bool context_switch_pending; /* valid flag for target below */
-	int context_switch_target;
 	/* See agent_vanish for justification */
 	struct agent *last_vanished_agent;
 	/* Did the guest finish initialising its own state */

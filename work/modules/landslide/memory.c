@@ -214,7 +214,8 @@ static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
 		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
 		chunk->base = base;
 		chunk->len = m->alloc_request_size;
-		chunk->malloc_trace = stack_trace(ls->cpu0, ls->eip);
+		chunk->malloc_trace = stack_trace(ls->cpu0, ls->eip,
+						  ls->sched.cur_agent->tid);
 		chunk->free_trace = NULL;
 
 		m->heap_size += m->alloc_request_size;
@@ -259,7 +260,8 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
 	if (chunk != NULL) {
 		m->heap_size -= chunk->len;
 		assert(chunk->free_trace == NULL);
-		chunk->free_trace = stack_trace(ls->cpu0, ls->eip);
+		chunk->free_trace = stack_trace(ls->cpu0, ls->eip,
+						ls->sched.cur_agent->tid);
 		insert_chunk(&m->freed, chunk, true);
 	}
 

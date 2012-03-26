@@ -76,14 +76,10 @@ echo
 #### TCB management ####
 ########################
 
-# XXX: deal with this
 echo "#define GUEST_ESP0_ADDR (0x`get_sym init_tss` + 4)" # see 410kern/x86/asm.S
 echo "#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
 
-# TODO: make like the predecessor of that which infected mushroom cooks, and generalised it
-echo "#define GUEST_TCB_TID_OFFSET 8"
-echo "#define TID_FROM_TCB(cpu, tcb) READ_MEMORY(cpu, tcb + GUEST_TCB_TID_OFFSET)"
-echo
+# XXX: deal with this
 echo "#define GUEST_TCB_STATE_FLAG_OFFSET 20" # for off_runqueue
 
 ###################################
@@ -177,6 +173,7 @@ echo
 #### In-kernel annotations ####
 ###############################
 
+echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func tell_landslide_thread_switch`"
 echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func tell_landslide_sched_init_done`"
 echo "#define TELL_LANDSLIDE_FORKING 0x`get_func tell_landslide_forking`"
 echo "#define TELL_LANDSLIDE_VANISHING 0x`get_func tell_landslide_vanishing`"
@@ -212,6 +209,7 @@ echo
 #### Choice points ####
 #######################
 
+# XXX
 echo "#define GUEST_MUTEX_LOCK 0x`get_func mutex_lock`"
 echo "#define GUEST_VANISH 0x`get_func do_vanish`"
 echo "#define GUEST_VANISH_END 0x`get_func_end do_vanish`"

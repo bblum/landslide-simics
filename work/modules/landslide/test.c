@@ -56,8 +56,7 @@ static bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 	    (shell = agent_by_tid_or_null(&s->dq, kern_get_shell_tid()))) {
 		if (shell->action.readlining) {
 			if (kern_has_idle()) {
-				return kern_get_current_tid(cpu) !=
-					kern_get_idle_tid();
+				return s->cur_agent->tid != kern_get_idle_tid();
 			} else {
 				return (Q_GET_SIZE(&s->rq) != 0 ||
 					Q_GET_SIZE(&s->sq) != 0);

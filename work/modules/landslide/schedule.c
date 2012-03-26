@@ -222,8 +222,6 @@ void sched_init(struct sched_state *s)
 	if (s->cur_agent == NULL)
 		s->cur_agent = agent_by_tid(&s->dq, kern_get_first_tid());
 	s->last_agent = NULL;
-	s->context_switch_pending = false;
-	s->context_switch_target = 0xdeadd00d; /* poison value */
 	s->last_vanished_agent = NULL;
 	s->guest_init_done = false;
 	s->schedule_in_flight = NULL;
@@ -332,13 +330,14 @@ void sched_update(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
 	int old_tid = s->cur_agent->tid;
-	int new_tid = kern_get_current_tid(ls->cpu0);
+	int new_tid;
 
 	/* wait until the guest is ready */
 	if (!s->guest_init_done) {
 		if (kern_sched_init_done(ls->eip)) {
 			s->guest_init_done = true;
-			assert(old_tid == new_tid && "init tid mismatch");
+			/* Deprecated since kern_get_current_tid went away. */
+			// assert(old_tid == new_tid && "init tid mismatch");
 		} else {
 			return;
 		}
@@ -362,7 +361,7 @@ void sched_update(struct ls_state *ls)
 	 * Update scheduler state.
 	 **********************************************************************/
 
-	if (old_tid != new_tid && !s->context_switch_pending) {
+	if (kern_thread_switch(ls->cpu0, ls->eip, &new_tid)) {
 		/*
 		 * So, fork needs to be handled twice, both here and below in the
 		 * runnable case. And for kernels that trigger both, both places will
@@ -406,12 +405,7 @@ void sched_update(struct ls_state *ls)
 			/* there is also a possibility of searching s->dq, to
 			 * find the thread, but the kern_thread_runnable case
 			 * below can handle it for us anyway with less code. */
-			// TODO: deprecate this (context_switch_pending). remove that shit.
 			assert(0);
-			lsprintf(DEV, "about to switch threads %d -> %d\n", old_tid,
-				 new_tid);
-			s->context_switch_pending = true;
-			s->context_switch_target = new_tid;
 		}
 	}
 
@@ -467,7 +461,7 @@ void sched_update(struct ls_state *ls)
 			if (s->voluntary_resched_stack != NULL)
 				MM_FREE(s->voluntary_resched_stack);
 			s->voluntary_resched_stack =
-				stack_trace(ls->cpu0, ls->eip);
+				stack_trace(ls->cpu0, ls->eip, s->cur_agent->tid);
 		}
 	} else if (kern_context_switch_exiting(ls->eip)) {
 		assert(ACTION(s, context_switch));
@@ -501,14 +495,6 @@ void sched_update(struct ls_state *ls)
 		/* A thread is about to become runnable. Was it just spawned? */
 		if (!handle_fork(s, target_tid, true)) {
 			agent_wake(s, target_tid);
-		}
-		/* If this is happening from the context switcher, we also need
-		 * to update the currently-running thread. */
-		if (s->context_switch_pending) {
-			assert(s->context_switch_target == target_tid);
-			s->last_agent = s->cur_agent;
-			s->cur_agent = agent_by_tid(&s->rq, target_tid);
-			s->context_switch_pending = false;
 		}
 	} else if (kern_thread_descheduling(ls->cpu0, ls->eip, &target_tid)) {
 		/* A thread is about to deschedule. Is it vanishing/sleeping? */

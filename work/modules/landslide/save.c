@@ -191,8 +191,6 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->current_extra_runnable = src->current_extra_runnable;
 	dest->num_agents             = src->num_agents;
 	dest->most_agents_ever       = src->most_agents_ever;
-	dest->context_switch_pending = src->context_switch_pending;
-	dest->context_switch_target  = src->context_switch_target;
 	dest->guest_init_done        = src->guest_init_done;
 	dest->entering_timer         = src->entering_timer;
 	dest->voluntary_resched_tid  = src->voluntary_resched_tid;
@@ -570,7 +568,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->stack_trace = ls->sched.voluntary_resched_stack;
 			ls->sched.voluntary_resched_stack = NULL;
 		} else {
-			h->stack_trace = stack_trace(ls->cpu0, ls->eip);
+			h->stack_trace = stack_trace(ls->cpu0, ls->eip,
+						     ls->sched.cur_agent->tid);
 		}
 		lsprintf(DEV, "Stack: %s\n", h->stack_trace);
 
