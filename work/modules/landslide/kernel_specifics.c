@@ -61,7 +61,7 @@ bool kern_context_switch_exiting(int eip)
 
 bool kern_sched_init_done(int eip)
 {
-	return eip == GUEST_SCHED_INIT_EXIT;
+	return eip == TELL_LANDSLIDE_SCHED_INIT_DONE;
 }
 
 bool kern_in_scheduler(int eip)
@@ -159,30 +159,45 @@ bool kern_kernel_main(int eip)
 
 bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex)
 {
-	return false;
+	if (eip == TELL_LANDSLIDE_MUTEX_LOCKING) {
+		*mutex = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /* Is the thread becoming "disabled" because the mutex is owned? */
-bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *tid)
+bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *owner_tid)
 {
-	return false;
+	if (eip == TELL_LANDSLIDE_MUTEX_BLOCKING) {
+		*owner_tid = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /* This one also tells if the thread is re-enabled. */
 bool kern_mutex_locking_done(int eip)
 {
-	return false;
+	return eip == TELL_LANDSLIDE_MUTEX_LOCKING_DONE;
 }
 
 /* Need to re-read the mutex addr because of unlocking mutexes in any order. */
 bool kern_mutex_unlocking(conf_object_t *cpu, int eip, int *mutex)
 {
-	return false;
+	if (eip == TELL_LANDSLIDE_MUTEX_UNLOCKING) {
+		*mutex = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 bool kern_mutex_unlocking_done(int eip)
 {
-	return false;
+	return eip == TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE;
 }
 
 /******************************************************************************
@@ -192,16 +207,15 @@ bool kern_mutex_unlocking_done(int eip)
 /* How to tell if a thread's life is beginning or ending */
 bool kern_forking(int eip)
 {
-	return (eip == GUEST_FORK_WINDOW_ENTER)
-	    || (eip == GUEST_THRFORK_WINDOW_ENTER);
+	return eip == TELL_LANDSLIDE_FORKING;
 }
 bool kern_sleeping(int eip)
 {
-	return eip == GUEST_SLEEP_WINDOW_ENTER;
+	return eip == TELL_LANDSLIDE_SLEEPING;
 }
 bool kern_vanishing(int eip)
 {
-	return eip == GUEST_VANISH_WINDOW_ENTER;
+	return eip == TELL_LANDSLIDE_VANISHING;
 }
 bool kern_readline_enter(int eip)
 {
@@ -215,10 +229,9 @@ bool kern_readline_exit(int eip)
 /* How to tell if a new thread is appearing or disappearing on the runqueue. */
 bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
 {
-	if (eip == GUEST_Q_ADD_HEAD || eip == GUEST_Q_ADD_TAIL) {
+	if (eip == TELL_LANDSLIDE_THREAD_RUNNABLE) {
 		/* 0(%esp) points to the return address; get the arg above it */
-		*tid = TID_FROM_TCB(cpu, READ_STACK(cpu,
-						    GUEST_Q_ADD_TCB_ARGNUM));
+		*tid = READ_STACK(cpu, 1);
 		return true;
 	} else {
 		return false;
@@ -227,9 +240,8 @@ bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
 
 bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
 {
-	if (eip == GUEST_Q_REMOVE) {
-		*tid = TID_FROM_TCB(cpu, READ_STACK(cpu,
-						    GUEST_Q_REMOVE_TCB_ARGNUM));
+	if (eip == TELL_LANDSLIDE_THREAD_DESCHEDULING) {
+		*tid = READ_STACK(cpu, 1);
 		return true;
 	} else {
 		return false;

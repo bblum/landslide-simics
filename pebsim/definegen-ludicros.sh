@@ -65,12 +65,6 @@ echo "#define PID_FROM_PCB(cpu, pcb) READ_MEMORY(cpu, pcb + GUEST_PCB_PID_OFFSET
 #### Thread lifecycle tracking ####
 ###################################
 
-echo "#define GUEST_Q_ADD_HEAD           0x`get_func rq_insert_front`"
-echo "#define GUEST_Q_ADD_TAIL           0x`get_func rq_insert_tail`"
-echo "#define GUEST_Q_ADD_TCB_ARGNUM     1"
-echo "#define GUEST_Q_REMOVE             0x`get_func rq_remove`"
-echo "#define GUEST_Q_REMOVE_TCB_ARGNUM  1"
-
 echo
 
 TIMER_WRAP_ENTER=`get_func interrupt_idt_stub_32`
@@ -83,25 +77,9 @@ CS_EXIT=`get_func_end sched_run_next_thread`
 echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x$CS_ENTER"
 echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x$CS_EXIT"
 
-SCHED_INIT_EXIT=`get_func_end set_esp0`
-echo "#define GUEST_SCHED_INIT_EXIT      0x$SCHED_INIT_EXIT"
-
 echo
 
-function get_last_such_instruction {
-	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep "$2" | tail -n 1 | sed 's/ //g' | cut -d":" -f1
-}
-
-FORK_WINDOW=`get_last_such_instruction sys_fork 'call.*sched_reschedule'`
-THRFORK_WINDOW=`get_last_such_instruction sys_thread_fork 'call.*sched_reschedule'`
-SLEEP_WINDOW=`get_last_such_instruction sys_sleep 'call.*sched_run_next_thread'`
-VANISH_WINDOW=`get_last_such_instruction sys_vanish 'call.*sched_run_next_thread'`
-
-echo "#define GUEST_FORK_WINDOW_ENTER    0x$FORK_WINDOW"
-echo "#define GUEST_THRFORK_WINDOW_ENTER 0x$THRFORK_WINDOW"
-echo "#define GUEST_SLEEP_WINDOW_ENTER   0x$SLEEP_WINDOW"
-echo "#define GUEST_VANISH_WINDOW_ENTER  0x$VANISH_WINDOW"
-
+# TODO - find some way to kill this
 echo "#define GUEST_FORK_RETURN_SPOT     0x`get_sym get_to_userspace`"
 
 READLINE_WINDOW=`get_func sys_readline`
@@ -164,6 +142,22 @@ echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
 echo "#define GUEST_OUTB 0x`get_func outb`"
 
 echo
+
+###############################
+#### In-kernel annotations ####
+###############################
+
+echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func tell_landslide_sched_init_done`"
+echo "#define TELL_LANDSLIDE_FORKING 0x`get_func tell_landslide_forking`"
+echo "#define TELL_LANDSLIDE_VANISHING 0x`get_func tell_landslide_vanishing`"
+echo "#define TELL_LANDSLIDE_SLEEPING 0x`get_func tell_landslide_sleeping`"
+echo "#define TELL_LANDSLIDE_THREAD_RUNNABLE 0x`get_func tell_landslide_thread_runnable`"
+echo "#define TELL_LANDSLIDE_THREAD_DESCHEDULING 0x`get_func tell_landslide_thread_descheduling`"
+echo "#define TELL_LANDSLIDE_MUTEX_LOCKING 0x`get_func tell_landslide_mutex_locking`"
+echo "#define TELL_LANDSLIDE_MUTEX_BLOCKING 0x`get_func tell_landslide_mutex_blocking`"
+echo "#define TELL_LANDSLIDE_MUTEX_LOCKING_DONE 0x`get_func tell_landslide_mutex_locking_done`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING 0x`get_func tell_landslide_mutex_unlocking`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func tell_landslide_mutex_unlocking_done`"
 
 echo
 
