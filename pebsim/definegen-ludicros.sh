@@ -8,23 +8,41 @@
 ##########################
 
 function get_sym {
-	objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1
+objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1
 }
 
 function get_func {
-	objdump -d $KERNEL_IMG | grep "<$1>:" | cut -d" " -f1
+objdump -d $KERNEL_IMG | grep "<$1>:" | cut -d" " -f1
 }
 
 function get_func_end {
-	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+	# original version - broken if doesn't end with ret
+	#objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+	RET_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep 'c3.*ret\|cf.*iret'`
+	# If there is no ret or iret, that's probably for sched_funcs. Pretend.
+	if [ -z "$RET_INSTR" ]; then
+		# Use the original implementation to get the last instruction.
+		objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+	# Test for there being only one ret or iret - normal case.
+	elif [ "`echo "$RET_INSTR" | wc -l`" = "1" ]; then
+		echo "$RET_INSTR" | sed 's/ //g' | cut -d":" -f1
+	else
+		echo "!!!"
+		echo "#error \"Function $1 has multiple end-points. Read this file for details.\""
+		echo "!!! You will need to hand-write multiple copies of the above macro by hand for"
+		echo "!!! each one, and edit the corresponding function in kernel_specifics.c to test"
+		echo "!!! for all of them. Continuing with the rest of definegen..."
+		echo "!!! FEEL FREE TO ASK BEN FOR HELP."
+		echo "!!!"
+	fi
 }
 
 function sched_func {
-	echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
+echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
 }
 
 function ignore_sym {
-	echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
+echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
 }
 
 #############################
@@ -52,6 +70,8 @@ if [ -z "$KERNEL_NAME" ]; then
 	echo "what is the name of this kernel?"
 	exit 1
 fi
+
+# TODO: add more
 
 ##################
 #### Begin... ####
