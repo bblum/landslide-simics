@@ -185,7 +185,6 @@ echo "#define GUEST_BSS_END GUEST_IMG_END"
 
 echo "#define GUEST_PANIC 0x`get_func panic`"
 echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
-echo "#define GUEST_OUTB 0x`get_func outb`"
 
 echo
 

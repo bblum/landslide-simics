@@ -66,23 +66,35 @@ void cause_timer_interrupt(conf_object_t *cpu)
 	SIM_run_unrestricted(cpu, cause_timer_interrupt_soviet_style, NULL);
 }
 
-#define CUSTOM_ASSEMBLY_CODES 0xcf0cc483 /* add $12,%esp; iret */
+/* Will use 8 bytes of stack when it runs. */
+#define CUSTOM_ASSEMBLY_CODES_SIZE 12
+#define CUSTOM_ASSEMBLY_CODES_STACK 8
+static const char custom_assembly_codes[] = {
+	0x50, /* push %eax */
+	0x52, /* posh %edx */
+	0x66, 0xba, 0x20, 0x00, /* mov $0x20, %dx # INT_ACK_CURRENT */
+	0xb0, 0x20, /* mov $0x20, %al # INT_CTL_PORT */
+	0xee, /* out %al, (%dx) */
+	0x5a, /* */
+	0x58, /* */
+	0xcf, /* iret */
+};
+
 int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 {
-	int esp = GET_CPU_ATTR(cpu, esp);
-	int outb = kern_get_outb();
+	int buf = GET_CPU_ATTR(cpu, esp) -
+		(CUSTOM_ASSEMBLY_CODES_SIZE + CUSTOM_ASSEMBLY_CODES_STACK);
 
 	lsprintf(DEV, "Cuckoo!\n");
 
-	SET_CPU_ATTR(cpu, esp, esp - 16);
-	esp = esp - 16;
-	SIM_write_phys_memory(cpu, esp + 12, CUSTOM_ASSEMBLY_CODES, 4);
-	SIM_write_phys_memory(cpu, esp + 8, INT_ACK_CURRENT, 4);
-	SIM_write_phys_memory(cpu, esp + 4, INT_CTL_PORT, 4);
-	SIM_write_phys_memory(cpu, esp + 0, esp + 12, 4);
-	SET_CPU_ATTR(cpu, eip, outb);
+	STATIC_ASSERT(ARRAY_SIZE(custom_assembly_codes) ==
+		      CUSTOM_ASSEMBLY_CODES_SIZE);
+	for (int i = 0; i < CUSTOM_ASSEMBLY_CODES_SIZE; i++) {
+		SIM_write_phys_memory(cpu, buf+i, custom_assembly_codes[i], 1);
+	}
 
-	return outb;
+	SET_CPU_ATTR(cpu, eip, buf);
+	return buf;
 }
 
 /* keycodes for the keyboard buffer */

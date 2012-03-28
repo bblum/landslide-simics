@@ -34,7 +34,6 @@ bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid);
 bool kern_timer_entering(int eip);
 bool kern_timer_exiting(int eip);
 int kern_get_timer_wrap_begin(void);
-int kern_get_outb(void);
 bool kern_context_switch_entering(int eip);
 bool kern_context_switch_exiting(int eip);
 bool kern_sched_init_done(int eip);
