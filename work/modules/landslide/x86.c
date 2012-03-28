@@ -178,12 +178,23 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	if (eip >= func && eip < func_end)
 		return true;
 
-	for (int ebp = GET_CPU_ATTR(cpu, ebp);
-	     ebp != 0 && (unsigned)ebp < USER_MEM_START;
-	     ebp = READ_MEMORY(cpu, ebp)) {
+	int stop_ebp = 0;
+	int ebp = GET_CPU_ATTR(cpu, ebp);
+	int rabbit = ebp;
+
+	while (ebp != stop_ebp && (unsigned)ebp < USER_MEM_START) {
+		/* Test eip against given range. */
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
 		if (eip >= func && eip < func_end)
 			return true;
+
+		/* Advance ebp and rabbit. Rabbit must go first to set stop_ebp
+		 * accurately. */
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit == ebp) stop_ebp = ebp;
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit == ebp) stop_ebp = ebp;
+		ebp = READ_MEMORY(cpu, ebp);
 	}
 
 	return false;
@@ -210,9 +221,11 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ", tid, eip);
 	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
 
-	for (int ebp = GET_CPU_ATTR(cpu, ebp);
-	     ebp != 0 && (unsigned)ebp < USER_MEM_START;
-	     ebp = READ_MEMORY(cpu, ebp)) {
+	int stop_ebp = 0;
+	int ebp = GET_CPU_ATTR(cpu, ebp);
+	int rabbit = ebp;
+
+	while (ebp != 0 && (unsigned)ebp < USER_MEM_START) {
 		bool extra_frame;
 
 		do {
@@ -265,6 +278,12 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 		            strlen(ENTRY_POINT)) == 0) {
 			break;
 		}
+
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit == ebp) stop_ebp = ebp;
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit == ebp) stop_ebp = ebp;
+		ebp = READ_MEMORY(cpu, ebp);
 	}
 
 	char *buf2 = MM_XSTRDUP(buf); /* truncate to save space */
