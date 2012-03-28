@@ -71,12 +71,12 @@ void cause_timer_interrupt(conf_object_t *cpu)
 #define CUSTOM_ASSEMBLY_CODES_STACK 8
 static const char custom_assembly_codes[] = {
 	0x50, /* push %eax */
-	0x52, /* posh %edx */
+	0x52, /* push %edx */
 	0x66, 0xba, 0x20, 0x00, /* mov $0x20, %dx # INT_ACK_CURRENT */
 	0xb0, 0x20, /* mov $0x20, %al # INT_CTL_PORT */
 	0xee, /* out %al, (%dx) */
-	0x5a, /* */
-	0x58, /* */
+	0x5a, /* pop %edx */
+	0x58, /* pop %eax */
 	0xcf, /* iret */
 };
 
