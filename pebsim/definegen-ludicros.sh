@@ -15,16 +15,16 @@ function get_func {
 objdump -d $KERNEL_IMG | grep "<$1>:" | cut -d" " -f1
 }
 
+# Gets the last instruction, spatially. Might not be ret or iret.
 function get_func_end {
-	# original version - broken if doesn't end with ret
-	#objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+}
+
+# Gets the last instruction, temporally. Must be ret or iret.
+function get_func_ret {
 	RET_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep 'c3.*ret\|cf.*iret'`
-	# If there is no ret or iret, that's probably for sched_funcs. Pretend.
-	if [ -z "$RET_INSTR" ]; then
-		# Use the original implementation to get the last instruction.
-		objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
 	# Test for there being only one ret or iret - normal case.
-	elif [ "`echo "$RET_INSTR" | wc -l`" = "1" ]; then
+	if [ "`echo "$RET_INSTR" | wc -l`" = "1" ]; then
 		echo "$RET_INSTR" | sed 's/ //g' | cut -d":" -f1
 	else
 		echo "!!!"
@@ -110,13 +110,13 @@ echo
 
 if [ ! -z "$TIMER_WRAPPER_DISPATCH" ]; then
 	# Difficult case, but handled.
-	TIMER_WRAP_EXIT=`get_func_end $TIMER_WRAPPER_DISPATCH`
+	TIMER_WRAP_EXIT=`get_func_ret $TIMER_WRAPPER_DISPATCH`
 else
 	# check the end instruction for being ret, and spit out a "ask ben for help" warning
 	LAST_TIMER_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$TIMER_WRAPPER>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1`
 	if echo "$LAST_TIMER_INSTR" | grep -v jmp | grep '\<iret\>' 2>&1 >/dev/null; then
 		# Easy case.
-		TIMER_WRAP_EXIT=`get_func_end $TIMER_WRAPPER`
+		TIMER_WRAP_EXIT=`get_func_ret $TIMER_WRAPPER`
 	else
 		# Difficult case, not handled.
 		echo "!!!!"
@@ -133,7 +133,7 @@ echo "#define GUEST_TIMER_WRAP_ENTER     0x`get_func $TIMER_WRAPPER`"
 echo "#define GUEST_TIMER_WRAP_EXIT      0x$TIMER_WRAP_EXIT"
 
 echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x`get_func $CONTEXT_SWITCH`"
-echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x`get_func_end $CONTEXT_SWITCH`"
+echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x`get_func_ret $CONTEXT_SWITCH`"
 
 echo
 
@@ -142,7 +142,7 @@ echo "#define GUEST_FORK_RETURN_SPOT     0x`get_sym get_to_userspace`"
 
 # Readline
 echo "#define GUEST_READLINE_WINDOW_ENTER 0x`get_func $READLINE`"
-echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_end $READLINE`"
+echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_ret $READLINE`"
 
 echo
 
@@ -158,17 +158,17 @@ echo
 
 # Pebbles user shouldn't need to change this.
 echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func lmm_alloc`"
-echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_end lmm_alloc`"
+echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_ret lmm_alloc`"
 echo "#define GUEST_LMM_ALLOC_SIZE_ARGNUM 2"
 echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func lmm_alloc_gen`"
-echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_end lmm_alloc_gen`"
+echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret lmm_alloc_gen`"
 echo "#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM 2"
 echo "#define GUEST_LMM_FREE_ENTER       0x`get_func lmm_free`"
-echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_end lmm_free`"
+echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret lmm_free`"
 echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
 echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
 echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func lmm_remove_free`"
-echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_end lmm_remove_free`"
+echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret lmm_remove_free`"
 
 echo
 
@@ -232,7 +232,7 @@ echo
 # XXX
 echo "#define GUEST_MUTEX_LOCK 0x`get_func mutex_lock`"
 echo "#define GUEST_VANISH 0x`get_func do_vanish`"
-echo "#define GUEST_VANISH_END 0x`get_func_end do_vanish`"
+echo "#define GUEST_VANISH_END 0x`get_func_ret do_vanish`"
 echo "#define GUEST_MUTEX_LOCK_MUTEX_ARGNUM 1"
 
 echo "#define GUEST_MUTEX_IGNORES { \\"
