@@ -401,10 +401,14 @@ void sched_update(struct ls_state *ls)
 		 * need to do agent_fork now. (agent_fork *also* needs to be
 		 * handled below, for kernels which don't c-s to the new thread
 		 * immediately.) The */
-		} else if (!handle_fork(s, new_tid, false)) {
-			/* there is also a possibility of searching s->dq, to
-			 * find the thread, but the kern_thread_runnable case
-			 * below can handle it for us anyway with less code. */
+		} else if (handle_fork(s, new_tid, false)) {
+			next = agent_by_tid_or_null(&s->dq, new_tid);
+			assert(next != NULL && "Newly forked thread not on DQ");
+			lsprintf(DEV, "switching threads %d -> %d\n", old_tid,
+				 new_tid);
+			s->last_agent = s->cur_agent;
+			s->cur_agent = next;
+		} else {
 			assert(0);
 		}
 	}
