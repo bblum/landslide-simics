@@ -137,9 +137,6 @@ echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x`get_func_ret $CONTEXT_SWITCH`"
 
 echo
 
-# TODO - find some way to kill this
-echo "#define GUEST_FORK_RETURN_SPOT     0x`get_sym get_to_userspace`"
-
 # Readline
 echo "#define GUEST_READLINE_WINDOW_ENTER 0x`get_func $READLINE`"
 echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_ret $READLINE`"

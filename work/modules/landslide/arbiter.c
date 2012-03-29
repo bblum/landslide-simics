@@ -57,9 +57,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	    !ls->sched.last_agent->action.handling_timer) {
 		/* And the current thread is just resuming execution? Either
 		 * exiting the timer handler, */
-		if (just_finished_reschedule ||
-		    /* ...or this. */
-		    kern_fork_return_spot(ls->eip)) {
+		if (just_finished_reschedule) {
 			lsprintf(DEV, "a voluntary reschedule: ");
 			print_agent(DEV, ls->sched.last_agent);
 			printf(DEV, " to ");

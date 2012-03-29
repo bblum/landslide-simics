@@ -389,12 +389,6 @@ void kern_init_threads(struct sched_state *s,
 	add_thread(s, kern_get_idle_tid(), true, false);
 }
 
-bool kern_fork_return_spot(int eip)
-{
-	// If kern_fork_returns_to_cs, this function should always return false.
-	return eip == GUEST_FORK_RETURN_SPOT;
-}
-
 /* Is the currently-running thread not on the runqueue, and is runnable
  * anyway? For kernels that keep the current thread on the runqueue, this
  * function should return false always. */

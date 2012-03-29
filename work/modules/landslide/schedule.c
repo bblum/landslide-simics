@@ -574,10 +574,7 @@ void sched_update(struct ls_state *ls)
 			 * so here is where we have to clear it for them. */
 			if (ACTION(s, just_forked)) {
 				/* Interrupts are "probably" off, but that's why
-				 * just_finished_reschedule is persistent.
-				 * For now, arbiter also knows to look for
-				 * kern_fork_return_spot, but that doesn't seem
-				 * necessary...? */
+				 * just_finished_reschedule is persistent. */
 				lsprintf(DEV, "Finished flying to %d.\n",
 					 s->cur_agent->tid);
 				ACTION(s, schedule_target) = false;
@@ -623,6 +620,7 @@ void sched_update(struct ls_state *ls)
 		return;
 	} else if (ACTION(s, just_forked)) {
 		ACTION(s, just_forked) = false;
+		s->just_finished_reschedule = true;
 	}
 	assert(!s->schedule_in_flight);
 
