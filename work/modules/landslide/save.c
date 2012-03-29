@@ -109,6 +109,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->tid                    = a_src->tid;
 	a_dest->action.handling_timer  = a_src->action.handling_timer;
 	a_dest->action.context_switch  = a_src->action.context_switch;
+	a_dest->action.cs_free_pass    = a_src->action.cs_free_pass;
 	a_dest->action.forking         = a_src->action.forking;
 	a_dest->action.sleeping        = a_src->action.sleeping;
 	a_dest->action.vanishing       = a_src->action.vanishing;
@@ -188,6 +189,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	assert((src->last_agent == NULL || dest->last_agent != NULL) &&
 	       "copy_sched couldn't set last_agent!");
 
+	dest->just_finished_reschedule = src->just_finished_reschedule;
 	dest->current_extra_runnable = src->current_extra_runnable;
 	dest->num_agents             = src->num_agents;
 	dest->most_agents_ever       = src->most_agents_ever;

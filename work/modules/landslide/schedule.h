@@ -29,6 +29,14 @@ struct agent {
 		/* are they in the context switcher? (note: this and
 		 * handling_$INTERRUPT are not necessarily linked!) */
 		bool context_switch;
+		/* Threads get a "free pass" out of the context switch exiting
+		 * assertion the first time, since some kernels have newly
+		 * forked threads not exit through the context switcher, so we
+		 * start all threads with the above flag turned off.
+		 * This makes the assertion weaker than if we got to use
+		 * kern_fork_returns_to_cs, but we can't use it, so I think this
+		 * is the strongest we can do besides. */
+		bool cs_free_pass;
 		/* are they about to create a new thread? */
 		bool forking;
 		/* about to take a spin on the sleep queue? */
@@ -85,6 +93,7 @@ struct sched_state {
 	/* It does take many instructions for us to switch, after all. This is
 	 * NULL if we're not trying to schedule anybody. */
 	struct agent *schedule_in_flight;
+	bool just_finished_reschedule;
 	/* Whether we think we ought to be entering the timer handler or not. */
 	bool entering_timer;
 	/* The stack trace for the most recent voluntary reschedule. Used in

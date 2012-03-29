@@ -49,6 +49,8 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch,
 	a->action.handling_timer = false;
 	/* XXX: may not be true in some kernels; also a huge hack */
 	a->action.context_switch = context_switch;
+	/* If being called from kern_init_threads, don't give the free pass. */
+	a->action.cs_free_pass = s->guest_init_done ? true : false;
 	a->action.forking = false; /* XXX: may not be true in some kernels */
 	a->action.sleeping = false;
 	a->action.vanishing = false;
@@ -217,14 +219,15 @@ void sched_init(struct sched_state *s)
 	Q_INIT_HEAD(&s->dq);
 	s->num_agents = 0;
 	s->most_agents_ever = 0;
+	s->guest_init_done = false; /* must be before kern_init_threads */
 	kern_init_threads(s, agent_fork);
 	s->cur_agent = agent_by_tid_or_null(&s->rq, kern_get_first_tid());
 	if (s->cur_agent == NULL)
 		s->cur_agent = agent_by_tid(&s->dq, kern_get_first_tid());
 	s->last_agent = NULL;
 	s->last_vanished_agent = NULL;
-	s->guest_init_done = false;
 	s->schedule_in_flight = NULL;
+	s->just_finished_reschedule = false;
 	s->entering_timer = false;
 	s->voluntary_resched_tid = -1;
 	s->voluntary_resched_stack = NULL;
@@ -283,7 +286,11 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 			 add_to_rq ? "rq" : "dq");
 		print_qs(DEV, s);
 		printf(DEV, "\n");
-		agent_fork(s, target_tid, kern_fork_returns_to_cs(), add_to_rq);
+		/* Start all newly-forked threads not in the context switcher.
+		 * The free pass gets them out of the first assertion on the
+		 * cs state flag. Of note, this means we can't reliably use the
+		 * cs state flag for anything other than assertions. */
+		agent_fork(s, target_tid, false, add_to_rq);
 		/* don't need this flag anymore; fork only forks once */
 		ACTION(s, forking) = false;
 		return true;
@@ -417,7 +424,6 @@ void sched_update(struct ls_state *ls)
 
 	int target_tid;
 	int mutex_addr;
-	bool just_finished_reschedule = false;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -439,7 +445,7 @@ void sched_update(struct ls_state *ls)
 			// even before the iret.
 			if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
 				ACTION(s, handling_timer) = false;
-				just_finished_reschedule = true;
+				s->just_finished_reschedule = true;
 			}
 			/* If the schedule target was in a timer interrupt when we
 			 * decided to schedule him, then now is when the operation
@@ -468,11 +474,12 @@ void sched_update(struct ls_state *ls)
 				stack_trace(ls->cpu0, ls->eip, s->cur_agent->tid);
 		}
 	} else if (kern_context_switch_exiting(ls->eip)) {
-		assert(ACTION(s, context_switch));
+		assert(ACTION(s, cs_free_pass) || ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
+		ACTION(s, cs_free_pass) = false;
 		/* For threads that context switched of their own accord. */
 		if (!HANDLING_INTERRUPT(s)) {
-			just_finished_reschedule = true;
+			s->just_finished_reschedule = true;
 			if (ACTION(s, schedule_target)) {
 				ACTION(s, schedule_target) = false;
 				s->schedule_in_flight = NULL;
@@ -565,16 +572,21 @@ void sched_update(struct ls_state *ls)
 			 * the special case is for newly forked agents that are
 			 * schedule targets - they won't exit timer or c-s above
 			 * so here is where we have to clear it for them. */
-			if (!kern_fork_returns_to_cs() &&
-			    ACTION(s, just_forked)) {
-				/* Setting just_finished_reschedule isn't useful
-				 * here - interrupts are "probably" off, and
-				 * also arbiter knows to also look for
-				 * kern_fork_return_spot. */
+			if (ACTION(s, just_forked)) {
+				/* Interrupts are "probably" off, but that's why
+				 * just_finished_reschedule is persistent.
+				 * For now, arbiter also knows to look for
+				 * kern_fork_return_spot, but that doesn't seem
+				 * necessary...? */
+				lsprintf(DEV, "Finished flying to %d.\n",
+					 s->cur_agent->tid);
 				ACTION(s, schedule_target) = false;
+				ACTION(s, just_forked) = false;
 				s->schedule_in_flight = NULL;
+				s->just_finished_reschedule = true;
 			} else {
-				assert(ACTION(s, context_switch) ||
+				assert(ACTION(s, cs_free_pass) ||
+				       ACTION(s, context_switch) ||
 				       HANDLING_INTERRUPT(s));
 			}
 			/* The schedule_in_flight flag itself is cleared above,
@@ -602,7 +614,8 @@ void sched_update(struct ls_state *ls)
 				s->entering_timer = true;
 			} else {
 				/* they'd better not have "escaped" */
-				assert(ACTION(s, context_switch) ||
+				assert(ACTION(s, cs_free_pass) ||
+				       ACTION(s, context_switch) ||
 				       HANDLING_INTERRUPT(s));
 			}
 		}
@@ -649,6 +662,8 @@ void sched_update(struct ls_state *ls)
 
 	/* Okay, are we at a choice point? */
 	bool voluntary;
+	bool just_finished_reschedule = s->just_finished_reschedule;
+	s->just_finished_reschedule = false;
 	/* TODO: arbiter may also want to see the trace_entry_t */
 	if (arbiter_interested(ls, just_finished_reschedule, &voluntary)) {
 		struct agent *a;

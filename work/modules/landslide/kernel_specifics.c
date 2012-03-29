@@ -389,13 +389,6 @@ void kern_init_threads(struct sched_state *s,
 	add_thread(s, kern_get_idle_tid(), true, false);
 }
 
-/* Do newly forked children exit to userspace through the end of the
- * context-switcher? (POBBLES does not; it bypasses the end to return_zero.) */
-bool kern_fork_returns_to_cs()
-{
-	return false;
-}
-
 bool kern_fork_return_spot(int eip)
 {
 	// If kern_fork_returns_to_cs, this function should always return false.
