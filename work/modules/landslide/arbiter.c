@@ -52,9 +52,11 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	// TODO: more interesting choice points
 
 	/* Attempt to see if a "voluntary" reschedule is just ending - did the
-	 * last thread context switch not because of a timer? */
+	 * last thread context switch not because of a timer?
+	 * Also make sure to ignore null switches (timer-driven or not). */
 	if (ls->sched.last_agent != NULL &&
-	    !ls->sched.last_agent->action.handling_timer) {
+	    !ls->sched.last_agent->action.handling_timer &&
+	    ls->sched.last_agent != ls->sched.cur_agent) {
 		/* And the current thread is just resuming execution? Either
 		 * exiting the timer handler, */
 		if (just_finished_reschedule) {
@@ -67,6 +69,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			        ls->save.next_tid == ls->sched.cur_agent->tid ||
 			        ls->save.next_tid == ls->sched.last_agent->tid)
 			       && "Two threads in one transition?");
+			assert(ls->sched.voluntary_resched_tid != -1);
 			*voluntary = true;
 			return true;
 		}

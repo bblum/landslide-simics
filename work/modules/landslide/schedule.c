@@ -368,7 +368,7 @@ void sched_update(struct ls_state *ls)
 	 * Update scheduler state.
 	 **********************************************************************/
 
-	if (kern_thread_switch(ls->cpu0, ls->eip, &new_tid)) {
+	if (kern_thread_switch(ls->cpu0, ls->eip, &new_tid) && new_tid != old_tid) {
 		/*
 		 * So, fork needs to be handled twice, both here and below in the
 		 * runnable case. And for kernels that trigger both, both places will
@@ -467,6 +467,9 @@ void sched_update(struct ls_state *ls)
 		ACTION(s, context_switch) = true;
 		/* Maybe update the voluntary resched trace. See schedule.h */
 		if (!ACTION(s, handling_timer)) {
+			lsprintf(DEV, "Voluntary resched tid ");
+			print_agent(DEV, s->cur_agent);
+			lsprintf(DEV, "\n");
 			s->voluntary_resched_tid = s->cur_agent->tid;
 			if (s->voluntary_resched_stack != NULL)
 				MM_FREE(s->voluntary_resched_stack);
@@ -719,6 +722,8 @@ void sched_recover(struct ls_state *ls)
 				print_agent(INFO, s->cur_agent);
 				printf(INFO, "\n");
 				s->last_agent = s->cur_agent;
+				/* This will cause an assert to trip faster. */
+				s->voluntary_resched_tid = -1;
 			} else {
 				lsprintf(INFO, "Explorer-chosen tid %d already "
 					 "running!\n", tid);
