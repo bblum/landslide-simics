@@ -88,7 +88,8 @@ bool kern_access_in_scheduler(int addr)
  * switches */
 bool kern_scheduler_locked(conf_object_t *cpu)
 {
-	return false;
+	int x = SIM_read_phys_memory(cpu, GUEST_SCHEDULER_LOCK, WORD_SIZE);
+	return x != 0;
 }
 
 // FIXME
@@ -166,6 +167,7 @@ bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *owner_tid)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_BLOCKING) {
 		*owner_tid = READ_STACK(cpu, 1);
+		assert(*owner_tid < 10);
 		return true;
 	} else {
 		return false;
@@ -360,7 +362,7 @@ int kern_get_init_tid()
 
 int kern_get_idle_tid()
 {
-	return 0;
+	assert(false && "POBBLES does not have an idle tid!");
 }
 
 /* the tid of the shell (OK to assume the first shell never exits). */
@@ -378,15 +380,16 @@ int kern_get_first_tid()
 /* Is there an idle thread that runs when nobody else is around? */
 bool kern_has_idle()
 {
-	return true;
+	return false;
 }
 
 void kern_init_threads(struct sched_state *s,
                        void (*add_thread)(struct sched_state *, int, bool,
                                           bool))
 {
-	add_thread(s, kern_get_init_tid(), false, false);
-	add_thread(s, kern_get_idle_tid(), true, false);
+	/* Only init runs first in POBBLES, but other kernels may have idle. In
+	 * POBBLES, init is not context-switched to to begin with. */
+	add_thread(s, kern_get_init_tid(), false, true);
 }
 
 /* Is the currently-running thread not on the runqueue, and is runnable
@@ -395,10 +398,5 @@ void kern_init_threads(struct sched_state *s,
 // XXX
 bool kern_current_extra_runnable(conf_object_t *cpu)
 {
-	int esp0 = GUEST_ESP0(cpu);
-	// from sched_find_tcb_by_ksp
-	int tcb = ((esp0 & ~(PAGE_SIZE - 1)) + PAGE_SIZE) - GUEST_TCB_T_SIZE;
-
-	int state_flag = READ_MEMORY(cpu, tcb + GUEST_TCB_STATE_FLAG_OFFSET);
-	return state_flag != 1; // SCHED_NOT_RUNNABLE
+	return false;
 }

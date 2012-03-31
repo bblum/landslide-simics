@@ -9,7 +9,7 @@
 
 #include <simics/api.h>
 
-#define GUEST_LUDICROS
+#define GUEST_POBBLES_RACE
 
 #if defined(GUEST_POBBLES)
 #include "kernel_specifics_pobbles.h"

@@ -24,6 +24,6 @@ void tell_landslide_mutex_unlocking_done(void);
 
 /* Remember, you should use this one IF AND ONLY IF you have mutexes that leave
  * blocked threads on the runqueue. */
-void tell_landslide_mutex_blocking(void *mutex_addr, int owner_tid);
+void tell_landslide_mutex_blocking(int owner_tid);
 
 #endif
