@@ -128,15 +128,23 @@ struct sched_state {
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	Q_FOREACH(a, &(s)->rq, nobe) {			\
+		if (kern_has_idle() &&			\
+		    a->tid == kern_get_idle_tid())	\
+			continue;			\
 		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	Q_FOREACH(a, &(s)->sq, nobe) {			\
+		if (kern_has_idle() &&			\
+		    a->tid == kern_get_idle_tid())	\
+			continue; /* why it sleep?? */	\
 		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	if (__idle_is_runnable && kern_has_idle()) {	\
 		a = agent_by_tid_or_null(&(s)->dq, kern_get_idle_tid()); \
+		if (a != NULL)				\
+			a = agent_by_tid_or_null(&(s)->rq, kern_get_idle_tid()); \
 		assert(a != NULL && "couldn't find idle in FOR_EACH");	\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\

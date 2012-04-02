@@ -469,7 +469,7 @@ void sched_update(struct ls_state *ls)
 		if (!ACTION(s, handling_timer)) {
 			lsprintf(DEV, "Voluntary resched tid ");
 			print_agent(DEV, s->cur_agent);
-			lsprintf(DEV, "\n");
+			printf(DEV, "\n");
 			s->voluntary_resched_tid = s->cur_agent->tid;
 			if (s->voluntary_resched_stack != NULL)
 				MM_FREE(s->voluntary_resched_stack);
