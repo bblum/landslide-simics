@@ -9,23 +9,7 @@
 
 #include <simics/api.h>
 
-#define GUEST_POBBLES_RACE
-
-#if defined(GUEST_POBBLES)
-#include "kernel_specifics_pobbles.h"
-#include "kernel_specifics_types_pobbles.h"
-#elif defined(GUEST_POBBLES_RACE)
-#include "kernel_specifics_pobbles_race.h"
-#include "kernel_specifics_types_pobbles.h"
-#elif defined(GUEST_POBBLES_PARENT)
-#include "kernel_specifics_pobbles_parent.h"
-#include "kernel_specifics_types_pobbles.h"
-#elif defined(GUEST_LUDICROS)
-#include "kernel_specifics_ludicros.h"
-#include "kernel_specifics_types_ludicros.h"
-
-// TODO: elsif ...
-#endif
+#include "student_specifics.h"
 
 struct sched_state;
 

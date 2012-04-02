@@ -37,20 +37,24 @@ function get_func_ret {
 	fi
 }
 
+SCHED_FUNCS=
 function sched_func {
-echo -e "\t{ 0x`get_func $1`, 0x`get_func_end $1` }, \\"
+	SCHED_FUNCS="${SCHED_FUNCS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1` },"
 }
 
+IGNORE_SYMS=
 function ignore_sym {
-echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
+	IGNORE_SYMS="${IGNORE_SYMS}\\\\\n\t{ 0x`get_sym $1`, $2 }, "
 }
 
+EXTRA_SYMS=
 function extra_sym {
-	echo "#define $2 0x`get_sym $1`"
+	EXTRA_SYMS="${EXTRA_SYMS}\n#define $2 0x`get_sym $1`"
 }
 
+WITHIN_FUNCTIONS=
 function within_function {
-	sched_func $1
+	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1` },"
 }
 
 #############################
@@ -106,7 +110,7 @@ echo
 ########################
 
 echo "#define GUEST_ESP0_ADDR (0x`get_sym init_tss` + 4)" # see 410kern/x86/asm.S
-echo "#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
+echo "#define GET_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
 
 ###################################
 #### Thread lifecycle tracking ####
@@ -218,13 +222,9 @@ echo
 # Things that are likely to always touch shared memory that you don't care about
 # such as runqueue links, but not those that the globals list filters out, such
 # as links inside each tcb.
-echo "#define GUEST_SCHEDULER_FUNCTIONS { \\"
-sched_funcs
-echo -e "\t}"
+echo -e "#define GUEST_SCHEDULER_FUNCTIONS { $SCHED_FUNCS }"
 
-echo "#define GUEST_SCHEDULER_GLOBALS { \\"
-ignore_syms
-echo -e "\t}"
+echo -e "#define GUEST_SCHEDULER_GLOBALS { $IGNORE_SYMS }"
 
 echo
 
@@ -243,15 +243,13 @@ fi
 #### User-config stuff ####
 ###########################
 
-extra_syms
+echo -e "$EXTRA_SYMS"
 
 #######################
 #### Choice points ####
 #######################
 
-echo "#define GUEST_WITHIN_FUNCTIONS { \\"
-within_functions
-echo -e "\t}"
+echo -e "#define GUEST_WITHIN_FUNCTIONS { $WITHIN_FUNCTIONS }"
 
 echo "#define BUG_ON_THREADS_WEDGED $BUG_ON_THREADS_WEDGED"
 echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"

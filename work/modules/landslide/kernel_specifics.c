@@ -1,7 +1,6 @@
 /**
  * @file kernel_specifics.c
- * @brief Guest-implementation-specific things landslide needs to know
- *        Implementation for the ludicros kernel.
+ * @brief Guest-dependent-but-agnostic things landslide needs to know
  * @author Ben Blum
  */
 
@@ -91,13 +90,15 @@ bool kern_access_in_scheduler(int addr)
 
 bool kern_within_functions(conf_object_t *cpu, int eip)
 {
+	bool answer = true;
 	static const int within_functions[][2] = GUEST_WITHIN_FUNCTIONS;
 	for (int i = 0; i < ARRAY_SIZE(within_functions); i++) {
+		answer = false;
 		if (within_function(cpu, eip, within_functions[i][0],
 				    within_functions[i][1]))
 			return true;
 	}
-	return false;
+	return answer;
 }
 
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
@@ -385,30 +386,3 @@ bool kern_has_idle()
 	return false;
 #endif
 }
-
-void kern_init_threads(struct sched_state *s,
-                       void (*add_thread)(struct sched_state *, int, bool,
-                                          bool))
-{
-	/* Only init runs first in POBBLES, but other kernels may have idle. In
-	 * POBBLES, init is not context-switched to to begin with. */
-	add_thread(s, kern_get_init_tid(), false, true);
-}
-
-/* Is the currently-running thread not on the runqueue, and is runnable
- * anyway? For kernels that keep the current thread on the runqueue, this
- * function should return false always. */
-// XXX
-bool kern_current_extra_runnable(conf_object_t *cpu)
-{
-	return false;
-}
-
-/* Anything that would prevent timer interrupts from triggering context
- * switches */
-bool kern_scheduler_locked(conf_object_t *cpu)
-{
-	int x = SIM_read_phys_memory(cpu, GUEST_SCHEDULER_LOCK, WORD_SIZE);
-	return x != 0;
-}
-
