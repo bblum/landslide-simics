@@ -143,7 +143,7 @@ struct sched_state {
 	}						\
 	if (__idle_is_runnable && kern_has_idle()) {	\
 		a = agent_by_tid_or_null(&(s)->dq, kern_get_idle_tid()); \
-		if (a != NULL)				\
+		if (a == NULL)				\
 			a = agent_by_tid_or_null(&(s)->rq, kern_get_idle_tid()); \
 		assert(a != NULL && "couldn't find idle in FOR_EACH");	\
 		EVAPORATE_FLOW_CONTROL(code);		\
