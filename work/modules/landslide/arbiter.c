@@ -90,17 +90,8 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		return false;
 	}
 
-	// TODO: have a check, tunable, to skip this if it's the shell or init
-
-	if (ls->eip == GUEST_MUTEX_LOCK &&
-	    !kern_mutex_ignore(READ_STACK(ls->cpu0,
-	                       GUEST_MUTEX_LOCK_MUTEX_ARGNUM)) &&
-	    within_function(ls->cpu0, ls->eip,
-	                    GUEST_VANISH, GUEST_VANISH_END)) {
-		lsprintf(INFO, "Attempt to lock mutex 0x%x at eip 0x%x\n",
-		         (int)READ_STACK(ls->cpu0,
-		                         GUEST_MUTEX_LOCK_MUTEX_ARGNUM),
-		         (int)READ_STACK(ls->cpu0, 0));
+	if (kern_decision_point(ls->eip) &&
+	    kern_within_functions(ls->cpu0, ls->eip)) {
 		assert((ls->save.next_tid == -1 ||
 		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 		       "Two threads in one transition?");
@@ -133,7 +124,9 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		}
 	);
 
-	//count = 1; // Comment this out to enable "hard mode"
+	if (EXPLORE_BACKWARDS == 0) {
+		count = 1;
+	}
 
 	/* Find the count-th thread. */
 	int i = 0;
@@ -148,6 +141,8 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	);
 
 	printf(BUG, COLOUR_BOLD "Nobody runnable! All threads wedged?\n");
-	found_a_bug(ls);
+	if (BUG_ON_THREADS_WEDGED != 0) {
+		found_a_bug(ls);
+	}
 	return false;
 }

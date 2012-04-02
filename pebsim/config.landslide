@@ -14,6 +14,10 @@
 # ignore_func, ignore_sym - See below.
 ################################################################################
 
+######################
+#### Simple stuff ####
+######################
+
 # The path to your kernel image; the file called "kernel" that gets built.
 KERNEL_IMG=kernel-pobbles
 # The name of your kernel. Must be only one token; underscores are fine.
@@ -30,6 +34,19 @@ CONTEXT_SWITCH=context_switch
 
 # The name of the function in which threads go to sleep on readline.
 READLINE=readline
+
+# The TIDs of important threads - init, shell, idle. Comment IDLE_TID out
+# entirely if your kernel does not have an explicit idle thread.
+INIT_TID=1
+SHELL_TID=2
+# IDLE_TID=
+
+# After tell_landslide_sched_init_done(), which thread is the first one to run?
+FIRST_TID=$INIT_TID
+
+#######################################
+#### Scheduler/globals information ####
+#######################################
 
 # This function will be called later to generate the list of functions that
 # comprise your kernel's scheduler. Call 'sched_func' once per function.
@@ -54,13 +71,10 @@ PTR_SIZE=4
 MUTEX_SIZE=`echo $(($INT_SIZE+$INT_SIZE))`
 RQ_SIZE=`echo $(($PTR_SIZE+$PTR_SIZE+$MUTEX_SIZE))`
 
-
 # This function will be called later to generate the list of global symbols that
 # landslide should ignore shared memory accesses to.
 # Call "ignore_sym" once per symbol; arg1 is the symbol name, arg2 is the type's
 # size in bytes.
-# Note that if you wish to also not have decision points on locking a mutex,
-# declare it below in ignore_mutexes instead of here.
 function ignore_syms {
 	ignore_sym scheduler_locked $INT_SIZE
 	ignore_sym thr_current $PTR_SIZE
@@ -68,13 +82,50 @@ function ignore_syms {
 	ignore_sym sleeping $RQ_SIZE
 	ignore_sym cas2i_queue $RQ_SIZE
 	ignore_sym runqueue $RQ_SIZE
-}
-
-# See above.
-function ignore_mutexes {
 	ignore_sym vm_mutex $MUTEX_SIZE
 	ignore_sym malloc_lock $MUTEX_SIZE
 	ignore_sym cmutex $MUTEX_SIZE
 }
+
+####################################################
+#### Decision-point / Exploration configuration ####
+####################################################
+
+# Define choice points in your kernel itself using tell_landslide_decide().
+
+# List the functions that landslide should "pay attention" to; i.e., landslide
+# will only make decision points if tell_landslide_decide() occurs within the
+# execution of one of these functions.
+# If you leave this empty, landslide will "pay attention" to everything.
+function within_functions {
+	within_function vanish
+	within_function wait
+}
+
+##########################
+#### Advanced options ####
+##########################
+
+# If you need to know any other global variables when implementing the
+# in-landslide hooks, write them here. First argument is the symbol name in your
+# kernel; second argument is the name of the define for its address that you'll
+# be able to use.
+function extra_syms {
+	extra_sym scheduler_locked GUEST_SCHEDULER_LOCK
+}
+
+# Landslide has detection for "all threads are wedged", but it's imperfect, so
+# by default we let the kernel keep running. If you see an "all threads wedged?"
+# message and your kernel doesn't seem to be making progress, change this to 1.
+BUG_ON_THREADS_WEDGED=0
+
+# Exploring "backwards" means starting with a forced preemption at every
+# decision point. Exploring "forwards" means letting threads continue running by
+# default and adding extra preemptions as exploration progresses.
+# Backwards is likely to find bugs much more quickly, but will produce a
+# longer, more difficult to understand debug trace.
+# !!!   Backwards is the recommended default! Only change this if you've   !!!
+# !!!     already found a bug and are trying to understand it better!      !!!
+EXPLORE_BACKWARDS=1
 
 # vim: ft=sh

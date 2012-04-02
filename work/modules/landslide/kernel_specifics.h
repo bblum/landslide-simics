@@ -30,6 +30,7 @@
 struct sched_state;
 
 /* Miscellaneous simple information */
+bool kern_decision_point(int eip);
 bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid);
 bool kern_timer_entering(int eip);
 bool kern_timer_exiting(int eip);
@@ -40,7 +41,7 @@ bool kern_sched_init_done(int eip);
 bool kern_in_scheduler(int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_scheduler_locked(conf_object_t *cpu);
-bool kern_mutex_ignore(int addr);
+bool kern_within_functions(conf_object_t *cpu, int eip);
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf);
 bool kern_kernel_main(int eip);
 

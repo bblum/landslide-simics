@@ -45,6 +45,14 @@ function ignore_sym {
 echo -e "\t{ 0x`get_sym $1`, $2 }, \\"
 }
 
+function extra_sym {
+	echo "#define $2 0x`get_sym $1`"
+}
+
+function within_function {
+	sched_func $1
+}
+
 #############################
 #### Reading user config ####
 #############################
@@ -56,6 +64,7 @@ if [ ! -f "$CONFIG" ]; then
 	exit 1
 fi
 TIMER_WRAPPER_DISPATCH=
+IDLE_TID=
 source $CONFIG
 
 #####################################
@@ -98,9 +107,6 @@ echo
 
 echo "#define GUEST_ESP0_ADDR (0x`get_sym init_tss` + 4)" # see 410kern/x86/asm.S
 echo "#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
-
-# XXX: deal with this
-echo "#define GUEST_TCB_STATE_FLAG_OFFSET 20" # for off_runqueue
 
 ###################################
 #### Thread lifecycle tracking ####
@@ -189,6 +195,7 @@ echo
 #### In-kernel annotations ####
 ###############################
 
+echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func tell_landslide_decide`"
 echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func tell_landslide_thread_switch`"
 echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func tell_landslide_sched_init_done`"
 echo "#define TELL_LANDSLIDE_FORKING 0x`get_func tell_landslide_forking`"
@@ -204,9 +211,9 @@ echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func tell_landslide_mut
 
 echo
 
-##############################
-#### Scheduler boundaries ####
-##############################
+##########################
+#### Scheduler stuffs ####
+##########################
 
 # Things that are likely to always touch shared memory that you don't care about
 # such as runqueue links, but not those that the globals list filters out, such
@@ -221,22 +228,33 @@ echo -e "\t}"
 
 echo
 
+echo "#define GUEST_INIT_TID $INIT_TID"
+echo "#define GUEST_SHELL_TID $SHELL_TID"
+echo "#define GUEST_FIRST_TID $FIRST_TID"
+if [ -z "$IDLE_TID" ]; then
+	echo "#ifdef GUEST_IDLE_TID"
+	echo "#undef GUEST_IDLE_TID"
+	echo "#endif"
+else
+	echo "#define GUEST_IDLE_TID $IDLE_TID"
+fi
+
+###########################
+#### User-config stuff ####
+###########################
+
+extra_syms
+
 #######################
 #### Choice points ####
 #######################
 
-# XXX
-SCHED_LOCK=`get_sym scheduler_locked`
-echo "#define GUEST_SCHEDULER_LOCK       0x$SCHED_LOCK"
-
-echo "#define GUEST_MUTEX_LOCK 0x`get_func mutex_lock`"
-echo "#define GUEST_VANISH 0x`get_func vanish`"
-echo "#define GUEST_VANISH_END 0x`get_func_end vanish`"
-echo "#define GUEST_MUTEX_LOCK_MUTEX_ARGNUM 1"
-
-echo "#define GUEST_MUTEX_IGNORES { \\"
-ignore_mutexes
+echo "#define GUEST_WITHIN_FUNCTIONS { \\"
+within_functions
 echo -e "\t}"
+
+echo "#define BUG_ON_THREADS_WEDGED $BUG_ON_THREADS_WEDGED"
+echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"
 
 echo
 

@@ -19,6 +19,11 @@
  * Miscellaneous information
  ******************************************************************************/
 
+bool kern_decision_point(int eip)
+{
+	return eip == TELL_LANDSLIDE_DECIDE;
+}
+
 bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid)
 {
 	if (eip == TELL_LANDSLIDE_THREAD_SWITCH) {
@@ -84,22 +89,12 @@ bool kern_access_in_scheduler(int addr)
 	return false;
 }
 
-/* Anything that would prevent timer interrupts from triggering context
- * switches */
-bool kern_scheduler_locked(conf_object_t *cpu)
+bool kern_within_functions(conf_object_t *cpu, int eip)
 {
-	int x = SIM_read_phys_memory(cpu, GUEST_SCHEDULER_LOCK, WORD_SIZE);
-	return x != 0;
-}
-
-// FIXME
-/* Various global mutexes which should be ignored */
-bool kern_mutex_ignore(int addr)
-{
-	static const int ignores[][2] = GUEST_MUTEX_IGNORES;
-	for (int i = 0; i < ARRAY_SIZE(ignores); i++) {
-		if (addr >= ignores[i][0] &&
-		    addr < ignores[i][0] + ignores[i][1])
+	static const int within_functions[][2] = GUEST_WITHIN_FUNCTIONS;
+	for (int i = 0; i < ARRAY_SIZE(within_functions); i++) {
+		if (within_function(cpu, eip, within_functions[i][0],
+				    within_functions[i][1]))
 			return true;
 	}
 	return false;
@@ -357,30 +352,38 @@ void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 
 int kern_get_init_tid()
 {
-	return 1;
+	return GUEST_INIT_TID;
 }
 
 int kern_get_idle_tid()
 {
-	assert(false && "POBBLES does not have an idle tid!");
+#ifdef GUEST_IDLE_TID
+	return GUEST_IDLE_TID;
+#else
+	assert(false && "This kernel does not have an idle tid!");
+#endif
 }
 
 /* the tid of the shell (OK to assume the first shell never exits). */
 int kern_get_shell_tid()
 {
-	return 2;
+	return GUEST_SHELL_TID;
 }
 
 /* Which thread runs first on kernel init? */
 int kern_get_first_tid()
 {
-	return 1;
+	return GUEST_FIRST_TID;
 }
 
 /* Is there an idle thread that runs when nobody else is around? */
 bool kern_has_idle()
 {
+#ifdef GUEST_IDLE_TID
+	return true;
+#else
 	return false;
+#endif
 }
 
 void kern_init_threads(struct sched_state *s,
@@ -400,3 +403,12 @@ bool kern_current_extra_runnable(conf_object_t *cpu)
 {
 	return false;
 }
+
+/* Anything that would prevent timer interrupts from triggering context
+ * switches */
+bool kern_scheduler_locked(conf_object_t *cpu)
+{
+	int x = SIM_read_phys_memory(cpu, GUEST_SCHEDULER_LOCK, WORD_SIZE);
+	return x != 0;
+}
+
