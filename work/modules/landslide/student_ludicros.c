@@ -25,11 +25,10 @@
 
 void kern_init_threads(struct sched_state *s,
                        void (*add_thread)(struct sched_state *, int tid,
-                       			  bool in_context_switch,
                                           bool on_runqueue))
 {
-	add_thread(s, kern_get_init_tid(), false, false);
-	add_thread(s, kern_get_idle_tid(), true, false);
+	add_thread(s, kern_get_init_tid(), false);
+	add_thread(s, kern_get_idle_tid(), false);
 }
 
 /* Is the currently-running thread not on the runqueue, and is runnable

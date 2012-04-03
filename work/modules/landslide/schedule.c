@@ -40,18 +40,18 @@ struct agent *agent_by_tid(struct agent_q *q, int tid)
 
 /* Call with whether or not the thread is created with a context-switch frame
  * crafted on its stack. Most threads would be; "init" may not be. */
-static void agent_fork(struct sched_state *s, int tid, bool context_switch,
-		       bool on_runqueue)
+static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 {
 	struct agent *a = MM_XMALLOC(1, struct agent);
 
 	a->tid = tid;
 	a->action.handling_timer = false;
-	/* XXX: may not be true in some kernels; also a huge hack */
-	a->action.context_switch = context_switch;
+	/* this is usually not true, but makes it easier on the student; see
+	 * the free pass below. */
+	a->action.context_switch = false;
 	/* If being called from kern_init_threads, don't give the free pass. */
-	a->action.cs_free_pass = s->guest_init_done ? true : false;
-	a->action.forking = false; /* XXX: may not be true in some kernels */
+	a->action.cs_free_pass = true;
+	a->action.forking = false;
 	a->action.sleeping = false;
 	a->action.vanishing = false;
 	a->action.readlining = false;
@@ -291,7 +291,7 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 		 * The free pass gets them out of the first assertion on the
 		 * cs state flag. Of note, this means we can't reliably use the
 		 * cs state flag for anything other than assertions. */
-		agent_fork(s, target_tid, false, add_to_rq);
+		agent_fork(s, target_tid, add_to_rq);
 		/* don't need this flag anymore; fork only forks once */
 		ACTION(s, forking) = false;
 		return true;

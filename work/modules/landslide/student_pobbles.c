@@ -25,12 +25,11 @@
 
 void kern_init_threads(struct sched_state *s,
                        void (*add_thread)(struct sched_state *, int tid,
-                       			  bool in_context_switch,
                                           bool on_runqueue))
 {
 	/* Only init runs first in POBBLES, but other kernels may have idle. In
 	 * POBBLES, init is not context-switched to to begin with. */
-	add_thread(s, kern_get_init_tid(), false, true);
+	add_thread(s, kern_get_init_tid(), true);
 }
 
 /* Is the currently-running thread not on the runqueue, and is runnable
