@@ -227,6 +227,7 @@ void sched_init(struct sched_state *s)
 	s->last_agent = NULL;
 	s->last_vanished_agent = NULL;
 	s->schedule_in_flight = NULL;
+	s->delayed_in_flight = false;
 	s->just_finished_reschedule = false;
 	s->entering_timer = false;
 	s->voluntary_resched_tid = -1;
@@ -609,23 +610,41 @@ void sched_update(struct ls_state *ls)
 			 * to its own execution before triggering an interrupt
 			 * on it; in the former case, this will be just after it
 			 * irets; in the latter, just after the c-s returns. */
-			/* some kernels (pathos) still have interrupts off or
-			 * scheduler locked at this point; properties of !R */
-			if ((kern_timer_exiting(ls->eip) ||
+			if (kern_timer_exiting(ls->eip) ||
 			     (!HANDLING_INTERRUPT(s) &&
-			      kern_context_switch_exiting(ls->eip))) &&
-			    (interrupts_enabled(ls->cpu0) &&
-			     !kern_scheduler_locked(ls->cpu0))) {
+			      kern_context_switch_exiting(ls->eip))) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
 				// XXX: this seems to get taken too soon? change
 				// it somehow to cause_.._immediately. and then
 				// see the asserts/comments in the action
 				// handling_timer sections above.
-				lsprintf(INFO, "keeping schedule in-flight "
+				/* some kernels (pathos) still have interrupts
+				 * off or scheduler locked at this point; so
+				 * properties of !R */
+				if (interrupts_enabled(ls->cpu0) &&
+				    !kern_scheduler_locked(ls->cpu0)) {
+					lsprintf(INFO, "keeping schedule in-"
+						 "flight at 0x%x\n", ls->eip);
+					cause_timer_interrupt(ls->cpu0);
+					s->entering_timer = true;
+					/* If this trips, replace with just
+					 * setting the flag to false. */
+					assert(!s->delayed_in_flight);
+				} else {
+					lsprintf(INFO, "Want to keep schedule "
+						 "in-flight at 0x%x; have to "
+						 "delay\n", ls->eip);
+					s->delayed_in_flight = true;
+				}
+			} else if (s->delayed_in_flight &&
+				   interrupts_enabled(ls->cpu0) &&
+				   !kern_scheduler_locked(ls->cpu0)) {
+				lsprintf(INFO, "Delayed in-flight timer tick "
 					 "at 0x%x\n", ls->eip);
 				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
+				s->delayed_in_flight = false;
 			} else {
 				/* they'd better not have "escaped" */
 				assert(ACTION(s, cs_free_pass) ||
