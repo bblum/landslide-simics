@@ -202,7 +202,7 @@ static void mutex_block_others(struct agent_q *q, int mutex_addr,
 			lsprintf(DEV, "mutex: on 0x%x tid %d now blocks on %d "
 				 "(was %d)\n", mutex_addr, a->tid,
 				 blocked_on_tid, a->blocked_on_tid);
-			assert(a->action.mutex_locking);
+			assert(a->action.mutex_locking > 0);
 			a->blocked_on = blocked_on;
 			a->blocked_on_tid = blocked_on_tid;
 		}
@@ -666,7 +666,7 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* As kernel_specifics.h says, no preempting during mutex unblocking. */
-	if (ACTION(s, mutex_unlocking)) {
+	if (ACTION(s, mutex_unlocking) > 0) {
 		return;
 	}
 
