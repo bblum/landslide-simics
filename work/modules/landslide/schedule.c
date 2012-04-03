@@ -418,6 +418,15 @@ void sched_update(struct ls_state *ls)
 		} else {
 			assert(0);
 		}
+		/* Some debug info to help the studence. */
+		if (s->cur_agent->tid == kern_get_init_tid()) {
+			lsprintf(DEV, "Now running init.\n"); 
+		} else if (s->cur_agent->tid == kern_get_shell_tid()) {
+			lsprintf(DEV, "Now running shell.\n");
+		} else if (kern_has_idle() &&
+			   s->cur_agent->tid == kern_get_idle_tid()) {
+			lsprintf(DEV, "Now idling.\n");
+		}
 	}
 
 	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
