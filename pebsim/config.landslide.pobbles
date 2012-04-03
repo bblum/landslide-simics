@@ -50,19 +50,17 @@ FIRST_TID=$INIT_TID
 
 # This function will be called later to generate the list of functions that
 # comprise your kernel's scheduler. Call 'sched_func' once per function.
-function sched_funcs {
-	sched_func sch_queue_append
-	sched_func sch_queue_pop
-	sched_func sch_queue_remove
-	sched_func sch_queue_search
-	sched_func sch_runqueue_add_nolock
-	sched_func sch_runqueue_add
-	sched_func sch_runqueue_remove
-	sched_func sch_runqueue_next
-	sched_func context_switch
-	sched_func magic_jar
-	sched_func timer_handler
-}
+sched_func sch_queue_append
+sched_func sch_queue_pop
+sched_func sch_queue_remove
+sched_func sch_queue_search
+sched_func sch_runqueue_add_nolock
+sched_func sch_runqueue_add
+sched_func sch_runqueue_remove
+sched_func sch_runqueue_next
+sched_func context_switch
+sched_func magic_jar
+sched_func timer_handler
 
 # Type sizes. Not used by anything outside of this file, so feel free to add or
 # remove some as necessary.
@@ -75,17 +73,15 @@ RQ_SIZE=`echo $(($PTR_SIZE+$PTR_SIZE+$MUTEX_SIZE))`
 # landslide should ignore shared memory accesses to.
 # Call "ignore_sym" once per symbol; arg1 is the symbol name, arg2 is the type's
 # size in bytes.
-function ignore_syms {
-	ignore_sym scheduler_locked $INT_SIZE
-	ignore_sym thr_current $PTR_SIZE
-	ignore_sym timer_count $INT_SIZE
-	ignore_sym sleeping $RQ_SIZE
-	ignore_sym cas2i_queue $RQ_SIZE
-	ignore_sym runqueue $RQ_SIZE
-	ignore_sym vm_mutex $MUTEX_SIZE
-	ignore_sym malloc_lock $MUTEX_SIZE
-	ignore_sym cmutex $MUTEX_SIZE
-}
+ignore_sym scheduler_locked $INT_SIZE
+ignore_sym thr_current $PTR_SIZE
+ignore_sym timer_count $INT_SIZE
+ignore_sym sleeping $RQ_SIZE
+ignore_sym cas2i_queue $RQ_SIZE
+ignore_sym runqueue $RQ_SIZE
+ignore_sym vm_mutex $MUTEX_SIZE
+ignore_sym malloc_lock $MUTEX_SIZE
+ignore_sym cmutex $MUTEX_SIZE
 
 ####################################################
 #### Decision-point / Exploration configuration ####
@@ -97,10 +93,8 @@ function ignore_syms {
 # will only make decision points if tell_landslide_decide() occurs within the
 # execution of one of these functions.
 # If you leave this empty, landslide will "pay attention" to everything.
-function within_functions {
-	within_function vanish
-	within_function wait
-}
+within_function vanish
+#within_function wait
 
 ##########################
 #### Advanced options ####
@@ -110,9 +104,7 @@ function within_functions {
 # in-landslide hooks, write them here. First argument is the symbol name in your
 # kernel; second argument is the name of the define for its address that you'll
 # be able to use.
-function extra_syms {
-	extra_sym scheduler_locked GUEST_SCHEDULER_LOCK
-}
+extra_sym scheduler_locked GUEST_SCHEDULER_LOCK
 
 # Landslide has detection for "all threads are wedged", but it's imperfect, so
 # by default we let the kernel keep running. If you see an "all threads wedged?"

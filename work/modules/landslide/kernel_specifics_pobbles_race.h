@@ -10,7 +10,7 @@
 #include "x86.h"
 
 #define GUEST_ESP0_ADDR (0x00100930 + 4)
-#define GUEST_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)
+#define GET_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)
 
 #define GUEST_TIMER_WRAP_ENTER     0x001035d0
 #define GUEST_TIMER_WRAP_EXIT      0x1035d7
@@ -56,18 +56,17 @@
 #define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x001085d4
 
 #define GUEST_SCHEDULER_FUNCTIONS { \
-	{ 0x00105655, 0x1056a7 }, \
-	{ 0x001056a8, 0x105736 }, \
-	{ 0x00105737, 0x10591c }, \
-	{ 0x0010591d, 0x10594a }, \
-	{ 0x0010594b, 0x105965 }, \
-	{ 0x00105966, 0x105982 }, \
-	{ 0x00105983, 0x1059a7 }, \
-	{ 0x001059a8, 0x105a17 }, \
-	{ 0x00105a18, 0x105adc }, \
-	{ 0x00106564, 0x106582 }, \
-	{ 0x00103522, 0x1035cc }, \
-	}
+	{ 0x00105655, 0x1056a7 },\
+	{ 0x001056a8, 0x105736 },\
+	{ 0x00105737, 0x10591c },\
+	{ 0x0010591d, 0x10594a },\
+	{ 0x0010594b, 0x105965 },\
+	{ 0x00105966, 0x105982 },\
+	{ 0x00105983, 0x1059a7 },\
+	{ 0x001059a8, 0x105a17 },\
+	{ 0x00105a18, 0x105adc },\
+	{ 0x00106564, 0x106582 },\
+	{ 0x00103522, 0x1035cc }, }
 #define GUEST_SCHEDULER_GLOBALS { \
 	{ 0x00137508, 4 }, \
 	{ 0x00157548, 4 }, \
@@ -77,8 +76,7 @@
 	{ 0x0015754c, 16 }, \
 	{ 0x0015755c, 8 }, \
 	{ 0x00136428, 8 }, \
-	{ 0x00157540, 8 }, \
-	}
+	{ 0x00157540, 8 },  }
 
 #define GUEST_INIT_TID 1
 #define GUEST_SHELL_TID 2
@@ -86,11 +84,10 @@
 #ifdef GUEST_IDLE_TID
 #undef GUEST_IDLE_TID
 #endif
+
 #define GUEST_SCHEDULER_LOCK 0x00137508
 #define GUEST_WITHIN_FUNCTIONS { \
-	{ 0x00104203, 0x104583 }, \
-	{ 0x00104585, 0x104667 }, \
-	}
+	{ 0x00104203, 0x104583 }, }
 #define BUG_ON_THREADS_WEDGED 0
 #define EXPLORE_BACKWARDS 1
 
