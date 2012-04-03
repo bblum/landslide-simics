@@ -229,6 +229,8 @@ void init_local(void)
 
 #define SYMTABLE_NAME "deflsym"
 
+#define LIKELY_DIR "pebsim/"
+
 int symtable_lookup(char *buf, int maxlen, int addr)
 {
 	// TODO: store deflsym in struct ls_state
@@ -248,7 +250,15 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 	int line = SIM_attr_integer(SIM_attr_list_item(result, 1));
 	const char *func = SIM_attr_string(SIM_attr_list_item(result, 2));
 
-	return snprintf(buf, maxlen, "%s (%s:%d)", func, file, line);
+	/* A hack to make the filenames shorter */
+	if (strstr(file, LIKELY_DIR) != NULL) {
+		file = strstr(file, LIKELY_DIR) + strlen(LIKELY_DIR);
+	}
+
+	int ret = snprintf(buf, maxlen, "%s (%s:%d)", func, file, line);
+
+	SIM_free_attribute(result);
+	return ret;
 }
 
 bool function_eip_offset(int eip, int *offset)
