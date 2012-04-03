@@ -452,8 +452,9 @@ static void print_shm_conflict(conf_object_t *cpu,
 	       ma1->write ? 'w' : 'r', ma1->count);
 }
 
+#define MAX_CONFLICTS 10
 static void check_stack_conflict(struct mem_access *ma, int other_tid,
-				 bool *conflict)
+				 int *conflicts)
 {
 	/* The motivation for this function is that, as an optimisation, we
 	 * don't record shm accesses to a thread's own stack. The flip-side of
@@ -461,18 +462,20 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid,
 	 * to be a conflict, and also won't be recorded in your transitions. So
 	 * we have to check every recorded access that doesn't match. */
 	if (ma->other_tid == other_tid) {
-		if (*conflict)
-			printf(DEV, ", ");
+		if (*conflicts < MAX_CONFLICTS) {
+			if (*conflicts > 0)
+				printf(DEV, ", ");
+			printf(DEV, "[tid%d stack %c%d 0x%x]", other_tid,
+			       ma->write ? 'w' : 'r', ma->count, ma->eip);
+		}
 		ma->conflict = true;
-		*conflict = true;
-		printf(DEV, "[tid%d stack %c%d 0x%x]", other_tid,
-		       ma->write ? 'w' : 'r', ma->count, ma->eip);
+		(*conflicts)++;
 	}
 }
 
 static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 				 struct mem_state *m1, int other_tid,
-				 bool *conflict)
+				 int *conflicts)
 {
 	struct chunk *c = find_containing_chunk(&m1->freed, ma0->addr);
 
@@ -481,13 +484,14 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
 				  c->base, c->len);
 
-		if (*conflict)
-			printf(DEV, ", ");
+		if (*conflicts < MAX_CONFLICTS) {
+			if (*conflicts > 0)
+				printf(DEV, ", ");
+			printf(DEV, "[%s %c%d (tid%d freed)]", buf, ma0->write ? 'w' : 'r',
+			       ma0->count, other_tid);
+		}
 		ma0->conflict = true;
-		*conflict = true;
-
-		printf(DEV, "[%s %c%d (tid%d freed)]", buf, ma0->write ? 'w' : 'r',
-		       ma0->count, other_tid);
+		(*conflicts)++;
 	}
 }
 
@@ -498,30 +502,33 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 {
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
-	bool conflict = false;
+	int conflicts = 0;
 
 	lsprintf(DEV, "Intersecting transition %d (TID %d) with %d (TID %d): {",
 		 depth0, tid0, depth1, tid1);
 
 	while (ma0 != NULL && ma1 != NULL) {
 		if (ma0->addr < ma1->addr) {
-			check_stack_conflict(ma0, tid1, &conflict);
-			check_freed_conflict(cpu, ma0, m1, tid1, &conflict);
+			check_stack_conflict(ma0, tid1, &conflicts);
+			check_freed_conflict(cpu, ma0, m1, tid1, &conflicts);
 			/* advance ma0 */
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 		} else if (ma0->addr > ma1->addr) {
-			check_stack_conflict(ma1, tid0, &conflict);
-			check_freed_conflict(cpu, ma1, m0, tid0, &conflict);
+			check_stack_conflict(ma1, tid0, &conflicts);
+			check_freed_conflict(cpu, ma1, m0, tid0, &conflicts);
 			/* advance ma1 */
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 		} else {
 			/* found a match; advance both */
 			if (ma0->write || ma1->write) {
-				if (conflict)
-					printf(DEV, ", ");
-				/* the match is also a conflict */
-				print_shm_conflict(cpu, m0, m1, ma0, ma1);
-				conflict = true;
+				if (conflicts < MAX_CONFLICTS) {
+					if (conflicts > 0)
+						printf(DEV, ", ");
+					/* the match is also a conflict */
+					print_shm_conflict(cpu, m0, m1,
+							   ma0, ma1);
+				}
+				conflicts++;
 				ma0->conflict = true;
 				ma1->conflict = true;
 			}
@@ -533,17 +540,19 @@ bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
 	/* even if one transition runs out of recorded accesses, we still need
 	 * to check the other one's remaining accesses for the one's stack. */
 	while (ma0 != NULL) {
-		check_stack_conflict(ma0, tid1, &conflict);
-		check_freed_conflict(cpu, ma0, m1, tid1, &conflict);
+		check_stack_conflict(ma0, tid1, &conflicts);
+		check_freed_conflict(cpu, ma0, m1, tid1, &conflicts);
 		ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 	}
 	while (ma1 != NULL) {
-		check_stack_conflict(ma1, tid0, &conflict);
-		check_freed_conflict(cpu, ma1, m0, tid0, &conflict);
+		check_stack_conflict(ma1, tid0, &conflicts);
+		check_freed_conflict(cpu, ma1, m0, tid0, &conflicts);
 		ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 	}
 
+	if (conflicts > MAX_CONFLICTS)
+		printf(DEV, ", and %d more", conflicts - MAX_CONFLICTS);
 	printf(DEV, "}\n");
 
-	return conflict;
+	return conflicts > 0;
 }
