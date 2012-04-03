@@ -90,8 +90,7 @@
 #define GUEST_IDLE_TID 0
 
 #define GUEST_WITHIN_FUNCTIONS { \
-	{ 0x0010260c, 0x1028ac },\
-	{ 0x001054c8, 0x105607 }, }
+	{ 0x0010260c, 0x1028ac }, }
 #define BUG_ON_THREADS_WEDGED 1
 #define EXPLORE_BACKWARDS 1
 
