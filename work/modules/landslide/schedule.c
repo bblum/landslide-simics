@@ -609,9 +609,13 @@ void sched_update(struct ls_state *ls)
 			 * to its own execution before triggering an interrupt
 			 * on it; in the former case, this will be just after it
 			 * irets; in the latter, just after the c-s returns. */
-			if (kern_timer_exiting(ls->eip) ||
-			    (!HANDLING_INTERRUPT(s) &&
-			     kern_context_switch_exiting(ls->eip))) {
+			/* some kernels (pathos) still have interrupts off or
+			 * scheduler locked at this point; properties of !R */
+			if ((kern_timer_exiting(ls->eip) ||
+			     (!HANDLING_INTERRUPT(s) &&
+			      kern_context_switch_exiting(ls->eip))) &&
+			    (interrupts_enabled(ls->cpu0) &&
+			     !kern_scheduler_locked(ls->cpu0))) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
 				// XXX: this seems to get taken too soon? change
@@ -626,7 +630,9 @@ void sched_update(struct ls_state *ls)
 				/* they'd better not have "escaped" */
 				assert(ACTION(s, cs_free_pass) ||
 				       ACTION(s, context_switch) ||
-				       HANDLING_INTERRUPT(s));
+				       HANDLING_INTERRUPT(s) ||
+				       !interrupts_enabled(ls->cpu0) ||
+				       kern_scheduler_locked(ls->cpu0));
 			}
 		}
 		/* in any case we have no more decisions to make here */
