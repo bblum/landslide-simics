@@ -20,6 +20,16 @@ KERNEL_IMG=kernel-ludicros
 # Examples: "pathos" "pathos_broken" but not "pathos-broken"
 KERNEL_NAME=ludicros
 
+# Relative to the pebsim/ directory.
+KERNEL_SOURCE_DIR=ludicros
+
+# What program should landslide run? vanish_vanish, double_thread_fork, ...
+TEST_CASE=vanish_vanish
+
+######################
+#### Simple stuff ####
+######################
+
 # The function registered in the IDT to handle timer interrupts.
 TIMER_WRAPPER=interrupt_idt_stub_32
 TIMER_WRAPPER_DISPATCH=interrupt_dispatch
@@ -100,7 +110,7 @@ ignore_sym kb_char_sem $SEM_SIZE
 # everything.
 
 within_function do_vanish
-within_function sys_wait
+#within_function sys_wait
 
 ##########################
 #### Advanced options ####

@@ -14,15 +14,21 @@
 # ignore_func, ignore_sym - See below.
 ################################################################################
 
-######################
-#### Simple stuff ####
-######################
-
 # The path to your kernel image; the file called "kernel" that gets built.
 KERNEL_IMG=kernel-pobbles
 # The name of your kernel. Must be only one token; underscores are fine.
 # Examples: "pathos" "pathos_broken" but not "pathos-broken"
 KERNEL_NAME=pobbles_race
+
+# Relative to the pebsim/ directory.
+KERNEL_SOURCE_DIR=kern-race
+
+# What program should landslide run? vanish_vanish, double_thread_fork, ...
+TEST_CASE=vanish_vanish
+
+######################
+#### Simple stuff ####
+######################
 
 # The function registered in the IDT to handle timer interrupts.
 TIMER_WRAPPER=timer_handler_wrapper

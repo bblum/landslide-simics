@@ -74,12 +74,12 @@ add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 #### bblum was here ####
 ########################
 
-## symbol tables (should be in 410mods.py but isn't)
+# Get the kernel image name, source path, test case name.
+@SIM_source_python("landslide-config.py")
 
-deflsym.load-symbols "kernel-ludicros"
-#deflsym.load-symbols "kern-race/kernel"
-#deflsym.source-path "kern"
-deflsym.source-path "ludicros"
+## symbol tables (should be in 410mods.py but isn't)
+deflsym.load-symbols kernel
+@SIM_set_attribute(SIM_get_object("deflsym"), "sourcepath", ls_source_path)
 
 ## setting up landslide
 
@@ -95,6 +95,6 @@ new-tracer
 trace0.start
 @SIM_set_attribute(SIM_get_object("trace0"), "consumer", landslide)
 continue
-@SIM_set_attribute(landslide, "test_case", "vanish_vanish")
+@SIM_set_attribute(landslide, "test_case", ls_test_case)
 
-@SIM_source_python("landslide.py")
+@SIM_source_python("landslide-wrap.py")

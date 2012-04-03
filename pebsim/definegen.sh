@@ -7,17 +7,37 @@
 #### helper functions ####
 ##########################
 
+function err {
+	echo "$1" >&2
+}
+function die {
+	err "$1"
+	exit 1
+}
+
 function get_sym {
-objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1
+	RESULT=`objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find symbol $1."
+	fi
+	echo $RESULT
 }
 
 function get_func {
-objdump -d $KERNEL_IMG | grep "<$1>:" | cut -d" " -f1
+	RESULT=`objdump -d $KERNEL_IMG | grep "<$1>:" | cut -d" " -f1`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find function $1."
+	fi
+	echo $RESULT
 }
 
 # Gets the last instruction, spatially. Might not be ret or iret.
 function get_func_end {
-	objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
+	RESULT=`objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find end-of-function $1."
+	fi
+	echo $RESULT
 }
 
 # Gets the last instruction, temporally. Must be ret or iret.
@@ -27,13 +47,13 @@ function get_func_ret {
 	if [ "`echo "$RET_INSTR" | wc -l`" = "1" ]; then
 		echo "$RET_INSTR" | sed 's/ //g' | cut -d":" -f1
 	else
-		echo "!!!"
-		echo "#error \"Function $1 has multiple end-points. Read this file for details.\""
-		echo "!!! You will need to hand-write multiple copies of the above macro by hand for"
-		echo "!!! each one, and edit the corresponding function in kernel_specifics.c to test"
-		echo "!!! for all of them. Continuing with the rest of definegen..."
-		echo "!!! FEEL FREE TO ASK BEN FOR HELP."
-		echo "!!!"
+		err "!!!"
+		err "!!! Function $1 has multiple end-points."
+		err "!!! You will need to hand-write multiple copies of the above macro by hand for"
+		err "!!! each one, and edit the corresponding function in kernel_specifics.c to test"
+		err "!!! for all of them."
+		err "!!! PLEASE ASK BEN FOR HELP."
+		die "!!!"
 	fi
 }
 
@@ -64,8 +84,7 @@ function within_function {
 # Doesn't work without the "./". Everything is awful forever.
 CONFIG=./config.landslide
 if [ ! -f "$CONFIG" ]; then
-	echo "Where's $CONFIG?"
-	exit 1
+	die "Where's $CONFIG?"
 fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
@@ -76,12 +95,10 @@ source $CONFIG
 #####################################
 
 if [ ! -f "$KERNEL_IMG" ]; then
-	echo "invalid kernel image specified"
-	exit 1
+	die "invalid kernel image specified: KERNEL_IMG=$KERNEL_IMG"
 fi
 if [ -z "$KERNEL_NAME" ]; then
-	echo "what is the name of this kernel?"
-	exit 1
+	die "what is the name of this kernel? (KERNEL_NAME)"
 fi
 
 # TODO: add more
@@ -96,6 +113,7 @@ KERNEL_NAME_UPPER=`echo $KERNEL_NAME | tr '[:lower:]' '[:upper:]'`
 echo "/**"
 echo " * @file kernel_specifics_$KERNEL_NAME_LOWER.h"
 echo " * @brief #defines for the $KERNEL_NAME guest kernel (automatically generated)"
+echo " * Built for image with md5sum `md5sum $KERNEL_IMG`"
 echo " * @author Ben Blum <bblum@andrew.cmu.edu>"
 echo " */"
 echo
@@ -129,13 +147,12 @@ else
 		TIMER_WRAP_EXIT=`get_func_ret $TIMER_WRAPPER`
 	else
 		# Difficult case, not handled.
-		echo "!!!!"
-		echo "Something is funny about your timer handler, and Ben expected this to happen."
-		echo "Expected the last instruction to be 'iret', but got:"
-		echo "$LAST_TIMER_INSTR"
-		echo "Ask Ben for help."
-		echo "!!!!"
-		exit 1
+		err "!!!!"
+		err "Something is funny about your timer handler, and Ben expected this to happen."
+		err "Expected the last instruction to be 'iret', but got:"
+		err "$LAST_TIMER_INSTR"
+		err "Ask Ben for help."
+		die "!!!!"
 	fi
 fi
 
