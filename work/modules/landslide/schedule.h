@@ -48,8 +48,8 @@ struct agent {
 		/* have they not even had a chance to run yet? */
 		bool just_forked;
 		/* are they taking or releasing a mutex? */
-		bool mutex_locking;
-		bool mutex_unlocking;
+		int mutex_locking;
+		int mutex_unlocking;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;

@@ -56,8 +56,8 @@ static void agent_fork(struct sched_state *s, int tid, bool context_switch,
 	a->action.vanishing = false;
 	a->action.readlining = false;
 	a->action.just_forked = true;
-	a->action.mutex_locking = false;
-	a->action.mutex_unlocking = false;
+	a->action.mutex_locking = 0;
+	a->action.mutex_unlocking = 0;
 	a->action.schedule_target = false;
 	a->blocked_on = NULL;
 	a->blocked_on_tid = -1;
@@ -202,7 +202,7 @@ static void mutex_block_others(struct agent_q *q, int mutex_addr,
 			lsprintf(DEV, "mutex: on 0x%x tid %d now blocks on %d "
 				 "(was %d)\n", mutex_addr, a->tid,
 				 blocked_on_tid, a->blocked_on_tid);
-			assert(a->action.mutex_locking);
+			assert(a->action.mutex_locking > 0);
 			a->blocked_on = blocked_on;
 			a->blocked_on_tid = blocked_on_tid;
 		}
@@ -524,9 +524,7 @@ void sched_update(struct ls_state *ls)
 		agent_deschedule(s, target_tid);
 	/* Mutex tracking and noob deadlock detection */
 	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &mutex_addr)) {
-		assert(!ACTION(s, mutex_locking));
-		assert(!ACTION(s, mutex_unlocking));
-		ACTION(s, mutex_locking) = true;
+		ACTION(s, mutex_locking)++;
 		s->cur_agent->blocked_on_addr = mutex_addr;
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
@@ -544,9 +542,8 @@ void sched_update(struct ls_state *ls)
 			found_a_bug(ls);
 		}
 	} else if (kern_mutex_locking_done(ls->eip)) {
-		assert(ACTION(s, mutex_locking));
-		assert(!ACTION(s, mutex_unlocking));
-		ACTION(s, mutex_locking) = false;
+		assert(ACTION(s, mutex_locking) > 0);
+		ACTION(s, mutex_locking)--;
 		s->cur_agent->blocked_on = NULL;
 		s->cur_agent->blocked_on_tid = -1;
 		s->cur_agent->blocked_on_addr = -1;
@@ -554,14 +551,11 @@ void sched_update(struct ls_state *ls)
 		mutex_block_others(&s->rq, mutex_addr, s->cur_agent,
 				   s->cur_agent->tid);
 	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &mutex_addr)) {
-		/* It's allowed to have a mutex_unlock call inside a mutex_lock
-		 * (and it can happen), but not the other way around. */
-		assert(!ACTION(s, mutex_unlocking));
-		ACTION(s, mutex_unlocking) = true;
+		ACTION(s, mutex_unlocking)++;
 		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
-		assert(ACTION(s, mutex_unlocking));
-		ACTION(s, mutex_unlocking) = false;
+		assert(ACTION(s, mutex_unlocking) > 0);
+		ACTION(s, mutex_unlocking)--;
 	}
 
 	/**********************************************************************
@@ -666,7 +660,7 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* As kernel_specifics.h says, no preempting during mutex unblocking. */
-	if (ACTION(s, mutex_unlocking)) {
+	if (ACTION(s, mutex_unlocking) > 0) {
 		return;
 	}
 
