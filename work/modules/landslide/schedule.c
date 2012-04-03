@@ -524,8 +524,8 @@ void sched_update(struct ls_state *ls)
 		agent_deschedule(s, target_tid);
 	/* Mutex tracking and noob deadlock detection */
 	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &mutex_addr)) {
-		assert(!ACTION(s, mutex_locking));
-		assert(!ACTION(s, mutex_unlocking));
+		//assert(!ACTION(s, mutex_locking));
+		//assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_locking) = true;
 		s->cur_agent->blocked_on_addr = mutex_addr;
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
@@ -544,8 +544,8 @@ void sched_update(struct ls_state *ls)
 			found_a_bug(ls);
 		}
 	} else if (kern_mutex_locking_done(ls->eip)) {
-		assert(ACTION(s, mutex_locking));
-		assert(!ACTION(s, mutex_unlocking));
+		//assert(ACTION(s, mutex_locking));
+		//assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_locking) = false;
 		s->cur_agent->blocked_on = NULL;
 		s->cur_agent->blocked_on_tid = -1;
@@ -556,11 +556,11 @@ void sched_update(struct ls_state *ls)
 	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &mutex_addr)) {
 		/* It's allowed to have a mutex_unlock call inside a mutex_lock
 		 * (and it can happen), but not the other way around. */
-		assert(!ACTION(s, mutex_unlocking));
+		//assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = true;
 		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
-		assert(ACTION(s, mutex_unlocking));
+		//assert(ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = false;
 	}
 
