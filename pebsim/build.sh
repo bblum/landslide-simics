@@ -4,8 +4,14 @@
 # @brief Outermost wrapper for the landslide build process.
 # @author Ben Blum
 
+function success {
+	echo -e "\033[01;32m$1\033[00m"
+}
+function msg {
+	echo -e "\033[01;33m$1\033[00m"
+}
 function err {
-	echo "$1" >&2
+	echo -e "\033[01;31m$1\033[00m" >&2
 }
 function die {
 	err "$1"
@@ -57,9 +63,11 @@ if [ -L $HEADER ]; then
 	rm $HEADER
 elif [ -f $HEADER ]; then
 	if grep 'automatically generated' $HEADER 2>&1 >/dev/null; then
-		MD5SUM=`grep md5sum $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
+		MD5SUM=`grep 'image md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
+		MD5SUM_C=`grep 'config md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
 		MY_MD5SUM=`md5sum $KERNEL_IMG | cut -d' ' -f1`
-		if [ "$MD5SUM" == "$MY_MD5SUM" ]; then
+		MY_MD5SUM_C=`md5sum $CONFIG | cut -d' ' -f1`
+		if [ "$MD5SUM" == "$MY_MD5SUM" -a "$MD5SUM_C" == "$MY_MD5SUM_C" ]; then
 			SKIP_HEADER=yes
 		else
 			rm $HEADER
@@ -71,17 +79,17 @@ fi
 
 #### Do the needful ####
 
-echo "Generating simics config..."
+msg "Generating simics config..."
 ./configgen.sh > landslide-config.py || die "configgen.sh failed."
 if [ -z "$SKIP_HEADER" ]; then
-	echo "Generating header file..."
+	msg "Generating header file..."
 	./definegen.sh > $HEADER || die "definegen.sh failed."
 else
-	echo "Header already generated; skipping."
+	msg "Header already generated; skipping."
 fi
 
 if [ ! -f $STUDENT ]; then
 	die "$STUDENT doesn't seem to exist yet. Please implement it."
 fi
 (cd ../work && make) || die "Building landslide failed."
-echo "Done. Run \"time ./simics4\" when you are ready."
+success "Build succeeded. Run \"time ./simics4\" when you are ready."

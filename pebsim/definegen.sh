@@ -8,11 +8,11 @@
 ##########################
 
 function err {
-	echo "$1" >&2
+	echo -e "\033[01;31m$1\033[00m" >&2
 }
 function die {
 	err "$1"
-	exit 1
+	kill $$ # may be called in backticks; exit won't work
 }
 
 function get_sym {
@@ -113,7 +113,8 @@ KERNEL_NAME_UPPER=`echo $KERNEL_NAME | tr '[:lower:]' '[:upper:]'`
 echo "/**"
 echo " * @file kernel_specifics_$KERNEL_NAME_LOWER.h"
 echo " * @brief #defines for the $KERNEL_NAME guest kernel (automatically generated)"
-echo " * Built for image with md5sum `md5sum $KERNEL_IMG`"
+echo " * Built for image md5sum `md5sum $KERNEL_IMG`"
+echo " * Using config md5sum `md5sum $CONFIG`"
 echo " * @author Ben Blum <bblum@andrew.cmu.edu>"
 echo " */"
 echo

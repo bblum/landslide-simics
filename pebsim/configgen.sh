@@ -17,7 +17,7 @@ function extra_sym {
 }
 
 function die {
-	echo "$1" >&2
+	echo -e "\033[01;31m$1\033[00m" >&2
 	exit 1
 }
 
