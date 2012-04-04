@@ -9,6 +9,9 @@ function sched_func {
 function ignore_sym {
 	echo -n
 }
+function without_function {
+	echo -n
+}
 function within_function {
 	echo -n
 }

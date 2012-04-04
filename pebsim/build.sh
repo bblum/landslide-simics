@@ -27,6 +27,9 @@ function ignore_sym {
 function within_function {
 	echo -n
 }
+function without_function {
+	echo -n
+}
 function extra_sym {
 	echo -n
 }

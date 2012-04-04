@@ -73,8 +73,13 @@ function extra_sym {
 }
 
 WITHIN_FUNCTIONS=
+# The list will appear in order that they are called.
+# Later ones specified take precedence (as per the implementation in kernel_specifics.c).
 function within_function {
-	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1` },"
+	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 1 },"
+}
+function without_function {
+	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 0 },"
 }
 
 #############################

@@ -98,9 +98,19 @@ ignore_sym cmutex $MUTEX_SIZE
 # List the functions that landslide should "pay attention" to; i.e., landslide
 # will only make decision points if tell_landslide_decide() occurs within the
 # execution of one of these functions.
-# If you leave this empty, landslide will "pay attention" to everything.
+# If you don't within_function at all, landslide will "pay attention" to
+# everything by default.
+
 within_function vanish
-#within_function wait
+within_function wait
+
+# You may also list functions that landslide should NOT pay attention to; i.e.,
+# even if within one of the "within_function"s (or if none were specified),
+# landslide will not make decision points if within a "without_function" also.
+# Sequentially-later (i.e. in this file) calls to either within_function or
+# without_function take precedence over earlier ones.
+
+without_function wait_reap
 
 ##########################
 #### Advanced options ####

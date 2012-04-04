@@ -107,10 +107,18 @@ ignore_sym kb_char_sem $SEM_SIZE
 # will only make decision points if tell_landslide_decide() occurs within the
 # execution of one of these functions.
 # If you don't within_function at all, landslide will "pay attention" to
-# everything.
+# everything by default.
 
 within_function do_vanish
 #within_function sys_wait
+
+# You may also list functions that landslide should NOT pay attention to; i.e.,
+# even if within one of the "within_function"s (or if none were specified),
+# landslide will not make decision points if within a "without_function" also.
+# Sequentially-later (i.e. in this file) calls to either within_function or
+# without_function take precedence over earlier ones.
+
+#without_function vm_clear
 
 ##########################
 #### Advanced options ####
