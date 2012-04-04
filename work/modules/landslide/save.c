@@ -425,13 +425,17 @@ static bool enabled_by(struct hax *h, struct hax *old)
 		lsprintf(INFO, "Searching for #%d/tid%d among siblings of "
 			 "#%d/tid%d: ", h->depth, h->chosen_thread, old->depth,
 			 old->chosen_thread);
-		print_q(INFO, "RQ [", &old->parent->oldsched->rq, "]: ");
-		Q_SEARCH(a, &old->parent->oldsched->rq, nobe,
-			 a->tid == h->chosen_thread && !BLOCKED(a));
+		print_qs(INFO, old->parent->oldsched);
+		FOR_EACH_RUNNABLE_AGENT(a, old->parent->oldsched,
+			if (a->tid == h->chosen_thread && !BLOCKED(a)) {
+				printf(INFO, "not enabled_by\n");
+				return false;
+			}
+		);
 		/* Transition A enables transition B if B was not a sibling of
 		 * A; i.e., if before A was run B could not have been chosen. */
-		printf(INFO, "%s enabled_by\n", a == NULL ? "yes" : "not");
-		return (a == NULL);
+		printf(INFO, "yes enabled_by\n");
+		return true;
 	}
 }
 
