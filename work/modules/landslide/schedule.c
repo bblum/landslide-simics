@@ -719,8 +719,11 @@ void sched_update(struct ls_state *ls)
 				s->entering_timer = true;
 			}
 			/* Record the choice that was just made. */
-			save_setjmp(&ls->save, ls, a->tid, our_choice, false,
-				    voluntary);
+			if (ls->test.test_ever_caused &&
+			    ls->test.start_population != s->most_agents_ever) {
+				save_setjmp(&ls->save, ls, a->tid, our_choice,
+					    false, voluntary);
+			}
 		} else {
 			lsprintf(BUG, "no agent was chosen at eip 0x%x\n",
 				 ls->eip);
