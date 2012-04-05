@@ -467,7 +467,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (ls->trigger_count % 1000000 == 0) {
-		lsprintf(INFO, "hax number %d (%d) at 0x%x\n",
+		lsprintf(INFO, "hax number %lu (%lu) at 0x%x\n",
 			 ls->trigger_count, ls->absolute_trigger_count,
 			 ls->eip);
 	}

@@ -21,7 +21,7 @@ struct test_state;
  * that choice; i.e., when the next choice has to be made. */
 struct hax {
 	int eip;           /* The eip for the *next* choice point. */
-	int trigger_count; /* from ls_state */
+	unsigned long trigger_count; /* from ls_state */
 	int chosen_thread; /* TID that was chosen to get here. -1 if root. */
 
 	/* Saved state from the past. The state struct pointers are non-NULL if

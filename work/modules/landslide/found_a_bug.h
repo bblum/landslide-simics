@@ -21,11 +21,11 @@ struct ls_state;
 	} while (0)
 
 #define PRINT_TREE_INFO(v, ls) do {	\
-	lsprintf(v, "Current trigger_count %d, total triggers %d\n",	\
+	lsprintf(v, "Current instruction count %lu, total instructions %lu\n", \
 		 ls->trigger_count, ls->absolute_trigger_count);	\
 	lsprintf(v, "Total choice points %d, total backtracks %d\n",	\
 		 ls->save.total_choices, ls->save.total_jumps);		\
-	lsprintf(v, "Average triggers/choice %d, average branch depth %d\n", \
+	lsprintf(v, "Average instrs/choice %d, average branch depth %d\n", \
 		 ls->save.total_triggers / (1+ls->save.total_choices),	\
 		 ls->save.depth_total / (1+ls->save.total_jumps));	\
 	} while (0)
