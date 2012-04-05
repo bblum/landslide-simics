@@ -182,7 +182,6 @@ bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *owner_tid)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_BLOCKING) {
 		*owner_tid = READ_STACK(cpu, 1);
-		assert(*owner_tid < 10);
 		return true;
 	} else {
 		return false;
