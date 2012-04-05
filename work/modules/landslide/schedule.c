@@ -417,6 +417,10 @@ void sched_update(struct ls_state *ls)
 			s->last_agent = s->cur_agent;
 			s->cur_agent = next;
 		} else {
+			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Couldn't find "
+				 "new thread %d; current %d; did you forget to "
+				 "tell_landslide_forking()?\n" COLOUR_DEFAULT,
+				 new_tid, s->cur_agent->tid);
 			assert(0);
 		}
 		/* Some debug info to help the studence. */
