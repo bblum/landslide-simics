@@ -442,7 +442,7 @@ static bool time_travel(struct ls_state *ls)
 
 static void found_no_bug(struct ls_state *ls)
 {
-	lsprintf(ALWAYS, "**** Choice tree explored; you passed! ****\n");
+	lsprintf(ALWAYS, "**** Execution tree explored; you survived! ****\n");
 	PRINT_TREE_INFO(ALWAYS, ls);
 	SIM_quit(LS_NO_KNOWN_BUG);
 }
