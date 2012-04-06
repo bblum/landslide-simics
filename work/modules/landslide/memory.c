@@ -201,7 +201,7 @@ static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
 	assert(m->in_alloc && "attempt to exit malloc without being in!");
 	assert(!m->in_free && "attempt to exit malloc while in free!");
 
-	lsprintf(INFO, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
+	lsprintf(DEV, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
 	assert(base < USER_MEM_START);
 
 	if (base == 0) {
@@ -250,7 +250,7 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
 			 "with wrong size %d!\n", base, chunk->len, size);
 		found_a_bug(ls);
 	} else {
-		lsprintf(INFO, "Free() chunk [0x%x | %d]\n", base, size);
+		lsprintf(DEV, "Free() chunk [0x%x | %d]\n", base, size);
 	}
 
 	if (chunk != NULL) {
@@ -336,8 +336,8 @@ static struct chunk *find_freed_chunk(struct ls_state *ls, int addr,
 static void use_after_free(struct ls_state *ls, struct mem_state *m, int addr,
 			   bool write)
 {
-	lsprintf(BUG, COLOUR_BOLD "USE AFTER FREE - %s 0x%.8x at eip 0x%.8x\n",
-		 write ? "write to" : "read from", addr,
+	lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USE AFTER FREE - %s 0x%.8x at eip"
+		 " 0x%.8x\n", write ? "write to" : "read from", addr,
 		 (int)GET_CPU_ATTR(ls->cpu0, eip));
 	lsprintf(BUG, "Heap contents: {");
 	print_heap(BUG, m->heap.rb_node, true);

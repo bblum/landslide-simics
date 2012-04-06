@@ -31,7 +31,8 @@ static int print_tree_from(struct hax *h, int choose_thread)
 	num = 1 + print_tree_from(h->parent, h->chosen_thread);
 
 	if (h->chosen_thread != choose_thread || VERBOSE_TRACE) {
-		lsprintf(BUG, "%d:\t%lu instructions, old %d new %d, ", num,
+		lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
+			 "%d:\t%lu instructions, old %d new %d, ", num,
 			 h->trigger_count, h->chosen_thread, choose_thread);
 		print_qs(BUG, h->oldsched);
 		printf(BUG, "\n");
@@ -43,8 +44,10 @@ static int print_tree_from(struct hax *h, int choose_thread)
 
 void found_a_bug(struct ls_state *ls)
 {
-	lsprintf(BUG, "****    A bug was found!   ****\n");
-	lsprintf(BUG, "**** Choice trace follows. ****\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+		 "****    A bug was found!     ****\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+		 "**** Decision trace follows. ****\n");
 
 	print_tree_from(ls->save.current, ls->save.next_tid);
 
