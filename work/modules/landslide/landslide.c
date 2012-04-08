@@ -455,7 +455,8 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (ls->eip >= USER_MEM_START) {
-		check_user_syscall(ls);
+		if (entry->trace_type == TR_Instruction)
+			check_user_syscall(ls);
 		return;
 	} else if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
 		mem_check_shared_access(ls, &ls->mem, entry->pa,
