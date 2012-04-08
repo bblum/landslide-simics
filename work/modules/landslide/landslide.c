@@ -452,7 +452,12 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 {
 	struct ls_state *ls = (struct ls_state *)obj;
 
-	if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
+	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
+
+	if (ls->eip >= USER_MEM_START) {
+		check_user_syscall(ls);
+		return;
+	} else if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
 		mem_check_shared_access(ls, &ls->mem, entry->pa,
 					(entry->read_or_write == Sim_RW_Write));
 		return;
@@ -463,18 +468,10 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	ls->trigger_count++;
 	ls->absolute_trigger_count++;
 
-	/* TODO: avoid using get_cpu_attr */
-	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
-
 	if (ls->trigger_count % 1000000 == 0) {
 		lsprintf(INFO, "hax number %lu (%lu) at 0x%x\n",
 			 ls->trigger_count, ls->absolute_trigger_count,
 			 ls->eip);
-	}
-
-	if (ls->eip >= USER_MEM_START) {
-		check_user_syscall(ls);
-		return;
 	}
 
 	if (ls->just_jumped) {
