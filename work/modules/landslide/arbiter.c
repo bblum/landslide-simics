@@ -140,9 +140,12 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		}
 	);
 
-	printf(BUG, COLOUR_BOLD "Nobody runnable! All threads wedged?\n");
 	if (BUG_ON_THREADS_WEDGED != 0) {
+		printf(BUG, COLOUR_BOLD COLOUR_RED
+		       "Nobody runnable! All threads wedged?\n");
 		found_a_bug(ls);
+	} else {
+		printf(BUG, "Nobody runnable! All threads wedged?\n");
 	}
 	return false;
 }

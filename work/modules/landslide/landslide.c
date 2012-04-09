@@ -376,7 +376,7 @@ static bool ensure_progress(struct ls_state *ls)
 {
 	char *buf;
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
-		lsprintf(BUG, "KERNEL PANIC: %s\n", buf);
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PANIC: %s\n", buf);
 		MM_FREE(buf);
 		return false;
 	}
@@ -391,8 +391,10 @@ static bool ensure_progress(struct ls_state *ls)
 	int most_recent = ls->trigger_count - ls->save.current->trigger_count;
 	int average_triggers = ls->save.total_triggers / ls->save.total_choices;
 	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
-		lsprintf(BUG, "NO PROGRESS (infinite loop?)\n");
-		lsprintf(BUG, "%d instructions since last decision; average %d\n",
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "NO PROGRESS (infinite loop?)\n");
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "%d instructions since last decision; average %d\n",
 			 most_recent, average_triggers);
 		return false;
 	}
@@ -401,8 +403,10 @@ static bool ensure_progress(struct ls_state *ls)
 	 * end up being infinitely deep)? */
 	int average_depth = ls->save.depth_total / (1 + ls->save.total_jumps);
 	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
-		lsprintf(BUG, "NO PROGRESS (stuck thread(s)?)\n");
-		lsprintf(BUG, "Current branch depth %d; average depth %d\n",
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "NO PROGRESS (stuck thread(s)?)\n");
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "Current branch depth %d; average depth %d\n",
 			 ls->save.current->depth, average_depth);
 		return false;
 	}
@@ -416,7 +420,8 @@ static bool test_ended_safely(struct ls_state *ls)
 
 	if (ls->test.start_heap_size > ls->mem.heap_size) {
 		// TODO: the test could copy the heap to indicate which blocks
-		lsprintf(BUG, "MEMORY LEAK (%d bytes)!\n",
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "MEMORY LEAK (%d bytes)!\n",
 			 ls->test.start_heap_size - ls->mem.heap_size);
 		return false;
 	}

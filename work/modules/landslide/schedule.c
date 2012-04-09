@@ -543,7 +543,7 @@ void sched_update(struct ls_state *ls)
 			 target_tid);
 		s->cur_agent->blocked_on_tid = target_tid;
 		if (deadlocked(s)) {
-			lsprintf(BUG, "DEADLOCK! ");
+			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DEADLOCK! ");
 			print_deadlock(BUG, s->cur_agent);
 			printf(BUG, "\n");
 			found_a_bug(ls);

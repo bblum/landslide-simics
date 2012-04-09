@@ -186,7 +186,7 @@ static void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m,
 				int size)
 {
 	if (m->in_alloc || m->in_free) {
-		lsprintf(BUG, "Malloc reentered %s!\n",
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Malloc reentered %s!\n",
 			 m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
@@ -227,7 +227,7 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
 	struct chunk *chunk;
 
 	if (m->in_alloc || m->in_free) {
-		lsprintf(BUG, "Free reentered %s!\n",
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Free reentered %s!\n",
 			 m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
@@ -238,16 +238,19 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
 		assert(chunk == NULL);
 		lsprintf(INFO, "Free() NULL; ok, I guess...\n");
 	} else if (chunk == NULL) {
-		lsprintf(BUG, "Attempted to free non-existent chunk [0x%x | %d]"
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "Attempted to free non-existent chunk [0x%x | %d]"
 			 " -- (double free?)!\n", base, size);
 		found_a_bug(ls);
 	} else if (chunk->base != base) {
-		lsprintf(BUG, "Attempted to free [0x%x | %d], contained within "
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "Attempted to free [0x%x | %d], contained within "
 			 "[0x%x | %d]\n", base, size, chunk->base, chunk->len);
 		found_a_bug(ls);
 	} else if (chunk->len != size) {
-		lsprintf(BUG, "Attempted to free [0x%x | %d] "
-			 "with wrong size %d!\n", base, chunk->len, size);
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "Attempted to free [0x%x | %d] with wrong size %d!\n",
+			 base, chunk->len, size);
 		found_a_bug(ls);
 	} else {
 		lsprintf(DEV, "Free() chunk [0x%x | %d]\n", base, size);
