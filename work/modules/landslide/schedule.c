@@ -632,9 +632,7 @@ void sched_update(struct ls_state *ls)
 						 "flight at 0x%x\n", ls->eip);
 					cause_timer_interrupt(ls->cpu0);
 					s->entering_timer = true;
-					/* If this trips, replace with just
-					 * setting the flag to false. */
-					assert(!s->delayed_in_flight);
+					s->delayed_in_flight = false;
 				} else {
 					lsprintf(INFO, "Want to keep schedule "
 						 "in-flight at 0x%x; have to "
