@@ -388,7 +388,8 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 		return;
 
 	/* so does the scheduler - TODO: make this configurable */
-	if (kern_in_scheduler(ls->eip) || kern_access_in_scheduler(addr) ||
+	if (kern_in_scheduler(ls->cpu0, ls->eip) ||
+	    kern_access_in_scheduler(addr) ||
 	    ls->sched.cur_agent->action.handling_timer || /* XXX: a hack */
 	    ls->sched.cur_agent->action.context_switch)
 		return;

@@ -62,13 +62,13 @@ bool kern_sched_init_done(int eip)
 	return eip == TELL_LANDSLIDE_SCHED_INIT_DONE;
 }
 
-bool kern_in_scheduler(int eip)
+bool kern_in_scheduler(conf_object_t *cpu, int eip)
 {
 	static const int sched_funx[][2] = GUEST_SCHEDULER_FUNCTIONS;
 
 	for (int i = 0; i < ARRAY_SIZE(sched_funx); i++) {
 		/* The get_func_end returns the last instr, so be inclusive */
-		if (eip >= sched_funx[i][0] && eip <= sched_funx[i][1])
+		if (within_function(cpu, eip, sched_funx[i][0], sched_funx[i][1]))
 			return true;
 	}
 

@@ -22,7 +22,7 @@ int kern_get_timer_wrap_begin(void);
 bool kern_context_switch_entering(int eip);
 bool kern_context_switch_exiting(int eip);
 bool kern_sched_init_done(int eip);
-bool kern_in_scheduler(int eip);
+bool kern_in_scheduler(conf_object_t *cpu, int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_scheduler_locked(conf_object_t *cpu);
 bool kern_within_functions(conf_object_t *cpu, int eip);
