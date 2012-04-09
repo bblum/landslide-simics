@@ -51,6 +51,14 @@ IDLE_TID=0
 # After tell_landslide_sched_init_done(), which thread is the first one to run?
 FIRST_TID=$INIT_TID
 
+# Call this for each thread that exists in your kernel when it
+# tells_landslide_sched_init_done(). The first argument is the TID; the second
+# is "1" if the thread is on the runqueue, and "0" if the thread is not (for
+# example, if it starts descheduled, or if it's the current thread and
+# kern_current_extra_runnable would return true, etc).
+starting_threads $INIT_TID 0
+starting_threads $IDLE_TID 0
+
 #######################################
 #### Scheduler/globals information ####
 #######################################

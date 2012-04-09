@@ -23,15 +23,6 @@
  * GET_ESP0(cpu)          - Returns the current value of esp0
  */
 
-void kern_init_threads(struct sched_state *s,
-                       void (*add_thread)(struct sched_state *, int tid,
-                                          bool on_runqueue))
-{
-	/* Only init runs first in POBBLES, but other kernels may have idle. In
-	 * POBBLES, init is not context-switched to to begin with. */
-	add_thread(s, kern_get_init_tid(), true);
-}
-
 /* Is the currently-running thread not on the runqueue, and is runnable
  * anyway? For kernels that keep the current thread on the runqueue, this
  * function should return false always. */

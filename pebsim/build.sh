@@ -15,7 +15,7 @@ function err {
 }
 function die {
 	err "$1"
-	exit 1
+	kill $$ # may be called in backticks; exit won't work
 }
 
 function sched_func {
@@ -31,6 +31,9 @@ function without_function {
 	echo -n
 }
 function extra_sym {
+	echo -n
+}
+function starting_threads {
 	echo -n
 }
 
@@ -86,7 +89,7 @@ msg "Generating simics config..."
 ./configgen.sh > landslide-config.py || die "configgen.sh failed."
 if [ -z "$SKIP_HEADER" ]; then
 	msg "Generating header file..."
-	./definegen.sh > $HEADER || die "definegen.sh failed."
+	./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
 else
 	msg "Header already generated; skipping."
 fi

@@ -23,14 +23,6 @@
  * GET_ESP0(cpu)          - Returns the current value of esp0
  */
 
-void kern_init_threads(struct sched_state *s,
-                       void (*add_thread)(struct sched_state *, int tid,
-                                          bool on_runqueue))
-{
-	add_thread(s, kern_get_init_tid(), false);
-	add_thread(s, kern_get_idle_tid(), false);
-}
-
 /* Is the currently-running thread not on the runqueue, and is runnable
  * anyway? For kernels that keep the current thread on the runqueue, this
  * function should return false always. */

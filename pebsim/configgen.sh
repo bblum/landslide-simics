@@ -18,6 +18,10 @@ function within_function {
 function extra_sym {
 	echo -n
 }
+function starting_threads {
+	echo -n
+}
+
 
 function die {
 	echo -e "\033[01;31m$1\033[00m" >&2

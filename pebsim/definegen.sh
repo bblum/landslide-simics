@@ -82,6 +82,16 @@ function without_function {
 	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 0 },"
 }
 
+STARTING_THREADS=
+function starting_threads {
+	if [ -z "$1" -o -z "$2" ]; then
+		die "starting_threads needs two args: got \"$1\" and \"$2\""
+	elif [ "$2" != "1" -a "$2" != "0" ]; then
+		die "starting_threads \"$1\" \"$2\" - expected '1' or '0' for 2nd arg"
+	fi
+	STARTING_THREADS="${STARTING_THREADS} add_thread(s, $1, $2);"
+}
+
 #############################
 #### Reading user config ####
 #############################
@@ -261,6 +271,8 @@ if [ -z "$IDLE_TID" ]; then
 else
 	echo "#define GUEST_IDLE_TID $IDLE_TID"
 fi
+
+echo "#define GUEST_STARTING_THREAD_CODE do {$STARTING_THREADS } while (0)"
 
 ###########################
 #### User-config stuff ####

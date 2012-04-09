@@ -24,7 +24,7 @@ KERNEL_NAME=pobbles_race
 KERNEL_SOURCE_DIR=kern-race
 
 # What program should landslide run? vanish_vanish, double_thread_fork, ...
-TEST_CASE=vanish_vanish
+TEST_CASE=double_thread_fork
 
 ######################
 #### Simple stuff ####
@@ -49,6 +49,13 @@ SHELL_TID=2
 
 # After tell_landslide_sched_init_done(), which thread is the first one to run?
 FIRST_TID=$INIT_TID
+
+# Call this for each thread that exists in your kernel when it
+# tells_landslide_sched_init_done(). The first argument is the TID; the second
+# is "1" if the thread is on the runqueue, and "0" if the thread is not (for
+# example, if it starts descheduled, or if it's the current thread and
+# kern_current_extra_runnable would return true, etc).
+starting_threads $INIT_TID 1
 
 #######################################
 #### Scheduler/globals information ####
@@ -101,8 +108,8 @@ ignore_sym cmutex $MUTEX_SIZE
 # If you don't within_function at all, landslide will "pay attention" to
 # everything by default.
 
-within_function vanish
-within_function wait
+within_function tell_landslide_forking
+#within_function wait
 
 # You may also list functions that landslide should NOT pay attention to; i.e.,
 # even if within one of the "within_function"s (or if none were specified),
@@ -110,7 +117,7 @@ within_function wait
 # Sequentially-later (i.e. in this file) calls to either within_function or
 # without_function take precedence over earlier ones.
 
-without_function wait_reap
+#without_function wait_reap
 
 ##########################
 #### Advanced options ####
