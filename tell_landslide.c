@@ -12,8 +12,8 @@ void tell_landslide_sched_init_done(void) { }
 void tell_landslide_forking(void) { }
 void tell_landslide_vanishing(void) { }
 void tell_landslide_sleeping(void) { }
-void tell_landslide_thread_runnable(int tid) { }
-void tell_landslide_thread_descheduling(int tid) { }
+void tell_landslide_thread_on_rq(int tid) { }
+void tell_landslide_thread_off_rq(int tid) { }
 void tell_landslide_mutex_locking(void *mutex_addr) { }
 void tell_landslide_mutex_blocking(int owner_tid) { }
 void tell_landslide_mutex_locking_done(void) { }

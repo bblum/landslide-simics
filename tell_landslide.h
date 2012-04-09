@@ -15,8 +15,8 @@ void tell_landslide_sched_init_done(void);
 void tell_landslide_forking(void);
 void tell_landslide_vanishing(void);
 void tell_landslide_sleeping(void);
-void tell_landslide_thread_runnable(int tid);
-void tell_landslide_thread_descheduling(int tid);
+void tell_landslide_thread_on_rq(int tid);
+void tell_landslide_thread_off_rq(int tid);
 
 /* You should use these if you wish to have decision points on mutex_lock and/or
  * on mutex_unlock. */
