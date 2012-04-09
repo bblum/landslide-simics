@@ -68,7 +68,9 @@ bool kern_in_scheduler(conf_object_t *cpu, int eip)
 
 	for (int i = 0; i < ARRAY_SIZE(sched_funx); i++) {
 		/* The get_func_end returns the last instr, so be inclusive */
-		if (within_function(cpu, eip, sched_funx[i][0], sched_funx[i][1]))
+		/* Don't use within_function here - huge performance regression.
+		 * if (within_function(cpu, eip, sched_funx[i][0], sched_funx[i][1])) */
+		if (eip >= sched_funx[i][0] && eip <= sched_funx[i][1])
 			return true;
 	}
 
@@ -403,4 +405,11 @@ bool kern_has_idle()
 #else
 	return false;
 #endif
+}
+
+void kern_init_threads(struct sched_state *s,
+                       void (*add_thread)(struct sched_state *, int tid,
+                                          bool on_runqueue))
+{
+	GUEST_STARTING_THREAD_CODE;
 }
