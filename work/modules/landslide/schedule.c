@@ -31,10 +31,18 @@ struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
 	return a;
 }
 
-struct agent *agent_by_tid(struct agent_q *q, int tid)
+static struct agent *agent_by_tid(struct agent_q *q, int tid)
 {
 	struct agent *a = agent_by_tid_or_null(q, tid);
-	assert(a && "attempt to look up tid not in specified queue");
+	if (a == NULL) {
+		conf_object_t *cpu = SIM_get_object("cpu0");
+		char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "TID %d isn't in the "
+			 "right queue; probably incorrect annotations?\n", tid);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n"
+			 COLOUR_DEFAULT, stack);
+		assert(0);
+	}
 	return a;
 }
 
@@ -97,8 +105,17 @@ static void agent_deschedule(struct sched_state *s, int tid)
 	 * it off in the thread-change event. */
 	} else if (agent_by_tid_or_null(&s->sq, tid) == NULL) {
 		/* Either it's on the sleep queue, or it vanished. */
-		assert(agent_by_tid_or_null(&s->dq, tid) == NULL &&
-		       "thread oughta've vanished or slept but is still on DQ");
+		if (agent_by_tid_or_null(&s->dq, tid) != NULL) {
+			conf_object_t *cpu = SIM_get_object("cpu0");
+			char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip),
+						  s->cur_agent->tid);
+			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "TID %d is "
+				 "already off the runqueue at tell_off_rq(); "
+				 "probably incorrect annotations?\n", tid);
+			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n"
+				 COLOUR_DEFAULT, stack);
+			assert(0);
+		}
 	}
 }
 
@@ -278,6 +295,35 @@ void print_qs(verbosity v, struct sched_state *s)
 #define NO_ACTION(s) (!(ACTION(s, handling_timer) || ACTION(s, context_switch) \
 			|| ACTION(s, forking) || ACTION(s, sleeping)           \
 			|| ACTION(s, vanishing) || ACTION(s, readlining)))
+
+#define CHECK_NOT_ACTION(failed, s, act) do {				\
+	if (ACTION(s, act)) {						\
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current thread '" \
+		         #act "' is true but shouldn't be\n");		\
+		failed = true;						\
+	} } while (0)
+/* A more user-friendly way of asserting NO_ACTION. */
+static void assert_no_action(struct sched_state *s, const char *new_act)
+{
+	bool failed = false;
+	CHECK_NOT_ACTION(failed, s, handling_timer);
+	CHECK_NOT_ACTION(failed, s, context_switch);
+	CHECK_NOT_ACTION(failed, s, forking);
+	CHECK_NOT_ACTION(failed, s, sleeping);
+	CHECK_NOT_ACTION(failed, s, vanishing);
+	CHECK_NOT_ACTION(failed, s, readlining);
+	if (failed) {
+		conf_object_t *cpu = SIM_get_object("cpu0");
+		char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip),
+					  s->cur_agent->tid);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "While trying to do %s;"
+			 " probably incorrect annotations?\n", new_act);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n",
+			 stack);
+		assert(0);
+	}
+}
+#undef CHECK_NOT_ACTION
 
 static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 {
@@ -504,16 +550,16 @@ void sched_update(struct ls_state *ls)
 		}
 	/* Lifecycle. */
 	} else if (kern_forking(ls->eip)) {
-		assert(NO_ACTION(s));
+		assert_no_action(s, "forking");
 		ACTION(s, forking) = true;
 	} else if (kern_sleeping(ls->eip)) {
-		assert(NO_ACTION(s));
+		assert_no_action(s, "sleeping");
 		ACTION(s, sleeping) = true;
 	} else if (kern_vanishing(ls->eip)) {
-		assert(NO_ACTION(s));
+		assert_no_action(s, "vanishing");
 		ACTION(s, vanishing) = true;
 	} else if (kern_readline_enter(ls->eip)) {
-		assert(NO_ACTION(s));
+		assert_no_action(s, "readlining");
 		ACTION(s, readlining) = true;
 	} else if (kern_readline_exit(ls->eip)) {
 		assert(ACTION(s, readlining));

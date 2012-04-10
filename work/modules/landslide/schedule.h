@@ -152,7 +152,6 @@ struct sched_state {
 	} while (0)
 
 struct agent *agent_by_tid_or_null(struct agent_q *, int);
-struct agent *agent_by_tid(struct agent_q *, int);
 
 void sched_init(struct sched_state *);
 
