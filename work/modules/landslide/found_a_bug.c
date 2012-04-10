@@ -11,13 +11,14 @@
 
 #include "common.h"
 #include "found_a_bug.h"
+#include "kernel_specifics.h"
 #include "landslide.h"
 #include "schedule.h"
 #include "tree.h"
 #include "x86.h"
 
-// TODO: make this an ls_state attribute
-#define VERBOSE_TRACE false
+/* Only do verbose trace if the user asked for decision info. */
+#define VERBOSE_TRACE (DECISION_INFO_ONLY != 0)
 
 static int print_tree_from(struct hax *h, int choose_thread)
 {
@@ -44,10 +45,15 @@ static int print_tree_from(struct hax *h, int choose_thread)
 
 void found_a_bug(struct ls_state *ls)
 {
-	lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-		 "****    A bug was found!     ****\n");
-	lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-		 "**** Decision trace follows. ****\n");
+	if (DECISION_INFO_ONLY == 0) {
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "****    A bug was found!     ****\n");
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+			 "**** Decision trace follows. ****\n");
+	} else {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
+			 "(No bug was found.)\n");
+	}
 
 	print_tree_from(ls->save.current, ls->save.next_tid);
 

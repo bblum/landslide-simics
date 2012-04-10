@@ -143,4 +143,10 @@ BUG_ON_THREADS_WEDGED=0
 # !!!     already found a bug and are trying to understand it better!      !!!
 EXPLORE_BACKWARDS=1
 
+# Set this to 1 if you want Landslide not to explore the tree, but to stop after
+# the first branch and print out the set of decision points that it found using
+# your current configuration. This is useful for fine-tuning your set of custom
+# decision points.
+DECISION_INFO_ONLY=0
+
 # vim: ft=sh

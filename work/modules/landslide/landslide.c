@@ -496,7 +496,11 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 		if (ls->test.test_ever_caused) {
 			lsprintf(BRANCH, "test case ended!\n");
 
-			if (test_ended_safely(ls)) {
+			if (DECISION_INFO_ONLY != 0) {
+				lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
+					 "These were the decision points:\n");
+				found_a_bug(ls);
+			} else if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true,
 					    false);
 				if (!time_travel(ls)) {
