@@ -1,7 +1,8 @@
 #!/bin/sh
 
 if [ "`pwd | sed 's/.*\///'`" != "pebsim" ]; then
-	die "$0 must be run from the pebsim directory."
+	echo -e "\033[01;31m$0 must be run from the pebsim directory.\033[00m"
+	exit 1
 fi
 
 ./build.sh && time ./simics4
