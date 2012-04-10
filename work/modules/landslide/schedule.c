@@ -471,7 +471,7 @@ void sched_update(struct ls_state *ls)
 		}
 		/* Some debug info to help the studence. */
 		if (s->cur_agent->tid == kern_get_init_tid()) {
-			lsprintf(DEV, "Now running init.\n"); 
+			lsprintf(DEV, "Now running init.\n");
 		} else if (s->cur_agent->tid == kern_get_shell_tid()) {
 			lsprintf(DEV, "Now running shell.\n");
 		} else if (kern_has_idle() &&
@@ -662,7 +662,8 @@ void sched_update(struct ls_state *ls)
 			 * irets; in the latter, just after the c-s returns. */
 			if (kern_timer_exiting(ls->eip) ||
 			     (!HANDLING_INTERRUPT(s) &&
-			      kern_context_switch_exiting(ls->eip))) {
+			      kern_context_switch_exiting(ls->eip)) ||
+			     ACTION(s, just_forked)) {
 				/* an undesirable agent just got switched to;
 				 * keep the pending schedule in the air. */
 				// XXX: this seems to get taken too soon? change
@@ -685,6 +686,12 @@ void sched_update(struct ls_state *ls)
 						 "delay\n", ls->eip);
 					s->delayed_in_flight = true;
 				}
+				/* If this was the special case where the
+				 * undesirable thread was just forked, keeping
+				 * the schedule in flight will cause it to do a
+				 * normal context switch. So just_forked is no
+				 * longer needed. */
+				ACTION(s, just_forked) = false;
 			} else if (s->delayed_in_flight &&
 				   interrupts_enabled(ls->cpu0) &&
 				   !kern_scheduler_locked(ls->cpu0)) {
