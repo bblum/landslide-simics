@@ -52,10 +52,6 @@ fi
 
 #### Check environment ####
 
-if [ "`pwd | sed 's/.*\///'`" != "pebsim" ]; then
-	die "$0 must be run from the pebsim directory."
-fi
-
 if [ ! -d ../work/modules/landslide ]; then
 	die "Where's ../work/modules/landslide?"
 fi
@@ -98,4 +94,4 @@ if [ ! -f $STUDENT ]; then
 	die "$STUDENT doesn't seem to exist yet. Please implement it."
 fi
 (cd ../work && make) || die "Building landslide failed."
-success "Build succeeded. Run \"time ./simics4\" when you are ready."
+success "Build succeeded."
