@@ -193,8 +193,9 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	int stop_ebp = 0;
 	int ebp = GET_CPU_ATTR(cpu, ebp);
 	int rabbit = ebp;
+	int frame_count = 0;
 
-	while (ebp != stop_ebp && (unsigned)ebp < USER_MEM_START) {
+	while (ebp != stop_ebp && (unsigned)ebp < USER_MEM_START && frame_count++ < 1024) {
 		/* Test eip against given range. */
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
 		if (eip >= func && eip < func_end)
@@ -202,6 +203,9 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 
 		/* Advance ebp and rabbit. Rabbit must go first to set stop_ebp
 		 * accurately. */
+		// XXX XXX XXX Actually fix the cycle detection - read from
+		// rabbit not ebp; and get rid of the frame counter.
+		// Fix this same bug in stack trace function below.
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
 		if (rabbit == ebp) stop_ebp = ebp;
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
@@ -236,8 +240,9 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 	int stop_ebp = 0;
 	int ebp = GET_CPU_ATTR(cpu, ebp);
 	int rabbit = ebp;
+	int frame_count = 0;
 
-	while (ebp != 0 && (unsigned)ebp < USER_MEM_START) {
+	while (ebp != 0 && (unsigned)ebp < USER_MEM_START && frame_count++ < 1024) {
 		bool extra_frame;
 
 		do {
