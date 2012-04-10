@@ -92,6 +92,10 @@ verify_numeric EXPLORE_BACKWARDS
 verify_numeric DECISION_INFO_ONLY
 verify_numeric BREAK_ON_BUG
 
+if ! grep "${TEST_CASE}_exec2obj_userapp_code_ptr" $KERNEL_IMG 2>&1 >/dev/null; then
+	die "Missing test program: $KERNEL_IMG isn't built with '$TEST_CASE'!"
+fi
+
 #### Check file sanity ####
 
 HEADER=../work/modules/landslide/student_specifics.h
