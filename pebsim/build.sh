@@ -90,6 +90,7 @@ verify_numeric FIRST_TID
 verify_numeric BUG_ON_THREADS_WEDGED
 verify_numeric EXPLORE_BACKWARDS
 verify_numeric DECISION_INFO_ONLY
+verify_numeric BREAK_ON_BUG
 
 #### Check file sanity ####
 

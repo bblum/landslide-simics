@@ -63,6 +63,11 @@ void found_a_bug(struct ls_state *ls)
 
 	PRINT_TREE_INFO(BUG, ls);
 
-	// FIXME: this should probably be SIM_break_simulation instead.
-	SIM_quit(LS_BUG_FOUND);
+	if (BREAK_ON_BUG) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW
+			 "Now giving you the debug prompt. Good luck!\n");
+		SIM_break_simulation(NULL);
+	} else {
+		SIM_quit(LS_BUG_FOUND);
+	}
 }
