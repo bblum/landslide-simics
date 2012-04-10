@@ -20,6 +20,7 @@
 #include "arbiter.h"
 #include "common.h"
 #include "compiler.h"
+#include "found_a_bug.h"
 #include "landslide.h"
 #include "memory.h"
 #include "save.h"
@@ -651,6 +652,8 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 		if (rabbit) rabbit = rabbit->parent;
 		assert(rabbit != ss->current && "somehow, a cycle?!?");
 	}
+
+	PRINT_TREE_INFO(BRANCH, ls);
 
 	restore_ls(ls, h);
 
