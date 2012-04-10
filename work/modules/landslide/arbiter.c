@@ -104,6 +104,10 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 /* Returns true if a thread was chosen. If true, sets 'target' (to either the
  * current thread or any other thread), and sets 'our_choice' to false if
  * somebody else already made this choice for us, true otherwise. */
+#define IS_IDLE(ls, a)							\
+	(kern_has_idle() && (a)->tid == kern_get_idle_tid() &&		\
+	 BUG_ON_THREADS_WEDGED != 0 && (ls)->test.test_ever_caused &&	\
+	 (ls)->test.start_population != (ls)->sched.most_agents_ever)
 bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		    bool *our_choice)
 {
@@ -117,7 +121,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 
 	/* Count the number of available threads. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		if (!BLOCKED(a)) {
+		if (!BLOCKED(a) && !IS_IDLE(ls, a)) {
 			print_agent(CHOICE, a);
 			printf(CHOICE, " ");
 			count++;
@@ -131,7 +135,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	/* Find the count-th thread. */
 	int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		if (!BLOCKED(a) && ++i == count) {
+		if (!BLOCKED(a) && !IS_IDLE(ls, a) && ++i == count) {
 			printf(CHOICE, "- Figured I'd look at TID %d next.\n",
 			       a->tid);
 			*target = a;
