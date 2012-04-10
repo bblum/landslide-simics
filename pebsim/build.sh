@@ -46,15 +46,50 @@ TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 source $CONFIG
 
-if [ ! -f "$KERNEL_IMG" ]; then
-	die "invalid kernel image specified: KERNEL_IMG=$KERNEL_IMG"
-fi
-
 #### Check environment ####
 
 if [ ! -d ../work/modules/landslide ]; then
 	die "Where's ../work/modules/landslide?"
 fi
+
+#### Verify config options ####
+function verify_nonempty {
+	if [ -z "`eval echo \\$\$1`" ]; then
+		die "Missing value for config option $1!"
+	fi
+}
+function verify_numeric {
+	verify_nonempty $1
+	expr `eval echo \\$\$1` + 1 2>/dev/null >/dev/null
+	if [ "$?" != 0 ]; then
+		die "Value for $1 needs to be numeric; got \"`eval echo \\$\$1`\" instead."
+	fi
+}
+function verify_file {
+	verify_nonempty $1
+	if [ ! -f "`eval echo \\$\$1`" ]; then
+		die "$1 (\"`eval echo \\$\$1`\") doesn't seem to be a file."
+	fi
+}
+function verify_dir {
+	verify_nonempty $1
+	if [ ! -d "`eval echo \\$\$1`" ]; then
+		die "$1 (\"`eval echo \\$\$1`\") doesn't seem to be a directory."
+	fi
+}
+
+verify_file KERNEL_IMG
+verify_dir KERNEL_SOURCE_DIR
+verify_nonempty TEST_CASE
+verify_nonempty TIMER_WRAPPER
+verify_nonempty CONTEXT_SWITCH
+verify_nonempty READLINE
+verify_numeric INIT_TID
+verify_numeric SHELL_TID
+verify_numeric FIRST_TID
+verify_numeric BUG_ON_THREADS_WEDGED
+verify_numeric EXPLORE_BACKWARDS
+verify_numeric DECISION_INFO_ONLY
 
 #### Check file sanity ####
 
