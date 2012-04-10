@@ -92,8 +92,27 @@ verify_numeric EXPLORE_BACKWARDS
 verify_numeric DECISION_INFO_ONLY
 verify_numeric BREAK_ON_BUG
 
+#### Check kernel image ####
+
 if ! grep "${TEST_CASE}_exec2obj_userapp_code_ptr" $KERNEL_IMG 2>&1 >/dev/null; then
 	die "Missing test program: $KERNEL_IMG isn't built with '$TEST_CASE'!"
+fi
+
+MISSING_ANNOTATIONS=
+function verify_tell {
+	if ! (objdump -d $KERNEL_IMG | grep "call.*$1" 2>&1 >/dev/null); then
+		err "Missing annotation: $KERNEL_IMG never calls $1()"
+		MISSING_ANNOTATIONS=very_yes
+	fi
+}
+verify_tell tell_landslide_thread_switch
+verify_tell tell_landslide_sched_init_done
+verify_tell tell_landslide_forking
+verify_tell tell_landslide_vanishing
+verify_tell tell_landslide_thread_on_rq
+verify_tell tell_landslide_thread_off_rq
+if [ ! -z "$MISSING_ANNOTATIONS" ]; then
+	die "Please fix the missing annotations."
 fi
 
 #### Check file sanity ####
