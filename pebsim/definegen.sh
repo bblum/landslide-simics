@@ -113,10 +113,8 @@ if [ ! -f "$KERNEL_IMG" ]; then
 	die "invalid kernel image specified: KERNEL_IMG=$KERNEL_IMG"
 fi
 if [ -z "$KERNEL_NAME" ]; then
-	die "what is the name of this kernel? (KERNEL_NAME)"
+	KERNEL_NAME=$USER
 fi
-
-# TODO: add more
 
 ##################
 #### Begin... ####

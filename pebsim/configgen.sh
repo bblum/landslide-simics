@@ -46,13 +46,18 @@ if [ ! -d "$KERNEL_SOURCE_DIR" ]; then
 	die "Invalid kernel source dir $KERNEL_SOURCE_DIR"
 fi
 
-if [ -L kernel ]; then
-	rm kernel
-elif [ -f kernel -o -d kernel ]; then
-	die "'kernel' exists, would be clobbered, please remove/relocate it."
+if [ -f kernel -o -d kernel ]; then
+	if ! cmp "$KERNEL_IMG" kernel 2>&1 >/dev/null; then
+		if [ -L kernel ]; then
+			rm kernel
+			ln -s $KERNEL_IMG kernel
+		else
+			die "'kernel' exists, would be clobbered, please remove/relocate it."
+		fi
+	fi
+else
+	ln -s $KERNEL_IMG kernel
 fi
-
-ln -s $KERNEL_IMG kernel
 
 # Generate file
 
