@@ -1,0 +1,53 @@
+/**
+ * @file student.c
+ * @brief Guest-implementation-specific things landslide needs to know
+ *        Example dummy implementation.
+ *
+ * @author Ben Blum, and you, the student :)
+ */
+
+#include <assert.h>
+#include <simics/api.h>
+
+#define MODULE_NAME "hqbovik"
+
+#include "common.h"
+#include "kernel_specifics.h"
+#include "schedule.h"
+#include "x86.h"
+
+/* List of primitives to help you implement these functions:
+ * READ_MEMORY(cpu, addr) - Returns 4 bytes from kernel memory at addr
+ * READ_BYTE(cpu, addr)   - Returns 1 byte from kernel memory at addr
+ * GET_CPU_ATTR(cpu, eax) - Returns the value of a CPU register (esp, eip, ...)
+ * GET_ESP0(cpu)          - Returns the current value of esp0
+ */
+
+/* WARNING: scheduler designs are different, so for both of these functions,
+ * you need to think about whether this sample code is exactly right, kind of
+ * right, or very wrong for your kernel. */
+
+/* Is the currently-running thread not on the runqueue, and is runnable
+ * anyway? For kernels that keep the current thread on the runqueue, this
+ * function should return false always. */
+#define TCB_STATE_FLAG_OFFSET 31337
+#define TCB_STATE_FLAG_RUNNABLE 0x15410FA1L
+bool kern_current_extra_runnable(conf_object_t *cpu)
+{
+	int tcb = magic_get_current_tcb(cpu);
+
+	int state_flag = READ_MEMORY(cpu, tcb + TCB_STATE_FLAG_OFFSET);
+
+	return state_flag == TCB_STATE_FLAG_RUNNABLE;
+}
+
+/* This function should return false at every point when Landslide can cause a
+ * prompt thread switch by generating a clock interrupt. */
+bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
+{
+	int eflags = GET_CPU_ATTR(cpu, eflags);
+	return (eflags & EFL_IF) != 0;
+}
+
+/* vim: ft=c
+ */
