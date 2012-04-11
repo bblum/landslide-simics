@@ -31,11 +31,9 @@ bool kern_current_extra_runnable(conf_object_t *cpu)
 	return false;
 }
 
-/* Anything that would prevent timer interrupts from triggering context
- * switches */
-bool kern_scheduler_locked(conf_object_t *cpu)
+bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
 {
 	int x = READ_MEMORY(cpu, GUEST_SCHEDULER_LOCK);
-	return x != 0;
+	return x == 0;
 }
 

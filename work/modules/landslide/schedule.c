@@ -674,7 +674,7 @@ void sched_update(struct ls_state *ls)
 				 * off or scheduler locked at this point; so
 				 * properties of !R */
 				if (interrupts_enabled(ls->cpu0) &&
-				    !kern_scheduler_locked(ls->cpu0)) {
+				    kern_ready_for_timer_interrupt(ls->cpu0)) {
 					lsprintf(INFO, "keeping schedule in-"
 						 "flight at 0x%x\n", ls->eip);
 					cause_timer_interrupt(ls->cpu0);
@@ -694,7 +694,7 @@ void sched_update(struct ls_state *ls)
 				ACTION(s, just_forked) = false;
 			} else if (s->delayed_in_flight &&
 				   interrupts_enabled(ls->cpu0) &&
-				   !kern_scheduler_locked(ls->cpu0)) {
+				   kern_ready_for_timer_interrupt(ls->cpu0)) {
 				lsprintf(INFO, "Delayed in-flight timer tick "
 					 "at 0x%x\n", ls->eip);
 				cause_timer_interrupt(ls->cpu0);
@@ -706,7 +706,7 @@ void sched_update(struct ls_state *ls)
 				       ACTION(s, context_switch) ||
 				       HANDLING_INTERRUPT(s) ||
 				       !interrupts_enabled(ls->cpu0) ||
-				       kern_scheduler_locked(ls->cpu0));
+				       !kern_ready_for_timer_interrupt(ls->cpu0));
 			}
 		}
 		/* in any case we have no more decisions to make here */
@@ -742,7 +742,7 @@ void sched_update(struct ls_state *ls)
 
 	/* TODO: have an extra mode which will allow us to preempt the timer
 	 * handler. */
-	if (HANDLING_INTERRUPT(s) || kern_scheduler_locked(ls->cpu0)) {
+	if (HANDLING_INTERRUPT(s) || !kern_ready_for_timer_interrupt(ls->cpu0)) {
 		return;
 	}
 

@@ -47,7 +47,7 @@ static bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 	/* In atomic scheduler paths, both threads might be off the runqueue
 	 * (i.e., one going to sleep and switching to the other). Since we
 	 * assume the scheduler is sane, this condition should hold then. */
-	if (kern_scheduler_locked(cpu) || !interrupts_enabled(cpu)) {
+	if (!kern_ready_for_timer_interrupt(cpu) || !interrupts_enabled(cpu)) {
 		return true;
 	}
 

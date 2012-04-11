@@ -38,10 +38,8 @@ bool kern_current_extra_runnable(conf_object_t *cpu)
 	return state_flag != 1; // SCHED_NOT_RUNNABLE
 }
 
-/* Anything that would prevent timer interrupts from triggering context
- * switches */
-bool kern_scheduler_locked(conf_object_t *cpu)
+bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
 {
-	return false;
+	return true;
 }
 

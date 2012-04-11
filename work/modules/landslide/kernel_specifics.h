@@ -24,7 +24,7 @@ bool kern_context_switch_exiting(int eip);
 bool kern_sched_init_done(int eip);
 bool kern_in_scheduler(conf_object_t *cpu, int eip);
 bool kern_access_in_scheduler(int addr);
-bool kern_scheduler_locked(conf_object_t *cpu);
+bool kern_ready_for_timer_interrupt(conf_object_t *cpu);
 bool kern_within_functions(conf_object_t *cpu, int eip);
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf);
 bool kern_kernel_main(int eip);
