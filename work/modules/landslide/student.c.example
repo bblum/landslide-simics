@@ -45,6 +45,8 @@ bool kern_current_extra_runnable(conf_object_t *cpu)
  * prompt thread switch by generating a clock interrupt. */
 bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
 {
+	/* Landslide already checks EFL_IF separately, so this example code is
+	 * actually equivalent to writing "return true;". */
 	int eflags = GET_CPU_ATTR(cpu, eflags);
 	return (eflags & EFL_IF) != 0;
 }
