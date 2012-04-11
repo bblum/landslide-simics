@@ -58,8 +58,9 @@ starting_threads $INIT_TID 1
 #### Scheduler/globals information ####
 #######################################
 
-# List here all the functions that comprise your kernel's scheduler. Call
-# 'sched_func' once per function.
+# List here all the functions that comprise your kernel's scheduler. Landslide
+# will ignore memory accesses from within these functions (see the comment above
+# ignore_sym for why). Call 'sched_func' once per function.
 sched_func my_timer_handler
 sched_func some_sched_function
 sched_func other_sched_function
@@ -72,8 +73,12 @@ PTR_SIZE=4
 # QUEUE_SIZE= ...
 
 # List here all the global symbols that landslide should ignore shared memory
-# accesses to.  Call "ignore_sym" once per symbol; arg1 is the symbol name,
-# arg2 is the type's size in bytes.
+# accesses to. At the very least, it's recommended to ignore scheduler stuff
+# that is always accessed once per switch/interrupt (such as the runqueue),
+# to help partial order reduction prune the search space. See user guide section
+# 6.2.2 for more details.
+# Call "ignore_sym" once per symbol; arg1 is the symbol name, arg2 is the
+# type's size in bytes.
 ignore_sym timer_tick_count $INT_SIZE
 ignore_sym runqueue $QUEUE_SIZE
 ignore_sym some_global_mutex $MUTEX_SIZE
