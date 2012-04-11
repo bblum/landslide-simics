@@ -41,7 +41,7 @@ bool kern_current_extra_runnable(conf_object_t *cpu)
 	return state_flag == TCB_STATE_FLAG_RUNNABLE;
 }
 
-/* This function should return false at every point when Landslide can cause a
+/* This function should return true at every point when Landslide can cause a
  * prompt thread switch by generating a clock interrupt. */
 bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
 {
