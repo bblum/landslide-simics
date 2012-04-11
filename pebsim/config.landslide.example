@@ -15,7 +15,8 @@
 ################################################################################
 
 # The path to your kernel image; the file called "kernel" that gets built.
-KERNEL_IMG=my-kernel-binary
+# (It's ok if you renamed it something other than "kernel".)
+KERNEL_IMG=kernel
 
 # Relative to the pebsim/ directory.
 KERNEL_SOURCE_DIR=kern-race
