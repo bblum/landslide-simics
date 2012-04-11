@@ -5,6 +5,7 @@ being implemented as a Simics module to run on 15-410 "Pebbles" kernels.
 
 To use landslide with your kernel:
 
+0) Run "./prepare-workspace.sh".
 1) Annotate your kernel with tell_landslide*(), using tell_landslide.{c,h}
 2) In pebsim/, fill out config.landslide
 3) In work/modules/landslide/, implement the functions in student.c
