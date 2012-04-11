@@ -8,8 +8,7 @@ To use landslide with your kernel:
 1) Annotate your kernel with tell_landslide*(), using tell_landslide.{c,h}
 2) In pebsim/, fill out config.landslide
 3) In work/modules/landslide/, implement the functions in student.c
-4) In pebsim/, run ./build.sh
-5) In pebsim/, run "time ./simics4"
+5) In pebsim/, run "./landslide".
 
 More info, and actual insight into each of these processes, is to be found in
-the user guide.
+the user guide: http://www.cs.cmu.edu/~410/landslide-guide.pdf
