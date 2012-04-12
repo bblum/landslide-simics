@@ -452,42 +452,8 @@ static void found_no_bug(struct ls_state *ls)
 	SIM_quit(LS_NO_KNOWN_BUG);
 }
 
-/* Main entry point. Called every instruction, data access, and extensible. */
-static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
+static void check_test_state(struct ls_state *ls)
 {
-	struct ls_state *ls = (struct ls_state *)obj;
-
-	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
-
-	if (ls->eip >= USER_MEM_START) {
-		if (entry->trace_type == TR_Instruction)
-			check_user_syscall(ls);
-		return;
-	} else if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
-		mem_check_shared_access(ls, &ls->mem, entry->pa,
-					(entry->read_or_write == Sim_RW_Write));
-		return;
-	} else if (entry->trace_type != TR_Instruction) {
-		return;
-	}
-
-	ls->trigger_count++;
-	ls->absolute_trigger_count++;
-
-	if (ls->trigger_count % 1000000 == 0) {
-		lsprintf(INFO, "hax number %lu (%lu) at 0x%x\n",
-			 ls->trigger_count, ls->absolute_trigger_count,
-			 ls->eip);
-	}
-
-	if (ls->just_jumped) {
-		sched_recover(ls);
-		ls->just_jumped = false;
-	}
-
-	sched_update(ls);
-	mem_update(ls);
-
 	/* When a test case finishes, break the simulation so the wrapper can
 	 * decide what to do. */
 	if (test_update_state(ls->cpu0, &ls->test, &ls->sched) &&
@@ -516,4 +482,44 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	} else if (!ensure_progress(ls)) {
 		found_a_bug(ls);
 	}
+}
+
+/* Main entry point. Called every instruction, data access, and extensible. */
+static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
+{
+	struct ls_state *ls = (struct ls_state *)obj;
+
+	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
+
+	if (ls->eip >= USER_MEM_START) {
+		if (entry->trace_type == TR_Instruction) {
+			check_user_syscall(ls);
+			check_test_state(ls);
+		}
+		return;
+	} else if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
+		mem_check_shared_access(ls, &ls->mem, entry->pa,
+					(entry->read_or_write == Sim_RW_Write));
+		return;
+	} else if (entry->trace_type != TR_Instruction) {
+		return;
+	}
+
+	ls->trigger_count++;
+	ls->absolute_trigger_count++;
+
+	if (ls->trigger_count % 1000000 == 0) {
+		lsprintf(INFO, "hax number %lu (%lu) at 0x%x\n",
+			 ls->trigger_count, ls->absolute_trigger_count,
+			 ls->eip);
+	}
+
+	if (ls->just_jumped) {
+		sched_recover(ls);
+		ls->just_jumped = false;
+	}
+
+	sched_update(ls);
+	mem_update(ls);
+	check_test_state(ls);
 }
