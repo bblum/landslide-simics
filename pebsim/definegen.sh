@@ -103,6 +103,7 @@ if [ ! -f "$CONFIG" ]; then
 fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
+CONTEXT_SWITCH_RETURN=
 source $CONFIG
 
 #####################################
@@ -173,8 +174,14 @@ fi
 echo "#define GUEST_TIMER_WRAP_ENTER     0x`get_func $TIMER_WRAPPER`"
 echo "#define GUEST_TIMER_WRAP_EXIT      0x$TIMER_WRAP_EXIT"
 
+if [ ! -z "$CONTEXT_SWITCH_RETURN" ]; then
+	CONTEXT_SWITCH_EXIT=`get_func_ret $CONTEXT_SWITCH_RETURN`
+else
+	CONTEXT_SWITCH_EXIT=`get_func_ret $CONTEXT_SWITCH`
+fi
+
 echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x`get_func $CONTEXT_SWITCH`"
-echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x`get_func_ret $CONTEXT_SWITCH`"
+echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x$CONTEXT_SWITCH_EXIT"
 
 echo
 
