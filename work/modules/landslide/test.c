@@ -56,8 +56,19 @@ static bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 	    (shell = agent_by_tid_or_null(&s->dq, kern_get_shell_tid()))) {
 		if (shell->action.readlining) {
 			if (kern_has_idle()) {
-				return s->cur_agent->tid != kern_get_idle_tid();
+				if (s->cur_agent->tid != kern_get_idle_tid()) {
+					return true;
+				} else if (agent_by_tid_or_null(&s->rq, kern_get_init_tid()) != NULL) {
+					lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Init is still runnable but the kernel is idling. Please fix.\n");
+					lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Scheduler state: ");
+					print_qs(ALWAYS, s);
+					printf(ALWAYS, "\n");
+					assert(0);
+				} else {
+					return false;
+				}
 			} else {
+				// FIXME: account for current_extra_runnable
 				return (Q_GET_SIZE(&s->rq) != 0 ||
 					Q_GET_SIZE(&s->sq) != 0);
 			}
