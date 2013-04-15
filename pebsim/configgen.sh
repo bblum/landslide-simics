@@ -45,6 +45,9 @@ fi
 if [ ! -d "$KERNEL_SOURCE_DIR" ]; then
 	die "Invalid kernel source dir $KERNEL_SOURCE_DIR"
 fi
+if [ ! -f "./bootfd.img" ]; then
+	die "Where's bootfd.img?"
+fi
 
 if [ -f kernel -o -d kernel ]; then
 	if ! cmp "$KERNEL_IMG" kernel 2>&1 >/dev/null; then
