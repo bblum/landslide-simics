@@ -50,11 +50,22 @@ int kern_get_timer_wrap_begin()
 /* the boundaries of the context switcher */
 bool kern_context_switch_entering(int eip)
 {
-	return eip == GUEST_CONTEXT_SWITCH_ENTER;
+	return eip == GUEST_CONTEXT_SWITCH_ENTER
+#ifdef GUEST_CONTEXT_SWITCH_ENTER2
+		|| eip == GUEST_CONTEXT_SWITCH_ENTER2
+#endif
+		;
 }
 bool kern_context_switch_exiting(int eip)
 {
-	return eip == GUEST_CONTEXT_SWITCH_EXIT;
+	return eip == GUEST_CONTEXT_SWITCH_EXIT
+#ifdef GUEST_CONTEXT_SWITCH_EXIT0
+		|| eip == GUEST_CONTEXT_SWITCH_EXIT0
+#endif
+#ifdef GUEST_CONTEXT_SWITCH_EXIT2
+		|| eip == GUEST_CONTEXT_SWITCH_EXIT2
+#endif
+		;
 }
 
 bool kern_sched_init_done(int eip)

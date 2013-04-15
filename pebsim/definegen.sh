@@ -104,6 +104,7 @@ fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 CONTEXT_SWITCH_RETURN=
+CONTEXT_SWITCH_2=
 source $CONFIG
 
 #####################################
@@ -174,14 +175,17 @@ fi
 echo "#define GUEST_TIMER_WRAP_ENTER     0x`get_func $TIMER_WRAPPER`"
 echo "#define GUEST_TIMER_WRAP_EXIT      0x$TIMER_WRAP_EXIT"
 
+# XXX: this is not as general as it should be..
+echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x`get_func $CONTEXT_SWITCH`"
+echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x`get_func_ret $CONTEXT_SWITCH`"
 if [ ! -z "$CONTEXT_SWITCH_RETURN" ]; then
-	CONTEXT_SWITCH_EXIT=`get_func_ret $CONTEXT_SWITCH_RETURN`
-else
-	CONTEXT_SWITCH_EXIT=`get_func_ret $CONTEXT_SWITCH`
+	echo "#define GUEST_CONTEXT_SWITCH_EXIT0 0x`get_func_ret $CONTEXT_SWITCH_RETURN`"
 fi
 
-echo "#define GUEST_CONTEXT_SWITCH_ENTER 0x`get_func $CONTEXT_SWITCH`"
-echo "#define GUEST_CONTEXT_SWITCH_EXIT  0x$CONTEXT_SWITCH_EXIT"
+if [ ! -z "$CONTEXT_SWITCH_2" ]; then
+	echo "#define GUEST_CONTEXT_SWITCH_ENTER2 0x`get_func $CONTEXT_SWITCH2`"
+	echo "#define GUEST_CONTEXT_SWITCH_EXIT2  0x`get_func_ret $CONTEXT_SWITCH2`"
+fi
 
 echo
 
