@@ -255,7 +255,7 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 		file = strstr(file, LIKELY_DIR) + strlen(LIKELY_DIR);
 	}
 
-	int ret = snprintf(buf, maxlen, "%s (%s:%d)", func, file, line);
+	int ret = snprintf(buf, maxlen, COLOUR_BOLD COLOUR_CYAN "%s" COLOUR_DEFAULT " (%s:%d)", func, file, line);
 
 	SIM_free_attribute(result);
 	return ret;
@@ -418,6 +418,7 @@ static bool test_ended_safely(struct ls_state *ls)
 {
 	/* Anything that would indicate failure - e.g. return code... */
 
+	// TODO: find the blocks that were leaked and print stack traces for them
 	if (ls->test.start_heap_size > ls->mem.heap_size) {
 		// TODO: the test could copy the heap to indicate which blocks
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
