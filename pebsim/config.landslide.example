@@ -19,7 +19,7 @@
 KERNEL_IMG=kernel
 
 # Relative to the pebsim/ directory.
-KERNEL_SOURCE_DIR=kern-race
+KERNEL_SOURCE_DIR=my-kernel-sources
 
 # What program should landslide run? vanish_vanish, double_thread_fork, ...
 TEST_CASE=hello_world
