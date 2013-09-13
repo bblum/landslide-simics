@@ -44,6 +44,7 @@ struct ls_state {
 #define LS_BUG_FOUND 1
 
 int symtable_lookup(char *buf, int maxlen, int addr);
+int symtable_lookup_data(char *buf, int maxlen, int addr);
 bool function_eip_offset(int eip, int *offset);
 
 #endif

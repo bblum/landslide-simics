@@ -231,6 +231,11 @@ void init_local(void)
 
 #define LIKELY_DIR "pebsim/"
 
+#define FUNCTION_COLOUR      COLOUR_BOLD COLOUR_CYAN
+#define FUNCTION_INFO_COLOUR COLOUR_DARK COLOUR_GREY
+#define GLOBAL_COLOUR        COLOUR_BOLD COLOUR_MAGENTA
+#define GLOBAL_INFO_COLOUR   COLOUR_DARK COLOUR_GREY
+
 int symtable_lookup(char *buf, int maxlen, int addr)
 {
 	// TODO: store deflsym in struct ls_state
@@ -255,7 +260,41 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 		file = strstr(file, LIKELY_DIR) + strlen(LIKELY_DIR);
 	}
 
-	int ret = snprintf(buf, maxlen, COLOUR_BOLD COLOUR_CYAN "%s" COLOUR_DEFAULT " (%s:%d)", func, file, line);
+	int ret = snprintf(buf, maxlen, FUNCTION_COLOUR "%s"
+			   FUNCTION_INFO_COLOUR " (%s:%d)" COLOUR_DEFAULT,
+			   func, file, line);
+
+	SIM_free_attribute(result);
+	return ret;
+}
+
+int symtable_lookup_data(char *buf, int maxlen, int addr)
+{
+	// TODO: store deflsym in struct ls_state
+	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
+	if (table == NULL) {
+		return snprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
+				COLOUR_DEFAULT, addr);
+	}
+
+	attr_value_t idx = SIM_make_attr_integer(addr);
+	attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
+	if (!SIM_attr_is_list(result)) {
+		return snprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
+				COLOUR_DEFAULT, addr);
+	}
+	assert(SIM_attr_list_size(result) >= 4);
+
+	const char *globalname = SIM_attr_string(SIM_attr_list_item(result, 1));
+	const char *typename = SIM_attr_string(SIM_attr_list_item(result, 2));
+	int offset = SIM_attr_integer(SIM_attr_list_item(result, 3));
+
+	int ret = snprintf(buf, maxlen, GLOBAL_COLOUR "%s", globalname);
+	if (offset != 0) {
+		ret += snprintf(buf+ret, maxlen-ret, "+%d", offset);
+	}
+	ret += snprintf(buf+ret, maxlen-ret, GLOBAL_INFO_COLOUR
+			" (%s at 0x%.8x)" COLOUR_DEFAULT, typename, addr);
 
 	SIM_free_attribute(result);
 	return ret;
@@ -466,7 +505,7 @@ static void check_test_state(struct ls_state *ls)
 			if (DECISION_INFO_ONLY != 0) {
 				lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
 					 "These were the decision points:\n");
-				found_a_bug(ls);
+				dump_decision_info(ls);
 			} else if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true,
 					    false);

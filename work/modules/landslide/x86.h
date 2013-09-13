@@ -11,7 +11,18 @@
 #include <simics/core/memory.h>
 
 /* reading and writing cpu registers */
-#define GET_CPU_ATTR(cpu, name) ((int)SIM_attr_integer(SIM_get_attribute(cpu, #name)))
+#define GET_CPU_ATTR(cpu, name) get_cpu_attr(cpu, #name)
+
+static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
+	attr_value_t ebp_attr = SIM_get_attribute(cpu, name);
+	if (!SIM_attr_is_integer(ebp_attr)) {
+		assert(ebp_attr.kind == Sim_Val_Invalid &&
+		       "GET_CPU_ATTR failed!");
+		// "Try again." WTF, simics??
+		return ((int)SIM_attr_integer(SIM_get_attribute(cpu, name)));
+	}
+	return ((int)SIM_attr_integer(ebp_attr));
+}
 #define SET_CPU_ATTR(cpu, name, val) do {				\
 		attr_value_t noob = SIM_make_attr_integer(val);		\
 		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
@@ -65,5 +76,16 @@ bool interrupts_enabled(conf_object_t *cpu);
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
 char *stack_trace(conf_object_t *cpu, int eip, int tid);
 char *read_string(conf_object_t *cpu, int eip);
+
+#define LS_ABORT() do { dump_stack(); assert(0); } while (0)
+static inline void dump_stack() {
+	conf_object_t *cpu = SIM_get_object("cpu0");
+	char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "Stack trace: %s\n"
+		 COLOUR_DEFAULT, stack);
+	MM_FREE(stack);
+}
+
+#define STACK_TRACE_SEPARATOR ", "
 
 #endif

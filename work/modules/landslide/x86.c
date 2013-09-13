@@ -85,7 +85,7 @@ int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 	int buf = GET_CPU_ATTR(cpu, esp) -
 		(CUSTOM_ASSEMBLY_CODES_SIZE + CUSTOM_ASSEMBLY_CODES_STACK);
 
-	lsprintf(DEV, "Cuckoo!\n");
+	lsprintf(INFO, "Cuckoo!\n");
 
 	STATIC_ASSERT(ARRAY_SIZE(custom_assembly_codes) ==
 		      CUSTOM_ASSEMBLY_CODES_SIZE);
@@ -273,8 +273,8 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 			}
 			if (extra_frame) {
 				eip = READ_STACK(cpu, stack_offset);
-				ADD_STR(buf, pos, MAX_TRACE_LEN, ", 0x%.8x in ",
-					eip);
+				ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
+					STACK_TRACE_SEPARATOR, eip);
 				ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
 				if (iret_block)
 					stack_offset += IRET_BLOCK_WORDS;
@@ -286,7 +286,8 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 		/* pushed return address behind the base pointer */
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
 		stack_offset = ebp + 2;
-		ADD_STR(buf, pos, MAX_TRACE_LEN, ", 0x%.8x in ", eip);
+		ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
+			STACK_TRACE_SEPARATOR, eip);
 		old_pos = pos;
 		ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
 		/* special-case termination condition */

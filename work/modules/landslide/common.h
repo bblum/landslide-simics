@@ -9,6 +9,7 @@
 
 #include <simics/api.h>
 #include <stdio.h>
+#include <assert.h>
 
 #ifndef MODULE_NAME
 #error "Please define MODULE_NAME before including common.h!"
@@ -26,6 +27,7 @@
 #define COLOUR_BLUE "\033[34m"
 #define COLOUR_MAGENTA "\033[35m"
 #define COLOUR_CYAN "\033[36m"
+#define COLOUR_GREY "\033[37m"
 #define COLOUR_WHITE "\033[38m"
 #define COLOUR_DEFAULT "\033[00m"
 
@@ -41,11 +43,13 @@
 
 typedef int verbosity;
 
-#define lsprintf(v, ...) do { if (v <= MAX_VERBOSITY) {			\
-	fprintf(stderr, "\033[80D" COLOUR_BOLD MODULE_COLOUR		\
-		"[" MODULE_NAME "]              " COLOUR_DEFAULT	\
-		"\033[80D\033[16C" __VA_ARGS__);			\
+// Can be called directly if you want to override the module name and colour.
+#define _lsprintf(v, mn, mc, ...) do { if (v <= MAX_VERBOSITY) {	\
+	fprintf(stderr, "\033[80D" COLOUR_BOLD mc "[" mn "]              " \
+		COLOUR_DEFAULT "\033[80D\033[16C" __VA_ARGS__);		\
 	} } while (0)
+
+#define lsprintf(v, ...) _lsprintf(v, MODULE_NAME, MODULE_COLOUR, __VA_ARGS__)
 
 #ifdef printf
 #undef printf
@@ -63,5 +67,15 @@ typedef int verbosity;
 	char *__ptr = MM_STRDUP(s);			\
 	assert(__ptr != NULL && "strdup failed");	\
 	__ptr; })
+
+#define HURDLE_VIOLATION(msg) do { hurdle_violation(msg); assert(0); } while (0)
+static inline void hurdle_violation(const char *msg) {
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED
+		 "/!\\ /!\\ /!\\ HURDLE VIOLATION /!\\ /!\\ /!\\\n");
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "%s\n", msg);
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Landslide can probably cope "
+		 " with this, but instead of continuing to use Landslide, please"
+		 " go fix your kernel.\n" COLOUR_DEFAULT);
+}
 
 #endif

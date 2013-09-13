@@ -439,7 +439,8 @@ static void print_shm_conflict(conf_object_t *cpu,
 			 * itself be a good place to set choice points... */
 			snprintf(buf, BUF_SIZE, "heap0x%.8x", ma0->addr);
 		} else {
-			snprintf(buf, BUF_SIZE, "global0x%.8x", ma0->addr);
+			/* Attempt to find its name in the symtable. */
+			symtable_lookup_data(buf, BUF_SIZE, ma0->addr);
 		}
 	} else {
 		if (c0 == NULL)
