@@ -106,8 +106,13 @@ LS_ATTR_SET_GET_FNS(trigger_count, integer);
 static set_error_t set_ls_decision_trace_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
-	if (SIM_attr_integer(*val) != 0x15410de0u) {
-		dump_decision_info((struct ls_state *)obj);
+	int value = SIM_attr_integer(*val);
+	if (value != 0x15410de0u) {
+		if (value == 0) {
+			dump_decision_info_quiet((struct ls_state *)obj);
+		} else {
+			dump_decision_info((struct ls_state *)obj);
+		}
 	}
 	return Sim_Set_Ok;
 }

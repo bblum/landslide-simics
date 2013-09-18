@@ -35,9 +35,10 @@ struct ls_state;
 #define PRINT_TREE_INFO(v, ls) \
 	_PRINT_TREE_INFO(v, MODULE_NAME, MODULE_COLOUR, ls)
 
-#define found_a_bug(ls) _found_a_bug(ls, true)
-#define dump_decision_info(ls) _found_a_bug(ls, false)
+#define found_a_bug(ls) _found_a_bug(ls, true, false)
+#define dump_decision_info(ls) _found_a_bug(ls, false, true)        // Verbose
+#define dump_decision_info_quiet(ls) _found_a_bug(ls, false, false) // Not
 
-void _found_a_bug(struct ls_state *, bool);
+void _found_a_bug(struct ls_state *, bool, bool);
 
 #endif
