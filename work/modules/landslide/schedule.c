@@ -31,15 +31,6 @@ struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
 	return a;
 }
 
-#define LS_ABORT() do { dump_state(); assert(0); } while (0)
-void dump_state() {
-	conf_object_t *cpu = SIM_get_object("cpu0");
-	char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
-	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Stack trace: %s\n"
-		 COLOUR_DEFAULT, stack);
-	MM_FREE(stack);
-}
-
 #define agent_by_tid(q, tid) _agent_by_tid(q, tid, #q)
 static struct agent *_agent_by_tid(struct agent_q *q, int tid, const char *q_name)
 {
@@ -543,10 +534,28 @@ void sched_update(struct ls_state *ls)
 			s->voluntary_resched_stack =
 				stack_trace(ls->cpu0, ls->eip, s->cur_agent->tid);
 		}
+		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_INT) {
+			/* I'm not actually sure if this is where an INT would
+			 * happen in a hurdle-violationg context switcher...? */
+			HURDLE_VIOLATION("The context switch entry path seems "
+					 "to use INT!");
+		}
 	} else if (kern_context_switch_exiting(ls->eip)) {
 		assert(ACTION(s, cs_free_pass) || ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
 		ACTION(s, cs_free_pass) = false;
+		/* the MZ memorial condition -- "some" context switchers might
+		 * also return from the timer interrupt handler. Attempt to cope. */
+		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_IRET) {
+			if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
+				ACTION(s, handling_timer) = false;
+                                lsprintf(ALWAYS, "JFR site #1b\n");
+				s->just_finished_reschedule = true;
+			}
+			/* But, it's also a hurdle violation... */
+			HURDLE_VIOLATION("The context switch return path "
+					 "seems to use IRET!");
+		}
 		/* For threads that context switched of their own accord. */
 		if (!HANDLING_INTERRUPT(s)) {
 			s->just_finished_reschedule = true;
