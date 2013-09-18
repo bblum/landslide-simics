@@ -587,20 +587,17 @@ void sched_update(struct ls_state *ls)
 		lsprintf(DEV, "mutex: on 0x%x tid %d blocks, owned by %d\n",
 			 s->cur_agent->blocked_on_addr, s->cur_agent->tid,
 			 target_tid);
-		s->cur_agent->blocked_on_tid = target_tid;
+		// An odd interleaving can cause a contendingthread to become
+		// unblocked before they run far enough to say they're blocked.
+		// So if they were unblocked, they are not really blocked.
 		if (s->cur_agent->blocked_on_addr == -1) {
-			char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
-			lsprintf(BUG, "XXX: Stack trace: %s\n", stack);
-			lsprintf(BUG, "XXX: State:");
-			print_qs(BUG, s);
-			printf(BUG, "\n");
-			assert(0);
-		}
-		if (deadlocked(s)) {
-			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DEADLOCK! ");
-			print_deadlock(BUG, s->cur_agent);
-			printf(BUG, "\n");
-			found_a_bug(ls);
+			s->cur_agent->blocked_on_tid = target_tid;
+			if (deadlocked(s)) {
+				lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DEADLOCK! ");
+				print_deadlock(BUG, s->cur_agent);
+				printf(BUG, "\n");
+				found_a_bug(ls);
+			}
 		}
 	} else if (kern_mutex_locking_done(ls->eip)) {
 		//assert(ACTION(s, mutex_locking));
