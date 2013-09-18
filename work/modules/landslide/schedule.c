@@ -782,6 +782,9 @@ void sched_update(struct ls_state *ls)
 		} else {
 			lsprintf(BUG, "no agent was chosen at eip 0x%x\n",
 				 ls->eip);
+			lsprintf(BUG, "scheduler state: ");
+			print_qs(BUG, s);
+			printf("\n");
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
