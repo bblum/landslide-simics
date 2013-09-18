@@ -588,6 +588,14 @@ void sched_update(struct ls_state *ls)
 			 s->cur_agent->blocked_on_addr, s->cur_agent->tid,
 			 target_tid);
 		s->cur_agent->blocked_on_tid = target_tid;
+		if (s->cur_agent->blocked_on_addr == -1) {
+			char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
+			lsprintf(BUG, "XXX: Stack trace: %s\n", stack);
+			lsprintf(BUG, "XXX: State:");
+			print_qs(BUG, s);
+			printf(BUG, "\n");
+			assert(0);
+		}
 		if (deadlocked(s)) {
 			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DEADLOCK! ");
 			print_deadlock(BUG, s->cur_agent);
