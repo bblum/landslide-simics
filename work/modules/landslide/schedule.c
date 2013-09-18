@@ -263,7 +263,7 @@ void sched_init(struct sched_state *s)
 	s->voluntary_resched_stack = NULL;
 }
 
-void print_agent(verbosity v, struct agent *a)
+void print_agent(verbosity v, const struct agent *a)
 {
 	printf(v, "%d", a->tid);
 	if (a->action.handling_timer)  printf(v, "t");
@@ -276,7 +276,7 @@ void print_agent(verbosity v, struct agent *a)
 	if (BLOCKED(a))                printf(v, "<?%d>", a->blocked_on_tid);
 }
 
-void print_q(verbosity v, const char *start, struct agent_q *q, const char *end)
+void print_q(verbosity v, const char *start, const struct agent_q *q, const char *end)
 {
 	struct agent *a;
 	bool first = true;
@@ -291,7 +291,7 @@ void print_q(verbosity v, const char *start, struct agent_q *q, const char *end)
 	}
 	printf(v, "%s", end);
 }
-void print_qs(verbosity v, struct sched_state *s)
+void print_qs(verbosity v, const struct sched_state *s)
 {
 	printf(v, "current ");
 	print_agent(v, s->cur_agent);
