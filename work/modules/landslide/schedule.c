@@ -406,6 +406,7 @@ void sched_update(struct ls_state *ls)
 			lsprintf(DEV, "A timer tick that wasn't ours (0x%x).\n",
 				 (int)READ_STACK(ls->cpu0, 0));
 			ls->eip = avoid_timer_interrupt_immediately(ls->cpu0);
+			anybody_alive(ls->cpu0, &ls->test, s, true);
 		}
 	}
 

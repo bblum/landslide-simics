@@ -25,4 +25,6 @@ bool test_update_state(conf_object_t *cpu, struct test_state *,
 bool cause_test(conf_object_t *kbd, struct test_state *, struct ls_state *,
 		const char *test_string);
 
+bool anybody_alive(conf_object_t *cpu, struct test_state *t,
+		   struct sched_state *s, bool chatty);
 #endif
