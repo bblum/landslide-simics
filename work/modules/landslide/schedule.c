@@ -552,12 +552,16 @@ void sched_update(struct ls_state *ls)
                                 lsprintf(ALWAYS, "JFR site #1b\n");
 				s->just_finished_reschedule = true;
 			}
+			if (ACTION(s, schedule_target)) { /* as above */
+				ACTION(s, schedule_target) = false;
+				s->schedule_in_flight = NULL;
+			}
 			/* But, it's also a hurdle violation... */
 			HURDLE_VIOLATION("The context switch return path "
 					 "seems to use IRET!");
-		}
 		/* For threads that context switched of their own accord. */
-		if (!HANDLING_INTERRUPT(s)) {
+		} else if (!HANDLING_INTERRUPT(s)) {
+                        lsprintf(ALWAYS, "JFR site #2\n");
 			s->just_finished_reschedule = true;
 			if (ACTION(s, schedule_target)) {
 				ACTION(s, schedule_target) = false;
