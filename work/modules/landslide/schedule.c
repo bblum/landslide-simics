@@ -31,16 +31,22 @@ struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
 	return a;
 }
 
-static struct agent *agent_by_tid(struct agent_q *q, int tid)
+#define agent_by_tid(q, tid) _agent_by_tid(q, tid, #q)
+
+static struct agent *_agent_by_tid(struct agent_q *q, int tid, const char *q_name)
 {
 	struct agent *a = agent_by_tid_or_null(q, tid);
 	if (a == NULL) {
 		conf_object_t *cpu = SIM_get_object("cpu0");
 		char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "TID %d isn't in the "
-			 "right queue; probably incorrect annotations?\n", tid);
+			 "right queue (expected: %s); probably incorrect "
+			 "annotations?\n", tid, q_name);
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n"
 			 COLOUR_DEFAULT, stack);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Queue contains: ");
+		print_q(ALWAYS, "", q, "");
+		printf(ALWAYS, "\n");
 		assert(0);
 	}
 	return a;
