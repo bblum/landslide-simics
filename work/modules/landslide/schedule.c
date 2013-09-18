@@ -598,6 +598,8 @@ void sched_update(struct ls_state *ls)
 		//assert(ACTION(s, mutex_locking));
 		assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_locking) = false;
+		lsprintf(DEV, "mutex: on 0x%x tid %d unblocks\n",
+			 s->cur_agent->blocked_on_addr, s->cur_agent->tid);
 		s->cur_agent->blocked_on = NULL;
 		s->cur_agent->blocked_on_tid = -1;
 		s->cur_agent->blocked_on_addr = -1;
@@ -610,10 +612,14 @@ void sched_update(struct ls_state *ls)
 		 * not the other way around. */
 		assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = true;
+		lsprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
+			 mutex_addr, s->cur_agent->tid);
 		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = false;
+		lsprintf(DEV, "mutex: unlocking done by tid %d\n",
+			 s->cur_agent->tid);
 	}
 
 	/**********************************************************************
