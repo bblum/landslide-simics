@@ -103,6 +103,17 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 
 LS_ATTR_SET_GET_FNS(trigger_count, integer);
 
+static set_error_t set_ls_decision_trace_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	return Sim_Set_Not_Writable;
+}
+static attr_value_t get_ls_decision_trace_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	found_a_bug((struct ls_state *)obj);
+	return SIM_make_attr_integer(0x15410de0u);
+}
 // XXX: figure out how to use simics list/string attributes
 static set_error_t set_ls_arbiter_choice_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
@@ -205,6 +216,7 @@ void init_local(void)
 	SIM_register_interface(conf_class, TRACE_CONSUME_INTERFACE, &sploits);
 
 	/* Register attributes for the class. */
+	LS_ATTR_REGISTER(conf_class, decision_trace, "i", "Get a decision trace.");
 	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
 	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
 			 "Tell the arbiter which thread to choose next "
