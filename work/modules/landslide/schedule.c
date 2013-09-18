@@ -31,23 +31,27 @@ struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
 	return a;
 }
 
-#define agent_by_tid(q, tid) _agent_by_tid(q, tid, #q)
+#define LS_ABORT() do { dump_state(); assert(0); } while (0)
+void dump_state() {
+	conf_object_t *cpu = SIM_get_object("cpu0");
+	char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Stack trace: %s\n"
+		 COLOUR_DEFAULT, stack);
+	MM_FREE(stack);
+}
 
+#define agent_by_tid(q, tid) _agent_by_tid(q, tid, #q)
 static struct agent *_agent_by_tid(struct agent_q *q, int tid, const char *q_name)
 {
 	struct agent *a = agent_by_tid_or_null(q, tid);
 	if (a == NULL) {
-		conf_object_t *cpu = SIM_get_object("cpu0");
-		char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "TID %d isn't in the "
 			 "right queue (expected: %s); probably incorrect "
 			 "annotations?\n", tid, q_name);
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n"
-			 COLOUR_DEFAULT, stack);
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Queue contains: ");
 		print_q(ALWAYS, "", q, "");
 		printf(ALWAYS, "\n");
-		assert(0);
+		LS_ABORT();
 	}
 	return a;
 }
@@ -91,7 +95,14 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 
 static void agent_wake(struct sched_state *s, int tid)
 {
-	struct agent *a = agent_by_tid_or_null(&s->dq, tid);
+	struct agent *a = agent_by_tid_or_null(&s->rq, tid);
+	if (a) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "tell_landslide_on_rq"
+			 "(TID %d) called, but that thread is already on the"
+			 "runqueue! Probably incorrect annotations?\n", tid);
+		LS_ABORT();
+	}
+	a = agent_by_tid_or_null(&s->dq, tid);
 	if (a) {
 		Q_REMOVE(&s->dq, a, nobe);
 	} else {
@@ -112,15 +123,10 @@ static void agent_deschedule(struct sched_state *s, int tid)
 	} else if (agent_by_tid_or_null(&s->sq, tid) == NULL) {
 		/* Either it's on the sleep queue, or it vanished. */
 		if (agent_by_tid_or_null(&s->dq, tid) != NULL) {
-			conf_object_t *cpu = SIM_get_object("cpu0");
-			char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip),
-						  s->cur_agent->tid);
 			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "TID %d is "
 				 "already off the runqueue at tell_off_rq(); "
 				 "probably incorrect annotations?\n", tid);
-			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n"
-				 COLOUR_DEFAULT, stack);
-			assert(0);
+			LS_ABORT();
 		}
 	}
 }
@@ -319,14 +325,9 @@ static void assert_no_action(struct sched_state *s, const char *new_act)
 	CHECK_NOT_ACTION(failed, s, vanishing);
 	CHECK_NOT_ACTION(failed, s, readlining);
 	if (failed) {
-		conf_object_t *cpu = SIM_get_object("cpu0");
-		char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip),
-					  s->cur_agent->tid);
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "While trying to do %s;"
 			 " probably incorrect annotations?\n", new_act);
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Current stack: %s\n",
-			 stack);
-		assert(0);
+		LS_ABORT();
 	}
 }
 #undef CHECK_NOT_ACTION
