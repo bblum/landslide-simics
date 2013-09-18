@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ ! -d work -o ! -d pebsim ]; then
         echo "not a landslide repository?"
