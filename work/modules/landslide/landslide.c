@@ -106,12 +106,14 @@ LS_ATTR_SET_GET_FNS(trigger_count, integer);
 static set_error_t set_ls_decision_trace_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
 {
-	return Sim_Set_Not_Writable;
+	if (SIM_attr_integer(*val) != 0x15410de0u) {
+		dump_decision_info((struct ls_state *)obj);
+	}
+	return Sim_Set_Ok;
 }
 static attr_value_t get_ls_decision_trace_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *idx)
 {
-	found_a_bug((struct ls_state *)obj);
 	return SIM_make_attr_integer(0x15410de0u);
 }
 // XXX: figure out how to use simics list/string attributes
