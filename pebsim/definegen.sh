@@ -157,7 +157,7 @@ if [ ! -z "$TIMER_WRAPPER_DISPATCH" ]; then
 	TIMER_WRAP_EXIT=`get_func_ret $TIMER_WRAPPER_DISPATCH`
 else
 	# check the end instruction for being ret, and spit out a "ask ben for help" warning
-	LAST_TIMER_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$TIMER_WRAPPER>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1`
+	LAST_TIMER_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$TIMER_WRAPPER>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | grep -v "xchg.*%ax.*%ax" | tail -n 2 | head -n 1`
 	if echo "$LAST_TIMER_INSTR" | grep -v jmp | grep '\<iret\>' 2>&1 >/dev/null; then
 		# Easy case.
 		TIMER_WRAP_EXIT=`get_func_ret $TIMER_WRAPPER`
