@@ -96,7 +96,13 @@ ignore_sym some_global_mutex $MUTEX_SIZE
 # If you don't within_function at all, landslide will "pay attention" to
 # everything by default.
 
-within_function vanish
+if [ "$TEST_CASE" = "vanish_vanish" ]; then
+	within_function vanish
+elif [ "$TEST_CASE" = "double_wait" ]; then
+	within_function vanish
+	within_function wait
+	# etcetera...
+fi
 
 # You may also list functions that landslide should NOT pay attention to; i.e.,
 # even if within one of the "within_function"s (or if none were specified),
