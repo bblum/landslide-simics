@@ -545,6 +545,12 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->parent = NULL;
 			h->depth  = 0;
 			ss->root  = h;
+
+			h->usecs     = 0;
+			h->cum_usecs = 0;
+			int rv = gettimeofday(&ss->last_save_time, NULL);
+			assert(rv == 0 && "failed to gettimeofday");
+			assert(ss->last_save_time.tv_usec < 1000000);
 		} else {
 			/* Subsequent choice. */
 			assert(ss->current != NULL);
@@ -554,6 +560,24 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			Q_INSERT_HEAD(&ss->current->children, h, sibling);
 			h->parent = ss->current;
 			h->depth = 1 + h->parent->depth;
+
+			/* Compute elapsed time. */
+			struct timeval new_time;
+			int rv = gettimeofday(&new_time, NULL);
+			assert(rv == 0 && "failed to gettimeofday");
+			assert(new_time.tv_usec < 1000000);
+
+			time_t secs = new_time.tv_sec - ss->last_save_time.tv_sec;
+			suseconds_t usecs = new_time.tv_usec -
+			                    ss->last_save_time.tv_usec;
+			h->usecs = (secs * 1000000) + usecs;
+			h->cum_usecs = h->usecs + h->parent->cum_usecs;
+
+			ss->last_save_time.tv_sec  = new_time.tv_sec;
+			ss->last_save_time.tv_usec = new_time.tv_usec;
+
+			lsprintf(DEV, "elapsed usecs %llu, cum %llu\n",
+				 h->usecs, h->cum_usecs);
 		}
 
 		Q_INIT_HEAD(&h->children);
@@ -573,6 +597,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		ss->total_choice_poince++;
 	} else {
+		assert(0 && "Not our_choice deprecated.");
+
 		assert(ss->root != NULL);
 		assert(ss->current != NULL);
 		assert(end_of_test || ss->next_tid != -1);

@@ -40,6 +40,7 @@
 
 #include "common.h"
 #include "explore.h"
+#include "estimate.h"
 #include "found_a_bug.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
@@ -496,6 +497,7 @@ static bool time_travel(struct ls_state *ls)
 	/* find where we want to go in the tree, and choose what to do there */
 	if ((h = explore(ls->save.root, ls->save.current, &tid)) != NULL) {
 		assert(!h->all_explored);
+		estimate(ls->save.root, ls->save.current);
 		arbiter_append_choice(&ls->arbiter, tid);
 		save_longjmp(&ls->save, ls, h);
 		return true;

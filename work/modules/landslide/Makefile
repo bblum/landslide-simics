@@ -16,6 +16,7 @@ SRC_FILES = landslide.h landslide.c \
 	    save.h save.c \
 	    test.h test.c \
 	    explore.h explore.c \
+	    estimate.h estimate.c \
 	    tree.h \
 	    found_a_bug.h found_a_bug.c \
 	    rbtree.h rbtree.c \
