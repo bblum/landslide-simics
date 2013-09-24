@@ -1,5 +1,5 @@
 version 2590
-dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/amd64-linux/lib
+dir 0 /afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/amd64-linux/lib
 file 166493 1261501699 AM79C973.so
 cap VER:2504;BLD:2590;BUILDDATE:1261501681;MOD:AM79C973;HOSTTYPE:amd64-linux;CLS:AM79C973;THREADSAFE;
 file 203961 1261501698 BCM5703C.so
@@ -228,7 +228,7 @@ file 303456 1261503210 x11-console.so
 cap VER:2504;BLD:2590;BUILDDATE:1261503207;MOD:x11-console;HOSTTYPE:amd64-linux;CLS:gfx-console;CLS:x11-console;THREADSAFE;
 file 135061 1261503222 xterm-console.so
 cap VER:2504;BLD:2590;BUILDDATE:1261503218;MOD:xterm-console;HOSTTYPE:amd64-linux;CLS:xterm-console;CLS:text-console;THREADSAFE;
-dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-serengeti-4.0.1/amd64-linux/lib
+dir 0 /afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/../simics-serengeti-4.0.1/amd64-linux/lib
 file 165945 1229037895 cassini.so
 cap VER:2504;BLD:2536;BUILDDATE:1229037889;MOD:cassini;HOSTTYPE:amd64-linux;CLS:cassini;CLS:cassini_sub;
 file 61032 1229038009 cheerio-e2bus.so
@@ -273,7 +273,7 @@ file 261 1229038929 sun_components.pymod
 cap VER:2504;BLD:2536;BUILDDATE:1229038929;MOD:sun-components;CLS:sun-pci-pgx64;CLS:sun-pci-ce;CLS:sun-pci-hme;CLS:sun-pci-hme-isp;CLS:sun-pci-qlc;CLS:sun-pci-qlc-qlc;CLS:sun-type5-keyboard;CLS:sun-type5-mouse;
 file 29541 1229039024 v9-sol9-idle-opt.so
 cap VER:2504;BLD:2536;BUILDDATE:1229039022;MOD:v9-sol9-idle-opt;HOSTTYPE:amd64-linux;CLS:v9-sol9-idle-opt;
-dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-sunfire-4.0.2/amd64-linux/lib
+dir 0 /afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/../simics-sunfire-4.0.2/amd64-linux/lib
 file 38560 1254240480 FAS366U.so
 cap VER:2504;BLD:2576;BUILDDATE:1254240478;MOD:FAS366U;HOSTTYPE:amd64-linux;CLS:FAS366U;
 file 20506 1254240510 MK48T08.so
@@ -322,7 +322,7 @@ file 97 1254243175 sunfire_system.pymod
 cap VER:2504;BLD:2576;BUILDDATE:1254243175;MOD:sunfire-system;CLS:sunfire-system;
 file 29541 1254243251 v9-sol9-idle-opt.so
 cap VER:2504;BLD:2576;BUILDDATE:1254243250;MOD:v9-sol9-idle-opt;HOSTTYPE:amd64-linux;CLS:v9-sol9-idle-opt;
-dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-firststeps-4.0.8/amd64-linux/lib
+dir 0 /afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/../simics-firststeps-4.0.8/amd64-linux/lib
 file 245225 1232586574 440gp-devices.so
 cap VER:2504;BLD:2540;BUILDDATE:1232586564;MOD:440gp-devices;HOSTTYPE:amd64-linux;CLS:ppc440gp-mc;CLS:ppc440gp-cpc;CLS:ppc440gp-pci;CLS:ppc440gp-zmii;CLS:ppc440gp-emac;CLS:ppc440gp-mal;CLS:ppc440gp-uic;CLS:ppc440gp-dma;CLS:ppc440gp-ebc;CLS:ppc440gp-iic;CLS:ppc440gp-gpio;CLS:ppc440gp-sram;CLS:ppc440gp-plb;CLS:ppc440gp-gpt;THREADSAFE;
 file 17229 1232586593 DS1743P.so
@@ -351,7 +351,7 @@ file 13105 1232588438 sample-i2c-device.so
 cap VER:2504;BLD:2540;BUILDDATE:1232588433;MOD:sample-i2c-device;HOSTTYPE:amd64-linux;CLS:sample-i2c-device;THREADSAFE;
 file 114 1232588425 sample_components.pymod
 cap VER:2504;BLD:2540;BUILDDATE:1232588425;MOD:sample-components;CLS:sample-pci-card;THREADSAFE;
-dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-model-builder-4.0.16/amd64-linux/lib
+dir 0 /afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/../simics-model-builder-4.0.16/amd64-linux/lib
 file 12583 1241627500 empty-device-dml.so
 cap VER:2504;BLD:2556;BUILDDATE:1241627493;MOD:empty-device-dml;HOSTTYPE:amd64-linux;CLS:empty_device_dml;THREADSAFE;
 file 113 1241627491 empty_components.pymod
@@ -396,7 +396,7 @@ file 10336 1241627597 simple-byte-dump.so
 cap VER:2504;BLD:2556;BUILDDATE:1241627596;MOD:simple-byte-dump;HOSTTYPE:amd64-linux;CLS:simple-byte-dump;THREADSAFE;
 file 104 1241627612 spi_checker.pymod
 cap VER:2504;BLD:2556;BUILDDATE:1241627612;MOD:spi_checker;CLS:spi_checker;THREADSAFE;
-dir 0 /afs/cs.cmu.edu/academic/class/15410-s11/simics-4.0.60/simics-4.0.60/../simics-x86-440bx-4.0.18/amd64-linux/lib
+dir 0 /afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/../simics-x86-440bx-4.0.18/amd64-linux/lib
 file 62957 1260983278 8042.so
 cap VER:2504;BLD:2589;BUILDDATE:1260983275;MOD:8042;HOSTTYPE:amd64-linux;CLS:i8042;THREADSAFE;
 file 37089 1260983277 82077.so
