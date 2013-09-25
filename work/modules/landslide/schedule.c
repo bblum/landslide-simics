@@ -613,11 +613,11 @@ void sched_update(struct ls_state *ls)
 		lsprintf(DEV, "mutex: on 0x%x tid %d blocks, owned by %d\n",
 			 s->cur_agent->blocked_on_addr, s->cur_agent->tid,
 			 target_tid);
+		s->cur_agent->blocked_on_tid = target_tid;
 		// An odd interleaving can cause a contendingthread to become
 		// unblocked before they run far enough to say they're blocked.
 		// So if they were unblocked, they are not really blocked.
 		if (s->cur_agent->blocked_on_addr == -1) {
-			s->cur_agent->blocked_on_tid = target_tid;
 			if (deadlocked(s)) {
 				lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DEADLOCK! ");
 				print_deadlock(BUG, s->cur_agent);

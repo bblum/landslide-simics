@@ -583,6 +583,9 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
 
+		h->marked_children = 0;
+		h->proportion = 0.0L;
+
 		if (voluntary) {
 			assert(h->chosen_thread == -1 || h->chosen_thread ==
 			       ls->sched.voluntary_resched_tid);

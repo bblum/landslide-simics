@@ -5,7 +5,7 @@
  */
 
 #define MODULE_NAME "ESTIMATE"
-#define MODULE_COLOUR COLOUR_DARK COLOUR_BLUE
+#define MODULE_COLOUR COLOUR_DARK COLOUR_CYAN
 
 #include "common.h"
 #include "tree.h"
