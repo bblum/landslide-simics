@@ -50,17 +50,18 @@ struct hax {
 
 	/* how many children of this are marked. this can represent an out-of-date
 	 * value, which is then used to reassess the probability of this branch. */
-	unsigned long marked_children;
+	int marked_children;
+	int marked_children_old; /* old value, before recomputation */
 	/* how much time this transition took. value is set by the 'save' module
 	 * when the struct is generated, and used by estimation. */
-	unsigned long long usecs;
-	unsigned long long cum_usecs; /* cumulative version of above, from root */
+	uint64_t usecs;
+	uint64_t cum_usecs; /* cumulative version of above, from root */
 	/* the estimated proportion of the tree that the branches in this node's
 	 * subtree represent (the "probability" that a random exploration will take
 	 * this branch). */
 	long double proportion;
 	/* cumulative sum of the usecs/branches in this nobe's subtree */
-	unsigned long long subtree_usecs;
+	uint64_t subtree_usecs;
 	unsigned long subtree_branches;
 
 	/* Note: a list of available tids to run next is implicit in the copied
