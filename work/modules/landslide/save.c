@@ -5,6 +5,7 @@
  */
 
 #include <assert.h>
+#include <inttypes.h>
 #include <string.h> /* for memcmp, strlen */
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -576,7 +577,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			ss->last_save_time.tv_sec  = new_time.tv_sec;
 			ss->last_save_time.tv_usec = new_time.tv_usec;
 
-			lsprintf(DEV, "elapsed usecs %llu, cum %llu\n",
+			lsprintf(DEV, "elapsed usecs %" PRIu64 ", cum %" PRIu64 "\n",
 				 h->usecs, h->cum_usecs);
 		}
 
