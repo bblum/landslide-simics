@@ -8,12 +8,61 @@
 #define MODULE_COLOUR COLOUR_DARK COLOUR_CYAN
 
 #include "common.h"
+#include "estimate.h"
 #include "explore.h"
 #include "schedule.h"
 #include "tree.h"
 #include "variable_queue.h"
 
-static bool is_child_marked(struct hax *h, struct agent *a) {
+void estimate_init(struct estimate_state *e)
+{
+	e->history = NULL;
+	e->history_depth = 0;
+}
+
+/* Returns number of elapsed useconds since last call to this. If there was no
+ * last call, return value is undefined. */
+uint64_t estimate_update_time(struct estimate_state *e)
+{
+	struct timeval new_time;
+	int rv = gettimeofday(&new_time, NULL);
+	assert(rv == 0 && "failed to gettimeofday");
+	assert(new_time.tv_usec < 1000000);
+
+	time_t secs = new_time.tv_sec - e->last_save_time.tv_sec;
+	suseconds_t usecs = new_time.tv_usec - e->last_save_time.tv_usec;
+
+	e->last_save_time.tv_sec  = new_time.tv_sec;
+	e->last_save_time.tv_usec = new_time.tv_usec;
+
+	return (secs * 1000000) + usecs;
+}
+
+void estimate_update_history(struct estimate_state *e, unsigned int depth,
+			     unsigned int num_tagged)
+{
+	if (e->history_depth <= depth) {
+		/* Resize history array. */
+		unsigned int new_depth = depth * 2;
+		struct marked_history *new_history =
+			MM_XMALLOC(new_depth, struct marked_history);
+		memcpy(new_history, e->history,
+		       e->history_depth * sizeof(struct marked_history));
+		MM_FREE(e->history);
+		e->history = new_history;
+		e->history_depth = new_depth;
+	}
+	/* Recompute new average. */
+	struct marked_history *entry = &e->history[depth];
+	entry->marked = ((entry->marked * entry->samples) + num_tagged) /
+	                (entry->samples + 1);
+	entry->samples++;
+}
+
+/******************** actual estimation algorithm follows ********************/
+
+static bool is_child_marked(struct hax *h, struct agent *a)
+{
 	struct hax *child;
 
 	/* A marked child is one that we have already explored, or one we wish
@@ -29,7 +78,7 @@ static bool is_child_marked(struct hax *h, struct agent *a) {
 	return false;
 }
 
-void estimate(struct hax *root, struct hax *current)
+void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 {
 	/* The estimated proportion of this branch, which we will accumulate. */
 	long double this_nobe_proportion = 1.0L;

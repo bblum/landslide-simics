@@ -498,6 +498,8 @@ void save_init(struct save_state *ss)
 	ss->total_jumps = 0;
 	ss->total_triggers = 0;
 	ss->depth_total = 0;
+
+	estimate_init(&ss->estimate);
 }
 
 void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
@@ -549,9 +551,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 			h->usecs     = 0;
 			h->cum_usecs = 0;
-			int rv = gettimeofday(&ss->last_save_time, NULL);
-			assert(rv == 0 && "failed to gettimeofday");
-			assert(ss->last_save_time.tv_usec < 1000000);
+
+			estimate_update_time(&ss->estimate);
 		} else {
 			/* Subsequent choice. */
 			assert(ss->current != NULL);
@@ -563,19 +564,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->depth = 1 + h->parent->depth;
 
 			/* Compute elapsed time. */
-			struct timeval new_time;
-			int rv = gettimeofday(&new_time, NULL);
-			assert(rv == 0 && "failed to gettimeofday");
-			assert(new_time.tv_usec < 1000000);
-
-			time_t secs = new_time.tv_sec - ss->last_save_time.tv_sec;
-			suseconds_t usecs = new_time.tv_usec -
-			                    ss->last_save_time.tv_usec;
-			h->usecs = (secs * 1000000) + usecs;
+			h->usecs = estimate_update_time(&ss->estimate);
 			h->cum_usecs = h->usecs + h->parent->cum_usecs;
-
-			ss->last_save_time.tv_sec  = new_time.tv_sec;
-			ss->last_save_time.tv_usec = new_time.tv_usec;
 
 			lsprintf(DEV, "elapsed usecs %" PRIu64 ", cum %" PRIu64 "\n",
 				 h->usecs, h->cum_usecs);

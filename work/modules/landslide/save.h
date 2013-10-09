@@ -7,6 +7,8 @@
 #ifndef __LS_SAVE_H
 #define __LS_SAVE_H
 
+#include "estimate.h"
+
 #include <sys/time.h>
 
 struct ls_state;
@@ -28,11 +30,7 @@ struct save_state {
 	int total_triggers;
 	int depth_total;
 
-	/* For estimation. Records the timestamp last time we arrived at a node
-	 * in the tree. This is updated only during save_setjmp -- it doesn't need
-	 * to be during save_longjmp because each longjmp is immediately after a
-	 * call to setjmp on the last nobe in the previous branch. */
-	struct timeval last_save_time;
+	struct estimate_state estimate;
 };
 
 void save_init(struct save_state *);
