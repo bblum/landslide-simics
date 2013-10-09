@@ -39,7 +39,7 @@ uint64_t estimate_update_time(struct estimate_state *e)
 }
 
 void estimate_update_history(struct estimate_state *e, unsigned int depth,
-			     unsigned int num_tagged)
+			     unsigned int marked, unsigned int total)
 {
 	if (e->history_depth <= depth) {
 		/* Resize history array. */
@@ -52,10 +52,12 @@ void estimate_update_history(struct estimate_state *e, unsigned int depth,
 		e->history = new_history;
 		e->history_depth = new_depth;
 	}
-	/* Recompute new average. */
+	/* Recompute new averages. */
 	struct marked_history *entry = &e->history[depth];
-	entry->marked = ((entry->marked * entry->samples) + num_tagged) /
-	                (entry->samples + 1);
+	entry->avg_marked = ((entry->avg_marked * entry->samples) + marked) /
+	                    (entry->samples + 1);
+	entry->avg_total  = ((entry->avg_total * entry->samples) + total) /
+	                    (entry->samples + 1);
 	entry->samples++;
 }
 

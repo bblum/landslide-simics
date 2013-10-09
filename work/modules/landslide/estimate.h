@@ -12,7 +12,8 @@
 struct hax;
 
 struct marked_history {
-	long double marked;
+	long double avg_marked;
+	long double avg_total;
 	int samples;
 };
 
@@ -29,7 +30,11 @@ struct estimate_state {
 
 void estimate_init(struct estimate_state *e);
 
+/* returns elapsed usecs since last call, or undefined if no last call. */
 uint64_t estimate_update_time(struct estimate_state *e);
+
+void estimate_update_history(struct estimate_state *e, unsigned int depth,
+                             unsigned int marked, unsigned int total);
 
 void estimate(struct estimate_state *e, struct hax *root, struct hax *current);
 
