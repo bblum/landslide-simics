@@ -16,8 +16,9 @@
 
 void estimate_init(struct estimate_state *e)
 {
-	e->history = NULL;
+	e->history       = NULL;
 	e->history_depth = 0;
+	e->history_max   = 0;
 }
 
 /* Returns number of elapsed useconds since last call to this. If there was no
@@ -46,11 +47,15 @@ void estimate_update_history(struct estimate_state *e, unsigned int depth,
 		unsigned int new_depth = depth * 2;
 		struct marked_history *new_history =
 			MM_XMALLOC(new_depth, struct marked_history);
+		memset(new_history, 0, new_depth * sizeof(struct marked_history));
 		memcpy(new_history, e->history,
 		       e->history_depth * sizeof(struct marked_history));
 		MM_FREE(e->history);
 		e->history = new_history;
 		e->history_depth = new_depth;
+	}
+	if (e->history_max < depth) {
+		e->history_max = depth;
 	}
 	/* Recompute new averages. */
 	struct marked_history *entry = &e->history[depth];
@@ -59,6 +64,21 @@ void estimate_update_history(struct estimate_state *e, unsigned int depth,
 	entry->avg_total  = ((entry->avg_total * entry->samples) + total) /
 	                    (entry->samples + 1);
 	entry->samples++;
+}
+
+void estimate_print_history(struct estimate_state *e)
+{
+	lsprintf(DEV, "Tag density history: [");
+	if (e->history != NULL) {
+		for (int i = 0; i <= e->history_max; i++) {
+			printf(DEV, "(%Lf / %Lf * %u)", e->history[i].avg_marked,
+			       e->history[i].avg_total, e->history[i].samples);
+			if (i < e->history_max) {
+				printf(DEV, ", ");
+			}
+		}
+	}
+	printf(DEV, "]\n");
 }
 
 /******************** actual estimation algorithm follows ********************/
@@ -89,6 +109,11 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 	 * subtract the old value and add the new value to its parent too. */
 	long double nobe_delta = 0.0L;
 
+	/* Stores old proportion value before updating it at each nobe. Also
+	 * used for sanity-checking -- each nobe's proportion must not be
+	 * greater than the proportion of its parent. */
+	long double old_proportion = 0.0L;
+
 	/* Stage 1 -- figure out this branch's probability to begin with. We
 	 * can also retroactively fix-up the probabilities for changed parent
 	 * nobes along the way. (Skip the terminal node itself, obviously.) */
@@ -108,29 +133,50 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 			}
 		);
 		assert(h->marked_children > 0); /* we should be there at least */
+		assert(h->marked_children >= h->marked_children_old);
 
 		/* p = product_vi 1/(Marked(vi) + F(vi)).
 		 * TODO: explore F(vi) != 0, i.e., not-lazy-strategy */
 		this_nobe_proportion /= h->marked_children;
+		assert(this_nobe_proportion >= 0);
 
 		/* Step 1-2 -- Retroactively fix-up past branch probabilities. */
 
-		/* Stash old proportion value so we can compute the delta. */
-		long double old_proportion = h->proportion;
+		lsprintf(DEV, "last %Lf, this %Lf\n", old_proportion, h->proportion);
+
+		/* Stash old proportion value so we can compute the delta.
+		 * Also check here the invariant that this nobe's child's old
+		 * proportion was less than this one's. */
+		assert(old_proportion <= h->proportion);
+		old_proportion = h->proportion;
+		assert(old_proportion >= 0);
 
 		/* Adjust this nobe's probability by the nobe delta, in case its
 		 * child changed. Note: MUST happen before dividing out a
 		 * possible changed number of marked children, because that
 		 * factor will also need to affect this nobe delta. */
 		h->proportion += nobe_delta;
+		assert(h->proportion >= 0);
 
-		/* Readjust in case a new child was marked of this nobe. */
-		h->proportion *= h->marked_children_old;
-		h->proportion /= h->marked_children;
+		/* Readjust if a new (non-1st) child was marked of this nobe. */
+		if (h->marked_children_old != h->marked_children &&
+		    h->marked_children_old != 0) {
+			assert(h->marked_children > h->marked_children_old);
+			h->proportion *= h->marked_children_old;
+			h->proportion /= h->marked_children;
+			/* This change affects all children's proportions. */
+			for (struct hax *h2 = current->parent; h2 != h;
+			     h2 = h2->parent) {
+				h2->proportion *= h->marked_children_old;
+				h2->proportion /= h->marked_children;
+			}
+		}
 
 		/* Save our delta for the next loop iteration on our parent. */
 		nobe_delta = h->proportion - old_proportion;
 	}
+
+	assert(this_nobe_proportion >= 0);
 
 	/* Stage 2 -- Add this branch's final proportion value to all parents.
 	 * Independently, here we also accumulate the total time and branches
