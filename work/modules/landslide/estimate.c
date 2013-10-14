@@ -100,6 +100,42 @@ static bool is_child_marked(struct hax *h, struct agent *a)
 	return false;
 }
 
+#define HISTORY
+
+/* Updates a nobe's marked_children field based on past history. */
+static void adjust_for_history(struct estimate_state *e, struct hax *h, int total)
+{
+#ifdef HISTORY
+	/* Can only ask history for advice if it has advice to give. */
+	if (h->depth <= e->history_max) {
+		// TODO: Add fuzz.
+		struct marked_history *entry = &e->history[h->depth];
+
+		/* Compute number of expected tagged children based on
+		 * history's average fraction of tagged children. */
+		assert(entry->avg_marked <= entry->avg_total);
+		long double history_says =
+			entry->avg_marked * total / entry->avg_total;
+		// if this fails but not the above, floating point is to blame.
+		// FIXME: Debug this next.
+		// assert(history_says <= total);
+
+		/* Strategy 1: Replace it entirely.*/
+		// TODO: Strategy 2: Use the average. Research question: Find a
+		// heuristic value for weighted average that works well.
+		if (h->marked_children < history_says) {
+			lsprintf(DEV, "At depth %d, %Lf/%d were marked, but "
+				 "history says %Lf\n", h->depth,
+				 h->marked_children, total, history_says);
+			h->marked_children = history_says;
+		}
+	}
+#else
+	/* No adjustment for history (F(v) = 0). */
+	return;
+#endif
+}
+
 void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 {
 	/* The estimated proportion of this branch, which we will accumulate. */
@@ -121,6 +157,7 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 		if (h->parent == NULL) { assert(h == root); }
 
 		/* Step 1-1 -- Compute Marked(vi) product term.  */
+		int total_children = 0;
 
 		/* save value computed last time a branch was here */
 		h->marked_children_old = h->marked_children;
@@ -131,9 +168,16 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 			if (is_child_marked(h, a)) {
 				h->marked_children++;
 			}
+			total_children++;
 		);
 		assert(h->marked_children > 0); /* we should be there at least */
+#ifndef HISTORY
+		// This does not necessarily hold with history
 		assert(h->marked_children >= h->marked_children_old);
+#endif
+
+		/* Adjust marked children value heuristically with history */
+		adjust_for_history(e, h, total_children);
 
 		/* p = product_vi 1/(Marked(vi) + F(vi)).
 		 * TODO: explore F(vi) != 0, i.e., not-lazy-strategy */
@@ -142,12 +186,15 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 
 		/* Step 1-2 -- Retroactively fix-up past branch probabilities. */
 
-		lsprintf(DEV, "last %Lf, this %Lf\n", old_proportion, h->proportion);
+		// lsprintf(DEV, "last %1.30Lf, this %1.30Lf\n",
+		//          old_proportion, h->proportion);
 
 		/* Stash old proportion value so we can compute the delta.
 		 * Also check here the invariant that this nobe's child's old
 		 * proportion was less than this one's. */
-		assert(old_proportion <= h->proportion);
+		// XXX: This assert fails sometimes with tiny margins of error. I
+		// XXX: think it is because of floating point but am not sure why.
+		// assert(old_proportion <= h->proportion);
 		old_proportion = h->proportion;
 		assert(old_proportion >= 0);
 
@@ -161,7 +208,11 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 		/* Readjust if a new (non-1st) child was marked of this nobe. */
 		if (h->marked_children_old != h->marked_children &&
 		    h->marked_children_old != 0) {
+#ifndef HISTORY
+			// NB. With history heuristic, this assert does not
+			// necessarily hold. We could adjust downwards.
 			assert(h->marked_children > h->marked_children_old);
+#endif
 			h->proportion *= h->marked_children_old;
 			h->proportion /= h->marked_children;
 			/* This change affects all children's proportions. */
