@@ -5,4 +5,6 @@ if [ "`pwd | sed 's/.*\///'`" != "pebsim" ]; then
 	exit 1
 fi
 
+export VTECH_LICENSE_FILE=/afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/licenses/1license.lic
+
 ./build.sh && time ./simics4
