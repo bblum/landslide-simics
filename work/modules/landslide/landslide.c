@@ -44,6 +44,8 @@
 #include "found_a_bug.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
+#include "memory.h"
+#include "rand.h"
 #include "save.h"
 #include "test.h"
 #include "tree.h"
@@ -71,6 +73,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	save_init(&ls->save);
 	test_init(&ls->test);
 	mem_init(&ls->mem);
+	rand_init(&ls->rand);
 
 	ls->cmd_file = NULL;
 	ls->just_jumped = false;

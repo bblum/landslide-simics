@@ -11,6 +11,7 @@
 
 #include "arbiter.h"
 #include "memory.h"
+#include "rand.h"
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
@@ -34,6 +35,7 @@ struct ls_state {
 	struct save_state save;
 	struct test_state test;
 	struct mem_state mem;
+	struct rand_state rand;
 
 	char *cmd_file;
 
