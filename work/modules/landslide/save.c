@@ -307,7 +307,14 @@ static void free_shm(struct rb_node *nobe)
 		return;
 	free_shm(nobe->rb_left);
 	free_shm(nobe->rb_right);
-	MM_FREE(rb_entry(nobe, struct mem_access, nobe));
+	struct mem_access *ma = rb_entry(nobe, struct mem_access, nobe);
+	while (Q_GET_SIZE(&ma->locksets) > 0) {
+		struct mem_lockset *l = Q_GET_HEAD(&ma->locksets);
+		Q_REMOVE(&ma->locksets, l, nobe);
+		lockset_free(&l->locks_held);
+		MM_FREE(l);
+	}
+	MM_FREE(ma);
 }
 
 static void free_mem(struct mem_state *m)

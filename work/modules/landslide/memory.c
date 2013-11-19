@@ -118,6 +118,43 @@ static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
  * shm helpers
  ******************************************************************************/
 
+static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma)
+{
+	struct lockset *l0 = &ls->sched.cur_agent->locks_held;
+	struct mem_lockset *l;
+
+	bool need_add = true;
+	bool remove_prev = false;
+
+	Q_FOREACH(l, &ma->locksets, nobe) {
+		if (remove_prev) {
+			struct mem_lockset *l_old = l->nobe.prev;
+			Q_REMOVE(&ma->locksets, l_old, nobe);
+			lockset_free(&l_old->locks_held);
+			MM_FREE(l_old);
+		}
+
+		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
+		if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
+			// if l subset l0, then we already have a better lockset
+			// than l0 for finding data races on this access, so no
+			// need to add l0 in addition.
+			need_add = false;
+			break;
+		} else if (r == LOCKSETS_SUBSET) {
+			// l0 would be a strict upgrade over l, in terms of
+			// finding data races, so we can remove l.
+			remove_prev = true;
+		}
+	}
+
+	if (need_add) {
+		l = MM_XMALLOC(1, struct mem_lockset);
+		lockset_clone(&l->locks_held, l0);
+		Q_INSERT_FRONT(&ma->locksets, l, nobe);
+	}
+}
+
 #define MEM_ENTRY(rb) \
 	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
 
@@ -140,6 +177,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 			/* access already exists */
 			ma->count++;
 			ma->write = ma->write || write;
+			add_lockset_to_shm(ls, ma);
 			return;
 		}
 	}
@@ -152,6 +190,8 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	ma->count     = 1;
 	ma->conflict  = false;
 	ma->other_tid = 0;
+	Q_INIT_HEAD(&ma->locksets);
+	add_lockset_to_shm(ls, ma);
 
 #ifndef STUDENT_FRIENDLY
 	if (c != NULL) {

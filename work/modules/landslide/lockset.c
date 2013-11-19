@@ -128,6 +128,9 @@ enum lockset_cmp_result lockset_compare(struct lockset *l1, struct lockset *l2)
 		return LOCKSETS_SUBSET;
 	} else if (l2->num_locks == 0) {
 		return LOCKSETS_SUPSET;
+	} else if (l1->num_locks == 1 && l2->num_locks == 1 &&
+		   l1->locks[0] == l2->locks[0]) {
+		return LOCKSETS_EQ;
 	} else {
 		return LOCKSETS_DIFF;
 	}

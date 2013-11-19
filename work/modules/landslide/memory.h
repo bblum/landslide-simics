@@ -16,6 +16,13 @@
  * Shared memory access tracking
  ******************************************************************************/
 
+struct mem_lockset {
+	struct lockset locks_held;
+	Q_NEW_LINK(struct mem_lockset) nobe;
+};
+
+Q_NEW_HEAD(struct mem_locksets, struct mem_lockset);
+
 /* represents an access to shared memory */
 struct mem_access {
 	int addr;      /* byte granularity */
@@ -24,7 +31,7 @@ struct mem_access {
 	int other_tid; /* does this access another thread's stack? 0 if none */
 	int count;     /* how many times accessed? (stats) */
 	bool conflict; /* does this conflict with another transition? (stats) */
-	struct lockset locks_held;
+	struct mem_locksets locksets; /* distinct locksets used while accessing */
 	struct rb_node nobe;
 };
 
