@@ -24,7 +24,7 @@ KERNEL_NAME=pobbles_race
 KERNEL_SOURCE_DIR=kern-race
 
 # What program should landslide run? vanish_vanish, double_thread_fork, ...
-TEST_CASE=double_thread_fork
+TEST_CASE=yield_vanish
 
 ######################
 #### Simple stuff ####
@@ -108,10 +108,11 @@ ignore_sym cmutex $MUTEX_SIZE
 # If you don't within_function at all, landslide will "pay attention" to
 # everything by default.
 
-within_function new_pages
-within_function remove_pages
+#within_function new_pages
+#within_function remove_pages
 #within_function wait
-#within_function tell_landslide_forking
+within_function vanish
+within_function yield
 
 # You may also list functions that landslide should NOT pay attention to; i.e.,
 # even if within one of the "within_function"s (or if none were specified),
@@ -121,6 +122,7 @@ within_function remove_pages
 
 #without_function wait_reap
 #without_function mutex_unlock
+#without_function mutex_lock
 
 ##########################
 #### Advanced options ####
@@ -150,10 +152,10 @@ EXPLORE_BACKWARDS=0
 # the first branch and print out the set of decision points that it found using
 # your current configuration. This is useful for fine-tuning your set of custom
 # decision points.
-DECISION_INFO_ONLY=1
+DECISION_INFO_ONLY=0
 
 # When Landslide finds a bug, should it make simics quit (0) or drop into the
 # command line (1)? (Quitting will make the correct elapsed time print out.)
-BREAK_ON_BUG=1
+BREAK_ON_BUG=0
 
 # vim: ft=sh
