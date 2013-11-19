@@ -156,13 +156,10 @@ static bool any_tagged_child(struct hax *h, int *new_tid)
 	return false;
 }
 
-static void record_pruned_children(struct save_state *ss, struct hax *h)
+static void print_pruned_children(struct save_state *ss, struct hax *h)
 {
 	bool any_pruned = false;
 	struct agent *a;
-
-	int total = 0;
-	int num_explored = 0;
 
 	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
 		if (!is_child_searched(h, a->tid)) {
@@ -172,15 +169,10 @@ static void record_pruned_children(struct save_state *ss, struct hax *h)
 			}
 			printf(DEV, "%d ", a->tid);
 			any_pruned = true;
-		} else {
-			num_explored++;
 		}
-		total++;
 	);
 	if (any_pruned)
 		printf(DEV, "\n");
-
-	estimate_update_history(&ss->estimate, h->depth, num_explored, total);
 }
 
 static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, int *new_tid)
@@ -226,7 +218,7 @@ static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, int *new_tid)
 		} else {
 			lsprintf(DEV, "#%d/tid%d (%p) all_explored\n",
 				 h->depth, h->chosen_thread, h);
-			record_pruned_children(ss, h);
+			print_pruned_children(ss, h);
 			h->all_explored = true;
 		}
 	}

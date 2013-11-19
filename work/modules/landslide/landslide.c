@@ -501,13 +501,11 @@ static bool time_travel(struct ls_state *ls)
 	if ((h = explore(&ls->save, &tid)) != NULL) {
 		assert(!h->all_explored);
 		estimate(&ls->save.estimate, ls->save.root, ls->save.current);
-		estimate_print_history(&ls->save.estimate);
 		arbiter_append_choice(&ls->arbiter, tid);
 		save_longjmp(&ls->save, ls, h);
 		return true;
 	} else {
 		estimate(&ls->save.estimate, ls->save.root, ls->save.current);
-		estimate_print_history(&ls->save.estimate);
 		return false;
 	}
 }

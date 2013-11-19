@@ -11,17 +11,7 @@
 
 struct hax;
 
-struct marked_history {
-	long double avg_marked;
-	long double avg_total;
-	int samples;
-};
-
 struct estimate_state {
-	struct marked_history *history;
-	unsigned int history_depth; // length of history array
-	unsigned int history_max; // index of highest occupied slot in array
-
 	/* Records the timestamp last time we arrived at a node in the tree.
 	 * This is updated only during save_setjmp -- it doesn't need to be during
 	 * save_longjmp because each longjmp is immediately after a call to setjmp
@@ -33,11 +23,6 @@ void estimate_init(struct estimate_state *e);
 
 /* returns elapsed usecs since last call, or undefined if no last call. */
 uint64_t estimate_update_time(struct estimate_state *e);
-
-void estimate_update_history(struct estimate_state *e, unsigned int depth,
-                             unsigned int marked, unsigned int total);
-
-void estimate_print_history(struct estimate_state *e);
 
 void estimate(struct estimate_state *e, struct hax *root, struct hax *current);
 
