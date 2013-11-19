@@ -68,20 +68,128 @@ void estimate_update_history(struct estimate_state *e, unsigned int depth,
 
 void estimate_print_history(struct estimate_state *e)
 {
-	lsprintf(DEV, "Tag density history: [");
+	lsprintf(INFO, "Tag density history: [");
 	if (e->history != NULL) {
 		for (int i = 0; i <= e->history_max; i++) {
-			printf(DEV, "(%Lf / %Lf * %u)", e->history[i].avg_marked,
+			printf(INFO, "(%Lf / %Lf * %u)", e->history[i].avg_marked,
 			       e->history[i].avg_total, e->history[i].samples);
 			if (i < e->history_max) {
-				printf(DEV, ", ");
+				printf(INFO, ", ");
 			}
 		}
 	}
-	printf(DEV, "]\n");
+	printf(INFO, "]\n");
 }
 
 /******************** actual estimation algorithm follows ********************/
+
+//#define HISTORY
+#define HISTORY_FUZZ
+#define HISTORY_FUZZ_FACTOR 1.0 // dropoff exponent
+
+#ifdef HISTORY
+
+#ifdef HISTORY_FUZZ
+static long double figure_out_history(struct estimate_state *e, int depth, int total)
+{
+	// compute a weighted average, with exponentially-dropping-off factors
+	// from history values stored in history entries at other depths.
+	long double avg_marked = 0; // total across depths
+	long double avg_total  = 0; // total across depths
+	long double samples = 0; // denominator
+
+	// Iterate in both directions, until both ends of the array are hit.
+	for (int i = 0; depth + i <= e->history_max || depth - i >= 0; i++) {
+		if (depth + i <= e->history_max) {
+			if (e->history[depth + i].samples > 0) {
+				assert(e->history[depth + i].avg_total >= 0);
+				assert(e->history[depth + i].avg_total > 0);
+				avg_marked += e->history[depth + i].avg_marked;
+				avg_total  += e->history[depth + i].avg_total;
+				// FIXME: Do we want to also weigh by number of
+				// samples in each history entry?
+				// TODO tomorrow: try multiplying above two
+				// values by entry.samples, and doing here
+				// "samples += entry.samples".
+				samples++;
+			}
+		}
+		// Extra != 0 clause because for the entry-at-this-depth case we
+		// oughtn't repeat work; this would be the same as the above if.
+		if (i != 0 && depth - i >= 0) {
+			if (e->history[depth - i].samples > 0) {
+				assert(e->history[depth - i].avg_total >= 0);
+				assert(e->history[depth - i].avg_total > 0);
+				avg_marked += e->history[depth - i].avg_marked;
+				avg_total  += e->history[depth - i].avg_total;
+				// FIXME: As above.
+				samples++;
+			}
+		}
+
+		// Weigh entries +/- depth in either direction by the same
+		// fudge amount.
+		avg_marked *= HISTORY_FUZZ_FACTOR;
+		avg_total  *= HISTORY_FUZZ_FACTOR;
+		samples    *= HISTORY_FUZZ_FACTOR;
+	}
+
+	if (samples == 0) {
+		return 0;
+	} else {
+		assert(avg_total >= 0);
+		assert(avg_total > 0);
+		// 'samples' factor in marked/total cancel out.
+		return total * avg_marked / avg_total;
+	}
+}
+#else
+static long double figure_out_history(struct estimate_state *e, int depth, int total)
+{
+	struct marked_history *entry = &e->history[depth];
+	/* Compute number of expected tagged children based on history's
+	 * average fraction of tagged children. */
+	assert(entry->avg_marked <= entry->avg_total);
+	if (entry->samples == 0) {
+		return 0;
+	} else {
+		assert(entry->avg_total != 0);
+		long double result = entry->avg_marked * total / entry->avg_total;
+		// "assert(result <= total)", corrected for possible FP error.
+		if (result > total) {
+			assert(result < total + 0.00001);
+			result = total;
+		}
+		return result;
+	}
+}
+#endif
+
+/* Updates a nobe's marked_children field based on past history. */
+static void adjust_for_history(struct estimate_state *e, struct hax *h, int total)
+{
+	/* Can only ask history for advice if it has advice to give. */
+	if (h->depth <= e->history_max) {
+		long double history_says = figure_out_history(e, h->depth, total);
+
+		/* Strategy 1: Replace it entirely.*/
+		// TODO: Strategy 2: Use the average. Research question: Find a
+		// heuristic value for weighted average that works well.
+		if (h->marked_children < history_says) {
+			lsprintf(DEV, "At depth %d, %Lf/%d were marked, but "
+				 "history says %Lf\n", h->depth,
+				 h->marked_children, total, history_says);
+			// Cap maximum possible value, obviously.
+			if (history_says < total) {
+				h->marked_children = history_says;
+			} else {
+				h->marked_children = total;
+			}
+		}
+	}
+	return;
+}
+#endif
 
 static bool is_child_marked(struct hax *h, struct agent *a)
 {
@@ -98,42 +206,6 @@ static bool is_child_marked(struct hax *h, struct agent *a)
 		}
 	}
 	return false;
-}
-
-#define HISTORY
-
-/* Updates a nobe's marked_children field based on past history. */
-static void adjust_for_history(struct estimate_state *e, struct hax *h, int total)
-{
-#ifdef HISTORY
-	/* Can only ask history for advice if it has advice to give. */
-	if (h->depth <= e->history_max) {
-		// TODO: Add fuzz.
-		struct marked_history *entry = &e->history[h->depth];
-
-		/* Compute number of expected tagged children based on
-		 * history's average fraction of tagged children. */
-		assert(entry->avg_marked <= entry->avg_total);
-		long double history_says =
-			entry->avg_marked * total / entry->avg_total;
-		// if this fails but not the above, floating point is to blame.
-		// FIXME: Debug this next.
-		// assert(history_says <= total);
-
-		/* Strategy 1: Replace it entirely.*/
-		// TODO: Strategy 2: Use the average. Research question: Find a
-		// heuristic value for weighted average that works well.
-		if (h->marked_children < history_says) {
-			lsprintf(DEV, "At depth %d, %Lf/%d were marked, but "
-				 "history says %Lf\n", h->depth,
-				 h->marked_children, total, history_says);
-			h->marked_children = history_says;
-		}
-	}
-#else
-	/* No adjustment for history (F(v) = 0). */
-	return;
-#endif
 }
 
 void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
@@ -172,12 +244,12 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 		);
 		assert(h->marked_children > 0); /* we should be there at least */
 #ifndef HISTORY
-		// This does not necessarily hold with history
+		/* No adjustment for history (F(vi) = 0). */
 		assert(h->marked_children >= h->marked_children_old);
-#endif
-
+#else
 		/* Adjust marked children value heuristically with history */
 		adjust_for_history(e, h, total_children);
+#endif
 
 		/* p = product_vi 1/(Marked(vi) + F(vi)).
 		 * TODO: explore F(vi) != 0, i.e., not-lazy-strategy */
