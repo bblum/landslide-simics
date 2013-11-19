@@ -14,6 +14,7 @@
 #include "found_a_bug.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
+#include "rand.h"
 #include "schedule.h"
 #include "x86.h"
 
@@ -128,9 +129,20 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		}
 	);
 
+#define CHOOSE_RANDOMLY
+
+#ifndef CHOOSE_RANDOMLY
 	if (EXPLORE_BACKWARDS == 0) {
 		count = 1;
 	}
+#else
+	// with given odds, will make the "forwards" choice.
+	const int numerator   = 19;
+	const int denominator = 20;
+	if (rand64(&ls->rand) % denominator < numerator) {
+		count = 1;
+	}
+#endif
 
 	/* Find the count-th thread. */
 	int i = 0;
