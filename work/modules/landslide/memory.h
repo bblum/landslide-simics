@@ -9,6 +9,7 @@
 
 #include <simics/api.h> /* for bool, of all things... */
 
+#include "lockset.h"
 #include "rbtree.h"
 
 /******************************************************************************
@@ -23,6 +24,7 @@ struct mem_access {
 	int other_tid; /* does this access another thread's stack? 0 if none */
 	int count;     /* how many times accessed? (stats) */
 	bool conflict; /* does this conflict with another transition? (stats) */
+	struct lockset locks_held;
 	struct rb_node nobe;
 };
 

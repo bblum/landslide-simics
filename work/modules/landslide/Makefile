@@ -22,6 +22,7 @@ SRC_FILES = landslide.h landslide.c \
 	    rbtree.h rbtree.c \
 	    memory.h memory.c \
 	    rand.h rand.c \
+	    lockset.c lockset.h \
 	    variable_queue.h
 
 MODULE_CFLAGS =

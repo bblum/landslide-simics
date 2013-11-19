@@ -11,18 +11,10 @@
 
 #include "common.h"
 #include "kernel_specifics.h"
+#include "lockset.h"
 #include "variable_queue.h"
 
 struct ls_state;
-
-/* Tracks the locks held by a given thread, for data race detection. */
-
-#define MAX_LOCKS 256 // for simplicity of implementation, sorry!
-struct lockset {
-	int num_locks;
-	int capacity;
-	int *locks;
-};
 
 /* The agent represents a single thread, or active schedulable node on the
  * runqueue. */
