@@ -103,6 +103,14 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
  * helpers
  ******************************************************************************/
 
+static void copy_lockset(struct lockset *dest, struct lockset *src)
+{
+	dest->num_locks = src->num_locks;
+	dest->capacity  = src->capacity;
+	dest->locks = MM_XMALLOC(src->capacity, int);
+	memcpy(dest->locks, src->locks, src->capacity * sizeof(int));
+}
+
 static struct agent *copy_agent(struct agent *a_src)
 {
 	struct agent *a_dest = MM_XMALLOC(1, struct agent);
@@ -127,6 +135,9 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->blocked_on      = NULL; /* Will be recomputed later if needed */
 	a_dest->blocked_on_tid  = a_src->blocked_on_tid;
 	a_dest->blocked_on_addr = a_src->blocked_on_addr;
+
+	a_dest->mutex_unlocking_addr = a_src->mutex_unlocking_addr;
+	copy_lockset(&a_dest->locks_held, &a_src->locks_held);
 
 	a_dest->do_explore = false;
 

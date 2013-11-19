@@ -15,6 +15,15 @@
 
 struct ls_state;
 
+/* Tracks the locks held by a given thread, for data race detection. */
+
+#define MAX_LOCKS 256 // for simplicity of implementation, sorry!
+struct lockset {
+	int num_locks;
+	int capacity;
+	int *locks;
+};
+
 /* The agent represents a single thread, or active schedulable node on the
  * runqueue. */
 struct agent {
@@ -60,6 +69,9 @@ struct agent {
 	/* action.locking implies addr is valid; also blocked_on set implies
 	 * locking, which implies addr is valid. -1 if nothing. */
 	int blocked_on_addr;
+	int mutex_unlocking_addr;
+	/* locks held for data race detection */
+	struct lockset locks_held;
 	/* Used by partial order reduction, only in "oldsched"s in the tree. */
 	bool do_explore;
 };

@@ -20,6 +20,118 @@
 #include "variable_queue.h"
 #include "x86.h"
 
+
+/******************************************************************************
+ * Lockset
+ ******************************************************************************/
+
+static void lockset_init(struct lockset *l)
+{
+	l->num_locks = 0;
+	l->capacity = MAX_LOCKS;
+	l->locks = MM_XMALLOC(MAX_LOCKS, int);
+}
+
+static void lockset_free(struct lockset *l)
+{
+	MM_FREE(l->locks);
+}
+
+void lockset_clone(struct lockset *dest, struct lockset *src)
+{
+	dest->num_locks = src->num_locks;
+	dest->capacity  = src->num_locks; // space optimization for long-term storage
+	dest->locks = MM_XMALLOC(src->num_locks, int);
+	memcpy(dest->locks, src->locks, src->num_locks * sizeof(int));
+}
+
+static void lockset_print(verbosity v, struct lockset *l)
+{
+	for (int i = 0; i < l->num_locks; i++) {
+		printf(v, "0x%x ", l->locks[i]);
+	}
+}
+
+static void lockset_add(struct lockset *l, int lock_addr)
+{
+	assert(l->num_locks < l->capacity - 1 &&
+	       "Max number of locks in lockset implementation exceeded :(");
+
+	lsprintf(DEV, "Adding 0x%x to lockset: ", lock_addr);
+	lockset_print(DEV, l);
+	printf(DEV, "\n");
+
+	for (int i = 0; i < l->num_locks; i++) {
+		assert(l->locks[i] != lock_addr &&
+		       "Recursive locking not supported");
+	}
+
+	l->locks[l->num_locks] = lock_addr;
+	l->num_locks++;
+}
+
+static bool _lockset_remove(struct lockset *l, int lock_addr)
+{
+	assert(l->num_locks < l->capacity);
+
+	lsprintf(DEV, "Removing 0x%x from lockset: ", lock_addr);
+	lockset_print(DEV, l);
+	printf(DEV, "\n");
+
+	for (int i = 0; i < l->num_locks; i++) {
+		if (l->locks[i] == lock_addr) {
+			l->num_locks--;
+			l->locks[i] = l->locks[l->num_locks];
+			return true;
+		}
+	}
+	return false;
+}
+
+static void lockset_remove(struct sched_state *s, int lock_addr)
+{
+	if (_lockset_remove(&s->cur_agent->locks_held, lock_addr))
+		return;
+
+	char lock_name[32];
+	symtable_lookup(lock_name, 32, lock_addr);
+	lsprintf(DEV, "WARNING: Lock handoff with TID %d unlocking %s @ 0x%x;"
+		 "expect data race tracking may be incorrect\n",
+		 s->cur_agent->tid, lock_name, lock_addr);
+
+#ifdef ALLOW_LOCK_HANDOFF
+	struct agent *a;
+	Q_FOREACH(a, &s->rq, nobe) {
+		if (_lockset_remove(&a->locks_held, lock_addr)) return;
+	}
+	Q_FOREACH(a, &s->sq, nobe) {
+		if (_lockset_remove(&a->locks_held, lock_addr)) return;
+	}
+	Q_FOREACH(a, &s->rq, nobe) {
+		if (_lockset_remove(&a->locks_held, lock_addr)) return;
+	}
+#endif
+
+	// Lock not found.
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Couldn't find unlock()ed lock "
+		 "0x%x in lockset; probably incorrect annotations - did you "
+		 "forget to annotate mutex_trylock()?\n", lock_addr);
+	LS_ABORT();
+}
+
+bool lockset_intersect(struct lockset *l1, struct lockset *l2)
+{
+	// Bad runtime. Oh well.
+	for (int i = 0; i < l1->num_locks; i++) {
+		for (int j = 0; j < l2->num_locks; j++) {
+			if (l1->locks[i] == l2->locks[j]) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /******************************************************************************
  * Agence
  ******************************************************************************/
@@ -71,6 +183,9 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->blocked_on = NULL;
 	a->blocked_on_tid = -1;
 	a->blocked_on_addr = -1;
+	a->mutex_unlocking_addr = -1;
+
+	lockset_init(&a->locks_held);
 
 	if (on_runqueue) {
 		Q_INSERT_FRONT(&s->rq, a, nobe);
@@ -149,6 +264,7 @@ static void agent_vanish(struct sched_state *s)
 	if (s->last_vanished_agent) {
 		assert(!s->last_vanished_agent->action.handling_timer);
 		assert(s->last_vanished_agent->action.context_switch);
+		lockset_free(&s->last_vanished_agent->locks_held);
 		MM_FREE(s->last_vanished_agent);
 	}
 	s->last_vanished_agent = s->cur_agent;
@@ -605,6 +721,7 @@ void sched_update(struct ls_state *ls)
 		assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_locking) = true;
 		s->cur_agent->blocked_on_addr = mutex_addr;
+		lockset_add(&s->cur_agent->locks_held, mutex_addr);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
@@ -643,12 +760,17 @@ void sched_update(struct ls_state *ls)
 		 * not the other way around. */
 		assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = true;
+		assert(s->cur_agent->mutex_unlocking_addr == -1);
+		s->cur_agent->mutex_unlocking_addr = mutex_addr;
 		lsprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
 			 mutex_addr, s->cur_agent->tid);
 		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = false;
+		assert(s->cur_agent->mutex_unlocking_addr != -1);
+		lockset_remove(s, s->cur_agent->mutex_unlocking_addr);
+		s->cur_agent->mutex_unlocking_addr = -1;
 		lsprintf(DEV, "mutex: unlocking done by tid %d\n",
 			 s->cur_agent->tid);
 	}
