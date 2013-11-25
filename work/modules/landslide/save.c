@@ -266,6 +266,7 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->alloc_request_size = src->alloc_request_size;
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
 	dest->heap_size          = src->heap_size;
+	/* NB: The shm and freed heaps are copied below, in shimsham_shm. */
 }
 
 /* To free copied state data structures. None of these free the arg pointer. */
@@ -390,42 +391,6 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
  * Independence and happens-before computation
  ******************************************************************************/
 
-static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
-{
-	/* store shared memory accesses from this transition; reset to empty */
-	h->oldmem->shm.rb_node = m->shm.rb_node;
-	m->shm.rb_node = NULL;
-
-	/* do the same for the list of freed chunks in this transition */
-	h->oldmem->freed.rb_node = m->freed.rb_node;
-	m->freed.rb_node = NULL;
-
-	/* compute newly-completed transition's conflicts with previous ones */
-	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
-		if (h->chosen_thread == old->chosen_thread) {
-			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
-				 h->chosen_thread, h->depth, old->depth);
-			continue;
-		} else if (kern_has_idle() &&
-			   (h->chosen_thread == kern_get_idle_tid() ||
-			    old->chosen_thread == kern_get_idle_tid())) {
-			/* Idle shouldn't have siblings, but just in case. */
-			h->conflicts[old->depth] = true;
-			continue;
-		} else if (old->depth == 0) {
-			/* Basically guaranteed. Suppress printing. */
-			h->conflicts[0] = true;
-			continue;
-		}
-		/* The haxes are independent if there was no intersection. */
-		assert(old->depth >= 0 && old->depth < h->depth);
-		h->conflicts[old->depth] =
-			mem_shm_intersect(cpu, h->oldmem, old->oldmem, h->depth,
-					  h->chosen_thread, old->depth,
-					  old->chosen_thread);
-	}
-}
-
 static void inherit_happens_before(struct hax *h, struct hax *old)
 {
 	for (int i = 0; i < old->depth; i++) {
@@ -500,6 +465,42 @@ static void compute_happens_before(struct hax *h)
 		}
 	}
 	printf(DEV, "} happen-before #%d/tid%d.\n", h->depth, h->chosen_thread);
+}
+
+/* Resets the current set of shared-memory accesses by moving what we've got so
+ * far into the save point we're creating. Then, intersects the memory accesses
+ * with those of each ancestor to compute independences and find data races. */
+static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
+{
+	/* store shared memory accesses from this transition; reset to empty */
+	h->oldmem->shm.rb_node = m->shm.rb_node;
+	m->shm.rb_node = NULL;
+
+	/* do the same for the list of freed chunks in this transition */
+	h->oldmem->freed.rb_node = m->freed.rb_node;
+	m->freed.rb_node = NULL;
+
+	/* compute newly-completed transition's conflicts with previous ones */
+	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
+		if (h->chosen_thread == old->chosen_thread) {
+			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
+				 h->chosen_thread, h->depth, old->depth);
+			continue;
+		} else if (kern_has_idle() &&
+			   (h->chosen_thread == kern_get_idle_tid() ||
+			    old->chosen_thread == kern_get_idle_tid())) {
+			/* Idle shouldn't have siblings, but just in case. */
+			h->conflicts[old->depth] = true;
+			continue;
+		} else if (old->depth == 0) {
+			/* Basically guaranteed. Suppress printing. */
+			h->conflicts[0] = true;
+			continue;
+		}
+		/* The haxes are independent if there was no intersection. */
+		assert(old->depth >= 0 && old->depth < h->depth);
+		h->conflicts[old->depth] = mem_shm_intersect(cpu, h, old);
+	}
 }
 
 /******************************************************************************
@@ -648,8 +649,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->conflicts      = NULL;
 		h->happens_before = NULL;
 	}
-	shimsham_shm(ls->cpu0, h, &ls->mem);
 	compute_happens_before(h);
+	shimsham_shm(ls->cpu0, h, &ls->mem);
 
 	ss->current  = h;
 	ss->next_tid = new_tid;

@@ -118,6 +118,8 @@ static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
  * shm helpers
  ******************************************************************************/
 
+// Actually looking for data races cannot happen until we know the
+// happens-before relationship to previous transitions, in save.c.
 static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma)
 {
 	struct lockset *l0 = &ls->sched.cur_agent->locks_held;
@@ -541,16 +543,19 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 }
 
 /* Compute the intersection of two transitions' shm accesses */
-bool mem_shm_intersect(conf_object_t *cpu, struct mem_state *m0,
-		       struct mem_state *m1, int depth0, int tid0,
-		       int depth1, int tid1)
+bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1)
 {
+	struct mem_state *m0 = h0->oldmem;
+	struct mem_state *m1 = h1->oldmem;
+	int tid0 = h0->chosen_thread;
+	int tid1 = h1->chosen_thread;
+
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
 	int conflicts = 0;
 
 	lsprintf(DEV, "Intersecting transition %d (TID %d) with %d (TID %d): {",
-		 depth0, tid0, depth1, tid1);
+		 h0->depth, tid0, h1->depth, tid1);
 
 	while (ma0 != NULL && ma1 != NULL) {
 		if (ma0->addr < ma1->addr) {

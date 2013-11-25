@@ -12,6 +12,8 @@
 #include "lockset.h"
 #include "rbtree.h"
 
+struct hax;
+
 /******************************************************************************
  * Shared memory access tracking
  ******************************************************************************/
@@ -75,7 +77,6 @@ void mem_update(struct ls_state *);
 
 void mem_check_shared_access(struct ls_state *, struct mem_state *, int addr,
 			     bool write);
-bool mem_shm_intersect(conf_object_t *, struct mem_state *, struct mem_state *,
-		       int depth0, int tid0, int depth1, int tid1);
+bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h2);
 
 #endif
