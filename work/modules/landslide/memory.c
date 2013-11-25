@@ -584,7 +584,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1)
 
 	assert(h0->depth > h1->depth);
 	assert(!h0->happens_before[h1->depth]);
-	assert(h0->chosen_tid != h1->chosen_tid);
+	assert(h0->chosen_thread != h1->chosen_thread);
 
 	lsprintf(DEV, "Intersecting transition %d (TID %d) with %d (TID %d): {",
 		 h0->depth, tid0, h1->depth, tid1);
