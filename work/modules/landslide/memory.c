@@ -463,7 +463,7 @@ void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
 	snprintf(buf, size, "0x%.8x in [0x%x | %d]", addr, base, len)
 #endif
 
-static void print_shm_conflict(conf_object_t *cpu,
+static void print_shm_conflict(verbosity v, conf_object_t *cpu,
 			       struct mem_state *m0, struct mem_state *m1,
 			       struct mem_access *ma0, struct mem_access *ma1)
 {
@@ -495,11 +495,12 @@ static void print_shm_conflict(conf_object_t *cpu,
 		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
 				  c0->base, c0->len);
 	}
-	printf(DEV, "[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
+	printf(v, "[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
 	       ma1->write ? 'w' : 'r', ma1->count);
 }
 
 #define MAX_CONFLICTS 10
+
 static void check_stack_conflict(struct mem_access *ma, int other_tid,
 				 int *conflicts)
 {
@@ -542,6 +543,33 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 	}
 }
 
+static void check_data_race(conf_object_t *cpu,
+			    struct mem_state *m0, struct mem_state *m1,
+			    struct mem_access *ma0, struct mem_access *ma1)
+{
+	struct mem_lockset *l0;
+	struct mem_lockset *l1;
+
+	Q_FOREACH(l0, &ma0->locksets, nobe) {
+		Q_FOREACH(l1, &ma1->locksets, nobe) {
+			// To be safe, all pairs of locksets must have a lock in common.
+			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
+				char buf[256];
+				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "Data race: ");
+				print_shm_conflict(DEV, cpu, m0, m1, ma0, ma1);
+				printf(DEV, " at:\n");
+				symtable_lookup(buf, 256, ma0->eip);
+				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "0x%x %s and \n",
+					 ma0->eip, buf);
+				symtable_lookup(buf, 256, ma1->eip);
+				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "0x%x %s\n",
+					 ma1->eip, buf);
+				return;
+			}
+		}
+	}
+}
+
 /* Compute the intersection of two transitions' shm accesses */
 bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1)
 {
@@ -553,6 +581,10 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1)
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
 	int conflicts = 0;
+
+	assert(h0->depth > h1->depth);
+	assert(!h0->happens_before[h1->depth]);
+	assert(h0->chosen_tid != h1->chosen_tid);
 
 	lsprintf(DEV, "Intersecting transition %d (TID %d) with %d (TID %d): {",
 		 h0->depth, tid0, h1->depth, tid1);
@@ -575,12 +607,13 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1)
 					if (conflicts > 0)
 						printf(DEV, ", ");
 					/* the match is also a conflict */
-					print_shm_conflict(cpu, m0, m1,
+					print_shm_conflict(DEV, cpu, m0, m1,
 							   ma0, ma1);
 				}
 				conflicts++;
 				ma0->conflict = true;
 				ma1->conflict = true;
+				check_data_race(cpu, m0, m1, ma0, ma1);
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));

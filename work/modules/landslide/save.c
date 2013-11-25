@@ -469,7 +469,8 @@ static void compute_happens_before(struct hax *h)
 
 /* Resets the current set of shared-memory accesses by moving what we've got so
  * far into the save point we're creating. Then, intersects the memory accesses
- * with those of each ancestor to compute independences and find data races. */
+ * with those of each ancestor to compute independences and find data races.
+ * NB: Looking for data races depends on having computed happens_before first. */
 static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 {
 	/* store shared memory accesses from this transition; reset to empty */
@@ -499,7 +500,11 @@ static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
 		}
 		/* The haxes are independent if there was no intersection. */
 		assert(old->depth >= 0 && old->depth < h->depth);
-		h->conflicts[old->depth] = mem_shm_intersect(cpu, h, old);
+		/* Only bother to compute, and look for data races, if they are
+		 * possibly 'concurrent' with each other. */
+		h->conflicts[old->depth] =
+			(!h->happens_before[old->depth]) &&
+			mem_shm_intersect(cpu, h, old);
 	}
 }
 
