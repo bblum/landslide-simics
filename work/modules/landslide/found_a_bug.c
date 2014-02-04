@@ -103,8 +103,8 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 			verbose);
 
 	char *stack = stack_trace(ls->cpu0, ls->eip, ls->sched.cur_agent->tid);
-	lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_RED "Current stack:\n"
-		 COLOUR_DEFAULT);
+	lsprintf(BUG, bug_found, COLOUR_BOLD "%sCurrent stack:\n"
+		 COLOUR_DEFAULT, bug_found ? COLOUR_RED : COLOUR_GREEN);
 	print_stack_trace(BUG, bug_found, stack);
 	MM_FREE(stack);
 
