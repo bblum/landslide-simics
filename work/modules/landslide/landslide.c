@@ -270,6 +270,7 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 	attr_value_t idx = SIM_make_attr_integer(addr);
 	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
 	if (!SIM_attr_is_list(result)) {
+		SIM_free_attribute(idx);
 		return snprintf(buf, maxlen, "<unknown>");
 	}
 	assert(SIM_attr_list_size(result) >= 3);
@@ -288,6 +289,7 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 			   func, file, line);
 
 	SIM_free_attribute(result);
+	SIM_free_attribute(idx);
 	return ret;
 }
 
@@ -303,6 +305,7 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 	attr_value_t idx = SIM_make_attr_integer(addr);
 	attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
 	if (!SIM_attr_is_list(result)) {
+		SIM_free_attribute(idx);
 		return snprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
 				COLOUR_DEFAULT, addr);
 	}
@@ -320,6 +323,7 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 			" (%s at 0x%.8x)" COLOUR_DEFAULT, typename, addr);
 
 	SIM_free_attribute(result);
+	SIM_free_attribute(idx);
 	return ret;
 }
 
@@ -333,6 +337,7 @@ bool function_eip_offset(int eip, int *offset)
 	attr_value_t idx = SIM_make_attr_integer(eip);
 	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
 	if (!SIM_attr_is_list(result)) {
+		SIM_free_attribute(idx);
 		return false;
 	}
 	assert(SIM_attr_list_size(result) >= 3);
@@ -341,6 +346,8 @@ bool function_eip_offset(int eip, int *offset)
 	attr_value_t func = SIM_get_attribute_idx(table, "symbol_value", &name);
 
 	*offset = eip - SIM_attr_integer(func);
+	SIM_free_attribute(result);
+	SIM_free_attribute(idx);
 	return true;
 }
 
