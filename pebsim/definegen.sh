@@ -15,34 +15,22 @@ function die {
 	kill $$ # may be called in backticks; exit won't work
 }
 
-function get_sym {
-	RESULT=`objdump -t $KERNEL_IMG | grep " $1$" | cut -d" " -f1`
-	if [ -z "$RESULT" ]; then
-		die "Couldn't find symbol $1."
-	fi
-	echo $RESULT
+function _get_sym {
+	objdump -t $2 | grep " $1$" | cut -d" " -f1
 }
 
-function get_func {
-	RESULT=`objdump -d $KERNEL_IMG | grep "<$1>:" | cut -d" " -f1`
-	if [ -z "$RESULT" ]; then
-		die "Couldn't find function $1."
-	fi
-	echo $RESULT
+function _get_func {
+	objdump -d $2 | grep "<$1>:" | cut -d" " -f1
 }
 
 # Gets the last instruction, spatially. Might not be ret or iret.
-function get_func_end {
-	RESULT=`objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1`
-	if [ -z "$RESULT" ]; then
-		die "Couldn't find end-of-function $1."
-	fi
-	echo $RESULT
+function _get_func_end {
+	objdump -d $2 | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep -v ":.*90.*nop$" | tail -n 2 | head -n 1 | sed 's/ //g' | cut -d":" -f1
 }
 
 # Gets the last instruction, temporally. Must be ret or iret.
-function get_func_ret {
-	RET_INSTR=`objdump -d $KERNEL_IMG | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep 'c3.*ret\|cf.*iret'`
+function _get_func_ret {
+	RET_INSTR=`objdump -d $2 | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep 'c3.*ret\|cf.*iret'`
 	# Test for there being only one ret or iret - normal case.
 	if [ "`echo "$RET_INSTR" | wc -l`" = "1" ]; then
 		echo "$RET_INSTR" | sed 's/ //g' | cut -d":" -f1
@@ -55,6 +43,50 @@ function get_func_ret {
 		err "!!! PLEASE ASK BEN FOR HELP."
 		die "!!!"
 	fi
+}
+
+function get_sym {
+	RESULT=`_get_sym $1 $KERNEL_IMG`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find symbol $1."
+	fi
+	echo $RESULT
+}
+function get_func {
+	RESULT=`_get_func $1 $KERNEL_IMG`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find function $1."
+	fi
+	echo $RESULT
+}
+function get_func_end {
+	RESULT=`_get_func_end $1 $KERNEL_IMG`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find end-of-function $1."
+	fi
+	echo $RESULT
+}
+function get_func_ret {
+	RESULT=`_get_func_ret $1 $KERNEL_IMG`
+	if [ -z "$RESULT" ]; then
+		die "Couldn't find ret-of-function $1."
+	fi
+	echo $RESULT
+}
+
+# As above functions but objdumps the userspace program binary instead.
+# However, might emit the empty string if not present.
+function get_user_sym {
+	_get_sym $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+}
+function get_user_func {
+	_get_func $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+}
+function get_user_func_end {
+	_get_func_end $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+}
+function get_user_func_ret {
+	_get_func_ret $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
 }
 
 SCHED_FUNCS=
@@ -234,6 +266,30 @@ echo "#define GUEST_BSS_END GUEST_IMG_END"
 
 echo "#define GUEST_PANIC 0x`get_func panic`"
 echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
+
+echo
+
+############################################################
+#### Userspace locations of importance (for p2 testing) ####
+############################################################
+
+function define_user_addr {
+	# this function may not emit an address if the function is
+	# not present in the user binary.
+	ADDR=`get_user_func $2`
+	if [ ! -z "$ADDR" ]; then
+		echo "#define ${1}_ENTER 0x$ADDR"
+	fi
+	# some functions e.g. panic() don't return; don't emit their ret addr.
+	ADDR=`get_user_func_ret $2`
+	if [ ! -z "$ADDR" ]; then
+		echo "#define ${1}_EXIT 0x$ADDR"
+	fi
+}
+define_user_addr USER_MM_MALLOC mm_malloc
+define_user_addr USER_MM_FREE mm_free
+define_user_addr USER_MM_REALLOC mm_realloc
+define_user_addr USER_PANIC panic
 
 echo
 
