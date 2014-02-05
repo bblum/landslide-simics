@@ -16,10 +16,15 @@
 #include "landslide.h"
 #include "x86.h"
 
-/* two possible methods for causing a timer interrupt - the lolol version crafts
- * an iret stack frame by hand and changes the cpu's registers manually; the
- * other way just manipulates the cpu's interrupt pending flags to make it do
- * the interrupt itself. */
+/* Horribly, simics's attributes for the segsels are lists instead of ints. */
+#define GET_SEGSEL(cpu, name) \
+	SIM_attr_integer(SIM_attr_list_item(SIM_get_attribute(cpu, #name), 0))
+
+/* two possible methods for causing a timer interrupt - the "immediately"
+ * version makes the simulation immediately jump to some assembly on the stack
+ * that directly invokes the timer interrupt INSTEAD of executing the pending
+ * instruction; the other way just manipulates the cpu's interrupt pending
+ * flags to make it do the interrupt itself. */
 int cause_timer_interrupt_immediately(conf_object_t *cpu)
 {
 	int esp = GET_CPU_ATTR(cpu, esp);
@@ -27,16 +32,70 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 	int eflags = GET_CPU_ATTR(cpu, eflags);
 	int handler = kern_get_timer_wrap_begin();
 
-	lsprintf(DEV, "tock! (0x%x)\n", eip);
+	if (eip < USER_MEM_START) {
+		/* Easy mode. Just make a small iret stack frame. */
+		assert(GET_SEGSEL(cpu, cs) == SEGSEL_KERNEL_CS);
+		assert(GET_SEGSEL(cpu, ss) == SEGSEL_KERNEL_DS);
 
-	/* 12 is the size of an IRET frame only when already in kernel mode. */
-	SET_CPU_ATTR(cpu, esp, esp - 12);
-	esp = esp - 12; /* "oh, I can do common subexpression elimination!" */
-	SIM_write_phys_memory(cpu, esp + 8, eflags, 4);
-	SIM_write_phys_memory(cpu, esp + 4, KERNEL_SEGSEL_CS, 4);
-	SIM_write_phys_memory(cpu, esp + 0, eip, 4);
+		lsprintf(DEV, "tock! (0x%x)\n", eip);
+
+		/* 12 is the size of an IRET frame only when already in kernel mode. */
+		int new_esp = esp - 12;
+		SET_CPU_ATTR(cpu, esp, new_esp);
+		SIM_write_phys_memory(cpu, new_esp + 8, eflags, 4);
+		SIM_write_phys_memory(cpu, new_esp + 4, SEGSEL_KERNEL_CS, 4);
+		SIM_write_phys_memory(cpu, new_esp + 0, eip, 4);
+	} else {
+		/* Hard mode - do a mode switch also. Grab esp0, make a large
+		 * iret frame, and change the segsel registers to kernel mode. */
+		assert(GET_SEGSEL(cpu, cs) == SEGSEL_USER_CS);
+		assert(GET_SEGSEL(cpu, ss) == SEGSEL_USER_DS);
+
+		lsprintf(DEV, "tock! from userspace! (0x%x)\n", eip);
+
+		int esp0 = GET_ESP0(cpu);
+		/* 20 is the size of an IRET frame coming from userland. */
+		int new_esp = esp0 - 20;
+		SET_CPU_ATTR(cpu, esp, new_esp);
+		SIM_write_phys_memory(cpu, new_esp + 16, SEGSEL_USER_DS, 4);
+		SIM_write_phys_memory(cpu, new_esp + 12, esp, 4);
+		SIM_write_phys_memory(cpu, new_esp +  8, eflags, 4);
+		SIM_write_phys_memory(cpu, new_esp +  4, SEGSEL_USER_CS, 4);
+		SIM_write_phys_memory(cpu, new_esp +  0, eip, 4);
+
+		/* Change %cs and %ss. (Other segsels should be saved/restored
+		 * in the kernel's handler wrappers.) */
+		attr_value_t cs = SIM_make_attr_list(10,
+			SIM_make_attr_integer(SEGSEL_KERNEL_CS),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(0),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(11),
+			SIM_make_attr_integer(0),
+			SIM_make_attr_integer(4294967295L),
+			SIM_make_attr_integer(1));
+		set_error_t ret = SIM_set_attribute(cpu, "cs", &cs);
+		assert(ret == Sim_Set_Ok && "failed set cs");
+		SIM_free_attribute(cs);
+		attr_value_t ss = SIM_make_attr_list(10,
+			SIM_make_attr_integer(SEGSEL_KERNEL_DS),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(0),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(1),
+			SIM_make_attr_integer(3),
+			SIM_make_attr_integer(0),
+			SIM_make_attr_integer(4294967295L),
+			SIM_make_attr_integer(1));
+		ret = SIM_set_attribute(cpu, "ss", &ss);
+		assert(ret == Sim_Set_Ok && "failed set ss");
+		SIM_free_attribute(ss);
+
+	}
 	SET_CPU_ATTR(cpu, eip, handler);
-
 	return handler;
 }
 
@@ -67,7 +126,6 @@ void cause_timer_interrupt(conf_object_t *cpu)
 }
 
 /* Will use 8 bytes of stack when it runs. */
-#define CUSTOM_ASSEMBLY_CODES_SIZE 12
 #define CUSTOM_ASSEMBLY_CODES_STACK 8
 static const char custom_assembly_codes[] = {
 	0x50, /* push %eax */
@@ -83,13 +141,12 @@ static const char custom_assembly_codes[] = {
 int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 {
 	int buf = GET_CPU_ATTR(cpu, esp) -
-		(CUSTOM_ASSEMBLY_CODES_SIZE + CUSTOM_ASSEMBLY_CODES_STACK);
+		(ARRAY_SIZE(custom_assembly_codes) + CUSTOM_ASSEMBLY_CODES_STACK);
 
 	lsprintf(INFO, "Cuckoo!\n");
 
-	STATIC_ASSERT(ARRAY_SIZE(custom_assembly_codes) ==
-		      CUSTOM_ASSEMBLY_CODES_SIZE);
-	for (int i = 0; i < CUSTOM_ASSEMBLY_CODES_SIZE; i++) {
+	STATIC_ASSERT(ARRAY_SIZE(custom_assembly_codes) % 4 == 0);
+	for (int i = 0; i < ARRAY_SIZE(custom_assembly_codes); i++) {
 		SIM_write_phys_memory(cpu, buf+i, custom_assembly_codes[i], 1);
 	}
 

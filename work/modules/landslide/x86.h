@@ -35,7 +35,10 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 
 #define USER_MEM_START 0x01000000
 
-#define KERNEL_SEGSEL_CS 0x10
+#define SEGSEL_KERNEL_CS 0x10
+#define SEGSEL_KERNEL_DS 0x18
+#define SEGSEL_USER_CS 0x23
+#define SEGSEL_USER_DS 0x2b
 #define TIMER_INTERRUPT_NUMBER 0x20
 #define INT_CTL_PORT 0x20 /* MASTER_ICW == ADDR_PIC_BASE + OFF_ICW */
 #define INT_ACK_CURRENT 0x20 /* NON_SPEC_EOI */
