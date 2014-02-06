@@ -286,10 +286,24 @@ function define_user_addr {
 		echo "#define ${1}_EXIT 0x$ADDR"
 	fi
 }
+function define_user_sym {
+	# this function may not emit an address if the function is
+	# not present in the user binary.
+	ADDR=`get_user_sym $2`
+	if [ ! -z "$ADDR" ]; then
+		echo "#define $1 0x$ADDR"
+	fi
+}
+
 define_user_addr USER_MM_MALLOC mm_malloc
 define_user_addr USER_MM_FREE mm_free
 define_user_addr USER_MM_REALLOC mm_realloc
 define_user_addr USER_PANIC panic
+
+define_user_sym USER_IMG_END _end
+define_user_sym USER_DATA_START .data
+define_user_sym USER_DATA_END _edata
+define_user_sym USER_BSS_START __bss_start
 
 echo
 

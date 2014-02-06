@@ -135,28 +135,33 @@ bool kern_within_functions(conf_object_t *cpu, int eip)
 
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
 
+static void read_panic_message(conf_object_t *cpu, char **buf)
+{
+	*buf = read_string(cpu, READ_STACK(cpu, 1));
+	/* Can't call out to snprintf in the general case because it
+	 * would need repeated calls to read_string, and would basically
+	 * need to be reimplemented entirely. Instead, special-case. */
+	if (strcmp(*buf, GUEST_ASSERT_MSG) == 0) {
+		char *file_str   = read_string(cpu, READ_STACK(cpu, 2));
+		int line         = READ_STACK(cpu, 3);
+		char *assert_msg = read_string(cpu, READ_STACK(cpu, 4));
+		/* 12 is enough space for any stringified int. This will
+		 * allocate a little extra, but we don't care. */
+		int length = strlen(GUEST_ASSERT_MSG) + strlen(file_str)
+			     + strlen(assert_msg) + 12;
+		MM_FREE(*buf);
+		*buf = MM_XMALLOC(length, char);
+		snprintf(*buf, length, GUEST_ASSERT_MSG, file_str, line,
+			 assert_msg);
+		MM_FREE(file_str);
+		MM_FREE(assert_msg);
+	}
+}
+
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
 {
 	if (eip == GUEST_PANIC) {
-		*buf = read_string(cpu, READ_STACK(cpu, 1));
-		/* Can't call out to snprintf in the general case because it
-		 * would need repeated calls to read_string, and would basically
-		 * need to be reimplemented entirely. Instead, special-case. */
-		if (strcmp(*buf, GUEST_ASSERT_MSG) == 0) {
-			char *file_str   = read_string(cpu, READ_STACK(cpu, 2));
-			int line         = READ_STACK(cpu, 3);
-			char *assert_msg = read_string(cpu, READ_STACK(cpu, 4));
-			/* 12 is enough space for any stringified int. This will
-			 * allocate a little extra, but we don't care. */
-			int length = strlen(GUEST_ASSERT_MSG) + strlen(file_str)
-			             + strlen(assert_msg) + 12;
-			MM_FREE(*buf);
-			*buf = MM_XMALLOC(length, char);
-			snprintf(*buf, length, GUEST_ASSERT_MSG, file_str, line,
-				 assert_msg);
-			MM_FREE(file_str);
-			MM_FREE(assert_msg);
-		}
+		read_panic_message(cpu, buf);
 		return true;
 	} else {
 		return false;
@@ -377,6 +382,100 @@ void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 	}
 }
 #endif
+
+/******************************************************************************
+ * Userspace
+ ******************************************************************************/
+
+bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size)
+{
+#ifdef USER_MM_MALLOC_ENTER
+	if (eip == USER_MM_MALLOC_ENTER) {
+		*size = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+
+bool user_mm_malloc_exiting(conf_object_t *cpu, int eip, int *base)
+{
+#ifdef USER_MM_MALLOC_EXIT
+	if (eip == USER_MM_MALLOC_EXIT) {
+		*base = GET_CPU_ATTR(cpu, eax);
+		return true;
+	} else {
+		return false;
+	}
+#else
+#ifdef USER_MM_MALLOC_ENTER
+	STATIC_ASSERT(false && "user malloc enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
+bool user_mm_free_entering(conf_object_t *cpu, int eip, int *base)
+{
+#ifdef USER_MM_FREE_ENTER
+	if (eip == USER_MM_FREE_ENTER) {
+		*base = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+
+bool user_mm_free_exiting(int eip)
+{
+#ifdef USER_MM_FREE_EXIT
+	return (eip == USER_MM_FREE_EXIT);
+#else
+#ifdef USER_MM_FREE_ENTER
+	STATIC_ASSERT(false && "user free enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
+bool user_address_in_heap(int addr)
+{
+#ifdef USER_IMG_END
+	return (addr >= USER_IMG_END);
+#else
+	return false;
+#endif
+}
+
+bool user_address_global(int addr)
+{
+#if defined(USER_DATA_START) && defined(USER_DATA_END) && defined(USER_BSS_START) &&  defined(USER_IMG_END)
+	return ((addr >= USER_DATA_START && addr < USER_DATA_END) ||
+		(addr >= USER_BSS_START  && addr < USER_IMG_END));
+#else
+	return false;
+#endif
+}
+
+bool user_panicked(conf_object_t *cpu, int addr, char **buf)
+{
+#ifdef USER_PANIC_ENTER
+	if (addr == USER_PANIC_ENTER) {
+		read_panic_message(cpu, buf);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
 
 /******************************************************************************
  * Other / Init
