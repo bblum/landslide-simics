@@ -242,6 +242,8 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	if (eip >= func && eip < func_end)
 		return true;
 
+	bool in_userland = eip >= USER_MEM_START;
+
 	eip = READ_STACK(cpu, 0);
 
 	if (eip >= func && eip < func_end)
@@ -252,7 +254,8 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	int rabbit = ebp;
 	int frame_count = 0;
 
-	while (ebp != stop_ebp && (unsigned)ebp < USER_MEM_START && frame_count++ < 1024) {
+	while (ebp != stop_ebp && (in_userland || (unsigned)ebp < USER_MEM_START)
+	       && frame_count++ < 1024) {
 		/* Test eip against given range. */
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
 		if (eip >= func && eip < func_end)
@@ -290,6 +293,7 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
 	int pos = 0, old_pos;
 	int stack_offset = 0; /* Counts by 1 - READ_STACK already multiplies */
+	bool in_userland = eip >= USER_MEM_START;
 
 	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ", tid, eip);
 	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
@@ -299,7 +303,8 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 	int rabbit = ebp;
 	int frame_count = 0;
 
-	while (ebp != 0 && (unsigned)ebp < USER_MEM_START && frame_count++ < 1024) {
+	while (ebp != 0 && (in_userland || (unsigned)ebp < USER_MEM_START)
+	       && frame_count++ < 1024) {
 		bool extra_frame;
 
 		do {
@@ -359,6 +364,12 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
 		if (rabbit == ebp) stop_ebp = ebp;
 		ebp = READ_MEMORY(cpu, ebp);
+		if (ebp < GUEST_DATA_START) {
+			/* Some kernels allow terminal ebps to trail off into
+			 * "junk values". Sometimes these are very small values.
+			 * We can avoid emitting simics errors in these cases. */
+			ebp = 0;
+		}
 	}
 
 	char *buf2 = MM_XSTRDUP(buf); /* truncate to save space */

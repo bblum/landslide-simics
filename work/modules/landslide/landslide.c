@@ -261,6 +261,11 @@ void init_local(void)
 
 int symtable_lookup(char *buf, int maxlen, int addr)
 {
+	// FIXME: make this work
+	if (addr >= USER_MEM_START) {
+		return snprintf(buf, maxlen, "<userspace>");
+	}
+
 	// TODO: store deflsym in struct ls_state
 	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
 	if (table == NULL) {
@@ -295,6 +300,11 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 
 int symtable_lookup_data(char *buf, int maxlen, int addr)
 {
+	// FIXME: make this work
+	if (addr >= USER_MEM_START) {
+		return snprintf(buf, maxlen, "<userspace>");
+	}
+
 	// TODO: store deflsym in struct ls_state
 	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
 	if (table == NULL) {
@@ -329,6 +339,11 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 
 bool function_eip_offset(int eip, int *offset)
 {
+	// FIXME: make this work
+	if (eip >= USER_MEM_START) {
+		return false;
+	}
+
 	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
 	if (table == NULL) {
 		return false;
