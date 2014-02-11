@@ -52,7 +52,7 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
 
 #define MEM_TRANSLATE(cpu, addr) /* I am sorry for writing this */	\
-	((addr) < USER_MEM_START ? (addr) :				\
+	(((unsigned int)addr) < ((unsigned int)USER_MEM_START) ? (addr) :	\
 	({	int upper = (addr) >> 22;				\
 		int lower = ((addr) >> 12) & 1023;			\
 		int offset = (addr) & 4095;				\
