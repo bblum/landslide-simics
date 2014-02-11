@@ -84,14 +84,13 @@ static void insert_chunk(struct rb_root *root, struct chunk *c, bool coalesce)
 	rb_insert_color(&c->nobe, root);
 }
 
-static struct chunk *remove_chunk(struct rb_root *root, int addr, int len)
+static struct chunk *remove_chunk(struct rb_root *root, int addr)
 {
 	struct chunk *target = NULL;
 	struct rb_node **p = find_insert_location(root, addr, &target);
 
 	if (p == NULL) {
 		assert(target != NULL);
-		//assert(target->base == addr && target->len == len);
 		rb_erase(&target->nobe, root);
 		return target;
 	} else {
@@ -263,8 +262,7 @@ static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
 	m->in_alloc = false;
 }
 
-static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
-			   int size)
+static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base)
 {
 	struct chunk *chunk;
 
@@ -274,28 +272,23 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base,
 		found_a_bug(ls);
 	}
 
-	chunk = remove_chunk(&m->heap, base, size);
+	chunk = remove_chunk(&m->heap, base);
 
 	if (base == 0) {
 		assert(chunk == NULL);
 		lsprintf(INFO, "Free() NULL; ok, I guess...\n");
 	} else if (chunk == NULL) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "Attempted to free non-existent chunk [0x%x | %d]"
-			 " -- (double free?)!\n", base, size);
+			 "Attempted to free non-existent chunk 0x%x"
+			 " -- (double free?)!\n", base);
 		found_a_bug(ls);
 	} else if (chunk->base != base) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "Attempted to free [0x%x | %d], contained within "
-			 "[0x%x | %d]\n", base, size, chunk->base, chunk->len);
-		found_a_bug(ls);
-	} else if (chunk->len != size) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "Attempted to free [0x%x | %d] with wrong size %d!\n",
-			 base, chunk->len, size);
+			 "Attempted to free 0x%x, contained within "
+			 "[0x%x | %d]\n", base, chunk->base, chunk->len);
 		found_a_bug(ls);
 	} else {
-		lsprintf(DEV, "Free() chunk [0x%x | %d]\n", base, size);
+		lsprintf(DEV, "Free() chunk 0x%x\n", base);
 	}
 
 	if (chunk != NULL) {
@@ -341,7 +334,7 @@ void mem_update(struct ls_state *ls)
 	} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
 		mem_exit_bad_place(ls, &ls->mem, base);
 	} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
-		mem_enter_free(ls, &ls->mem, base, size);
+		mem_enter_free(ls, &ls->mem, base);
 	} else if (kern_lmm_free_exiting(ls->eip)) {
 		mem_exit_free(ls, &ls->mem);
 	}
