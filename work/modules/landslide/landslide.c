@@ -463,6 +463,10 @@ static bool ensure_progress(struct ls_state *ls)
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PANIC: %s\n", buf);
 		MM_FREE(buf);
 		return false;
+	} else if (user_panicked(ls->cpu0, ls->eip, &buf)) {
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USERSPACE PANIC: %s\n", buf);
+		MM_FREE(buf);
+		return false;
 	}
 
 	/* FIXME: find a less false-negative way to tell when we have enough
