@@ -52,12 +52,12 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
 
 #define MEM_TRANSLATE(cpu, addr) /* I am sorry for writing this */	\
-	(((unsigned int)addr) < ((unsigned int)USER_MEM_START) ? (addr) :	\
-	({	int upper = (addr) >> 22;				\
-		int lower = ((addr) >> 12) & 1023;			\
-		int offset = (addr) & 4095;				\
-		int pde = SIM_read_phys_memory(cpu, GET_CPU_ATTR(cpu, cr3) + (4 * upper), WORD_SIZE); \
-		int pte = SIM_read_phys_memory(cpu, (pde & ~4095) + (4 * lower), WORD_SIZE); \
+	(((unsigned int)(addr)) < ((unsigned int)USER_MEM_START) ? (addr) :	\
+	({	unsigned int upper = ((unsigned int)(addr)) >> 22;		\
+		unsigned int lower = (((unsigned int)(addr)) >> 12) & 1023;	\
+		unsigned int offset = ((unsigned int)(addr)) & 4095;		\
+		unsigned int pde = SIM_read_phys_memory(cpu, GET_CPU_ATTR(cpu, cr3) + (4 * upper), WORD_SIZE); \
+		unsigned int pte = SIM_read_phys_memory(cpu, (pde & ~4095) + (4 * lower), WORD_SIZE); \
 		(pte & ~4095) + offset; }))
 
 #define READ_BYTE(cpu, addr) \
