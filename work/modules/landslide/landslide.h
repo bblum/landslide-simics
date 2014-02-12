@@ -34,7 +34,8 @@ struct ls_state {
 	struct arbiter_state arbiter;
 	struct save_state save;
 	struct test_state test;
-	struct mem_state mem;
+	struct mem_state kern_mem;
+	struct mem_state user_mem;
 	struct rand_state rand;
 
 	char *cmd_file;

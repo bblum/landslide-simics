@@ -28,7 +28,8 @@ struct hax {
 	 * it's a point directly backwards from where we are. */
 	struct sched_state *oldsched;
 	struct test_state *oldtest;
-	struct mem_state *oldmem;
+	struct mem_state *old_kern_mem;
+	struct mem_state *old_user_mem;
 	/* List of things that are *not* saved/restored (i.e., glowing green):
 	 *  - arbiter_state (just a choice queue, maintained internally)
 	 *  - ls_state's absolute_trigger_count (obv.)

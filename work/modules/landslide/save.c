@@ -216,9 +216,10 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 }
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
-	dest->test_is_running  = src->test_is_running;
-	dest->start_population = src->start_population;
-	dest->start_heap_size  = src->start_heap_size;
+	dest->test_is_running      = src->test_is_running;
+	dest->start_population     = src->start_population;
+	dest->start_kern_heap_size = src->start_kern_heap_size;
+	dest->start_user_heap_size = src->start_user_heap_size;
 
 	if (src->current_test == NULL) {
 		dest->current_test = NULL;
@@ -352,11 +353,14 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->oldsched);
 	free_test(h->oldtest);
 	MM_FREE(h->oldtest);
-	free_mem(h->oldmem);
-	MM_FREE(h->oldmem);
+	free_mem(h->old_kern_mem);
+	MM_FREE(h->old_kern_mem);
+	free_mem(h->old_user_mem);
+	MM_FREE(h->old_user_mem);
 	h->oldsched = NULL;
 	h->oldtest = NULL;
-	h->oldmem = NULL;
+	h->old_kern_mem = NULL;
+	h->old_user_mem = NULL;
 	MM_FREE(h->conflicts);
 	MM_FREE(h->happens_before);
 	h->conflicts = NULL;
@@ -380,8 +384,10 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	copy_sched(&ls->sched, h->oldsched);
 	free_test(&ls->test);
 	copy_test(&ls->test, h->oldtest);
-	free_mem(&ls->mem);
-	copy_mem(&ls->mem, h->oldmem); /* note: leaves shm empty, as we want */
+	free_mem(&ls->kern_mem);
+	copy_mem(&ls->kern_mem, h->old_kern_mem); /* note: leaves shm empty, as we want */
+	free_mem(&ls->user_mem);
+	copy_mem(&ls->user_mem, h->old_user_mem); /* as above */
 	free_arbiter_choices(&ls->arbiter);
 
 	ls->just_jumped = true;
@@ -471,40 +477,42 @@ static void compute_happens_before(struct hax *h)
  * far into the save point we're creating. Then, intersects the memory accesses
  * with those of each ancestor to compute independences and find data races.
  * NB: Looking for data races depends on having computed happens_before first. */
-static void shimsham_shm(conf_object_t *cpu, struct hax *h, struct mem_state *m)
+static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 {
+	/* note: NOT "&h->foo"! gcc does NOT warn for this mistake! ARGH! */
+	struct mem_state *oldmem = in_kernel ? h->old_kern_mem : h->old_user_mem;
+	struct mem_state *newmem = in_kernel ? &ls->kern_mem   : &ls->user_mem;
+
 	/* store shared memory accesses from this transition; reset to empty */
-	h->oldmem->shm.rb_node = m->shm.rb_node;
-	m->shm.rb_node = NULL;
+	oldmem->shm.rb_node = newmem->shm.rb_node;
+	newmem->shm.rb_node = NULL;
 
 	/* do the same for the list of freed chunks in this transition */
-	h->oldmem->freed.rb_node = m->freed.rb_node;
-	m->freed.rb_node = NULL;
+	oldmem->freed.rb_node = newmem->freed.rb_node;
+	newmem->freed.rb_node = NULL;
 
 	/* compute newly-completed transition's conflicts with previous ones */
 	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
 		if (h->chosen_thread == old->chosen_thread) {
 			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
 				 h->chosen_thread, h->depth, old->depth);
-			continue;
 		} else if (kern_has_idle() &&
 			   (h->chosen_thread == kern_get_idle_tid() ||
 			    old->chosen_thread == kern_get_idle_tid())) {
 			/* Idle shouldn't have siblings, but just in case. */
 			h->conflicts[old->depth] = true;
-			continue;
 		} else if (old->depth == 0) {
-			/* Basically guaranteed. Suppress printing. */
+			/* Basically guaranteed, and irrelevant. Suppress printing. */
 			h->conflicts[0] = true;
-			continue;
+		} else {
+			/* The haxes are independent if there was no intersection. */
+			assert(old->depth >= 0 && old->depth < h->depth);
+			/* Only bother to compute, and look for data races, if
+			 * they are possibly 'concurrent' with each other. */
+			h->conflicts[old->depth] =
+				(!h->happens_before[old->depth]) &&
+				mem_shm_intersect(ls->cpu0, h, old, in_kernel);
 		}
-		/* The haxes are independent if there was no intersection. */
-		assert(old->depth >= 0 && old->depth < h->depth);
-		/* Only bother to compute, and look for data races, if they are
-		 * possibly 'concurrent' with each other. */
-		h->conflicts[old->depth] =
-			(!h->happens_before[old->depth]) &&
-			mem_shm_intersect(cpu, h, old);
 	}
 }
 
@@ -631,7 +639,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		assert(h->trigger_count == ls->trigger_count);
 		assert(h->oldsched == NULL);
 		assert(h->oldtest == NULL);
-		assert(h->oldmem == NULL);
+		assert(h->old_kern_mem == NULL);
+		assert(h->old_user_mem == NULL);
 		assert(!h->all_explored); /* exploration invariant */
 	}
 
@@ -641,8 +650,11 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	h->oldtest = MM_XMALLOC(1, struct test_state);
 	copy_test(h->oldtest, &ls->test);
 
-	h->oldmem = MM_XMALLOC(1, struct mem_state);
-	copy_mem(h->oldmem, &ls->mem);
+	h->old_kern_mem = MM_XMALLOC(1, struct mem_state);
+	copy_mem(h->old_kern_mem, &ls->kern_mem);
+
+	h->old_user_mem = MM_XMALLOC(1, struct mem_state);
+	copy_mem(h->old_user_mem, &ls->user_mem);
 
 	if (h->depth > 0) {
 		h->conflicts      = MM_XMALLOC(h->depth, bool);
@@ -655,7 +667,12 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->happens_before = NULL;
 	}
 	compute_happens_before(h);
-	shimsham_shm(ls->cpu0, h, &ls->mem);
+	/* Compute independence relation for both kernel and user mems. Whether
+	 * to actually compute for either is determined by the user/kernel config
+	 * option, which decides whether we will have stored the user/kernel shms
+	 * at all (e.g., running in user mode, the kernel shm will be empty). */
+	shimsham_shm(ls, h, true);
+	shimsham_shm(ls, h, false);
 
 	ss->current  = h;
 	ss->next_tid = new_tid;

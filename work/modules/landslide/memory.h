@@ -71,12 +71,12 @@ struct mem_state {
  * Interface
  ******************************************************************************/
 
-void mem_init(struct mem_state *);
+void mem_init(struct ls_state *);
 
 void mem_update(struct ls_state *);
 
-void mem_check_shared_access(struct ls_state *, struct mem_state *, int addr,
-			     bool write);
-bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h2);
+void mem_check_shared_access(struct ls_state *, int addr, bool write);
+bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h2,
+                       bool in_kernel);
 
 #endif

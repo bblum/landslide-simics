@@ -16,7 +16,8 @@ struct test_state {
 	bool test_ever_caused;
 	char *current_test;
 	int start_population; /* valid iff test_ever_caused */
-	int start_heap_size;
+	int start_kern_heap_size;
+	int start_user_heap_size;
 };
 
 void test_init(struct test_state *);

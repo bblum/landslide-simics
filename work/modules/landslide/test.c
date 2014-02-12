@@ -171,7 +171,8 @@ bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
 	t->start_population = ls->sched.num_agents;
 
 	/* Record the size of the heap at the start of the test */
-	t->start_heap_size = ls->mem.heap_size;
+	t->start_kern_heap_size = ls->kern_mem.heap_size;
+	t->start_user_heap_size = ls->user_mem.heap_size;
 
 	return true;
 }

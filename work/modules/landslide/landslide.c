@@ -72,7 +72,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	arbiter_init(&ls->arbiter);
 	save_init(&ls->save);
 	test_init(&ls->test);
-	mem_init(&ls->mem);
+	mem_init(ls);
 	rand_init(&ls->rand);
 
 	ls->cmd_file = NULL;
@@ -507,11 +507,14 @@ static bool test_ended_safely(struct ls_state *ls)
 	/* Anything that would indicate failure - e.g. return code... */
 
 	// TODO: find the blocks that were leaked and print stack traces for them
-	if (ls->test.start_heap_size > ls->mem.heap_size) {
-		// TODO: the test could copy the heap to indicate which blocks
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "MEMORY LEAK (%d bytes)!\n",
-			 ls->test.start_heap_size - ls->mem.heap_size);
+	// TODO: the test could copy the heap to indicate which blocks
+	if (ls->test.start_kern_heap_size > ls->kern_mem.heap_size) {
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL MEMORY LEAK (%d bytes)!\n",
+			 ls->test.start_kern_heap_size - ls->kern_mem.heap_size);
+		return false;
+	} else if (ls->test.start_user_heap_size > ls->user_mem.heap_size) {
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USER MEMORY LEAK (%d bytes)!\n",
+			 ls->test.start_user_heap_size - ls->user_mem.heap_size);
 		return false;
 	}
 
@@ -583,35 +586,29 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
-	if (ls->eip >= USER_MEM_START) {
-		if (entry->trace_type == TR_Instruction) {
-			check_user_syscall(ls);
-			check_test_state(ls);
-		}
-		return;
-	} else if (entry->trace_type == TR_Data && entry->pa < USER_MEM_START) {
-		mem_check_shared_access(ls, &ls->mem, entry->pa,
+	if (entry->trace_type == TR_Data) {
+		/* mem access - do heap checks, whether user or kernel */
+		mem_check_shared_access(ls, entry->pa,
 					(entry->read_or_write == Sim_RW_Write));
-		return;
 	} else if (entry->trace_type != TR_Instruction) {
-		return;
+		/* non-data non-instr event, such as an exception - don't care */
+	} else if (ls->eip >= USER_MEM_START) {
+		/* userland instruction */
+		check_user_syscall(ls);
+		mem_update(ls);
+		check_test_state(ls);
+	} else {
+		/* kernelland instruction */
+		ls->trigger_count++;
+		ls->absolute_trigger_count++;
+
+		if (ls->just_jumped) {
+			sched_recover(ls);
+			ls->just_jumped = false;
+		}
+
+		sched_update(ls);
+		mem_update(ls);
+		check_test_state(ls);
 	}
-
-	ls->trigger_count++;
-	ls->absolute_trigger_count++;
-
-	if (ls->trigger_count % 1000000 == 0) {
-		lsprintf(INFO, "hax number %lu (%lu) at 0x%x\n",
-			 ls->trigger_count, ls->absolute_trigger_count,
-			 ls->eip);
-	}
-
-	if (ls->just_jumped) {
-		sched_recover(ls);
-		ls->just_jumped = false;
-	}
-
-	sched_update(ls);
-	mem_update(ls);
-	check_test_state(ls);
 }

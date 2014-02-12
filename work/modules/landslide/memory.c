@@ -113,6 +113,61 @@ static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
 	print_heap(v, c->nobe.rb_right, rightmost);
 }
 
+#define BUF_SIZE 256
+
+/* Attempt to find a freed chunk among all transitions */
+static struct chunk *find_freed_chunk(struct ls_state *ls, int addr, bool in_kernel,
+				      struct hax **before, struct hax **after)
+{
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+
+	*before = NULL;
+	*after = ls->save.current;
+
+	do {
+		struct chunk *c = find_containing_chunk(&m->freed, addr);
+		if (c != NULL) {
+			assert(c->malloc_trace != NULL);
+			assert(c->free_trace != NULL);
+			return c;
+		}
+
+		/* Walk up the choice tree branch */
+		*before = *after;
+		if (*after != NULL) {
+			*after = (*after)->parent;
+			m = in_kernel ? (*before)->old_kern_mem :
+			                (*before)->old_user_mem;
+		}
+	} while (*before != NULL);
+
+	return NULL;
+}
+
+static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct hax *after)
+{
+	char before_buf[BUF_SIZE];
+	char after_buf[BUF_SIZE];
+
+	if (after == NULL) {
+		snprintf(after_buf, BUF_SIZE, "<root>");
+	} else {
+		snprintf(after_buf, BUF_SIZE, "#%d/tid%d", after->depth,
+			 after->chosen_thread);
+	}
+	if (before == NULL) {
+		snprintf(before_buf, BUF_SIZE, "<current>");
+	} else {
+		snprintf(before_buf, BUF_SIZE, "#%d/tid%d", before->depth,
+			 before->chosen_thread);
+	}
+
+	lsprintf(BUG, "[0x%x | %d] was allocated by %s\n",
+		 c->base, c->len, c->malloc_trace);
+	lsprintf(BUG, "...and, between choices %s and %s, freed by %s\n",
+		 after_buf, before_buf, c->free_trace);
+}
+
 /******************************************************************************
  * shm helpers
  ******************************************************************************/
@@ -209,7 +264,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
  * Interface
  ******************************************************************************/
 
-void mem_init(struct mem_state *m)
+static void mem_heap_init(struct mem_state *m)
 {
 	m->heap.rb_node = NULL;
 	m->heap_size = 0;
@@ -220,15 +275,24 @@ void mem_init(struct mem_state *m)
 	m->freed.rb_node = NULL;
 }
 
+void mem_init(struct ls_state *ls)
+{
+	mem_heap_init(&ls->kern_mem);
+	mem_heap_init(&ls->user_mem);
+}
+
 /* heap interface */
 
+#define K_STR(in_kernel) ((in_kernel) ? "kernel" : "userspace")
+
 /* bad place == mal loc */
-static void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m,
-				int size)
+static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, int size)
 {
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+
 	if (m->in_alloc || m->in_free) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Malloc reentered %s!\n",
-			 m->in_alloc ? "Malloc" : "Free");
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Malloc (in %s) reentered %s!\n",
+			 K_STR(in_kernel), m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
 
@@ -236,17 +300,23 @@ static void mem_enter_bad_place(struct ls_state *ls, struct mem_state *m,
 	m->alloc_request_size = size;
 }
 
-static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
-			       int base)
+static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 {
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+
 	assert(m->in_alloc && "attempt to exit malloc without being in!");
 	assert(!m->in_free && "attempt to exit malloc while in free!");
 
 	lsprintf(DEV, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
-	assert(base < USER_MEM_START);
+
+	if (in_kernel) {
+		assert(base < USER_MEM_START);
+	} else {
+		assert(base >= USER_MEM_START);
+	}
 
 	if (base == 0) {
-		lsprintf(INFO, "Kernel seems to be out of memory.\n");
+		lsprintf(INFO, "%s seems to be out of memory.\n", K_STR(in_kernel));
 	} else {
 		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
 		chunk->base = base;
@@ -262,13 +332,15 @@ static void mem_exit_bad_place(struct ls_state *ls, struct mem_state *m,
 	m->in_alloc = false;
 }
 
-static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base)
+static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
 {
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+
 	struct chunk *chunk;
 
 	if (m->in_alloc || m->in_free) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Free reentered %s!\n",
-			 m->in_alloc ? "Malloc" : "Free");
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Free (in %s) reentered %s!\n",
+			 K_STR(in_kernel), m->in_alloc ? "Malloc" : "Free");
 		found_a_bug(ls);
 	}
 
@@ -276,19 +348,28 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base)
 
 	if (base == 0) {
 		assert(chunk == NULL);
-		lsprintf(INFO, "Free() NULL; ok, I guess...\n");
+		lsprintf(INFO, "Free() NULL (in %s); ok, I guess...\n", K_STR(in_kernel));
 	} else if (chunk == NULL) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "Attempted to free non-existent chunk 0x%x"
-			 " -- (double free?)!\n", base);
+		struct hax *before;
+		struct hax *after;
+		chunk = find_freed_chunk(ls, base, in_kernel, &before, &after);
+		if (chunk != NULL) {
+			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DOUBLE FREE (in %s) "
+				 "of 0x%x!\n", K_STR(in_kernel), base);
+			print_freed_chunk_info(chunk, before, after);
+		} else {
+			lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+				 "Attempted to free (in %s) 0x%x, which was "
+				 "never alloc'ed!\n", K_STR(in_kernel), base);
+		}
 		found_a_bug(ls);
 	} else if (chunk->base != base) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "Attempted to free 0x%x, contained within "
-			 "[0x%x | %d]\n", base, chunk->base, chunk->len);
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Attempted to free 0x%x "
+			 "(in %s), contained within [0x%x | %d]\n", base,
+			 K_STR(in_kernel), chunk->base, chunk->len);
 		found_a_bug(ls);
 	} else {
-		lsprintf(DEV, "Free() chunk 0x%x\n", base);
+		lsprintf(DEV, "Free() chunk 0x%x, in %s\n", base, K_STR(in_kernel));
 	}
 
 	if (chunk != NULL) {
@@ -302,12 +383,15 @@ static void mem_enter_free(struct ls_state *ls, struct mem_state *m, int base)
 	m->in_free = true;
 }
 
-static void mem_exit_free(struct ls_state *ls, struct mem_state *m)
+static void mem_exit_free(struct ls_state *ls, bool in_kernel)
 {
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+
 	assert(m->in_free && "attempt to exit free without being in!");
 	assert(!m->in_alloc && "attempt to exit free while in malloc!");
 	m->in_free = false;
 }
+#undef K_STR
 
 void mem_update(struct ls_state *ls)
 {
@@ -317,63 +401,44 @@ void mem_update(struct ls_state *ls)
 
 	/* Only start tracking allocations after kernel_main is entered - the
 	 * multiboot code that runs before kernel_main may confuse us. */
-	if (!ls->mem.guest_init_done) {
+	if (!ls->kern_mem.guest_init_done) {
 		if (kern_kernel_main(ls->eip)) {
-			ls->mem.guest_init_done = true;
+			ls->kern_mem.guest_init_done = true;
 		} else {
 			return;
 		}
 	}
 
 	if (within_function(ls->cpu0, ls->eip, GUEST_LMM_REMOVE_FREE_ENTER,
-			    GUEST_LMM_REMOVE_FREE_EXIT))
+			    GUEST_LMM_REMOVE_FREE_EXIT)) {
 		return;
+	}
 
 	if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
-		mem_enter_bad_place(ls, &ls->mem, size);
+		mem_enter_bad_place(ls, true, size);
 	} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
-		mem_exit_bad_place(ls, &ls->mem, base);
+		mem_exit_bad_place(ls, true, base);
 	} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
-		mem_enter_free(ls, &ls->mem, base);
+		mem_enter_free(ls, true, base);
 	} else if (kern_lmm_free_exiting(ls->eip)) {
-		mem_exit_free(ls, &ls->mem);
+		mem_exit_free(ls, true);
+	} else if (user_mm_malloc_entering(ls->cpu0, ls->eip, &size)) {
+		mem_enter_bad_place(ls, false, size);
+	} else if (user_mm_malloc_exiting(ls->cpu0, ls->eip, &base)) {
+		mem_exit_bad_place(ls, false, base);
+	} else if (user_mm_free_entering(ls->cpu0, ls->eip, &base)) {
+		mem_enter_free(ls, false, base);
+	} else if (user_mm_free_exiting(ls->eip)) {
+		mem_exit_free(ls, false);
 	}
 }
 
 /* shm interface */
 
-#define BUF_SIZE 256
-
-/* Attempt to find a freed chunk among all transitions */
-static struct chunk *find_freed_chunk(struct ls_state *ls, int addr,
-				      struct hax **before, struct hax **after)
+static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_kernel)
 {
-	struct mem_state *m = &ls->mem;
-	*before = NULL;
-	*after = ls->save.current;
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
-	do {
-		struct chunk *c = find_containing_chunk(&m->freed, addr);
-		if (c != NULL) {
-			assert(c->malloc_trace != NULL);
-			assert(c->free_trace != NULL);
-			return c;
-		}
-
-		/* Walk up the choice tree branch */
-		*before = *after;
-		if (*after != NULL) {
-			*after = (*after)->parent;
-			m = (*before)->oldmem;
-		}
-	} while (*before != NULL);
-
-	return NULL;
-}
-
-static void use_after_free(struct ls_state *ls, struct mem_state *m, int addr,
-			   bool write)
-{
 	lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USE AFTER FREE - %s 0x%.8x at eip"
 		 " 0x%.8x\n", write ? "write to" : "read from", addr,
 		 (int)GET_CPU_ATTR(ls->cpu0, eip));
@@ -384,64 +449,54 @@ static void use_after_free(struct ls_state *ls, struct mem_state *m, int addr,
 	/* Find the chunk and print stack traces for it */
 	struct hax *before;
 	struct hax *after;
-	char before_buf[BUF_SIZE];
-	char after_buf[BUF_SIZE];
-	struct chunk *c = find_freed_chunk(ls, addr, &before, &after);
+	struct chunk *c = find_freed_chunk(ls, addr, in_kernel, &before, &after);
 
 	if (c == NULL) {
 		lsprintf(BUG, "0x%x was never allocated...\n", addr);
-		found_a_bug(ls);
-		return;
-	}
-
-	if (after == NULL) {
-		snprintf(after_buf, BUF_SIZE, "<root>");
 	} else {
-		snprintf(after_buf, BUF_SIZE, "#%d/tid%d", after->depth,
-			 after->chosen_thread);
+		print_freed_chunk_info(c, before, after);
 	}
-	if (before == NULL) {
-		snprintf(before_buf, BUF_SIZE, "<current>");
-	} else {
-		snprintf(before_buf, BUF_SIZE, "#%d/tid%d", before->depth,
-			 before->chosen_thread);
-	}
-
-	lsprintf(BUG, "[0x%x | %d] was allocated by %s\n",
-		 c->base, c->len, c->malloc_trace);
-	lsprintf(BUG, "...and, between choices %s and %s, freed by %s\n",
-		 after_buf, before_buf, c->free_trace);
 
 	found_a_bug(ls);
 }
 
-void mem_check_shared_access(struct ls_state *ls, struct mem_state *m, int addr,
-			     bool write)
+void mem_check_shared_access(struct ls_state *ls, int addr, bool write)
 {
-	if (!ls->sched.guest_init_done)
-		return;
+	struct mem_state *m;
 
-	/* the allocator has a free pass */
-	if (m->in_alloc || m->in_free)
+	if (!ls->sched.guest_init_done) {
 		return;
+	}
 
-	/* so does the scheduler - TODO: make this configurable */
-	if (kern_in_scheduler(ls->cpu0, ls->eip) ||
-	    kern_access_in_scheduler(addr) ||
-	    ls->sched.cur_agent->action.handling_timer || /* XXX: a hack */
-	    ls->sched.cur_agent->action.context_switch)
-		return;
+	/* Determine which heap - kernel or user - to reason about. */
+	if (addr < USER_MEM_START) {
+		m = &ls->kern_mem;
+
+		/* Certain components of the kernel have a free pass, such as
+		 * the scheduler - TODO: make this configurable */
+		if (kern_in_scheduler(ls->cpu0, ls->eip) ||
+		    kern_access_in_scheduler(addr) ||
+		    ls->sched.cur_agent->action.handling_timer || /* XXX: a hack */
+		    ls->sched.cur_agent->action.context_switch)
+			return;
 
 #ifndef STUDENT_FRIENDLY
-	/* ignore certain "probably innocent" accesses */
-	if (kern_address_own_kstack(ls->cpu0, addr))
-		return;
+		/* ignore certain "probably innocent" accesses */
+		if (kern_address_own_kstack(ls->cpu0, addr))
+			return;
 #endif
+	} else {
+		m = &ls->user_mem;
+	}
+
+	/* the allocator has a free pass to its own accesses */
+	if (m->in_alloc || m->in_free)
+		return;
 
 	if (kern_address_in_heap(addr)) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
-			use_after_free(ls, m, addr, write);
+			use_after_free(ls, addr, write, addr < USER_MEM_START);
 		} else {
 			add_shm(ls, m, c, addr, write);
 		}
@@ -564,10 +619,11 @@ static void check_data_race(conf_object_t *cpu,
 }
 
 /* Compute the intersection of two transitions' shm accesses */
-bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1)
+bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
+                       bool in_kernel)
 {
-	struct mem_state *m0 = h0->oldmem;
-	struct mem_state *m1 = h1->oldmem;
+	struct mem_state *m0 = in_kernel ? h0->old_kern_mem : h0->old_user_mem;
+	struct mem_state *m1 = in_kernel ? h1->old_kern_mem : h1->old_user_mem;
 	int tid0 = h0->chosen_thread;
 	int tid1 = h1->chosen_thread;
 
