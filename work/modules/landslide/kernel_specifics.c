@@ -237,6 +237,10 @@ bool kern_forking(int eip)
 {
 	return eip == TELL_LANDSLIDE_FORKING;
 }
+bool kern_execing(int eip)
+{
+	return eip == TELL_LANDSLIDE_EXECING;
+}
 bool kern_sleeping(int eip)
 {
 	return eip == TELL_LANDSLIDE_SLEEPING;
