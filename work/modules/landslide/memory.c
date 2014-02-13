@@ -271,6 +271,8 @@ static void mem_heap_init(struct mem_state *m)
 	m->guest_init_done = false;
 	m->in_alloc = false;
 	m->in_free = false;
+	m->cr3 = 0;
+	m->did_exec = false;
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
 }
@@ -393,6 +395,41 @@ static void mem_exit_free(struct ls_state *ls, bool in_kernel)
 }
 #undef K_STR
 
+/* The user mem heap tracking can only work for a single address space. We want
+ * to pay attention to the userspace program under test, not the shell or init
+ * or idle or anything like that. Figure out what that process's cr3 is. */
+static bool ignore_user_access(struct ls_state *ls)
+{
+	int current_tid = ls->sched.cur_agent->tid;
+	int cr3 = GET_CPU_ATTR(ls->cpu0, cr3);;
+
+	if (current_tid == kern_get_init_tid() ||
+	    current_tid == kern_get_shell_tid() ||
+	    (kern_has_idle() && current_tid == kern_get_idle_tid())) {
+		return true;
+	} else if (ls->user_mem.cr3 == 0) {
+		ls->user_mem.cr3 = cr3;
+		lsprintf(DEV, "Registered cr3 value 0x%x for userspace "
+			 "tid %d.\n", cr3, current_tid);
+		/* Ignore it anyway. We are still in the shell, and need to
+		 * wait for it to exec. */
+		return true;
+	} else if (ls->user_mem.cr3 != cr3) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Memory tracking for "
+			 "more than 1 user address space is unsupported!\n");
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Already tracking for "
+			 "cr3 0x%x; current cr3 0x%x; current tid %d\n",
+			 ls->user_mem.cr3, cr3, current_tid);
+		assert(0);
+	} else {
+		/* Ignore the access if it's from the few instructions between
+		 * when the shell forks and execs. This flag will be set for us
+		 * below, in the kernel-access-watcher (this function only gets
+		 * called for userspace functions). */
+		return !ls->user_mem.did_exec;
+	}
+}
+
 void mem_update(struct ls_state *ls)
 {
 	/* Dynamic memory allocation tracking */
@@ -414,22 +451,37 @@ void mem_update(struct ls_state *ls)
 		return;
 	}
 
-	if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
-		mem_enter_bad_place(ls, true, size);
-	} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
-		mem_exit_bad_place(ls, true, base);
-	} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
-		mem_enter_free(ls, true, base);
-	} else if (kern_lmm_free_exiting(ls->eip)) {
-		mem_exit_free(ls, true);
-	} else if (user_mm_malloc_entering(ls->cpu0, ls->eip, &size)) {
-		mem_enter_bad_place(ls, false, size);
-	} else if (user_mm_malloc_exiting(ls->cpu0, ls->eip, &base)) {
-		mem_exit_bad_place(ls, false, base);
-	} else if (user_mm_free_entering(ls->cpu0, ls->eip, &base)) {
-		mem_enter_free(ls, false, base);
-	} else if (user_mm_free_exiting(ls->eip)) {
-		mem_exit_free(ls, false);
+	if (ls->eip < USER_MEM_START) {
+		if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
+			mem_enter_bad_place(ls, true, size);
+		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
+			mem_exit_bad_place(ls, true, base);
+		} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
+			mem_enter_free(ls, true, base);
+		} else if (kern_lmm_free_exiting(ls->eip)) {
+			mem_exit_free(ls, true);
+		} else if (kern_execing(ls->eip)) {
+			/* Here we are responsible for noticing when the
+			 * userspace program we are tracking does its exec. */
+			if (ls->user_mem.cr3 != 0 &&
+			    ls->user_mem.cr3 == GET_CPU_ATTR(ls->cpu0, cr3)) {
+				lsprintf(DEV, "User program of tid %d, cr3 0x%x does exec.\n",
+					 ls->sched.cur_agent->tid, ls->user_mem.cr3);
+				ls->user_mem.did_exec = true;
+			}
+		}
+	} else {
+		if (ignore_user_access(ls)) {
+			return;
+		} else if (user_mm_malloc_entering(ls->cpu0, ls->eip, &size)) {
+			mem_enter_bad_place(ls, false, size);
+		} else if (user_mm_malloc_exiting(ls->cpu0, ls->eip, &base)) {
+			mem_exit_bad_place(ls, false, base);
+		} else if (user_mm_free_entering(ls->cpu0, ls->eip, &base)) {
+			mem_enter_free(ls, false, base);
+		} else if (user_mm_free_exiting(ls->eip)) {
+			mem_exit_free(ls, false);
+		}
 	}
 }
 
@@ -460,47 +512,83 @@ static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_ke
 	found_a_bug(ls);
 }
 
-void mem_check_shared_access(struct ls_state *ls, int addr, bool write)
+void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
+			     bool write)
 {
 	struct mem_state *m;
+	bool (*address_in_heap)(int addr);
+	bool (*address_global)(int addr);
+	int addr;
+
+	if (phys_addr < USER_MEM_START && virt_addr != 0) {
+		/* non-page-table-read access in kernel mem. */
+		assert(phys_addr == virt_addr && "kernel memory not direct-mapped??");
+	}
 
 	if (!ls->sched.guest_init_done) {
 		return;
 	}
 
-	/* Determine which heap - kernel or user - to reason about. */
-	if (addr < USER_MEM_START) {
+	/* Determine which heap - kernel or user - to reason about.
+	 * Note: Need to case on eip's value, not addr's, since the
+	 * kernel may access user memory for e.g. page tables. */
+	if (ls->eip < USER_MEM_START) {
+		/* KERNEL SPACE */
 		m = &ls->kern_mem;
+		address_in_heap = kern_address_in_heap;
+		address_global = kern_address_global;
+		addr = phys_addr;
 
 		/* Certain components of the kernel have a free pass, such as
 		 * the scheduler - TODO: make this configurable */
 		if (kern_in_scheduler(ls->cpu0, ls->eip) ||
 		    kern_access_in_scheduler(addr) ||
 		    ls->sched.cur_agent->action.handling_timer || /* XXX: a hack */
-		    ls->sched.cur_agent->action.context_switch)
+		    ls->sched.cur_agent->action.context_switch) {
 			return;
+		}
 
 #ifndef STUDENT_FRIENDLY
 		/* ignore certain "probably innocent" accesses */
-		if (kern_address_own_kstack(ls->cpu0, addr))
+		if (kern_address_own_kstack(ls->cpu0, addr)) {
 			return;
+		}
 #endif
 	} else {
-		m = &ls->user_mem;
+		/* USER SPACE */
+		if (phys_addr < USER_MEM_START) {
+			/* The 'int' instruction in userspace will cause a bunch
+			 * of accesses to the kernel stack. Ignore them. */
+			return;
+		} else if (ignore_user_access(ls)) {
+			/* Ignore accesses from userspace programs such as shell,
+			 * idle, or shell-post-fork-pre-exec. */
+			return;
+		} else if (virt_addr == 0) {
+			/* Read from page table. */
+			assert(!write && "userspace write to page table??");
+			return;
+		} else {
+			m = &ls->user_mem;
+			address_in_heap = user_address_in_heap;
+			address_global = user_address_global;
+			/* Use VA, not PA, for obviously important reasons. */
+			addr = virt_addr;
+		}
 	}
 
 	/* the allocator has a free pass to its own accesses */
 	if (m->in_alloc || m->in_free)
 		return;
 
-	if (kern_address_in_heap(addr)) {
+	if (address_in_heap(addr)) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
 			use_after_free(ls, addr, write, addr < USER_MEM_START);
 		} else {
 			add_shm(ls, m, c, addr, write);
 		}
-	} else if (kern_address_global(addr)) {
+	} else if (address_global(addr)) {
 		add_shm(ls, m, NULL, addr, write);
 	}
 }
@@ -602,14 +690,14 @@ static void check_data_race(conf_object_t *cpu,
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			// To be safe, all pairs of locksets must have a lock in common.
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
-				char buf[256];
+				char buf[BUF_SIZE];
 				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "Data race: ");
 				print_shm_conflict(DEV, cpu, m0, m1, ma0, ma1);
 				printf(DEV, " at:\n");
-				symtable_lookup(buf, 256, ma0->eip);
+				symtable_lookup(buf, BUF_SIZE, ma0->eip);
 				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "0x%x %s and \n",
 					 ma0->eip, buf);
-				symtable_lookup(buf, 256, ma1->eip);
+				symtable_lookup(buf, BUF_SIZE, ma1->eip);
 				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "0x%x %s\n",
 					 ma1->eip, buf);
 				return;
@@ -662,6 +750,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 				conflicts++;
 				ma0->conflict = true;
 				ma1->conflict = true;
+				// FIXME: make this not interleave horribly with conflicts
 				check_data_race(cpu, m0, m1, ma0, ma1);
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));

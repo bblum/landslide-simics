@@ -588,7 +588,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 
 	if (entry->trace_type == TR_Data) {
 		/* mem access - do heap checks, whether user or kernel */
-		mem_check_shared_access(ls, entry->pa,
+		mem_check_shared_access(ls, entry->pa, entry->va,
 					(entry->read_or_write == Sim_RW_Write));
 	} else if (entry->trace_type != TR_Instruction) {
 		/* non-data non-instr event, such as an exception - don't care */

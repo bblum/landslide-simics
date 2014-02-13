@@ -59,6 +59,8 @@ struct mem_state {
 	bool in_alloc;
 	bool in_free;
 	int alloc_request_size; /* valid iff in_alloc */
+	int cr3; /* 0 == uninitialized or this is for kernel mem */
+	bool did_exec; /* for ignoring premature userspace accesses */
 	/* set of all shared accesses that happened during this transition;
 	 * cleared after each save point - done in save.c */
 	struct rb_root shm;
@@ -75,7 +77,8 @@ void mem_init(struct ls_state *);
 
 void mem_update(struct ls_state *);
 
-void mem_check_shared_access(struct ls_state *, int addr, bool write);
+void mem_check_shared_access(struct ls_state *, int phys_addr, int virt_addr,
+							 bool write);
 bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h2,
                        bool in_kernel);
 
