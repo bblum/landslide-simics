@@ -269,6 +269,7 @@ static void mem_heap_init(struct mem_state *m)
 	m->heap.rb_node = NULL;
 	m->heap_size = 0;
 	m->guest_init_done = false;
+	m->in_mm_init = false;
 	m->in_alloc = false;
 	m->in_free = false;
 	m->cr3 = 0;
@@ -291,6 +292,7 @@ static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, int size)
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
+	assert(!m->in_mm_init);
 	if (m->in_alloc || m->in_free) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Malloc (in %s) reentered %s!\n",
 			 K_STR(in_kernel), m->in_alloc ? "Malloc" : "Free");
@@ -307,6 +309,7 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 
 	assert(m->in_alloc && "attempt to exit malloc without being in!");
 	assert(!m->in_free && "attempt to exit malloc while in free!");
+	assert(!m->in_mm_init && "attempt to exit malloc while in init!");
 
 	lsprintf(DEV, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
 
@@ -339,6 +342,7 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
 
 	struct chunk *chunk;
 
+	assert(!m->in_mm_init);
 	if (m->in_alloc || m->in_free) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Free (in %s) reentered %s!\n",
 			 K_STR(in_kernel), m->in_alloc ? "Malloc" : "Free");
@@ -390,6 +394,7 @@ static void mem_exit_free(struct ls_state *ls, bool in_kernel)
 
 	assert(m->in_free && "attempt to exit free without being in!");
 	assert(!m->in_alloc && "attempt to exit free while in malloc!");
+	assert(!m->in_mm_init && "attempt to exit free while in init!");
 	m->in_free = false;
 }
 #undef K_STR
@@ -465,6 +470,15 @@ void mem_update(struct ls_state *ls)
 			mem_enter_free(ls, false, base);
 		} else if (user_mm_free_exiting(ls->eip)) {
 			mem_exit_free(ls, false);
+		} else if (user_mm_init_entering(ls->eip)) {
+			assert(!ls->user_mem.in_alloc);
+			assert(!ls->user_mem.in_free);
+			ls->user_mem.in_mm_init = true;
+		} else if (user_mm_init_exiting(ls->eip)) {
+			assert(ls->user_mem.in_mm_init);
+			assert(!ls->user_mem.in_alloc);
+			assert(!ls->user_mem.in_free);
+			ls->user_mem.in_mm_init = false;
 		}
 	}
 }
@@ -562,8 +576,9 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	}
 
 	/* the allocator has a free pass to its own accesses */
-	if (m->in_alloc || m->in_free)
+	if (m->in_mm_init || m->in_alloc || m->in_free) {
 		return;
+	}
 
 	if (address_in_heap(addr)) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);

@@ -65,6 +65,8 @@ void kern_address_hint(conf_object_t *, char *buf, int buflen,
 #endif
 
 /* Userspace */
+bool user_mm_init_entering(int eip);
+bool user_mm_init_exiting(int eip);
 bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size);
 bool user_mm_malloc_exiting(conf_object_t *cpu, int eip, int *base);
 bool user_mm_free_entering(conf_object_t *cpu, int eip, int *base);

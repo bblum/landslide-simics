@@ -295,6 +295,7 @@ function define_user_sym {
 	fi
 }
 
+define_user_addr USER_MM_INIT mm_init
 define_user_addr USER_MM_MALLOC mm_malloc
 define_user_addr USER_MM_FREE mm_free
 define_user_addr USER_MM_REALLOC mm_realloc

@@ -56,6 +56,7 @@ struct mem_state {
 	int heap_size;
 	/* dynamic allocation request state */
 	bool guest_init_done;
+	bool in_mm_init; /* userspace only */
 	bool in_alloc;
 	bool in_free;
 	int alloc_request_size; /* valid iff in_alloc */

@@ -387,6 +387,27 @@ void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
  * Userspace
  ******************************************************************************/
 
+bool user_mm_init_entering(int eip)
+{
+#ifdef USER_MM_INIT_ENTER
+	return eip == USER_MM_INIT_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool user_mm_init_exiting(int eip)
+{
+#ifdef USER_MM_INIT_EXIT
+	return eip == USER_MM_INIT_EXIT;
+#else
+#ifdef USER_MM_INIT_ENTER
+	STATIC_ASSERT(false && "user mm_init enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
 bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size)
 {
 #ifdef USER_MM_MALLOC_ENTER
@@ -447,6 +468,9 @@ bool user_mm_free_exiting(int eip)
 bool user_address_in_heap(int addr)
 {
 #ifdef USER_IMG_END
+	/* Note: We also want to exclude stack addresses, but those are
+	 * typically 0xfXXXXXXX, and the signed comparison will "conveniently"
+	 * exclude those. Gross, but whatever. */
 	return (addr >= USER_IMG_END);
 #else
 	return false;
