@@ -256,27 +256,31 @@ void init_local(void)
 
 #define FUNCTION_COLOUR      COLOUR_BOLD COLOUR_CYAN
 #define FUNCTION_INFO_COLOUR COLOUR_DARK COLOUR_GREY
-#define GLOBAL_COLOUR        COLOUR_BOLD COLOUR_MAGENTA
+#define GLOBAL_COLOUR        COLOUR_BOLD COLOUR_YELLOW
 #define GLOBAL_INFO_COLOUR   COLOUR_DARK COLOUR_GREY
+#define UNKNOWN_COLOUR       COLOUR_BOLD COLOUR_MAGENTA
 
 int symtable_lookup(char *buf, int maxlen, int addr)
 {
 	// FIXME: make this work
 	if (addr >= USER_MEM_START) {
-		return snprintf(buf, maxlen, "<userspace>");
+		return snprintf(buf, maxlen, UNKNOWN_COLOUR
+				"<userspace>" COLOUR_DEFAULT);
 	}
 
 	// TODO: store deflsym in struct ls_state
 	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
 	if (table == NULL) {
-		return snprintf(buf, maxlen, "<no symtable>");
+		return snprintf(buf, maxlen, UNKNOWN_COLOUR
+				"<no symtable>" COLOUR_DEFAULT);
 	}
 
 	attr_value_t idx = SIM_make_attr_integer(addr);
 	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
-		return snprintf(buf, maxlen, "<unknown>");
+		return snprintf(buf, maxlen, UNKNOWN_COLOUR
+				"<unknown>" COLOUR_DEFAULT);
 	}
 	assert(SIM_attr_list_size(result) >= 3);
 
