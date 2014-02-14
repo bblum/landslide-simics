@@ -73,7 +73,8 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->blocked_on_addr = -1;
 	a->mutex_unlocking_addr = -1;
 
-	lockset_init(&a->locks_held);
+	lockset_init(&a->kern_locks_held);
+	lockset_init(&a->user_locks_held);
 
 	if (on_runqueue) {
 		Q_INSERT_FRONT(&s->rq, a, nobe);
@@ -152,7 +153,8 @@ static void agent_vanish(struct sched_state *s)
 	if (s->last_vanished_agent) {
 		assert(!s->last_vanished_agent->action.handling_timer);
 		assert(s->last_vanished_agent->action.context_switch);
-		lockset_free(&s->last_vanished_agent->locks_held);
+		lockset_free(&s->last_vanished_agent->kern_locks_held);
+		lockset_free(&s->last_vanished_agent->user_locks_held);
 		MM_FREE(s->last_vanished_agent);
 	}
 	s->last_vanished_agent = s->cur_agent;
@@ -609,7 +611,7 @@ void sched_update(struct ls_state *ls)
 		assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_locking) = true;
 		s->cur_agent->blocked_on_addr = mutex_addr;
-		lockset_add(&s->cur_agent->locks_held, mutex_addr);
+		lockset_add(&s->cur_agent->kern_locks_held, mutex_addr);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
@@ -657,7 +659,7 @@ void sched_update(struct ls_state *ls)
 		assert(ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_unlocking) = false;
 		assert(s->cur_agent->mutex_unlocking_addr != -1);
-		lockset_remove(s, s->cur_agent->mutex_unlocking_addr);
+		lockset_remove(s, s->cur_agent->mutex_unlocking_addr, true);
 		s->cur_agent->mutex_unlocking_addr = -1;
 		lsprintf(DEV, "mutex: unlocking done by tid %d\n",
 			 s->cur_agent->tid);

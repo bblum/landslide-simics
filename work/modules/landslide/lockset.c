@@ -75,9 +75,11 @@ static bool _lockset_remove(struct lockset *l, int lock_addr)
 	return false;
 }
 
-void lockset_remove(struct sched_state *s, int lock_addr)
+#define LOCKSET_OF(a, in_kernel) \
+	((in_kernel) ? &(a)->kern_locks_held : &(a)->user_locks_held)
+void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
 {
-	if (_lockset_remove(&s->cur_agent->locks_held, lock_addr))
+	if (_lockset_remove(LOCKSET_OF(s->cur_agent, in_kernel), lock_addr))
 		return;
 
 	char lock_name[32];
@@ -89,13 +91,13 @@ void lockset_remove(struct sched_state *s, int lock_addr)
 #ifdef ALLOW_LOCK_HANDOFF
 	struct agent *a;
 	Q_FOREACH(a, &s->rq, nobe) {
-		if (_lockset_remove(&a->locks_held, lock_addr)) return;
+		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr)) return;
 	}
 	Q_FOREACH(a, &s->sq, nobe) {
-		if (_lockset_remove(&a->locks_held, lock_addr)) return;
+		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr)) return;
 	}
 	Q_FOREACH(a, &s->rq, nobe) {
-		if (_lockset_remove(&a->locks_held, lock_addr)) return;
+		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr)) return;
 	}
 #endif
 
@@ -105,6 +107,7 @@ void lockset_remove(struct sched_state *s, int lock_addr)
 		 "forget to annotate mutex_trylock()?\n", lock_addr);
 	LS_ABORT();
 }
+#undef LOCKSET_OF
 
 bool lockset_intersect(struct lockset *l1, struct lockset *l2)
 {

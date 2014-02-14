@@ -175,9 +175,11 @@ static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct h
 
 // Actually looking for data races cannot happen until we know the
 // happens-before relationship to previous transitions, in save.c.
-static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma)
+static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
+			       bool in_kernel)
 {
-	struct lockset *l0 = &ls->sched.cur_agent->locks_held;
+	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
+	                                 &ls->sched.cur_agent->user_locks_held;
 	struct mem_lockset *l;
 
 	bool need_add = true;
@@ -216,7 +218,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma)
 	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
 
 static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
-		    int addr, bool write)
+		    int addr, bool write, bool in_kernel)
 {
 	struct rb_node **p = &m->shm.rb_node;
 	struct rb_node *parent = NULL;
@@ -234,7 +236,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 			/* access already exists */
 			ma->count++;
 			ma->write = ma->write || write;
-			add_lockset_to_shm(ls, ma);
+			add_lockset_to_shm(ls, ma, in_kernel);
 			return;
 		}
 	}
@@ -248,7 +250,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	ma->conflict  = false;
 	ma->other_tid = 0;
 	Q_INIT_HEAD(&ma->locksets);
-	add_lockset_to_shm(ls, ma);
+	add_lockset_to_shm(ls, ma, in_kernel);
 
 #ifndef STUDENT_FRIENDLY
 	if (c != NULL) {
@@ -515,8 +517,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			     bool write)
 {
 	struct mem_state *m;
-	bool (*address_in_heap)(int addr);
-	bool (*address_global)(int addr);
+	bool in_kernel;
 	int addr;
 
 	if (phys_addr < USER_MEM_START && virt_addr != 0) {
@@ -534,8 +535,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	if (ls->eip < USER_MEM_START) {
 		/* KERNEL SPACE */
 		m = &ls->kern_mem;
-		address_in_heap = kern_address_in_heap;
-		address_global = kern_address_global;
+		in_kernel = true;
 		addr = phys_addr;
 
 		/* Certain components of the kernel have a free pass, such as
@@ -569,8 +569,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			return;
 		} else {
 			m = &ls->user_mem;
-			address_in_heap = user_address_in_heap;
-			address_global = user_address_global;
+			in_kernel = false;
 			/* Use VA, not PA, for obviously important reasons. */
 			addr = virt_addr;
 		}
@@ -581,15 +580,17 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 		return;
 	}
 
-	if (address_in_heap(addr)) {
+	if ((in_kernel && kern_address_in_heap(addr)) ||
+	    (!in_kernel && user_address_in_heap(addr))) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
 			use_after_free(ls, addr, write, addr < USER_MEM_START);
 		} else {
-			add_shm(ls, m, c, addr, write);
+			add_shm(ls, m, c, addr, write, in_kernel);
 		}
-	} else if (address_global(addr)) {
-		add_shm(ls, m, NULL, addr, write);
+	} else if ((in_kernel && kern_address_global(addr)) ||
+		   (!in_kernel && user_address_global(addr))) {
+		add_shm(ls, m, NULL, addr, write, in_kernel);
 	}
 }
 

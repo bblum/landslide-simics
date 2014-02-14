@@ -63,7 +63,8 @@ struct agent {
 	int blocked_on_addr;
 	int mutex_unlocking_addr;
 	/* locks held for data race detection */
-	struct lockset locks_held;
+	struct lockset kern_locks_held;
+	struct lockset user_locks_held;
 	/* Used by partial order reduction, only in "oldsched"s in the tree. */
 	bool do_explore;
 };

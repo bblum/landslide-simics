@@ -32,7 +32,7 @@ void lockset_init(struct lockset *l);
 void lockset_free(struct lockset *l);
 void lockset_clone(struct lockset *dest, struct lockset *src);
 void lockset_add(struct lockset *l, int lock_addr);
-void lockset_remove(struct sched_state *s, int lock_addr);
+void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel);
 bool lockset_intersect(struct lockset *l1, struct lockset *l2);
 enum lockset_cmp_result lockset_compare(struct lockset *l1, struct lockset *l2);
 

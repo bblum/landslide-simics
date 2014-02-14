@@ -137,7 +137,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->blocked_on_addr = a_src->blocked_on_addr;
 
 	a_dest->mutex_unlocking_addr = a_src->mutex_unlocking_addr;
-	copy_lockset(&a_dest->locks_held, &a_src->locks_held);
+	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
+	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 
 	a_dest->do_explore = false;
 
@@ -276,6 +277,8 @@ static void free_sched_q(struct agent_q *q)
 	while (Q_GET_SIZE(q) > 0) {
 		struct agent *a = Q_GET_HEAD(q);
 		Q_REMOVE(q, a, nobe);
+		lockset_free(&a->kern_locks_held);
+		lockset_free(&a->user_locks_held);
 		MM_FREE(a);
 	}
 }
