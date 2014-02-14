@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <simics/api.h>
 
-#define MODULE_NAME "glue"
+#define MODULE_NAME "kernel glue"
 
 #include "common.h"
 #include "kernel_specifics.h"
@@ -135,8 +135,14 @@ bool kern_within_functions(conf_object_t *cpu, int eip)
 
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
 
-static void read_panic_message(conf_object_t *cpu, char **buf)
+void read_panic_message(conf_object_t *cpu, int eip, char **buf)
 {
+#ifdef USER_PANIC_ENTER
+	assert(eip == GUEST_PANIC || eip == USER_PANIC_ENTER);
+#else
+	assert(eip == GUEST_PANIC);
+#endif
+
 	*buf = read_string(cpu, READ_STACK(cpu, 1));
 	/* Can't call out to snprintf in the general case because it
 	 * would need repeated calls to read_string, and would basically
@@ -161,7 +167,7 @@ static void read_panic_message(conf_object_t *cpu, char **buf)
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
 {
 	if (eip == GUEST_PANIC) {
-		read_panic_message(cpu, buf);
+		read_panic_message(cpu, eip, buf);
 		return true;
 	} else {
 		return false;
@@ -382,124 +388,6 @@ void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 	}
 }
 #endif
-
-/******************************************************************************
- * Userspace
- ******************************************************************************/
-
-bool user_mm_init_entering(int eip)
-{
-#ifdef USER_MM_INIT_ENTER
-	return eip == USER_MM_INIT_ENTER;
-#else
-	return false;
-#endif
-}
-
-bool user_mm_init_exiting(int eip)
-{
-#ifdef USER_MM_INIT_EXIT
-	return eip == USER_MM_INIT_EXIT;
-#else
-#ifdef USER_MM_INIT_ENTER
-	STATIC_ASSERT(false && "user mm_init enter but not exit defined");
-#endif
-	return false;
-#endif
-}
-
-bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size)
-{
-#ifdef USER_MM_MALLOC_ENTER
-	if (eip == USER_MM_MALLOC_ENTER) {
-		*size = READ_STACK(cpu, 1);
-		return true;
-	} else {
-		return false;
-	}
-#else
-	return false;
-#endif
-}
-
-bool user_mm_malloc_exiting(conf_object_t *cpu, int eip, int *base)
-{
-#ifdef USER_MM_MALLOC_EXIT
-	if (eip == USER_MM_MALLOC_EXIT) {
-		*base = GET_CPU_ATTR(cpu, eax);
-		return true;
-	} else {
-		return false;
-	}
-#else
-#ifdef USER_MM_MALLOC_ENTER
-	STATIC_ASSERT(false && "user malloc enter but not exit defined");
-#endif
-	return false;
-#endif
-}
-
-bool user_mm_free_entering(conf_object_t *cpu, int eip, int *base)
-{
-#ifdef USER_MM_FREE_ENTER
-	if (eip == USER_MM_FREE_ENTER) {
-		*base = READ_STACK(cpu, 1);
-		return true;
-	} else {
-		return false;
-	}
-#else
-	return false;
-#endif
-}
-
-bool user_mm_free_exiting(int eip)
-{
-#ifdef USER_MM_FREE_EXIT
-	return (eip == USER_MM_FREE_EXIT);
-#else
-#ifdef USER_MM_FREE_ENTER
-	STATIC_ASSERT(false && "user free enter but not exit defined");
-#endif
-	return false;
-#endif
-}
-
-bool user_address_in_heap(int addr)
-{
-#ifdef USER_IMG_END
-	/* Note: We also want to exclude stack addresses, but those are
-	 * typically 0xfXXXXXXX, and the signed comparison will "conveniently"
-	 * exclude those. Gross, but whatever. */
-	return (addr >= USER_IMG_END);
-#else
-	return false;
-#endif
-}
-
-bool user_address_global(int addr)
-{
-#if defined(USER_DATA_START) && defined(USER_DATA_END) && defined(USER_BSS_START) &&  defined(USER_IMG_END)
-	return ((addr >= USER_DATA_START && addr < USER_DATA_END) ||
-		(addr >= USER_BSS_START  && addr < USER_IMG_END));
-#else
-	return false;
-#endif
-}
-
-bool user_panicked(conf_object_t *cpu, int addr, char **buf)
-{
-#ifdef USER_PANIC_ENTER
-	if (addr == USER_PANIC_ENTER) {
-		read_panic_message(cpu, buf);
-		return true;
-	} else {
-		return false;
-	}
-#else
-	return false;
-#endif
-}
 
 /******************************************************************************
  * Other / Init

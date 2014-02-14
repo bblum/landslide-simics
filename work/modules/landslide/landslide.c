@@ -49,6 +49,7 @@
 #include "save.h"
 #include "test.h"
 #include "tree.h"
+#include "user_specifics.h"
 #include "x86.h"
 
 /******************************************************************************

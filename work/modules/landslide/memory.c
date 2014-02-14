@@ -16,6 +16,7 @@
 #include "landslide.h"
 #include "memory.h"
 #include "rbtree.h"
+#include "user_specifics.h"
 #include "tree.h"
 
 /******************************************************************************

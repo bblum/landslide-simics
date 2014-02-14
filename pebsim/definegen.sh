@@ -295,16 +295,36 @@ function define_user_sym {
 	fi
 }
 
+# user malloc
+
 define_user_addr USER_MM_INIT mm_init
 define_user_addr USER_MM_MALLOC mm_malloc
 define_user_addr USER_MM_FREE mm_free
 define_user_addr USER_MM_REALLOC mm_realloc
 define_user_addr USER_PANIC panic
 
+# user elf regions
+
 define_user_sym USER_IMG_END _end
 define_user_sym USER_DATA_START .data
 define_user_sym USER_DATA_END _edata
 define_user_sym USER_BSS_START __bss_start
+
+# user thread library locations
+
+define_user_addr USER_THR_INIT thr_init
+define_user_addr USER_THR_CREATE thr_create
+define_user_addr USER_THR_JOIN thr_join
+define_user_addr USER_THR_EXIT thr_exit
+define_user_addr USER_MUTEX_LOCK mutex_lock
+define_user_addr USER_MUTEX_UNLOCK mutex_unlock
+define_user_addr USER_COND_WAIT cond_wait
+define_user_addr USER_COND_SIGNAL cond_signal
+define_user_addr USER_COND_BROADCAST cond_broadcast
+define_user_addr USER_SEM_WAIT sem_wait
+define_user_addr USER_SEM_SIGNAL sem_signal
+define_user_addr USER_RWLOCK_LOCK rwlock_lock
+define_user_addr USER_RWLOCK_UNLOCK rwlock_unlock
 
 echo
 

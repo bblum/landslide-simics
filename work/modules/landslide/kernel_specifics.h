@@ -26,6 +26,7 @@ bool kern_in_scheduler(conf_object_t *cpu, int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_ready_for_timer_interrupt(conf_object_t *cpu);
 bool kern_within_functions(conf_object_t *cpu, int eip);
+void read_panic_message(conf_object_t *cpu, int eip, char **buf);
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf);
 bool kern_kernel_main(int eip);
 
@@ -63,17 +64,6 @@ bool kern_address_other_kstack(conf_object_t *, int addr, int chunk, int size,
 void kern_address_hint(conf_object_t *, char *buf, int buflen,
 		       int addr, int chunk, int size);
 #endif
-
-/* Userspace */
-bool user_mm_init_entering(int eip);
-bool user_mm_init_exiting(int eip);
-bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size);
-bool user_mm_malloc_exiting(conf_object_t *cpu, int eip, int *base);
-bool user_mm_free_entering(conf_object_t *cpu, int eip, int *base);
-bool user_mm_free_exiting(int eip);
-bool user_address_in_heap(int addr);
-bool user_address_global(int addr);
-bool user_panicked(conf_object_t *cpu, int addr, char **buf);
 
 /* Other / init */
 int kern_get_init_tid(void);

@@ -11,6 +11,7 @@ MODULE_CLASSES=landslide
 SRC_FILES = landslide.h landslide.c \
 	    x86.c x86.h \
 	    kernel_specifics.h kernel_specifics.c student.c \
+	    user_specifics.h user_specifics.c \
 	    schedule.h schedule.c \
 	    arbiter.h arbiter.c \
 	    save.h save.c \
