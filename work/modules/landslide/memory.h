@@ -60,7 +60,6 @@ struct mem_state {
 	bool in_free;
 	int alloc_request_size; /* valid iff in_alloc */
 	int cr3; /* 0 == uninitialized or this is for kernel mem */
-	bool did_exec; /* for ignoring premature userspace accesses */
 	/* set of all shared accesses that happened during this transition;
 	 * cleared after each save point - done in save.c */
 	struct rb_root shm;

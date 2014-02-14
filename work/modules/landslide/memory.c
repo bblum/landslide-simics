@@ -272,7 +272,6 @@ static void mem_heap_init(struct mem_state *m)
 	m->in_alloc = false;
 	m->in_free = false;
 	m->cr3 = 0;
-	m->did_exec = false;
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
 }
@@ -411,9 +410,7 @@ static bool ignore_user_access(struct ls_state *ls)
 		ls->user_mem.cr3 = cr3;
 		lsprintf(DEV, "Registered cr3 value 0x%x for userspace "
 			 "tid %d.\n", cr3, current_tid);
-		/* Ignore it anyway. We are still in the shell, and need to
-		 * wait for it to exec. */
-		return true;
+		return false;
 	} else if (ls->user_mem.cr3 != cr3) {
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Memory tracking for "
 			 "more than 1 user address space is unsupported!\n");
@@ -422,11 +419,7 @@ static bool ignore_user_access(struct ls_state *ls)
 			 ls->user_mem.cr3, cr3, current_tid);
 		assert(0);
 	} else {
-		/* Ignore the access if it's from the few instructions between
-		 * when the shell forks and execs. This flag will be set for us
-		 * below, in the kernel-access-watcher (this function only gets
-		 * called for userspace functions). */
-		return !ls->user_mem.did_exec;
+		return false;
 	}
 }
 
@@ -460,15 +453,6 @@ void mem_update(struct ls_state *ls)
 			mem_enter_free(ls, true, base);
 		} else if (kern_lmm_free_exiting(ls->eip)) {
 			mem_exit_free(ls, true);
-		} else if (kern_execing(ls->eip)) {
-			/* Here we are responsible for noticing when the
-			 * userspace program we are tracking does its exec. */
-			if (ls->user_mem.cr3 != 0 &&
-			    ls->user_mem.cr3 == GET_CPU_ATTR(ls->cpu0, cr3)) {
-				lsprintf(DEV, "User program of tid %d, cr3 0x%x does exec.\n",
-					 ls->sched.cur_agent->tid, ls->user_mem.cr3);
-				ls->user_mem.did_exec = true;
-			}
 		}
 	} else {
 		if (ignore_user_access(ls)) {
