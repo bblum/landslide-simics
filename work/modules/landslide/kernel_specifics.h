@@ -38,7 +38,6 @@ bool kern_mutex_unlocking_done(int eip);
 
 /* Lifecycle */
 bool kern_forking(int eip);
-bool kern_execing(int eip);
 bool kern_vanishing(int eip);
 bool kern_sleeping(int eip);
 bool kern_readline_enter(int eip);
