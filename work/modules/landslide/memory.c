@@ -200,11 +200,16 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			// need to add l0 in addition.
 			need_add = false;
 			break;
-		} else if (r == LOCKSETS_SUBSET) {
-			// l0 would be a strict upgrade over l, in terms of
-			// finding data races, so we can remove l.
-			remove_prev = true;
+		} else {
+			// if subset, then l0 would be a strict upgrade over l,
+			// in terms of finding data races, so we can remove l.
+			remove_prev = (r == LOCKSETS_SUBSET);
 		}
+	}
+
+	if (remove_prev) {
+		l = Q_GET_TAIL(&ma->locksets);
+		Q_REMOVE(&ma->locksets, l, nobe);
 	}
 
 	if (need_add) {
