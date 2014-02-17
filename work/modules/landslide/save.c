@@ -268,7 +268,13 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->alloc_request_size = src->alloc_request_size;
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
 	dest->heap_size          = src->heap_size;
-	/* NB: The shm and freed heaps are copied below, in shimsham_shm. */
+	/* NB: The shm and freed heaps are copied below, in shimsham_shm,
+	 * because this function is also used to restore when time travelling,
+	 * and we want it to reset the shm and freed heap to empty. But,
+	 * depending whether we're testing user or kernel, we might skip
+	 * the shimsham_shm call, so we at least must initialize them here. */
+	dest->shm.rb_node        = NULL;
+	dest->freed.rb_node      = NULL;
 }
 
 /* To free copied state data structures. None of these free the arg pointer. */
@@ -493,6 +499,18 @@ static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 	/* do the same for the list of freed chunks in this transition */
 	oldmem->freed.rb_node = newmem->freed.rb_node;
 	newmem->freed.rb_node = NULL;
+
+	/* ensure that memory tracking kept the shm heap totally empty for the
+	 * space (kernel or user) that we're NOT testing. */
+	if (in_kernel && testing_userspace()) {
+		assert(oldmem->shm.rb_node == NULL &&
+		       "kernel shm nonempty when testing userspace");
+		return;
+	} else if (!in_kernel && !testing_userspace()) {
+		assert(oldmem->shm.rb_node == NULL &&
+		       "user shm nonempty when testing kernelspace");
+		return;
+	}
 
 	/* compute newly-completed transition's conflicts with previous ones */
 	for (struct hax *old = h->parent; old != NULL; old = old->parent) {

@@ -12,6 +12,9 @@
 #include "student_specifics.h"
 
 /* Userspace */
+
+bool testing_userspace();
+
 bool user_mm_init_entering(int eip);
 bool user_mm_init_exiting(int eip);
 bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size);

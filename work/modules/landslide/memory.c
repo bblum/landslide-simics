@@ -415,7 +415,15 @@ static bool ignore_user_access(struct ls_state *ls)
 	int current_tid = ls->sched.cur_agent->tid;
 	int cr3 = GET_CPU_ATTR(ls->cpu0, cr3);;
 
-	if (current_tid == kern_get_init_tid() ||
+	if (!testing_userspace()) {
+		/* Don't attempt to track user accesses for kernelspace tests.
+		 * Tests like vanish_vanish require multiple user cr3s, which
+		 * we don't support when tracking user accesses. When doing a
+		 * userspace test, we need to do the below cr3 assertion, but
+		 * when doing a kernel test we cannot, so instead we have to
+		 * ignore all user accesses entirely. */
+		return true;
+	} else if (current_tid == kern_get_init_tid() ||
 	    current_tid == kern_get_shell_tid() ||
 	    (kern_has_idle() && current_tid == kern_get_idle_tid())) {
 		return true;
@@ -431,6 +439,7 @@ static bool ignore_user_access(struct ls_state *ls)
 			 "cr3 0x%x; current cr3 0x%x; current tid %d\n",
 			 ls->user_mem.cr3, cr3, current_tid);
 		assert(0);
+		return false;
 	} else {
 		return false;
 	}
@@ -552,6 +561,11 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			return;
 		}
 
+		/* maintain invariant required in save.c (shimsham shm) that the
+		 * shm heap for the space we're not testing stays empty. */
+		if (testing_userspace()) {
+			return;
+		}
 #ifndef STUDENT_FRIENDLY
 		/* ignore certain "probably innocent" accesses */
 		if (kern_address_own_kstack(ls->cpu0, addr)) {

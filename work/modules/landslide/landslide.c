@@ -597,13 +597,10 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 					(entry->read_or_write == Sim_RW_Write));
 	} else if (entry->trace_type != TR_Instruction) {
 		/* non-data non-instr event, such as an exception - don't care */
-	} else if (ls->eip >= USER_MEM_START) {
-		/* userland instruction */
-		check_user_syscall(ls);
-		mem_update(ls);
-		check_test_state(ls);
 	} else {
-		/* kernelland instruction */
+		if (ls->eip >= USER_MEM_START) {
+			check_user_syscall(ls);
+		}
 		ls->trigger_count++;
 		ls->absolute_trigger_count++;
 
