@@ -461,16 +461,36 @@ static void check_user_syscall(struct ls_state *ls)
  * average previous transition before we proclaim it stuck? */
 #define PROGRESS_TRIGGER_FACTOR 2000
 
+static void wrong_panic(struct ls_state *ls, const char *panicked, const char *expected)
+{
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "****************\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
+		 "The %s panicked during a %sspace test. This shouldn't happen.\n",
+		 panicked, expected);
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
+		 "This is more likely a problem with the test configuration, "
+		 "or a reference kernel bug, than a bug in your code.\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "****************\n");
+	found_a_bug(ls);
+	assert(0 && "wrong panic");
+}
+
 static bool ensure_progress(struct ls_state *ls)
 {
 	char *buf;
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PANIC: %s\n", buf);
 		MM_FREE(buf);
+		if (testing_userspace()) {
+			wrong_panic(ls, "kernel", "user");
+		}
 		return false;
 	} else if (user_panicked(ls->cpu0, ls->eip, &buf)) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USERSPACE PANIC: %s\n", buf);
 		MM_FREE(buf);
+		if (!testing_userspace()) {
+			wrong_panic(ls, "user", "kernel");
+		}
 		return false;
 	}
 
