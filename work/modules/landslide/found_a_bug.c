@@ -39,7 +39,7 @@
 	} } while (0)
 
 /* Prints a stack trace with newlines and tabs instead of ", "s. */
-static void print_stack_trace(verbosity v, bool bug_found, const char *stack) {
+void print_stack_trace(verbosity v, bool bug_found, const char *stack) {
 	const char *current_frame = stack;
 	bool first_frame = true;
 	while (current_frame != NULL) {

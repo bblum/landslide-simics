@@ -39,7 +39,7 @@
 #define DEV    3 /* messages only useful for development */
 #define INFO   4 /* if you wouldn't put it anywhere but twitter */
 
-#define MAX_VERBOSITY DEV
+#define MAX_VERBOSITY CHOICE
 
 typedef int verbosity;
 
@@ -57,6 +57,17 @@ typedef int verbosity;
 #define printf(v, ...) do { if (v <= MAX_VERBOSITY) {	\
 	fprintf(stderr, __VA_ARGS__);			\
 	} } while (0)
+
+/* Specialized prints that are only emitted when in kernel- or user-space */
+bool testing_userspace();
+#define lsuprintf(...) \
+	do { if ( testing_userspace()) { lsprintf(__VA_ARGS__); } } while (0)
+#define lskprintf(...) \
+	do { if (!testing_userspace()) { lsprintf(__VA_ARGS__); } } while (0)
+#define uprintf(...) \
+	do { if ( testing_userspace()) {   printf(__VA_ARGS__); } } while (0)
+#define kprintf(...) \
+	do { if (!testing_userspace()) {   printf(__VA_ARGS__); } } while (0)
 
 #define MM_XMALLOC(x,t) ({				\
 	typeof(t) *__ptr = MM_MALLOC(x,t);		\

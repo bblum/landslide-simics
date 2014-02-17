@@ -533,6 +533,7 @@ static bool test_ended_safely(struct ls_state *ls)
 
 	// TODO: find the blocks that were leaked and print stack traces for them
 	// TODO: the test could copy the heap to indicate which blocks
+	// TODO: do some assert analogous to wrong_panic() for this
 	if (ls->test.start_kern_heap_size > ls->kern_mem.heap_size) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL MEMORY LEAK (%d bytes)!\n",
 			 ls->test.start_kern_heap_size - ls->kern_mem.heap_size);
@@ -550,6 +551,9 @@ static bool time_travel(struct ls_state *ls)
 {
 	int tid;
 	struct hax *h;
+
+	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN
+		 "End of branch #%d.\n", ls->save.total_jumps);
 
 	/* find where we want to go in the tree, and choose what to do there */
 	if ((h = explore(&ls->save, &tid)) != NULL) {
@@ -580,7 +584,7 @@ static void check_test_state(struct ls_state *ls)
 	    !ls->test.test_is_running) {
 		/* See if it's time to try again... */
 		if (ls->test.test_ever_caused) {
-			lsprintf(BRANCH, "test case ended!\n");
+			lsprintf(DEV, "test case ended!\n");
 
 			if (DECISION_INFO_ONLY != 0) {
 				lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN

@@ -380,7 +380,7 @@ static void free_hax(struct hax *h)
 /* Reverse that which is not glowing green. */
 static void restore_ls(struct ls_state *ls, struct hax *h)
 {
-	lsprintf(BRANCH, "88 MPH: eip 0x%x -> 0x%x; "
+	lsprintf(DEV, "88 MPH: eip 0x%x -> 0x%x; "
 		 "triggers %lu -> %lu (absolute %lu); last choice %d\n",
 		 ls->eip, h->eip, ls->trigger_count, h->trigger_count,
 		 ls->absolute_trigger_count, h->chosen_thread);
@@ -562,7 +562,7 @@ void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
 	 * (see sched_recover). */
 	assert(ls->just_jumped);
 	ss->next_tid = new_tid;
-	lsprintf(DEV, "explorer chose tid %d; ready for action\n", new_tid);
+	lsprintf(INFO, "explorer chose tid %d; ready for action\n", new_tid);
 }
 
 /* In the typical case, this signifies that we have reached a new decision
@@ -640,7 +640,6 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->stack_trace = stack_trace(ls->cpu0, ls->eip,
 						     ls->sched.cur_agent->tid);
 		}
-		lsprintf(DEV, "Stack: %s\n", h->stack_trace);
 
 		ss->total_choice_poince++;
 	} else {
@@ -697,8 +696,16 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
-	lsprintf(CHOICE, "After committing #%d/tid%d, next_tid %d\n",
-		 h->depth, h->chosen_thread, ss->next_tid);
+	if (h->chosen_thread != ss->next_tid) {
+		lsprintf(CHOICE, COLOUR_BOLD MODULE_COLOUR "#%d: Preempting "
+			 "TID %d to switch to TID %d\n" COLOUR_DEFAULT,
+			 h->depth, h->chosen_thread, ss->next_tid);
+		lsprintf(CHOICE, "Current stack:\n");
+		print_stack_trace(CHOICE, false, h->stack_trace);
+	} else {
+		lsprintf(CHOICE, MODULE_COLOUR "#%d: Allowing TID %d to continue.\n"
+			 COLOUR_DEFAULT, h->depth, h->chosen_thread);
+	}
 
 	run_command(ls->cmd_file, CMD_BOOKMARK, (lang_void *)h);
 	ss->total_choices++;
@@ -735,7 +742,7 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 		assert(rabbit != ss->current && "somehow, a cycle?!?");
 	}
 
-	PRINT_TREE_INFO(BRANCH, ls);
+	PRINT_TREE_INFO(DEV, ls);
 
 	restore_ls(ls, h);
 

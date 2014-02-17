@@ -164,11 +164,11 @@ static void agent_vanish(struct sched_state *s)
 static void set_schedule_target(struct sched_state *s, struct agent *a)
 {
 	if (s->schedule_in_flight != NULL) {
-		lsprintf(DEV, "warning: overriding old schedule target ");
-		print_agent(DEV, s->schedule_in_flight);
-		printf(DEV, " with new ");
-		print_agent(DEV, a);
-		printf(DEV, "\n");
+		lsprintf(INFO, "warning: overriding old schedule target ");
+		print_agent(INFO, s->schedule_in_flight);
+		printf(INFO, " with new ");
+		print_agent(INFO, a);
+		printf(INFO, "\n");
 		s->schedule_in_flight->action.schedule_target = false;
 	}
 	s->schedule_in_flight = a;
@@ -225,6 +225,7 @@ static void mutex_block_others(struct agent_q *q, int mutex_addr,
 	struct agent *a;
 	Q_FOREACH(a, q, nobe) {
 		if (a->blocked_on_addr == mutex_addr) {
+			// TODO: toggle based on in kernel
 			lsprintf(DEV, "mutex: on 0x%x tid %d now blocks on %d "
 				 "(was %d)\n", mutex_addr, a->tid,
 				 blocked_on_tid, a->blocked_on_tid);
@@ -333,8 +334,8 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 {
 	if (ACTION(s, forking) && !HANDLING_INTERRUPT(s) &&
 	    s->cur_agent->tid != target_tid) {
-		lsprintf(DEV, "agent %d forked (%s) -- ", target_tid,
-			 add_to_rq ? "rq" : "dq");
+		lskprintf(DEV, "agent %d forked (%s) -- ", target_tid,
+			  add_to_rq ? "rq" : "dq");
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		/* Start all newly-forked threads not in the context switcher.
@@ -352,7 +353,7 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 static void handle_sleep(struct sched_state *s)
 {
 	if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
-		lsprintf(DEV, "agent %d sleep -- ", s->cur_agent->tid);
+		lskprintf(DEV, "agent %d sleep -- ", s->cur_agent->tid);
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		agent_sleep(s);
@@ -365,7 +366,7 @@ static void handle_sleep(struct sched_state *s)
 static void handle_vanish(struct sched_state *s)
 {
 	if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
-		lsprintf(DEV, "agent %d vanish -- ", s->cur_agent->tid);
+		lskprintf(DEV, "agent %d vanish -- ", s->cur_agent->tid);
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		agent_vanish(s);
@@ -481,12 +482,12 @@ void sched_update(struct ls_state *ls)
 		}
 		/* Some debug info to help the studence. */
 		if (s->cur_agent->tid == kern_get_init_tid()) {
-			lsprintf(DEV, "Now running init.\n");
+			lskprintf(DEV, "Now running init.\n");
 		} else if (s->cur_agent->tid == kern_get_shell_tid()) {
-			lsprintf(DEV, "Now running shell.\n");
+			lskprintf(DEV, "Now running shell.\n");
 		} else if (kern_has_idle() &&
 			   s->cur_agent->tid == kern_get_idle_tid()) {
-			lsprintf(DEV, "Now idling.\n");
+			lskprintf(DEV, "Now idling.\n");
 		}
 	}
 
@@ -501,12 +502,12 @@ void sched_update(struct ls_state *ls)
 		if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
 			assert(!ACTION(s, handling_timer));
 		} else {
-			lsprintf(DEV, "WARNING: allowing a nested timer on "
-				 "tid %d's stack\n", s->cur_agent->tid);
+			lskprintf(DEV, "WARNING: allowing a nested timer on "
+			          "tid %d's stack\n", s->cur_agent->tid);
 		}
 		ACTION(s, handling_timer) = true;
-		lsprintf(INFO, "%d timer enter from 0x%x\n", s->cur_agent->tid,
-		         (unsigned int)READ_STACK(ls->cpu0, 0));
+		lskprintf(INFO, "%d timer enter from 0x%x\n", s->cur_agent->tid,
+		          (unsigned int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls->eip)) {
 		if (ACTION(s, handling_timer)) {
 			// XXX: This condition is a hack to compensate for when
@@ -526,8 +527,8 @@ void sched_update(struct ls_state *ls)
 				s->schedule_in_flight = NULL;
 			}
 		} else {
-			lsprintf(INFO, "WARNING: exiting a non-timer interrupt "
-				 "through a path shared with the timer..? (from 0x%x, #%d)\n", (int)READ_STACK(ls->cpu0, 0), (int)READ_STACK(ls->cpu0, -2));
+			lskprintf(INFO, "WARNING: exiting a non-timer interrupt "
+			          "through a path shared with the timer..? (from 0x%x, #%d)\n", (int)READ_STACK(ls->cpu0, 0), (int)READ_STACK(ls->cpu0, -2));
 		}
 	/* Context switching. */
 	} else if (kern_context_switch_entering(ls->eip)) {
@@ -561,7 +562,7 @@ void sched_update(struct ls_state *ls)
 		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_IRET) {
 			if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
 				ACTION(s, handling_timer) = false;
-                                lsprintf(ALWAYS, "JFR site #1b\n");
+                                lskprintf(DEV, "JFR site #1b\n");
 				s->just_finished_reschedule = true;
 			}
 			if (ACTION(s, schedule_target)) { /* as above */
@@ -573,7 +574,7 @@ void sched_update(struct ls_state *ls)
 					 "seems to use IRET!");
 		/* For threads that context switched of their own accord. */
 		} else if (!HANDLING_INTERRUPT(s)) {
-                        lsprintf(ALWAYS, "JFR site #2\n");
+                        lskprintf(DEV, "JFR site #2\n");
 			s->just_finished_reschedule = true;
 			if (ACTION(s, schedule_target)) {
 				ACTION(s, schedule_target) = false;
@@ -617,16 +618,17 @@ void sched_update(struct ls_state *ls)
 		 * then switched and someone took it, these would be set already
 		 * assert(s->cur_agent->blocked_on == NULL);
 		 * assert(s->cur_agent->blocked_on_tid == -1); */
-		lsprintf(DEV, "mutex: on 0x%x tid %d blocks, owned by %d\n",
-			 s->cur_agent->blocked_on_addr, s->cur_agent->tid,
-			 target_tid);
+		lskprintf(DEV, "mutex: on 0x%x tid %d blocks, owned by %d\n",
+		          s->cur_agent->blocked_on_addr, s->cur_agent->tid,
+		          target_tid);
 		s->cur_agent->blocked_on_tid = target_tid;
 		// An odd interleaving can cause a contendingthread to become
 		// unblocked before they run far enough to say they're blocked.
 		// So if they were unblocked, they are not really blocked.
 		if (s->cur_agent->blocked_on_addr == -1) {
 			if (deadlocked(s)) {
-				lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DEADLOCK! ");
+				lsprintf(BUG, COLOUR_BOLD COLOUR_RED
+					 "KERNEL DEADLOCK! ");
 				print_deadlock(BUG, s->cur_agent);
 				printf(BUG, "\n");
 				found_a_bug(ls);
@@ -636,8 +638,8 @@ void sched_update(struct ls_state *ls)
 		//assert(ACTION(s, mutex_locking));
 		assert(!ACTION(s, mutex_unlocking));
 		ACTION(s, mutex_locking) = false;
-		lsprintf(DEV, "mutex: on 0x%x tid %d unblocks\n",
-			 s->cur_agent->blocked_on_addr, s->cur_agent->tid);
+		lskprintf(DEV, "mutex: on 0x%x tid %d unblocks\n",
+		          s->cur_agent->blocked_on_addr, s->cur_agent->tid);
 		s->cur_agent->blocked_on = NULL;
 		s->cur_agent->blocked_on_tid = -1;
 		s->cur_agent->blocked_on_addr = -1;
@@ -652,8 +654,8 @@ void sched_update(struct ls_state *ls)
 		ACTION(s, mutex_unlocking) = true;
 		assert(s->cur_agent->mutex_unlocking_addr == -1);
 		s->cur_agent->mutex_unlocking_addr = mutex_addr;
-		lsprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
-			 mutex_addr, s->cur_agent->tid);
+		lskprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
+		          mutex_addr, s->cur_agent->tid);
 		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, mutex_unlocking));
@@ -661,8 +663,8 @@ void sched_update(struct ls_state *ls)
 		assert(s->cur_agent->mutex_unlocking_addr != -1);
 		lockset_remove(s, s->cur_agent->mutex_unlocking_addr, true);
 		s->cur_agent->mutex_unlocking_addr = -1;
-		lsprintf(DEV, "mutex: unlocking done by tid %d\n",
-			 s->cur_agent->tid);
+		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
+		          s->cur_agent->tid);
 	}
 
 	/**********************************************************************
@@ -688,8 +690,8 @@ void sched_update(struct ls_state *ls)
 			if (ACTION(s, just_forked)) {
 				/* Interrupts are "probably" off, but that's why
 				 * just_finished_reschedule is persistent. */
-				lsprintf(DEV, "Finished flying to %d.\n",
-					 s->cur_agent->tid);
+				lskprintf(DEV, "Finished flying to %d.\n",
+				          s->cur_agent->tid);
 				ACTION(s, schedule_target) = false;
 				ACTION(s, just_forked) = false;
 				s->schedule_in_flight = NULL;
@@ -724,15 +726,15 @@ void sched_update(struct ls_state *ls)
 				 * properties of !R */
 				if (interrupts_enabled(ls->cpu0) &&
 				    kern_ready_for_timer_interrupt(ls->cpu0)) {
-					lsprintf(INFO, "keeping schedule in-"
-						 "flight at 0x%x\n", ls->eip);
+					lskprintf(INFO, "keeping schedule in-"
+					          "flight at 0x%x\n", ls->eip);
 					cause_timer_interrupt(ls->cpu0);
 					s->entering_timer = true;
 					s->delayed_in_flight = false;
 				} else {
-					lsprintf(INFO, "Want to keep schedule "
-						 "in-flight at 0x%x; have to "
-						 "delay\n", ls->eip);
+					lskprintf(INFO, "Want to keep schedule "
+					          "in-flight at 0x%x; have to "
+					          "delay\n", ls->eip);
 					s->delayed_in_flight = true;
 				}
 				/* If this was the special case where the
@@ -744,8 +746,8 @@ void sched_update(struct ls_state *ls)
 			} else if (s->delayed_in_flight &&
 				   interrupts_enabled(ls->cpu0) &&
 				   kern_ready_for_timer_interrupt(ls->cpu0)) {
-				lsprintf(INFO, "Delayed in-flight timer tick "
-					 "at 0x%x\n", ls->eip);
+				lskprintf(INFO, "Delayed in-flight timer tick "
+				          "at 0x%x\n", ls->eip);
 				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 				s->delayed_in_flight = false;
@@ -814,7 +816,7 @@ void sched_update(struct ls_state *ls)
 		if (arbiter_choose(ls, &a, &our_choice)) {
 			/* Effect the choice that was made... */
 			if (a != s->cur_agent) {
-				lsprintf(CHOICE, "from agent %d, arbiter chose "
+				lsprintf(DEV, "from agent %d, arbiter chose "
 					 "%d at 0x%x (called at 0x%x)\n",
 					 s->cur_agent->tid, a->tid, ls->eip,
 					 (unsigned int)READ_STACK(ls->cpu0, 0));
@@ -829,11 +831,11 @@ void sched_update(struct ls_state *ls)
 					    false, voluntary);
 			}
 		} else {
-			lsprintf(BUG, "no agent was chosen at eip 0x%x\n",
+			lsprintf(DEV, "no agent was chosen at eip 0x%x\n",
 				 ls->eip);
-			lsprintf(BUG, "scheduler state: ");
-			print_qs(BUG, s);
-			printf(BUG, "\n");
+			lsprintf(DEV, "scheduler state: ");
+			print_qs(DEV, s);
+			printf(DEV, "\n");
 		}
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
@@ -856,7 +858,7 @@ void sched_recover(struct ls_state *ls)
 				 * back... */
 				set_schedule_target(s, s->cur_agent);
 				assert(s->entering_timer);
-				lsprintf(DEV, "Explorer-chosen tid %d wants "
+				lsprintf(INFO, "Explorer-chosen tid %d wants "
 					 "to run; not switching away\n", tid);
 				/* Make sure the arbiter knows this isn't a
 				 * voluntary reschedule. The handling_timer flag
@@ -881,8 +883,8 @@ void sched_recover(struct ls_state *ls)
 			}
 
 			assert(a != NULL && "bogus explorer-chosen tid!");
-			lsprintf(DEV, "Recovering to explorer-chosen tid %d from "
-				 "tid %d\n", tid, s->cur_agent->tid);
+			lsprintf(INFO, "Recovering to explorer-chosen tid %d "
+				 "from tid %d\n", tid, s->cur_agent->tid);
 			set_schedule_target(s, a);
 			/* Hmmmm */
 			if (!kern_timer_entering(ls->eip)) {

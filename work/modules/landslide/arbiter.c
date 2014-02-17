@@ -77,7 +77,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	}
 
 	if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_HLT) {
-		lsprintf(INFO, "What are you waiting for? (HLT state)\n");
+		lskprintf(INFO, "What are you waiting for? (HLT state)\n");
 		assert((ls->save.next_tid == -1 ||
 		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 		       "Two threads in one transition?");
@@ -118,13 +118,13 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	/* We shouldn't be asked to choose if somebody else already did. */
 	assert(Q_GET_SIZE(&ls->arbiter.choices) == 0);
 
-	lsprintf(CHOICE, "Available choices: ");
+	lsprintf(DEV, "Available choices: ");
 
 	/* Count the number of available threads. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a)) {
-			print_agent(CHOICE, a);
-			printf(CHOICE, " ");
+			print_agent(DEV, a);
+			printf(DEV, " ");
 			count++;
 		}
 	);
@@ -148,7 +148,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) && ++i == count) {
-			printf(CHOICE, "- Figured I'd look at TID %d next.\n",
+			printf(DEV, "- Figured I'd look at TID %d next.\n",
 			       a->tid);
 			*target = a;
 			*our_choice = true;
@@ -161,7 +161,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		       "Nobody runnable! All threads wedged?\n");
 		found_a_bug(ls);
 	} else {
-		printf(BUG, "Nobody runnable! All threads wedged?\n");
+		printf(DEV, "Nobody runnable! All threads wedged?\n");
 	}
 	return false;
 }

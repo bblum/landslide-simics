@@ -319,7 +319,9 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 	assert(!m->in_free && "attempt to exit malloc while in free!");
 	assert(!m->in_mm_init && "attempt to exit malloc while in init!");
 
-	lsprintf(DEV, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
+	if (in_kernel != testing_userspace()) {
+		lsprintf(DEV, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
+	}
 
 	if (in_kernel) {
 		assert(base < USER_MEM_START);
@@ -381,7 +383,7 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
 			 "(in %s), contained within [0x%x | %d]\n", base,
 			 K_STR(in_kernel), chunk->base, chunk->len);
 		found_a_bug(ls);
-	} else {
+	} else if (in_kernel != testing_userspace()) {
 		lsprintf(DEV, "Free() chunk 0x%x, in %s\n", base, K_STR(in_kernel));
 	}
 
@@ -506,6 +508,7 @@ static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_ke
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
+	// TODO: do something analogous to a wrong_panic() assert here
 	lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USE AFTER FREE - %s 0x%.8x at eip"
 		 " 0x%.8x\n", write ? "write to" : "read from", addr,
 		 (int)GET_CPU_ATTR(ls->cpu0, eip));
@@ -742,6 +745,9 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 	assert(h0->depth > h1->depth);
 	assert(!h0->happens_before[h1->depth]);
 	assert(h0->chosen_thread != h1->chosen_thread);
+
+	/* Should not even be called for the -space not being tested. */
+	assert(in_kernel != testing_userspace());
 
 	lsprintf(DEV, "Intersecting transition %d (TID %d) with %d (TID %d): {",
 		 h0->depth, tid0, h1->depth, tid1);
