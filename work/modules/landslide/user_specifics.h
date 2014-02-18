@@ -34,6 +34,8 @@ bool user_thr_exit_entering(int eip);
 bool user_thr_exit_exiting(int eip);
 bool user_mutex_lock_entering(conf_object_t *cpu, int eip, int *addr);
 bool user_mutex_lock_exiting(int eip);
+bool user_mutex_trylock_entering(conf_object_t *cpu, int eip, int *addr);
+bool user_mutex_trylock_exiting(conf_object_t *cpu, int eip, bool *succeeded);
 bool user_mutex_unlock_entering(conf_object_t *cpu, int eip, int *addr);
 bool user_mutex_unlock_exiting(int eip);
 bool user_cond_wait_entering(conf_object_t *cpu, int eip, int *addr);

@@ -241,6 +241,58 @@ bool user_mutex_lock_exiting(int eip) {
 	return false;
 #endif
 }
+/* The following two functions look funny because of two possible names. */
+bool user_mutex_trylock_entering(conf_object_t *cpu, int eip, int *addr) {
+#ifdef USER_MUTEX_TRYLOCK_ENTER
+	if (eip == USER_MUTEX_TRYLOCK_ENTER) {
+		*addr = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+#else
+#ifdef USER_MUTEX_TRY_LOCK_ENTER
+	if (eip == USER_MUTEX_TRY_LOCK_ENTER) {
+		*addr = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+#endif
+}
+// XXX XXX XXX: Other student trylock implementations may return false/true
+// instead of -1/0 like POBBLES does. How can we deal with this??
+#define TRYLOCK_SUCCESS_VAL 0
+bool user_mutex_trylock_exiting(conf_object_t *cpu, int eip, bool *succeeded) {
+#ifdef USER_MUTEX_TRYLOCK_EXIT
+	if (eip == USER_MUTEX_TRYLOCK_EXIT) {
+		*succeeded = GET_CPU_ATTR(cpu, eax) == TRYLOCK_SUCCESS_VAL;
+		return true;
+	} else {
+		return false;
+	}
+#else
+#ifdef USER_MUTEX_TRYLOCK_ENTER
+	STATIC_ASSERT(false && "MUTEX_TRYLOCK ENTER but not EXIT defined");
+#endif
+#ifdef USER_MUTEX_TRY_LOCK_EXIT
+	if (eip == USER_MUTEX_TRYLOCK_EXIT) {
+		*succeeded = GET_CPU_ATTR(cpu, eax) == TRYLOCK_SUCCESS_VAL;
+		return true;
+	} else {
+		return false;
+	}
+#else
+#ifdef USER_MUTEX_TRY_LOCK_ENTER
+	STATIC_ASSERT(false && "MUTEX_TRY_LOCK ENTER but not EXIT defined");
+#endif
+	return false;
+#endif
+#endif
+}
 bool user_mutex_unlock_entering(conf_object_t *cpu, int eip, int *addr) {
 #ifdef USER_MUTEX_UNLOCK_ENTER
 	if (eip == USER_MUTEX_UNLOCK_ENTER) {
