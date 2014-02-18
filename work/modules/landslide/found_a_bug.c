@@ -10,7 +10,7 @@
 #define MODULE_COLOUR COLOUR_RED
 
 #define INFO_NAME "INFO"
-#define INFO_COLOUR COLOUR_BLUE
+#define INFO_COLOUR COLOUR_DARK COLOUR_GREEN
 
 #include "common.h"
 #include "found_a_bug.h"

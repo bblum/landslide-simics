@@ -149,5 +149,6 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 
 	}
 
-	lsprintf(BRANCH, "Estimate: %Lf\n", root->proportion);
+	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "Estimate: %Lf%%\n"
+		 COLOUR_DEFAULT, root->proportion * 100);
 }

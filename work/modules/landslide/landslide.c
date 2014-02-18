@@ -307,7 +307,13 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 {
 	// FIXME: make this work
 	if (addr >= USER_MEM_START) {
-		return snprintf(buf, maxlen, "<userspace>");
+		if (user_address_global(addr)) {
+			return snprintf(buf, maxlen, "<user global@0x%x>", addr);
+		} else if (user_address_global(addr)) {
+			return snprintf(buf, maxlen, "<user heap@0x%x>", addr);
+		} else {
+			return snprintf(buf, maxlen, "<user stack@0x%x>", addr);
+		}
 	}
 
 	// TODO: store deflsym in struct ls_state
@@ -572,8 +578,9 @@ static bool time_travel(struct ls_state *ls)
 static void found_no_bug(struct ls_state *ls)
 {
 	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
-		 "**** Execution tree explored; you survived! ****\n");
-	PRINT_TREE_INFO(ALWAYS, ls);
+		 "**** Execution tree explored; you survived! ****\n"
+		 COLOUR_DEFAULT);
+	PRINT_TREE_INFO(DEV, ls);
 	SIM_quit(LS_NO_KNOWN_BUG);
 }
 
