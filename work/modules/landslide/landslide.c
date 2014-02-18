@@ -463,14 +463,15 @@ static void check_user_syscall(struct ls_state *ls)
 
 static void wrong_panic(struct ls_state *ls, const char *panicked, const char *expected)
 {
-	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "****************\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "********************************\n");
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
 		 "The %s panicked during a %sspace test. This shouldn't happen.\n",
 		 panicked, expected);
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
-		 "This is more likely a problem with the test configuration, "
+		 "This is more likely a problem with the test configuration,\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
 		 "or a reference kernel bug, than a bug in your code.\n");
-	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "****************\n");
+	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "********************************\n");
 	found_a_bug(ls);
 	assert(0 && "wrong panic");
 }

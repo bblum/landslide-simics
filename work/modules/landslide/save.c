@@ -696,7 +696,13 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	ss->current  = h;
 	ss->next_tid = new_tid;
-	if (h->chosen_thread != ss->next_tid) {
+	if (h->chosen_thread == -1) {
+		lsprintf(CHOICE, MODULE_COLOUR "#%d: Starting test with TID %d.\n"
+			 COLOUR_DEFAULT, h->depth, ss->next_tid);
+	} else if (ss->next_tid == -1) {
+		lsprintf(CHOICE, MODULE_COLOUR "#%d: Test ends with TID %d.\n"
+			 COLOUR_DEFAULT, h->depth, h->chosen_thread);
+	} else if (h->chosen_thread != ss->next_tid) {
 		lsprintf(CHOICE, COLOUR_BOLD MODULE_COLOUR "#%d: Preempting "
 			 "TID %d to switch to TID %d\n" COLOUR_DEFAULT,
 			 h->depth, h->chosen_thread, ss->next_tid);
