@@ -334,7 +334,7 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 {
 	if (ACTION(s, forking) && !HANDLING_INTERRUPT(s) &&
 	    s->cur_agent->tid != target_tid) {
-		lskprintf(DEV, "agent %d forked (%s) -- ", target_tid,
+		lsprintf(DEV, "agent %d forked (%s) -- ", target_tid,
 			  add_to_rq ? "rq" : "dq");
 		print_qs(DEV, s);
 		printf(DEV, "\n");
@@ -353,7 +353,7 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 static void handle_sleep(struct sched_state *s)
 {
 	if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
-		lskprintf(DEV, "agent %d sleep -- ", s->cur_agent->tid);
+		lsprintf(DEV, "agent %d sleep -- ", s->cur_agent->tid);
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		agent_sleep(s);
@@ -366,7 +366,7 @@ static void handle_sleep(struct sched_state *s)
 static void handle_vanish(struct sched_state *s)
 {
 	if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
-		lskprintf(DEV, "agent %d vanish -- ", s->cur_agent->tid);
+		lsprintf(DEV, "agent %d vanish -- ", s->cur_agent->tid);
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		agent_vanish(s);
