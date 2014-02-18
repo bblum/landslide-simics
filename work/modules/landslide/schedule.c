@@ -803,19 +803,37 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* Okay, are we at a choice point? */
-	bool voluntary;
+	bool voluntary, need_handle_sleep;
 	bool just_finished_reschedule = s->just_finished_reschedule;
 	s->just_finished_reschedule = false;
 	/* TODO: arbiter may also want to see the trace_entry_t */
-	if (arbiter_interested(ls, just_finished_reschedule, &voluntary)) {
+	if (arbiter_interested(ls, just_finished_reschedule, &voluntary,
+			       &need_handle_sleep)) {
 		struct agent *a;
 		bool our_choice;
+
+		/* Some kernels that don't have separate idle threads (POBBLES)
+		 * may sleep() a thread and go into hlt state without ever
+		 * switching the current thread (where we would handle_sleep()
+		 * above). So need to handle it again here. */
+		if (need_handle_sleep) {
+			handle_sleep(s);
+		}
+
 		/* TODO: as an optimisation (in serialisation state / etc), the
 		 * arbiter may return NULL if there was only one possible
 		 * choice. */
 		if (arbiter_choose(ls, &a, &our_choice)) {
 			/* Effect the choice that was made... */
-			if (a != s->cur_agent) {
+			if (a != s->cur_agent ||
+			    agent_by_tid_or_null(&s->sq, s->cur_agent->tid) != NULL) {
+				if (a == s->cur_agent) {
+					/* The arbiter picked to wake a thread
+					 * off the sleep queue. Prevent it from
+					 * getting confused about who "last" ran
+					 * when the next choice point happens. */
+					s->last_agent = s->cur_agent;
+				}
 				lsprintf(DEV, "from agent %d, arbiter chose "
 					 "%d at 0x%x (called at 0x%x)\n",
 					 s->cur_agent->tid, a->tid, ls->eip,

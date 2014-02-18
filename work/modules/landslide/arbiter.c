@@ -46,7 +46,7 @@ bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
 }
 
 bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
-			bool *voluntary)
+			bool *voluntary, bool *need_handle_sleep)
 {
 	*voluntary = false;
 
@@ -81,6 +81,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		assert((ls->save.next_tid == -1 ||
 		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 		       "Two threads in one transition?");
+		*need_handle_sleep = true;
 		return true;
 	}
 
