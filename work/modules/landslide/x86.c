@@ -82,7 +82,7 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 		attr_value_t ss = SIM_make_attr_list(10,
 			SIM_make_attr_integer(SEGSEL_KERNEL_DS),
 			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(0),
+			SIM_make_attr_integer(3),
 			SIM_make_attr_integer(1),
 			SIM_make_attr_integer(1),
 			SIM_make_attr_integer(1),
@@ -93,6 +93,10 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 		ret = SIM_set_attribute(cpu, "ss", &ss);
 		assert(ret == Sim_Set_Ok && "failed set ss");
 		SIM_free_attribute(ss);
+
+		/* Change CPL. */
+		assert(GET_CPU_ATTR(cpu, cpl) == 3);
+		SET_CPU_ATTR(cpu, cpl, 0);
 
 	}
 	SET_CPU_ATTR(cpu, eip, handler);
