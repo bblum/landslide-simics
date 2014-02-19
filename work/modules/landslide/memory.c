@@ -714,15 +714,15 @@ static void check_data_race(conf_object_t *cpu,
 			// To be safe, all pairs of locksets must have a lock in common.
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
 				char buf[BUF_SIZE];
-				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "Data race: ");
-				print_shm_conflict(DEV, cpu, m0, m1, ma0, ma1);
-				printf(DEV, " at:\n");
+				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED "Data race: ");
+				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1);
+				printf(CHOICE, " at:\n");
 				symtable_lookup(buf, BUF_SIZE, ma0->eip);
-				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "0x%x %s and \n",
-					 ma0->eip, buf);
+				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
+					 "0x%x %s and \n", ma0->eip, buf);
 				symtable_lookup(buf, BUF_SIZE, ma1->eip);
-				lsprintf(DEV, COLOUR_BOLD COLOUR_RED "0x%x %s\n",
-					 ma1->eip, buf);
+				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
+					 "0x%x %s\n", ma1->eip, buf);
 				return;
 			}
 		}

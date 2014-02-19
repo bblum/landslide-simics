@@ -44,9 +44,9 @@ void lockset_add(struct lockset *l, int lock_addr)
 	assert(l->num_locks < l->capacity - 1 &&
 	       "Max number of locks in lockset implementation exceeded :(");
 
-	lsprintf(DEV, "Adding 0x%x to lockset: ", lock_addr);
-	lockset_print(DEV, l);
-	printf(DEV, "\n");
+	lsprintf(INFO, "Adding 0x%x to lockset: ", lock_addr);
+	lockset_print(INFO, l);
+	printf(INFO, "\n");
 
 	for (int i = 0; i < l->num_locks; i++) {
 		assert(l->locks[i] != lock_addr &&
@@ -61,9 +61,9 @@ static bool _lockset_remove(struct lockset *l, int lock_addr)
 {
 	assert(l->num_locks < l->capacity);
 
-	lsprintf(DEV, "Removing 0x%x from lockset: ", lock_addr);
-	lockset_print(DEV, l);
-	printf(DEV, "\n");
+	lsprintf(INFO, "Removing 0x%x from lockset: ", lock_addr);
+	lockset_print(INFO, l);
+	printf(INFO, "\n");
 
 	for (int i = 0; i < l->num_locks; i++) {
 		if (l->locks[i] == lock_addr) {
@@ -84,9 +84,9 @@ void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
 
 	char lock_name[32];
 	symtable_lookup(lock_name, 32, lock_addr);
-	lsprintf(DEV, "WARNING: Lock handoff with TID %d unlocking %s @ 0x%x;"
-		 "expect data race tracking may be incorrect\n",
-		 s->cur_agent->tid, lock_name, lock_addr);
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "WARNING: Lock handoff with "
+		 "TID %d unlocking %s @ 0x%x; expect data race tracking may be "
+		 "incorrect\n" COLOUR_DEFAULT, s->cur_agent->tid, lock_name, lock_addr);
 
 #ifdef ALLOW_LOCK_HANDOFF
 	struct agent *a;
@@ -104,8 +104,8 @@ void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
 	// Lock not found.
 	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "WARNING: Couldn't find "
 		 "unlock()ed lock 0x%x in lockset; probably incorrect "
-		 "annotations - did you forget to annotate mutex_trylock()?\n",
-		 lock_addr);
+		 "annotations - did you forget to annotate mutex_trylock()?\n"
+		 COLOUR_DEFAULT, lock_addr);
 	// In userspace this is a warning instead of a panic. Bad "annotations"
 	// are our fault, and some p2s may do ridiculous stuff like POBBLES's
 	// "copy_info in thr_join" thing. Just ignore it and move along.
