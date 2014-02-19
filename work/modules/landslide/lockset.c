@@ -102,10 +102,16 @@ void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
 #endif
 
 	// Lock not found.
-	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Couldn't find unlock()ed lock "
-		 "0x%x in lockset; probably incorrect annotations - did you "
-		 "forget to annotate mutex_trylock()?\n", lock_addr);
-	LS_ABORT();
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "WARNING: Couldn't find "
+		 "unlock()ed lock 0x%x in lockset; probably incorrect "
+		 "annotations - did you forget to annotate mutex_trylock()?\n",
+		 lock_addr);
+	// In userspace this is a warning instead of a panic. Bad "annotations"
+	// are our fault, and some p2s may do ridiculous stuff like POBBLES's
+	// "copy_info in thr_join" thing. Just ignore it and move along.
+	if (in_kernel) {
+		LS_ABORT();
+	}
 }
 #undef LOCKSET_OF
 

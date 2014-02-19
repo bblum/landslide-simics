@@ -49,8 +49,11 @@ struct agent {
 		/* have they not even had a chance to run yet? */
 		bool just_forked;
 		/* are they taking or releasing a mutex? */
-		bool mutex_locking;
-		bool mutex_unlocking;
+		bool kern_mutex_locking;
+		bool kern_mutex_unlocking;
+		/* what about in userspace? */
+		bool user_mutex_locking;
+		bool user_mutex_unlocking;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
@@ -61,7 +64,10 @@ struct agent {
 	/* action.locking implies addr is valid; also blocked_on set implies
 	 * locking, which implies addr is valid. -1 if nothing. */
 	int blocked_on_addr;
-	int mutex_unlocking_addr;
+	int kern_mutex_unlocking_addr;
+	/* similar for userspace */
+	int user_mutex_locking_addr;
+	int user_mutex_unlocking_addr;
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;

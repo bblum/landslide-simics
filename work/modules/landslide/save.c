@@ -116,18 +116,20 @@ static struct agent *copy_agent(struct agent *a_src)
 	struct agent *a_dest = MM_XMALLOC(1, struct agent);
 	assert(a_src != NULL && "cannot copy null agent");
 
-	a_dest->tid                    = a_src->tid;
-	a_dest->action.handling_timer  = a_src->action.handling_timer;
-	a_dest->action.context_switch  = a_src->action.context_switch;
-	a_dest->action.cs_free_pass    = a_src->action.cs_free_pass;
-	a_dest->action.forking         = a_src->action.forking;
-	a_dest->action.sleeping        = a_src->action.sleeping;
-	a_dest->action.vanishing       = a_src->action.vanishing;
-	a_dest->action.readlining      = a_src->action.readlining;
-	a_dest->action.just_forked     = a_src->action.just_forked;
-	a_dest->action.mutex_locking   = a_src->action.mutex_locking;
-	a_dest->action.mutex_unlocking = a_src->action.mutex_unlocking;
-	a_dest->action.schedule_target = a_src->action.schedule_target;
+	a_dest->tid                         = a_src->tid;
+	a_dest->action.handling_timer       = a_src->action.handling_timer;
+	a_dest->action.context_switch       = a_src->action.context_switch;
+	a_dest->action.cs_free_pass         = a_src->action.cs_free_pass;
+	a_dest->action.forking              = a_src->action.forking;
+	a_dest->action.sleeping             = a_src->action.sleeping;
+	a_dest->action.vanishing            = a_src->action.vanishing;
+	a_dest->action.readlining           = a_src->action.readlining;
+	a_dest->action.just_forked          = a_src->action.just_forked;
+	a_dest->action.kern_mutex_locking   = a_src->action.kern_mutex_locking;
+	a_dest->action.kern_mutex_unlocking = a_src->action.kern_mutex_unlocking;
+	a_dest->action.user_mutex_locking   = a_src->action.user_mutex_locking;
+	a_dest->action.user_mutex_unlocking = a_src->action.user_mutex_unlocking;
+	a_dest->action.schedule_target      = a_src->action.schedule_target;
 	assert(memcmp(&a_dest->action, &a_src->action,
 		      sizeof(a_dest->action)) == 0 &&
 	       "Did you update agent->action without updating save.c?");
@@ -136,7 +138,9 @@ static struct agent *copy_agent(struct agent *a_src)
 	a_dest->blocked_on_tid  = a_src->blocked_on_tid;
 	a_dest->blocked_on_addr = a_src->blocked_on_addr;
 
-	a_dest->mutex_unlocking_addr = a_src->mutex_unlocking_addr;
+	a_dest->kern_mutex_unlocking_addr = a_src->kern_mutex_unlocking_addr;
+	a_dest->user_mutex_locking_addr   = a_src->user_mutex_locking_addr;
+	a_dest->user_mutex_unlocking_addr = a_src->user_mutex_unlocking_addr;
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 
