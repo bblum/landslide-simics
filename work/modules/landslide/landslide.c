@@ -560,7 +560,7 @@ static bool time_travel(struct ls_state *ls)
 	struct hax *h;
 
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN
-		 "End of branch #%d.\n", ls->save.total_jumps);
+		 "End of branch #%d.\n", ls->save.total_jumps + 1);
 
 	/* find where we want to go in the tree, and choose what to do there */
 	if ((h = explore(&ls->save, &tid)) != NULL) {
