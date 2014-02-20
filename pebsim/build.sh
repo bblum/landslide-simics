@@ -38,13 +38,12 @@ function starting_threads {
 }
 
 # Doesn't work without the "./". Everything is awful forever.
-CONFIG=./config.landslide
-if [ ! -f "$CONFIG" ]; then
-	die "Where's $CONFIG?"
+if [ ! -f "./$LANDSLIDE_CONFIG" ]; then
+	die "Where's $LANDSLIDE_CONFIG?"
 fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
-source $CONFIG
+source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
 
@@ -128,7 +127,7 @@ elif [ -f $HEADER ]; then
 		MD5SUM=`grep 'image md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
 		MD5SUM_C=`grep 'config md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
 		MY_MD5SUM=`md5sum $KERNEL_IMG | cut -d' ' -f1`
-		MY_MD5SUM_C=`md5sum $CONFIG | cut -d' ' -f1`
+		MY_MD5SUM_C=`md5sum ./$LANDSLIDE_CONFIG | cut -d' ' -f1`
 		if [ "$MD5SUM" == "$MY_MD5SUM" -a "$MD5SUM_C" == "$MY_MD5SUM_C" ]; then
 			SKIP_HEADER=yes
 		else
