@@ -403,6 +403,8 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	copy_mem(&ls->user_mem, h->old_user_mem); /* as above */
 	free_arbiter_choices(&ls->arbiter);
 
+	set_symtable(h->old_symtable);
+
 	ls->just_jumped = true;
 }
 
@@ -679,6 +681,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	h->old_user_mem = MM_XMALLOC(1, struct mem_state);
 	copy_mem(h->old_user_mem, &ls->user_mem);
+
+	h->old_symtable = get_symtable();
 
 	if (h->depth > 0) {
 		h->conflicts      = MM_XMALLOC(h->depth, bool);

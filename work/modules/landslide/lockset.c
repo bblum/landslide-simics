@@ -83,7 +83,7 @@ void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
 		return;
 
 	char lock_name[32];
-	symtable_lookup(lock_name, 32, lock_addr);
+	symtable_lookup_data(lock_name, 32, lock_addr);
 	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "WARNING: Lock handoff with "
 		 "TID %d unlocking %s @ 0x%x; expect data race tracking may be "
 		 "incorrect\n" COLOUR_DEFAULT, s->cur_agent->tid, lock_name, lock_addr);

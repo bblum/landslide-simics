@@ -27,6 +27,7 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 		attr_value_t noob = SIM_make_attr_integer(val);		\
 		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
 		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
+		SIM_free_attribute(noob);				\
 	} while (0)
 
 #define WORD_SIZE 4

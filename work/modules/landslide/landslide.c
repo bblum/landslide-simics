@@ -261,16 +261,42 @@ void init_local(void)
 #define GLOBAL_INFO_COLOUR   COLOUR_DARK COLOUR_GREY
 #define UNKNOWN_COLOUR       COLOUR_BOLD COLOUR_MAGENTA
 
+conf_object_t *get_symtable()
+{
+	conf_object_t *cell0_context = SIM_get_object("cell0_context");
+	if (cell0_context == NULL) {
+		lsprintf(ALWAYS, "WARNING: couldn't get cell0_context\n");
+		return NULL;
+	}
+	attr_value_t table = SIM_get_attribute(cell0_context, "symtable");
+	if (!SIM_attr_is_object(table)) {
+		SIM_free_attribute(table);
+		lsprintf(ALWAYS, "WARNING: cell0_context.symtable not an obj\n");
+		return NULL;
+	}
+	conf_object_t *symtable = SIM_attr_object(table);
+	SIM_free_attribute(table);
+	return symtable;
+}
+
+void set_symtable(conf_object_t *symtable)
+{
+	conf_object_t *cell0_context = SIM_get_object("cell0_context");
+	if (cell0_context == NULL) {
+		lsprintf(ALWAYS, "WARNING: couldn't get cell0_context\n");
+		return;
+	}
+	attr_value_t table = SIM_make_attr_object(symtable);
+	assert(SIM_attr_is_object(table));
+	set_error_t ret = SIM_set_attribute(cell0_context, "symtable", &table);
+	assert(ret == Sim_Set_Ok && "set symtable failed!");
+	SIM_free_attribute(table);
+}
+
 int symtable_lookup(char *buf, int maxlen, int addr)
 {
-	// FIXME: make this work
-	if (addr >= USER_MEM_START) {
-		return snprintf(buf, maxlen, UNKNOWN_COLOUR
-				"<userspace>" COLOUR_DEFAULT);
-	}
-
 	// TODO: store deflsym in struct ls_state
-	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
+	conf_object_t *table = get_symtable();
 	if (table == NULL) {
 		return snprintf(buf, maxlen, UNKNOWN_COLOUR
 				"<no symtable>" COLOUR_DEFAULT);
@@ -280,8 +306,14 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
-		return snprintf(buf, maxlen, UNKNOWN_COLOUR
-				"<unknown>" COLOUR_DEFAULT);
+		if (addr < USER_MEM_START) {
+			return snprintf(buf, maxlen, UNKNOWN_COLOUR
+					"<unknown in kernel>" COLOUR_DEFAULT);
+		} else {
+			return snprintf(buf, maxlen, UNKNOWN_COLOUR
+					"<unknown in user>" COLOUR_DEFAULT);
+		}
+
 	}
 	assert(SIM_attr_list_size(result) >= 3);
 
@@ -305,19 +337,7 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 
 int symtable_lookup_data(char *buf, int maxlen, int addr)
 {
-	// FIXME: make this work
-	if (addr >= USER_MEM_START) {
-		if (user_address_global(addr)) {
-			return snprintf(buf, maxlen, "<user global@0x%x>", addr);
-		} else if (user_address_global(addr)) {
-			return snprintf(buf, maxlen, "<user heap@0x%x>", addr);
-		} else {
-			return snprintf(buf, maxlen, "<user stack@0x%x>", addr);
-		}
-	}
-
-	// TODO: store deflsym in struct ls_state
-	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
+	conf_object_t *table = get_symtable();
 	if (table == NULL) {
 		return snprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
 				COLOUR_DEFAULT, addr);
@@ -327,8 +347,12 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 	attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
-		return snprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
-				COLOUR_DEFAULT, addr);
+		if (addr < USER_MEM_START) {
+			return snprintf(buf, maxlen, "<user global0x%x>", addr);
+		} else {
+			return snprintf(buf, maxlen, GLOBAL_COLOUR
+					"<kernel global0x%.8x>" COLOUR_DEFAULT, addr);
+		}
 	}
 	assert(SIM_attr_list_size(result) >= 4);
 
@@ -350,12 +374,7 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 
 bool function_eip_offset(int eip, int *offset)
 {
-	// FIXME: make this work
-	if (eip >= USER_MEM_START) {
-		return false;
-	}
-
-	conf_object_t *table = SIM_get_object(SYMTABLE_NAME);
+	conf_object_t *table = get_symtable();
 	if (table == NULL) {
 		return false;
 	}
