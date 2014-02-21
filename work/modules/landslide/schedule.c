@@ -17,6 +17,7 @@
 #include "kernel_specifics.h"
 #include "memory.h"
 #include "schedule.h"
+#include "user_specifics.h"
 #include "variable_queue.h"
 #include "x86.h"
 
