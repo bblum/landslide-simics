@@ -70,6 +70,8 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->action.kern_mutex_unlocking = false;
 	a->action.user_mutex_locking = false;
 	a->action.user_mutex_unlocking = false;
+	a->action.user_rwlock_locking = false;
+	a->action.user_rwlock_unlocking = false;
 	a->action.schedule_target = false;
 	a->blocked_on = NULL;
 	a->blocked_on_tid = -1;
@@ -77,6 +79,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->kern_mutex_unlocking_addr = -1;
 	a->user_mutex_locking_addr = -1;
 	a->user_mutex_unlocking_addr = -1;
+	a->user_rwlock_locking_addr = -1;
 
 	lockset_init(&a->kern_locks_held);
 	lockset_init(&a->user_locks_held);
@@ -499,8 +502,9 @@ void sched_update(struct ls_state *ls)
 	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
 
 	int target_tid;
-	int mutex_addr;
+	int lock_addr;
 	bool succeeded;
+	bool write_mode;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -613,12 +617,12 @@ void sched_update(struct ls_state *ls)
 		/* A thread is about to deschedule. Is it vanishing/sleeping? */
 		agent_deschedule(s, target_tid);
 	/* Mutex tracking and noob deadlock detection */
-	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &mutex_addr)) {
+	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &lock_addr)) {
 		//assert(!ACTION(s, kern_mutex_locking));
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = true;
-		s->cur_agent->blocked_on_addr = mutex_addr;
-		lockset_add(&s->cur_agent->kern_locks_held, mutex_addr, true);
+		s->cur_agent->blocked_on_addr = lock_addr;
+		lockset_add(&s->cur_agent->kern_locks_held, lock_addr, true);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
@@ -650,42 +654,40 @@ void sched_update(struct ls_state *ls)
 		s->cur_agent->blocked_on_tid = -1;
 		s->cur_agent->blocked_on_addr = -1;
 		/* no need to check for deadlock; this can't create a cycle. */
-		mutex_block_others(&s->rq, mutex_addr, s->cur_agent,
-				   s->cur_agent->tid);
-	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &mutex_addr)) {
+		mutex_block_others(&s->rq, lock_addr, s->cur_agent, s->cur_agent->tid);
+	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &lock_addr)) {
 		/* It's allowed to have a mutex_unlock call inside a mutex_lock
 		 * (and it can happen), or mutex_lock inside of mutex_lock, but
 		 * not the other way around. */
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_unlocking) = true;
 		assert(s->cur_agent->kern_mutex_unlocking_addr == -1);
-		s->cur_agent->kern_mutex_unlocking_addr = mutex_addr;
+		s->cur_agent->kern_mutex_unlocking_addr = lock_addr;
 		lskprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
-		          mutex_addr, s->cur_agent->tid);
-		mutex_block_others(&s->rq, mutex_addr, NULL, -1);
+		          lock_addr, s->cur_agent->tid);
+		mutex_block_others(&s->rq, lock_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_unlocking) = false;
 		assert(s->cur_agent->kern_mutex_unlocking_addr != -1);
 		lockset_remove(s, s->cur_agent->kern_mutex_unlocking_addr, true);
 		s->cur_agent->kern_mutex_unlocking_addr = -1;
-		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
-		          s->cur_agent->tid);
+		lskprintf(DEV, "mutex: unlocking done by tid %d\n", s->cur_agent->tid);
 
 	/**********************************************************************
 	 * Userspace
 	 **********************************************************************/
-	} else if (user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
-	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &mutex_addr)) {
+	} else if (user_mutex_lock_entering(ls->cpu0, ls->eip, &lock_addr) ||
+	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;
-		s->cur_agent->user_mutex_locking_addr = mutex_addr;
+		s->cur_agent->user_mutex_locking_addr = lock_addr;
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
-		lockset_add(&s->cur_agent->user_locks_held, mutex_addr, true);
+		lockset_add(&s->cur_agent->user_locks_held, lock_addr, true);
 		lsprintf(DEV, "tid %d locks mutex 0x%x\n", s->cur_agent->tid,
-			 mutex_addr);
+			 lock_addr);
 	} else if (user_mutex_lock_exiting(ls->eip)) {
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
@@ -710,13 +712,12 @@ void sched_update(struct ls_state *ls)
 			lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr, false);
 		}
 		s->cur_agent->user_mutex_locking_addr = -1;
-	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &mutex_addr)) {
+	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_unlocking) = true;
-		s->cur_agent->user_mutex_unlocking_addr = mutex_addr;
-		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", s->cur_agent->tid,
-			 mutex_addr);
+		s->cur_agent->user_mutex_unlocking_addr = lock_addr;
+		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", s->cur_agent->tid, lock_addr);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(ACTION(s, user_mutex_unlocking));
@@ -726,9 +727,42 @@ void sched_update(struct ls_state *ls)
 		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", s->cur_agent->tid,
 			 s->cur_agent->user_mutex_unlocking_addr);
 		s->cur_agent->user_mutex_unlocking_addr = -1;
-	}
 	// TODO: model sems
 	// TODO: model rwlox (for these, don't give a free pass to contents of lock
+	} else if (user_rwlock_lock_entering(ls->cpu0, ls->eip, &lock_addr, &write_mode)) {
+		assert(!ACTION(s, user_rwlock_locking));
+		assert(!ACTION(s, user_rwlock_unlocking));
+		ACTION(s, user_rwlock_locking) = true;
+		/* use low bit of addr to store mode */
+		assert((lock_addr & 0x1) == 0);
+		s->cur_agent->user_rwlock_locking_addr = lock_addr | (write_mode ? 1 : 0);
+		lsprintf(DEV, "tid %d locks rwlock 0x%x for %s\n", s->cur_agent->tid,
+			 lock_addr, write_mode ? "writing" : "reading");
+	} else if (user_rwlock_lock_exiting(ls->eip)) {
+		assert(ACTION(s, user_rwlock_locking));
+		assert(!ACTION(s, user_rwlock_unlocking));
+		assert(s->cur_agent->user_rwlock_locking_addr != -1);
+		int lock_addr = s->cur_agent->user_rwlock_locking_addr & ~0x1;
+		bool write_mode = (s->cur_agent->user_rwlock_locking_addr & 0x1) == 1;
+		s->cur_agent->user_rwlock_locking_addr = -1;
+		ACTION(s, user_rwlock_locking) = false;
+		lsprintf(DEV, "tid %d locked rwlock 0x%x for %s\n", s->cur_agent->tid,
+			 lock_addr, write_mode ? "writing" : "reading");
+		/* Add to lockset INSIDE lock implementation; i.e., we consider
+		 * the implementation not protected by itself w.r.t data races. */
+		lockset_add(&s->cur_agent->user_locks_held, lock_addr, write_mode);
+	} else if (user_rwlock_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_rwlock_locking));
+		assert(!ACTION(s, user_rwlock_unlocking));
+		ACTION(s, user_rwlock_unlocking) = true;
+		lsprintf(DEV, "tid %d unlocks rwlock 0x%x\n", s->cur_agent->tid, lock_addr);
+		lockset_remove(s, lock_addr, false);
+	} else if (user_rwlock_unlock_exiting(ls->eip)) {
+		assert(!ACTION(s, user_rwlock_locking));
+		assert(ACTION(s, user_rwlock_unlocking));
+		ACTION(s, user_rwlock_unlocking) = false;
+		lsprintf(DEV, "tid %d unlocked rwlock\n", s->cur_agent->tid);
+	}
 
 	/**********************************************************************
 	 * Exercise our will upon the guest kernel

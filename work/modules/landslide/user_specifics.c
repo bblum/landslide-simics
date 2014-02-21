@@ -441,11 +441,11 @@ bool user_sem_signal_exiting(int eip) {
  ******************************************************************************/
 
 /* Mode: 0 == read; 1 == write */
-bool user_rwlock_lock_entering(conf_object_t *cpu, int eip, int *addr, int *mode) {
+bool user_rwlock_lock_entering(conf_object_t *cpu, int eip, int *addr, bool *write) {
 #ifdef USER_RWLOCK_LOCK_ENTER
 	if (eip == USER_RWLOCK_LOCK_ENTER) {
 		*addr = READ_STACK(cpu, 1);
-		*mode = READ_STACK(cpu, 2);
+		*write = READ_STACK(cpu, 2) != 0;
 		return true;
 	} else {
 		return false;

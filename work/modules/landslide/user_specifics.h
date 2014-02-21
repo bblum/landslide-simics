@@ -48,7 +48,7 @@ bool user_sem_wait_entering(conf_object_t *cpu, int eip, int *addr);
 bool user_sem_wait_exiting(int eip);
 bool user_sem_signal_entering(conf_object_t *cpu, int eip, int *addr);
 bool user_sem_signal_exiting(int eip);
-bool user_rwlock_lock_entering(conf_object_t *cpu, int eip, int *addr, int *mode);
+bool user_rwlock_lock_entering(conf_object_t *cpu, int eip, int *addr, bool *write);
 bool user_rwlock_lock_exiting(int eip);
 bool user_rwlock_unlock_entering(conf_object_t *cpu, int eip, int *addr);
 bool user_rwlock_unlock_exiting(int eip);

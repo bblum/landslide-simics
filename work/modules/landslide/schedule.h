@@ -54,6 +54,8 @@ struct agent {
 		/* what about in userspace? */
 		bool user_mutex_locking;
 		bool user_mutex_unlocking;
+		bool user_rwlock_locking;
+		bool user_rwlock_unlocking;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
@@ -68,6 +70,8 @@ struct agent {
 	/* similar for userspace */
 	int user_mutex_locking_addr;
 	int user_mutex_unlocking_addr;
+	int user_rwlock_locking_addr;
+	// int user_rwlock_unlocking_addr; // not needed
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;
