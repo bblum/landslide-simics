@@ -111,10 +111,11 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 	PRINT_TREE_INFO(BUG, bug_found, ls);
 
 	if (BREAK_ON_BUG) {
-		lsprintf(ALWAYS, bug_found, COLOUR_BOLD COLOUR_YELLOW
-			 "Now giving you the debug prompt. Good luck!\n");
+		lsprintf(ALWAYS, bug_found, COLOUR_BOLD COLOUR_YELLOW "%s", bug_found ?
+			 "Now giving you the debug prompt. Good luck!\n" :
+			 "Now giving you the debug prompt.\n");
 		SIM_break_simulation(NULL);
 	} else {
-		SIM_quit(LS_BUG_FOUND);
+		SIM_quit(bug_found ? LS_BUG_FOUND : LS_NO_KNOWN_BUG);
 	}
 }
