@@ -9,6 +9,11 @@
 
 struct sched_state;
 
+struct lock {
+	int addr;
+	bool write; /* 1 always for mutexes; 1 or 0 for rwlocks */
+};
+
 /* Tracks the locks held by a given thread, for data race detection. */
 
 // using an array for simplicity of implementation, sorry! it would not be
@@ -17,7 +22,7 @@ struct sched_state;
 struct lockset {
 	int num_locks;
 	int capacity;
-	int *locks;
+	struct lock *locks;
 };
 
 // For efficient storage of locksets on memory accesses.
@@ -31,7 +36,7 @@ enum lockset_cmp_result {
 void lockset_init(struct lockset *l);
 void lockset_free(struct lockset *l);
 void lockset_clone(struct lockset *dest, struct lockset *src);
-void lockset_add(struct lockset *l, int lock_addr);
+void lockset_add(struct lockset *l, int lock_addr, bool write);
 void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel);
 bool lockset_intersect(struct lockset *l1, struct lockset *l2);
 enum lockset_cmp_result lockset_compare(struct lockset *l1, struct lockset *l2);

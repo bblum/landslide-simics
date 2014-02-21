@@ -107,8 +107,8 @@ static void copy_lockset(struct lockset *dest, struct lockset *src)
 {
 	dest->num_locks = src->num_locks;
 	dest->capacity  = src->capacity;
-	dest->locks = MM_XMALLOC(src->capacity, int);
-	memcpy(dest->locks, src->locks, src->capacity * sizeof(int));
+	dest->locks = MM_XMALLOC(src->capacity, struct lock);
+	memcpy(dest->locks, src->locks, src->capacity * sizeof(struct lock));
 }
 
 static struct agent *copy_agent(struct agent *a_src)

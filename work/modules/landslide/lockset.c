@@ -16,7 +16,7 @@ void lockset_init(struct lockset *l)
 {
 	l->num_locks = 0;
 	l->capacity = MAX_LOCKS;
-	l->locks = MM_XMALLOC(MAX_LOCKS, int);
+	l->locks = MM_XMALLOC(MAX_LOCKS, struct lock);
 }
 
 void lockset_free(struct lockset *l)
@@ -28,18 +28,22 @@ void lockset_clone(struct lockset *dest, struct lockset *src)
 {
 	dest->num_locks = src->num_locks;
 	dest->capacity  = src->num_locks; // space optimization for long-term storage
-	dest->locks = MM_XMALLOC(src->num_locks, int);
+	dest->locks = MM_XMALLOC(src->num_locks, struct lock);
 	memcpy(dest->locks, src->locks, src->num_locks * sizeof(int));
 }
 
 static void lockset_print(verbosity v, struct lockset *l)
 {
 	for (int i = 0; i < l->num_locks; i++) {
-		printf(v, "0x%x ", l->locks[i]);
+		if (l->locks[i].write) {
+			printf(v, "0x%x ", l->locks[i].addr);
+		} else {
+			printf(v, "0x%x(r) ", l->locks[i].addr);
+		}
 	}
 }
 
-void lockset_add(struct lockset *l, int lock_addr)
+void lockset_add(struct lockset *l, int lock_addr, bool write)
 {
 	assert(l->num_locks < l->capacity - 1 &&
 	       "Max number of locks in lockset implementation exceeded :(");
@@ -49,11 +53,12 @@ void lockset_add(struct lockset *l, int lock_addr)
 	printf(INFO, "\n");
 
 	for (int i = 0; i < l->num_locks; i++) {
-		assert(l->locks[i] != lock_addr &&
+		assert(l->locks[i].addr != lock_addr &&
 		       "Recursive locking not supported");
 	}
 
-	l->locks[l->num_locks] = lock_addr;
+	l->locks[l->num_locks].addr  = lock_addr;
+	l->locks[l->num_locks].write = write;
 	l->num_locks++;
 }
 
@@ -66,9 +71,11 @@ static bool _lockset_remove(struct lockset *l, int lock_addr)
 	printf(INFO, "\n");
 
 	for (int i = 0; i < l->num_locks; i++) {
-		if (l->locks[i] == lock_addr) {
+		if (l->locks[i].addr == lock_addr) {
 			l->num_locks--;
-			l->locks[i] = l->locks[l->num_locks];
+			/* swap last lock into this lock's position */
+			l->locks[i].addr  = l->locks[l->num_locks].addr;
+			l->locks[i].write = l->locks[l->num_locks].write;
 			return true;
 		}
 	}
@@ -120,7 +127,9 @@ bool lockset_intersect(struct lockset *l1, struct lockset *l2)
 	// Bad runtime. Oh well.
 	for (int i = 0; i < l1->num_locks; i++) {
 		for (int j = 0; j < l2->num_locks; j++) {
-			if (l1->locks[i] == l2->locks[j]) {
+			if (l1->locks[i].addr == l2->locks[j].addr &&
+			    /* at least one lock is held in write mode */
+			    (l1->locks[i].write || l2->locks[j].write)) {
 				return true;
 			}
 		}
@@ -138,7 +147,8 @@ enum lockset_cmp_result lockset_compare(struct lockset *l1, struct lockset *l2)
 	} else if (l2->num_locks == 0) {
 		return LOCKSETS_SUPSET;
 	} else if (l1->num_locks == 1 && l2->num_locks == 1 &&
-		   l1->locks[0] == l2->locks[0]) {
+		   l1->locks[0].addr == l2->locks[0].addr &&
+		   l1->locks[0].write == l2->locks[0].write) {
 		return LOCKSETS_EQ;
 	} else {
 		return LOCKSETS_DIFF;

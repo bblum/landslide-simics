@@ -618,7 +618,7 @@ void sched_update(struct ls_state *ls)
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = true;
 		s->cur_agent->blocked_on_addr = mutex_addr;
-		lockset_add(&s->cur_agent->kern_locks_held, mutex_addr);
+		lockset_add(&s->cur_agent->kern_locks_held, mutex_addr, true);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
@@ -683,7 +683,7 @@ void sched_update(struct ls_state *ls)
 		s->cur_agent->user_mutex_locking_addr = mutex_addr;
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
-		lockset_add(&s->cur_agent->user_locks_held, mutex_addr);
+		lockset_add(&s->cur_agent->user_locks_held, mutex_addr, true);
 		lsprintf(DEV, "tid %d locks mutex 0x%x\n", s->cur_agent->tid,
 			 mutex_addr);
 	} else if (user_mutex_lock_exiting(ls->eip)) {
