@@ -16,6 +16,7 @@
 #include "landslide.h"
 #include "rand.h"
 #include "schedule.h"
+#include "user_specifics.h"
 #include "x86.h"
 
 void arbiter_init(struct arbiter_state *r)
@@ -92,8 +93,23 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		return false;
 	}
 
-	if (kern_decision_point(ls->eip) &&
-	    kern_within_functions(ls->cpu0, ls->eip)) {
+	if (testing_userspace()) {
+		if (user_within_functions(ls->cpu0, ls->eip)) {
+			// TODO
+			int mutex_addr;
+			if (user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr)) {
+				assert((ls->save.next_tid == -1 ||
+				       ls->save.next_tid == ls->sched.cur_agent->tid) &&
+				       "Two threads in one transition?");
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	} else if (kern_decision_point(ls->eip) &&
+		   kern_within_functions(ls->cpu0, ls->eip)) {
 		assert((ls->save.next_tid == -1 ||
 		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 		       "Two threads in one transition?");
@@ -130,7 +146,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		}
 	);
 
-#define CHOOSE_RANDOMLY
+//#define CHOOSE_RANDOMLY
 
 #ifndef CHOOSE_RANDOMLY
 	if (EXPLORE_BACKWARDS == 0) {

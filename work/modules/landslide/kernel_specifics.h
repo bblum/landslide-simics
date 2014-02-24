@@ -26,6 +26,7 @@ bool kern_in_scheduler(conf_object_t *cpu, int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_ready_for_timer_interrupt(conf_object_t *cpu);
 bool kern_within_functions(conf_object_t *cpu, int eip);
+bool _within_functions(conf_object_t *cpu, int eip, const int within_functions[][3], int length);
 void read_panic_message(conf_object_t *cpu, int eip, char **buf);
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf);
 bool kern_kernel_main(int eip);

@@ -101,18 +101,17 @@ bool kern_access_in_scheduler(int addr)
 	return false;
 }
 
-bool kern_within_functions(conf_object_t *cpu, int eip)
+bool _within_functions(conf_object_t *cpu, int eip, const int within_functions[][3], int length)
 {
 	/* The array is: { start_addr, end_addr, within ? 1 : 0 }.
 	 * Later ones take precedence, so all of them have to be compared. */
-	static const int within_functions[][3] = GUEST_WITHIN_FUNCTIONS;
 
 	/* If there are no within_functions, the default answer is yes.
 	 * Otherwise the default answer is no. */
 	bool any_withins = false;
 	bool answer = true;
 
-	for (int i = 0; i < ARRAY_SIZE(within_functions); i++) {
+	for (int i = 0; i < length; i++) {
 		if (within_functions[i][2] == 1) {
 			/* Must be within this function to allow. */
 			if (!any_withins) {
@@ -131,6 +130,13 @@ bool kern_within_functions(conf_object_t *cpu, int eip)
 		}
 	}
 	return answer;
+}
+
+bool kern_within_functions(conf_object_t *cpu, int eip)
+{
+	static const int within_functions[][3] = KERN_WITHIN_FUNCTIONS;
+	int length = ARRAY_SIZE(within_functions);
+	return _within_functions(cpu, eip, within_functions, length);
 }
 
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"

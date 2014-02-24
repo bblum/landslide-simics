@@ -15,6 +15,12 @@ function without_function {
 function within_function {
 	echo -n
 }
+function without_user_function {
+	echo -n
+}
+function within_user_function {
+	echo -n
+}
 function extra_sym {
 	echo -n
 }

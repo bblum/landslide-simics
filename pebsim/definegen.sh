@@ -104,14 +104,22 @@ function extra_sym {
 	EXTRA_SYMS="${EXTRA_SYMS}\n#define $2 0x`get_sym $1`"
 }
 
-WITHIN_FUNCTIONS=
+WITHIN_KERN_FUNCTIONS=
 # The list will appear in order that they are called.
 # Later ones specified take precedence (as per the implementation in kernel_specifics.c).
 function within_function {
-	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 1 },"
+	WITHIN_KERN_FUNCTIONS="${WITHIN_KERN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 1 },"
 }
 function without_function {
-	WITHIN_FUNCTIONS="${WITHIN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 0 },"
+	WITHIN_KERN_FUNCTIONS="${WITHIN_KERN_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 0 },"
+}
+
+WITHIN_USER_FUNCTIONS=
+function within_user_function {
+	WITHIN_USER_FUNCTIONS="${WITHIN_USER_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 1 },"
+}
+function without_user_function {
+	WITHIN_USER_FUNCTIONS="${WITHIN_USER_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 0 },"
 }
 
 STARTING_THREADS=
@@ -386,7 +394,8 @@ echo -e "$EXTRA_SYMS"
 #### Choice points ####
 #######################
 
-echo -e "#define GUEST_WITHIN_FUNCTIONS { $WITHIN_FUNCTIONS }"
+echo -e "#define KERN_WITHIN_FUNCTIONS { $WITHIN_KERN_FUNCTIONS }"
+echo -e "#define USER_WITHIN_FUNCTIONS { $WITHIN_USER_FUNCTIONS }"
 
 echo "#define BUG_ON_THREADS_WEDGED $BUG_ON_THREADS_WEDGED"
 echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"
