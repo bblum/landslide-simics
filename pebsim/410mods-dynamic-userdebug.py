@@ -78,8 +78,9 @@ def unreg_process(dummy, cpu, param):
     cr3 = cpu.ecx
     if user_process_registry.has_key(cr3):
         s = user_process_registry[cr3]
-        del user_process_registry[cr3]
-        cs410_utils.alone(switch_current_symtable, cpu)
+	# XXX: When landslide time travels, simics will not undo this operation.
+        #del user_process_registry[cr3]
+        #cs410_utils.alone(switch_current_symtable, cpu)
         #st = SIM_get_object(s) # This would be the right thing to do but it
         #SIM_delete_object(st)  # doesn't appear to be supported by simics yet
 
