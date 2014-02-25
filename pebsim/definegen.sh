@@ -324,6 +324,7 @@ define_user_addr USER_THR_INIT thr_init
 define_user_addr USER_THR_CREATE thr_create
 define_user_addr USER_THR_JOIN thr_join
 define_user_addr USER_THR_EXIT thr_exit
+define_user_addr USER_MUTEX_INIT mutex_init
 define_user_addr USER_MUTEX_LOCK mutex_lock
 define_user_addr USER_MUTEX_TRYLOCK mutex_trylock # not necessary; try some different
 define_user_addr USER_MUTEX_TRY_LOCK mutex_try_lock # plausible names hoping to find it

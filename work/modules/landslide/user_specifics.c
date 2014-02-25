@@ -235,6 +235,28 @@ bool user_thr_exit_exiting(int eip) {
  * Mutexes
  ******************************************************************************/
 
+bool user_mutex_init_entering(conf_object_t *cpu, int eip, int *addr) {
+#ifdef USER_MUTEX_INIT_ENTER
+	if (eip == USER_MUTEX_INIT_ENTER) {
+		*addr = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+bool user_mutex_init_exiting(int eip) {
+#ifdef USER_MUTEX_INIT_EXIT
+	return eip == USER_MUTEX_INIT_EXIT;
+#else
+#ifdef USER_MUTEX_INIT_ENTER
+	STATIC_ASSERT(false && "MUTEX_INIT ENTER but not EXIT defined");
+#endif
+	return false;
+#endif
+}
 bool user_mutex_lock_entering(conf_object_t *cpu, int eip, int *addr) {
 #ifdef USER_MUTEX_LOCK_ENTER
 	if (eip == USER_MUTEX_LOCK_ENTER) {
