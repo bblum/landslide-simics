@@ -54,6 +54,7 @@ struct agent {
 		/* what about in userspace? */
 		bool user_mutex_locking;
 		bool user_mutex_unlocking;
+		bool user_mutex_yielding; /* if true, locking addr shall also be set */
 		bool user_rwlock_locking;
 		bool user_rwlock_unlocking;
 		/* are we trying to schedule this agent? */
@@ -61,13 +62,14 @@ struct agent {
 	} action;
 	/* For noob deadlock detection. The pointer might not be set; if it is
 	 * NULL but the tid field is not -1, it should be computed. */
-	struct agent *blocked_on;
-	int blocked_on_tid;
-	/* action.locking implies addr is valid; also blocked_on set implies
+	struct agent *kern_blocked_on;
+	int kern_blocked_on_tid;
+	/* action.locking implies addr is valid; also kern_blocked_on set implies
 	 * locking, which implies addr is valid. -1 if nothing. */
-	int blocked_on_addr;
+	int kern_blocked_on_addr;
 	int kern_mutex_unlocking_addr;
 	/* similar for userspace */
+	int user_blocked_on_addr;
 	int user_mutex_locking_addr;
 	int user_mutex_unlocking_addr;
 	int user_rwlock_locking_addr;
@@ -81,7 +83,7 @@ struct agent {
 
 Q_NEW_HEAD(struct agent_q, struct agent);
 
-#define BLOCKED(a) ((a)->blocked_on_tid != -1)
+#define BLOCKED(a) ((a)->kern_blocked_on_tid != -1 || (a)->user_blocked_on_addr != -1)
 
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */

@@ -111,39 +111,41 @@ static void copy_lockset(struct lockset *dest, struct lockset *src)
 	memcpy(dest->locks, src->locks, src->capacity * sizeof(struct lock));
 }
 
+#define COPY_FIELD(name) do { a_dest->name = a_src->name; } while (0)
 static struct agent *copy_agent(struct agent *a_src)
 {
 	struct agent *a_dest = MM_XMALLOC(1, struct agent);
 	assert(a_src != NULL && "cannot copy null agent");
 
-	a_dest->tid                          = a_src->tid;
-	a_dest->action.handling_timer        = a_src->action.handling_timer;
-	a_dest->action.context_switch        = a_src->action.context_switch;
-	a_dest->action.cs_free_pass          = a_src->action.cs_free_pass;
-	a_dest->action.forking               = a_src->action.forking;
-	a_dest->action.sleeping              = a_src->action.sleeping;
-	a_dest->action.vanishing             = a_src->action.vanishing;
-	a_dest->action.readlining            = a_src->action.readlining;
-	a_dest->action.just_forked           = a_src->action.just_forked;
-	a_dest->action.kern_mutex_locking    = a_src->action.kern_mutex_locking;
-	a_dest->action.kern_mutex_unlocking  = a_src->action.kern_mutex_unlocking;
-	a_dest->action.user_mutex_locking    = a_src->action.user_mutex_locking;
-	a_dest->action.user_mutex_unlocking  = a_src->action.user_mutex_unlocking;
-	a_dest->action.user_rwlock_locking   = a_src->action.user_rwlock_locking;
-	a_dest->action.user_rwlock_unlocking = a_src->action.user_rwlock_unlocking;
-	a_dest->action.schedule_target       = a_src->action.schedule_target;
-	assert(memcmp(&a_dest->action, &a_src->action,
-		      sizeof(a_dest->action)) == 0 &&
+	COPY_FIELD(tid);
+
+	COPY_FIELD(action.handling_timer);
+	COPY_FIELD(action.context_switch);
+	COPY_FIELD(action.cs_free_pass);
+	COPY_FIELD(action.forking);
+	COPY_FIELD(action.sleeping);
+	COPY_FIELD(action.vanishing);
+	COPY_FIELD(action.readlining);
+	COPY_FIELD(action.just_forked);
+	COPY_FIELD(action.kern_mutex_locking);
+	COPY_FIELD(action.kern_mutex_unlocking);
+	COPY_FIELD(action.user_mutex_locking);
+	COPY_FIELD(action.user_mutex_unlocking);
+	COPY_FIELD(action.user_mutex_yielding);
+	COPY_FIELD(action.user_rwlock_locking);
+	COPY_FIELD(action.user_rwlock_unlocking);
+	COPY_FIELD(action.schedule_target);
+	assert(memcmp(&a_dest->action, &a_src->action, sizeof(a_dest->action)) == 0 &&
 	       "Did you update agent->action without updating save.c?");
 
-	a_dest->blocked_on      = NULL; /* Will be recomputed later if needed */
-	a_dest->blocked_on_tid  = a_src->blocked_on_tid;
-	a_dest->blocked_on_addr = a_src->blocked_on_addr;
-
-	a_dest->kern_mutex_unlocking_addr = a_src->kern_mutex_unlocking_addr;
-	a_dest->user_mutex_locking_addr   = a_src->user_mutex_locking_addr;
-	a_dest->user_mutex_unlocking_addr = a_src->user_mutex_unlocking_addr;
-	a_dest->user_rwlock_locking_addr  = a_src->user_rwlock_locking_addr;
+	a_dest->kern_blocked_on = NULL; /* Will be recomputed later if needed */
+	COPY_FIELD(kern_blocked_on_tid);
+	COPY_FIELD(kern_blocked_on_addr);
+	COPY_FIELD(kern_mutex_unlocking_addr);
+	COPY_FIELD(user_blocked_on_addr);
+	COPY_FIELD(user_mutex_locking_addr);
+	COPY_FIELD(user_mutex_unlocking_addr);
+	COPY_FIELD(user_rwlock_locking_addr);
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 
@@ -151,6 +153,7 @@ static struct agent *copy_agent(struct agent *a_src)
 
 	return a_dest;
 }
+#undef COPY_FIELD
 
 /* Updates the cur_agent and schedule_in_flight pointers upon finding the
  * corresponding agence in the s_src. */
