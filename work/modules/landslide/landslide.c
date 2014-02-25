@@ -396,6 +396,95 @@ bool function_eip_offset(int eip, int *offset)
 	return true;
 }
 
+#define MUTEX_TYPE_NAME "mutex_t"
+#define DEFAULT_USER_MUTEX_SIZE 8 /* what to use if we can't find one */
+#define FALLBACK(msg) do { \
+		lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW "WARNING: %s. Assuming " \
+			 "%d-byte mutexes.\n", (msg), DEFAULT_USER_MUTEX_SIZE); \
+		return DEFAULT_USER_MUTEX_SIZE; \
+	} while (0)
+
+/* Attempts to find an object of type mutex_t in the global data region, and
+ * learn its size. Failing anything along the way, returns a fallback value. */
+int learn_user_mutex_size()
+{
+#if defined(USER_DATA_START) && defined(USER_IMG_END)
+	char *get_mutex_name_at(conf_object_t *table, int addr)
+	{
+		attr_value_t idx = SIM_make_attr_integer(addr);
+		attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
+		if (!SIM_attr_is_list(result)) {
+			SIM_free_attribute(idx);
+			lsprintf(ALWAYS, "fail\n");
+			return NULL;
+		}
+		assert(SIM_attr_list_size(result) >= 3);
+
+		attr_value_t name = SIM_attr_list_item(result, 1);
+		attr_value_t type = SIM_attr_list_item(result, 2);
+		assert(SIM_attr_is_string(name));
+		assert(SIM_attr_is_string(type));
+
+		char *mutex_name;
+		if (strncmp(SIM_attr_string(type), MUTEX_TYPE_NAME,
+			    strlen(MUTEX_TYPE_NAME)+1) == 0) {
+			mutex_name = MM_XSTRDUP(SIM_attr_string(name));
+		} else {
+			mutex_name = NULL;
+		}
+
+		SIM_free_attribute(result);
+		SIM_free_attribute(idx);
+		return mutex_name;
+	}
+
+	conf_object_t *symtable = get_symtable();
+	if (symtable == NULL) {
+		FALLBACK("No symtable");
+	}
+	// Look for a global object of type mutex_t in the symtable.
+	int start_addr = USER_DATA_START;
+	int last_addr = USER_IMG_END;
+	int addr, end_addr;
+	char *mutex_name = NULL;
+	assert(start_addr % WORD_SIZE == 0);
+	assert(last_addr % WORD_SIZE == 0);
+
+	for (addr = start_addr; addr < last_addr; addr += WORD_SIZE) {
+		if ((mutex_name = get_mutex_name_at(symtable, addr)) != NULL) {
+			break;
+		}
+	}
+	if (addr == last_addr) {
+		assert(mutex_name == NULL);
+		FALLBACK("Couldn't find a global " MUTEX_TYPE_NAME);
+	} else {
+		assert(mutex_name != NULL);
+	}
+	// Ok, found a global mutex starting at addr.
+	for (end_addr = addr + WORD_SIZE; end_addr < last_addr; end_addr += WORD_SIZE) {
+		char *name2 = get_mutex_name_at(symtable, end_addr);
+		bool same_name = false;
+		if (name2 != NULL) {
+			same_name = strncmp(name2, mutex_name, strlen(name2)+1) == 0;
+			MM_FREE(name2);
+		}
+		if (!same_name) {
+			// Found end of our mutex.
+			break;
+		}
+	}
+	// Victory.
+	lsprintf(DEV, "Learned mutex size %d of %s " "(%x to %x)\n",
+		 end_addr-addr, mutex_name, addr, end_addr);
+	MM_FREE(mutex_name);
+	return end_addr-addr;
+#else
+	FALLBACK("User data region boundaries unknown");
+#endif
+}
+#undef FALLBACK
+
 /******************************************************************************
  * pebbles system calls
  ******************************************************************************/

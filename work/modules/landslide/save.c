@@ -273,11 +273,15 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 }
 static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 {
+	dest->guest_init_done    = src->guest_init_done;
+	dest->in_mm_init         = src->in_mm_init;
 	dest->in_alloc           = src->in_alloc;
 	dest->in_free            = src->in_free;
 	dest->alloc_request_size = src->alloc_request_size;
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
 	dest->heap_size          = src->heap_size;
+	dest->cr3                = src->cr3;
+	dest->user_mutex_size    = src->user_mutex_size;
 	/* NB: The shm and freed heaps are copied below, in shimsham_shm,
 	 * because this function is also used to restore when time travelling,
 	 * and we want it to reset the shm and freed heap to empty. But,

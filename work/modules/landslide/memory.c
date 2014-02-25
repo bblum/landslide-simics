@@ -281,6 +281,7 @@ static void mem_heap_init(struct mem_state *m)
 	m->in_alloc = false;
 	m->in_free = false;
 	m->cr3 = 0;
+	m->user_mutex_size = 0;
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
 }
@@ -447,6 +448,42 @@ static bool ignore_user_access(struct ls_state *ls)
 	}
 }
 
+/* Some p2s may have open-coded mutex unlock actions (outside of mutex_*()
+ * functions) to help with thread exiting. Detect these and unblock contenders. */
+static void check_user_mutex_access(struct ls_state *ls, unsigned int addr)
+{
+	struct mem_state *m = &ls->user_mem;
+	assert(addr >= USER_MEM_START);
+	assert(m->cr3 != 0 && "attempt to check user mutex before cr3 is known");
+
+	if (m->user_mutex_size == 0) {
+		// Learning user mutex size relies on the user symtable being
+		// registered. Delay this until one surely has been.
+		int _lock_addr;
+		if (user_mutex_init_entering(ls->cpu0, ls->eip, &_lock_addr)) {
+			m->user_mutex_size = learn_user_mutex_size();
+		} else {
+			return;
+		}
+	}
+	assert(m->user_mutex_size > 0);
+
+	struct agent *a = ls->sched.cur_agent;
+	if (a->action.user_mutex_locking || a->action.user_mutex_unlocking) {
+		return;
+	}
+
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
+		unsigned int lock_addr = (unsigned int)a->user_blocked_on_addr;
+		if (lock_addr != (unsigned int)(-1) &&
+		    addr >= lock_addr && addr < lock_addr + m->user_mutex_size) {
+			lsprintf(DEV, "Rogue write to %x, unblocks tid %d from %x\n",
+				 addr, a->tid, lock_addr);
+			a->user_blocked_on_addr = -1;
+		}
+	);
+}
+
 void mem_update(struct ls_state *ls)
 {
 	/* Dynamic memory allocation tracking */
@@ -594,6 +631,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			in_kernel = false;
 			/* Use VA, not PA, for obviously important reasons. */
 			addr = virt_addr;
+			check_user_mutex_access(ls, (unsigned int)addr);
 		}
 	}
 
