@@ -336,6 +336,10 @@ define_user_addr USER_SEM_SIGNAL sem_signal
 define_user_addr USER_RWLOCK_LOCK rwlock_lock
 define_user_addr USER_RWLOCK_UNLOCK rwlock_unlock
 
+# user other
+
+define_user_addr USER_YIELD yield
+
 echo
 
 ###############################

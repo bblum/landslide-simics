@@ -27,6 +27,15 @@ bool user_within_functions(conf_object_t *cpu, int eip)
 	return _within_functions(cpu, eip, within_functions, length);
 }
 
+bool user_yielding(int eip)
+{
+#ifdef USER_YIELD_ENTER
+	return eip == USER_YIELD_ENTER;
+#else
+	return false;
+#endif
+}
+
 /******************************************************************************
  * Malloc
  ******************************************************************************/
