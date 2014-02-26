@@ -292,6 +292,12 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	} while (0)
 #define ENTRY_POINT "_start "
 
+/* Suppress stack frames from userspace, if testing userland, unless the
+ * verbosity setting is high enough. */
+#define SUPPRESS_FRAME(eip) \
+	(MAX_VERBOSITY < DEV && testing_userspace() && \
+	 (unsigned int)(eip) < USER_MEM_START)
+
 /* Caller has to free the return value. */
 char *stack_trace(conf_object_t *cpu, int eip, int tid)
 {
@@ -363,9 +369,7 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 			}
 			if (extra_frame) {
 				eip = READ_MEMORY(cpu, stack_ptr);
-				/* Suppress kernel frames if testing user. */
-				if (true || !(testing_userspace() &&
-				      (unsigned int)eip < USER_MEM_START)) {
+				if (!SUPPRESS_FRAME(eip)) {
 					ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
 						STACK_TRACE_SEPARATOR, eip);
 					ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
@@ -399,8 +403,8 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 			break;
 		}
 		stack_ptr = ebp + (2 * WORD_SIZE);
-		/* Suppress kernel frames if testing user. */
-		if (true || !(testing_userspace() && (unsigned int)eip < USER_MEM_START)) {
+		/* Suppress kernel frames if testing user, unless verbose enough. */
+		if (!SUPPRESS_FRAME(eip)) {
 			ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
 				STACK_TRACE_SEPARATOR, eip);
 			old_pos = pos;
