@@ -757,10 +757,14 @@ static void check_data_race(conf_object_t *cpu,
 				printf(CHOICE, " at:\n");
 				symtable_lookup(buf, BUF_SIZE, ma0->eip);
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
-					 "0x%x %s and \n", ma0->eip, buf);
+					 "0x%x %s [locks: ", ma0->eip, buf);
+				lockset_print(CHOICE, &l0->locks_held);
+				printf(CHOICE, "] and \n");
 				symtable_lookup(buf, BUF_SIZE, ma1->eip);
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
-					 "0x%x %s\n", ma1->eip, buf);
+					 "0x%x %s [locks: ", ma1->eip, buf);
+				lockset_print(CHOICE, &l1->locks_held);
+				printf(CHOICE, "]\n");
 				return;
 			}
 		}

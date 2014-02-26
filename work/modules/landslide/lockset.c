@@ -32,13 +32,16 @@ void lockset_clone(struct lockset *dest, struct lockset *src)
 	memcpy(dest->locks, src->locks, src->num_locks * sizeof(int));
 }
 
-static void lockset_print(verbosity v, struct lockset *l)
+void lockset_print(verbosity v, struct lockset *l)
 {
 	for (int i = 0; i < l->num_locks; i++) {
+		if (i != 0) {
+			printf(v, ", ");
+		}
 		if (l->locks[i].write) {
-			printf(v, "0x%x ", l->locks[i].addr);
+			printf(v, "0x%x", l->locks[i].addr);
 		} else {
-			printf(v, "0x%x(r) ", l->locks[i].addr);
+			printf(v, "0x%x(r)", l->locks[i].addr);
 		}
 	}
 }

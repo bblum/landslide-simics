@@ -7,6 +7,8 @@
 #ifndef __LS_LOCKSET_H
 #define __LS_LOCKSET_H
 
+#include  "common.h"
+
 struct sched_state;
 
 struct lock {
@@ -35,6 +37,7 @@ enum lockset_cmp_result {
 
 void lockset_init(struct lockset *l);
 void lockset_free(struct lockset *l);
+void lockset_print(verbosity v, struct lockset *l);
 void lockset_clone(struct lockset *dest, struct lockset *src);
 void lockset_add(struct lockset *l, int lock_addr, bool write);
 void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel);
