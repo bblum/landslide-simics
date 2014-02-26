@@ -254,6 +254,8 @@ void init_local(void)
 #define SYMTABLE_NAME "deflsym"
 
 #define LIKELY_DIR "pebsim/"
+#define UNKNOWN_FILE "410kern/boot/head.S"
+#define UNKNOWN_FILE_INSTEAD "<unknown assembly>"
 
 #define FUNCTION_COLOUR      COLOUR_BOLD COLOUR_CYAN
 #define FUNCTION_INFO_COLOUR COLOUR_DARK COLOUR_GREY
@@ -306,7 +308,7 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 	attr_value_t result = SIM_get_attribute_idx(table, "source_at", &idx);
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
-		if (addr < USER_MEM_START) {
+		if ((unsigned int)addr < USER_MEM_START) {
 			return snprintf(buf, maxlen, UNKNOWN_COLOUR
 					"<unknown in kernel>" COLOUR_DEFAULT);
 		} else {
@@ -326,9 +328,20 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 		file = strstr(file, LIKELY_DIR) + strlen(LIKELY_DIR);
 	}
 
-	int ret = snprintf(buf, maxlen, FUNCTION_COLOUR "%s"
-			   FUNCTION_INFO_COLOUR " (%s:%d)" COLOUR_DEFAULT,
-			   func, file, line);
+	int ret;
+
+	/* The symbol table will claim that unknown assembly comes from
+	 * 410kern/boot/head.S. Print an 'unknown' message instead. */
+	if (strncmp(file, UNKNOWN_FILE, strlen(file)) == 0) {
+		ret = snprintf(buf, maxlen, FUNCTION_COLOUR "%s"
+			       FUNCTION_INFO_COLOUR " " UNKNOWN_FILE_INSTEAD
+			       COLOUR_DEFAULT, func);
+	} else {
+		ret = snprintf(buf, maxlen, FUNCTION_COLOUR "%s"
+			       FUNCTION_INFO_COLOUR " (%s:%d)" COLOUR_DEFAULT,
+			       func, file, line);
+
+	}
 
 	SIM_free_attribute(result);
 	SIM_free_attribute(idx);
@@ -347,7 +360,7 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 	attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
-		if (addr < USER_MEM_START) {
+		if ((unsigned int)addr < USER_MEM_START) {
 			return snprintf(buf, maxlen, "<user global0x%x>", addr);
 		} else {
 			return snprintf(buf, maxlen, GLOBAL_COLOUR

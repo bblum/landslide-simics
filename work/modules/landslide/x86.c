@@ -291,14 +291,15 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	}								\
 	} while (0)
 #define ENTRY_POINT "_start "
+
 /* Caller has to free the return value. */
 char *stack_trace(conf_object_t *cpu, int eip, int tid)
 {
 	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
 	int pos = 0, old_pos;
-	int stack_offset = 0; /* Counts by 1 - READ_STACK already multiplies */
-	bool in_userland = eip >= USER_MEM_START;
+	int stack_ptr = GET_CPU_ATTR(cpu, esp);
 
+	/* Add current frame, even if it's in kernel and we're in user. */
 	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ", tid, eip);
 	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
 
@@ -307,10 +308,20 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 	int rabbit = ebp;
 	int frame_count = 0;
 
-	while (ebp != 0 && (in_userland || (unsigned)ebp < USER_MEM_START)
+	while (ebp != 0 && (testing_userspace() || (unsigned)ebp < USER_MEM_START)
 	       && frame_count++ < 1024) {
 		bool extra_frame;
 
+		/* This is the same check as at the end (after ebp advances),
+		 * but duplicated here for the corner case where ebp's initial
+		 * value is trash. (It's inside the loop so we can still look
+		 * for extra frames.) */
+		if ((unsigned int)ebp < GUEST_DATA_START) {
+			ebp = 0;
+		}
+
+		/* Find "extra frames" of functions that don't set up an ebp
+		 * frame or of untimely interrupts, before following ebp. */
 		do {
 			int eip_offset;
 			bool iret_block = false;
@@ -324,43 +335,82 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 				} else if (eip_offset == 1 &&
 				           READ_BYTE(cpu, eip - 1)
 				           == OPCODE_PUSH_EBP) {
-					stack_offset++;
+					stack_ptr += WORD_SIZE;
 					extra_frame = true;
 				}
 			}
 			if (!extra_frame) {
-				int opcode = READ_BYTE(cpu, eip);
-				if (opcode == OPCODE_RET) {
-					extra_frame = true;
-				} else if (opcode == OPCODE_IRET) {
-					iret_block = true;
-					extra_frame = true;
-				}
+				/* Attempt to understand the tail end of syscall
+				 * or interrupt wrappers. Traverse pushed GPRs
+				 * if necessary to find the ret or iret. */
+				int opcode;
+				int opcode_offset = 0;
+				do {
+					opcode = READ_BYTE(cpu, eip + opcode_offset);
+					opcode_offset++;
+					if (opcode == OPCODE_RET) {
+						extra_frame = true;
+					} else if (opcode == OPCODE_IRET) {
+						iret_block = true;
+						extra_frame = true;
+					} else if (OPCODE_IS_POP_GPR(opcode)) {
+						stack_ptr += WORD_SIZE;
+					} else if (opcode == OPCODE_POPA) {
+						stack_ptr += WORD_SIZE * POPA_WORDS;
+					}
+				} while (OPCODE_IS_POP_GPR(opcode) ||
+					 opcode == OPCODE_POPA);
 			}
 			if (extra_frame) {
-				eip = READ_STACK(cpu, stack_offset);
-				ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
-					STACK_TRACE_SEPARATOR, eip);
-				ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
-				if (iret_block)
-					stack_offset += IRET_BLOCK_WORDS;
-				else
-					stack_offset++;;
+				eip = READ_MEMORY(cpu, stack_ptr);
+				/* Suppress kernel frames if testing user. */
+				if (true || !(testing_userspace() &&
+				      (unsigned int)eip < USER_MEM_START)) {
+					ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
+						STACK_TRACE_SEPARATOR, eip);
+					ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+				}
+
+				/* Keep walking looking for more extra frames. */
+				if (!iret_block) {
+					/* Normal function call. */
+					stack_ptr += WORD_SIZE;
+				} else if (READ_MEMORY(cpu, stack_ptr + WORD_SIZE) ==
+					   SEGSEL_KERNEL_CS) {
+					/* Kernel-to-kernel iret. Look past it. */
+					stack_ptr += WORD_SIZE * IRET_BLOCK_WORDS;
+				} else {
+					/* User-to-kernel iret. Stack switch. */
+					assert(READ_MEMORY(cpu, stack_ptr + WORD_SIZE)
+					       == SEGSEL_USER_CS);
+					int esp_addr = stack_ptr + (3 * WORD_SIZE);
+					stack_ptr = READ_MEMORY(cpu, esp_addr);
+				}
 			}
 		} while (extra_frame);
 
-		/* pushed return address behind the base pointer */
-		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
-		stack_offset = ebp + 2;
-		ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
-			STACK_TRACE_SEPARATOR, eip);
-		old_pos = pos;
-		ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
-		/* special-case termination condition */
-		if (pos - old_pos >= strlen(ENTRY_POINT) &&
-		    strncmp(buf + old_pos, ENTRY_POINT,
-		            strlen(ENTRY_POINT)) == 0) {
+		if (ebp == 0) {
 			break;
+		}
+
+		/* Find pushed return address behind the base pointer. */
+		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
+		if (eip == 0) {
+			break;
+		}
+		stack_ptr = ebp + (2 * WORD_SIZE);
+		/* Suppress kernel frames if testing user. */
+		if (true || !(testing_userspace() && (unsigned int)eip < USER_MEM_START)) {
+			ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
+				STACK_TRACE_SEPARATOR, eip);
+			old_pos = pos;
+			ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+			/* special-case termination condition */
+			if (pos - old_pos >= strlen(ENTRY_POINT) &&
+			    strncmp(buf + old_pos, ENTRY_POINT,
+				    strlen(ENTRY_POINT)) == 0) {
+				break;
+			}
 		}
 
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
@@ -368,7 +418,7 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
 		if (rabbit == ebp) stop_ebp = ebp;
 		ebp = READ_MEMORY(cpu, ebp);
-		if (ebp < GUEST_DATA_START) {
+		if ((unsigned int)ebp < GUEST_DATA_START) {
 			/* Some kernels allow terminal ebps to trail off into
 			 * "junk values". Sometimes these are very small values.
 			 * We can avoid emitting simics errors in these cases. */

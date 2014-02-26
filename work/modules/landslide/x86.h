@@ -50,6 +50,9 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define IRET_BLOCK_WORDS 3
 #define OPCODE_HLT 0xf4
 #define OPCODE_INT 0xcd
+#define OPCODE_IS_POP_GPR(o) ((o) >= 0x58 && (o) < 0x60)
+#define OPCODE_POPA 0x61
+#define POPA_WORDS 8
 #define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
 
 #define MEM_TRANSLATE(cpu, addr) /* I am sorry for writing this */	\
