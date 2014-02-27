@@ -29,7 +29,7 @@ void lockset_clone(struct lockset *dest, struct lockset *src)
 	dest->num_locks = src->num_locks;
 	dest->capacity  = src->num_locks; // space optimization for long-term storage
 	dest->locks = MM_XMALLOC(src->num_locks, struct lock);
-	memcpy(dest->locks, src->locks, src->num_locks * sizeof(int));
+	memcpy(dest->locks, src->locks, src->num_locks * sizeof(struct lock));
 }
 
 void lockset_print(verbosity v, struct lockset *l)
