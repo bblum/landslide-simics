@@ -11,9 +11,21 @@
 
 struct sched_state;
 
+enum lock_type {
+	LOCK_MUTEX,
+	LOCK_SEM,
+	LOCK_RWLOCK,
+	LOCK_RWLOCK_READ,
+};
+
+#define SAME_LOCK_TYPE(t1, t2) \
+	(((t1) == (t2)) || \
+	 ((t1) == LOCK_RWLOCK && (t2) == LOCK_RWLOCK_READ) || \
+	 ((t1) == LOCK_RWLOCK_READ && (t2) == LOCK_RWLOCK))
+
 struct lock {
 	int addr;
-	bool write; /* 1 always for mutexes; 1 or 0 for rwlocks */
+	enum lock_type type;
 };
 
 /* Tracks the locks held by a given thread, for data race detection. */
@@ -39,8 +51,9 @@ void lockset_init(struct lockset *l);
 void lockset_free(struct lockset *l);
 void lockset_print(verbosity v, struct lockset *l);
 void lockset_clone(struct lockset *dest, struct lockset *src);
-void lockset_add(struct lockset *l, int lock_addr, bool write);
-void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel);
+void lockset_add(struct lockset *l, int lock_addr, enum lock_type type);
+void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
+					bool in_kernel);
 bool lockset_intersect(struct lockset *l1, struct lockset *l2);
 enum lockset_cmp_result lockset_compare(struct lockset *l1, struct lockset *l2);
 

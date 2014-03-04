@@ -38,15 +38,16 @@ void lockset_print(verbosity v, struct lockset *l)
 		if (i != 0) {
 			printf(v, ", ");
 		}
-		if (l->locks[i].write) {
-			printf(v, "0x%x", l->locks[i].addr);
-		} else {
-			printf(v, "0x%x(r)", l->locks[i].addr);
-		}
+		printf(v, "0x%x%s", l->locks[i].addr,
+		       l->locks[i].type == LOCK_MUTEX ? "" :
+		       l->locks[i].type == LOCK_SEM ? "(s)" :
+		       l->locks[i].type == LOCK_RWLOCK ? "(w)" :
+		       l->locks[i].type == LOCK_RWLOCK_READ ? "(r)" :
+		       "(unknown)");
 	}
 }
 
-void lockset_add(struct lockset *l, int lock_addr, bool write)
+void lockset_add(struct lockset *l, int lock_addr, enum lock_type type)
 {
 	assert(l->num_locks < l->capacity - 1 &&
 	       "Max number of locks in lockset implementation exceeded :(");
@@ -55,30 +56,38 @@ void lockset_add(struct lockset *l, int lock_addr, bool write)
 	lockset_print(INFO, l);
 	printf(INFO, "\n");
 
+	/* Check that the lock is not already held. Make an exception for
+	 * e.g. mutexes and things that can contain them having the same
+	 * address. */
 	for (int i = 0; i < l->num_locks; i++) {
-		assert(l->locks[i].addr != lock_addr &&
-		       "Recursive locking not supported");
+		if (SAME_LOCK_TYPE(l->locks[i].type, type)) {
+			assert(l->locks[i].addr != lock_addr &&
+			       "Recursive locking not supported");
+		}
 	}
 
 	l->locks[l->num_locks].addr  = lock_addr;
-	l->locks[l->num_locks].write = write;
+	l->locks[l->num_locks].type = type;
 	l->num_locks++;
 }
 
-static bool _lockset_remove(struct lockset *l, int lock_addr)
+static bool _lockset_remove(struct lockset *l, int lock_addr, enum lock_type type)
 {
 	assert(l->num_locks < l->capacity);
+
+	assert(type != LOCK_RWLOCK_READ && "use LOCK_RWLOCK for unlocking");
 
 	lsprintf(INFO, "Removing 0x%x from lockset: ", lock_addr);
 	lockset_print(INFO, l);
 	printf(INFO, "\n");
 
 	for (int i = 0; i < l->num_locks; i++) {
-		if (l->locks[i].addr == lock_addr) {
+		if (l->locks[i].addr == lock_addr &&
+		    SAME_LOCK_TYPE(l->locks[i].type, type)) {
 			l->num_locks--;
 			/* swap last lock into this lock's position */
-			l->locks[i].addr  = l->locks[l->num_locks].addr;
-			l->locks[i].write = l->locks[l->num_locks].write;
+			l->locks[i].addr = l->locks[l->num_locks].addr;
+			l->locks[i].type = l->locks[l->num_locks].type;
 			return true;
 		}
 	}
@@ -87,9 +96,10 @@ static bool _lockset_remove(struct lockset *l, int lock_addr)
 
 #define LOCKSET_OF(a, in_kernel) \
 	((in_kernel) ? &(a)->kern_locks_held : &(a)->user_locks_held)
-void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
+void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
+		    bool in_kernel)
 {
-	if (_lockset_remove(LOCKSET_OF(s->cur_agent, in_kernel), lock_addr))
+	if (_lockset_remove(LOCKSET_OF(s->cur_agent, in_kernel), lock_addr, type))
 		return;
 
 	char lock_name[32];
@@ -101,13 +111,13 @@ void lockset_remove(struct sched_state *s, int lock_addr, bool in_kernel)
 #ifdef ALLOW_LOCK_HANDOFF
 	struct agent *a;
 	Q_FOREACH(a, &s->rq, nobe) {
-		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr)) return;
+		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr, type)) return;
 	}
 	Q_FOREACH(a, &s->sq, nobe) {
-		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr)) return;
+		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr, type)) return;
 	}
 	Q_FOREACH(a, &s->rq, nobe) {
-		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr)) return;
+		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr, type)) return;
 	}
 #endif
 
@@ -132,7 +142,7 @@ bool lockset_intersect(struct lockset *l1, struct lockset *l2)
 		for (int j = 0; j < l2->num_locks; j++) {
 			if (l1->locks[i].addr == l2->locks[j].addr &&
 			    /* at least one lock is held in write mode */
-			    (l1->locks[i].write || l2->locks[j].write)) {
+			    SAME_LOCK_TYPE(l1->locks[i].type, l2->locks[j].type)) {
 				return true;
 			}
 		}
@@ -151,7 +161,7 @@ enum lockset_cmp_result lockset_compare(struct lockset *l1, struct lockset *l2)
 		return LOCKSETS_SUPSET;
 	} else if (l1->num_locks == 1 && l2->num_locks == 1 &&
 		   l1->locks[0].addr == l2->locks[0].addr &&
-		   l1->locks[0].write == l2->locks[0].write) {
+		   l1->locks[0].type == l2->locks[0].type) {
 		return LOCKSETS_EQ;
 	} else {
 		return LOCKSETS_DIFF;

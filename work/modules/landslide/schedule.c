@@ -649,7 +649,7 @@ void sched_update(struct ls_state *ls)
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = true;
 		s->cur_agent->kern_blocked_on_addr = lock_addr;
-		lockset_add(&s->cur_agent->kern_locks_held, lock_addr, true);
+		lockset_add(&s->cur_agent->kern_locks_held, lock_addr, LOCK_MUTEX);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
@@ -698,9 +698,11 @@ void sched_update(struct ls_state *ls)
 		assert(ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_unlocking) = false;
 		assert(s->cur_agent->kern_mutex_unlocking_addr != -1);
-		lockset_remove(s, s->cur_agent->kern_mutex_unlocking_addr, true);
+		lockset_remove(s, s->cur_agent->kern_mutex_unlocking_addr,
+			       LOCK_MUTEX, true);
 		s->cur_agent->kern_mutex_unlocking_addr = -1;
-		lskprintf(DEV, "mutex: unlocking done by tid %d\n", s->cur_agent->tid);
+		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
+			  s->cur_agent->tid);
 
 	/**********************************************************************
 	 * Userspace
@@ -713,7 +715,7 @@ void sched_update(struct ls_state *ls)
 		s->cur_agent->user_mutex_locking_addr = lock_addr;
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
-		lockset_add(&s->cur_agent->user_locks_held, lock_addr, true);
+		lockset_add(&s->cur_agent->user_locks_held, lock_addr, LOCK_MUTEX);
 		lsprintf(DEV, "tid %d locks mutex 0x%x\n", s->cur_agent->tid,
 			 lock_addr);
 	} else if (user_yielding(ls->eip) && ACTION(s, user_mutex_locking)) {
@@ -750,7 +752,8 @@ void sched_update(struct ls_state *ls)
 			lsprintf(DEV, "tid %d tried + failed to lock mutex 0x%x\n",
 				 s->cur_agent->tid,
 				 s->cur_agent->user_mutex_locking_addr);
-			lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr, false);
+			lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr,
+				       LOCK_MUTEX, false);
 		}
 		s->cur_agent->user_mutex_locking_addr = -1;
 	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
@@ -766,7 +769,8 @@ void sched_update(struct ls_state *ls)
 		assert(ACTION(s, user_mutex_unlocking));
 		assert(s->cur_agent->user_mutex_unlocking_addr != -1);
 		ACTION(s, user_mutex_unlocking) = false;
-		lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr, false);
+		lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr,
+			       LOCK_MUTEX, false);
 		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", s->cur_agent->tid,
 			 s->cur_agent->user_mutex_unlocking_addr);
 		user_mutex_block_others(&s->rq, s->cur_agent->user_mutex_unlocking_addr, false);
@@ -794,13 +798,14 @@ void sched_update(struct ls_state *ls)
 			 lock_addr, write_mode ? "writing" : "reading");
 		/* Add to lockset INSIDE lock implementation; i.e., we consider
 		 * the implementation not protected by itself w.r.t data races. */
-		lockset_add(&s->cur_agent->user_locks_held, lock_addr, write_mode);
+		lockset_add(&s->cur_agent->user_locks_held, lock_addr,
+			    write_mode ? LOCK_RWLOCK : LOCK_RWLOCK_READ);
 	} else if (user_rwlock_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
 		ACTION(s, user_rwlock_unlocking) = true;
 		lsprintf(DEV, "tid %d unlocks rwlock 0x%x\n", s->cur_agent->tid, lock_addr);
-		lockset_remove(s, lock_addr, false);
+		lockset_remove(s, lock_addr, LOCK_RWLOCK, false);
 	} else if (user_rwlock_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(ACTION(s, user_rwlock_unlocking));
