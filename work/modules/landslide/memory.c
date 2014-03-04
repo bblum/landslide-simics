@@ -588,7 +588,6 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	 * kernel may access user memory for e.g. page tables. */
 	if (ls->eip < USER_MEM_START) {
 		/* KERNEL SPACE */
-		m = &ls->kern_mem;
 		in_kernel = true;
 		addr = phys_addr;
 
@@ -627,12 +626,30 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			assert(!write && "userspace write to page table??");
 			return;
 		} else {
-			m = &ls->user_mem;
 			in_kernel = false;
 			/* Use VA, not PA, for obviously important reasons. */
 			addr = virt_addr;
 			check_user_mutex_access(ls, (unsigned int)addr);
 		}
+	}
+
+	/* figure out which mem state to use. almost always, use the "current"
+	 * mem. however, right after a decision point, that instruction's
+	 * associated memory access (e.g. push %ebp) won't occur until after
+	 * save-setjmp updates the tree, in which case we need to use the
+	 * saved oldmem for the "last" transition. */
+	if (ls->sched.schedule_in_flight != NULL) {
+		assert(ls->sched.schedule_in_flight->tid != ls->sched.cur_agent->tid);
+		assert(ls->save.current != NULL);
+		if (in_kernel)
+			m = ls->save.current->old_kern_mem;
+		else
+			m = ls->save.current->old_user_mem;
+	} else {
+		if (in_kernel)
+			m = &ls->kern_mem;
+		else
+			m = &ls->user_mem;
 	}
 
 	/* the allocator has a free pass to its own accesses */
