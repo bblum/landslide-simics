@@ -653,8 +653,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->stack_trace = ls->sched.voluntary_resched_stack;
 			ls->sched.voluntary_resched_stack = NULL;
 		} else {
-			h->stack_trace = stack_trace(ls->cpu0, ls->eip,
-						     ls->sched.cur_agent->tid);
+			h->stack_trace = stack_trace(ls);
 		}
 
 		ss->total_choice_poince++;

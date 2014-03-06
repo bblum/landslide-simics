@@ -295,8 +295,10 @@ void set_symtable(conf_object_t *symtable)
 	SIM_free_attribute(table);
 }
 
-int symtable_lookup(char *buf, int maxlen, int addr)
+int symtable_lookup(char *buf, int maxlen, int addr, bool *unknown)
 {
+	*unknown = true;
+
 	// TODO: store deflsym in struct ls_state
 	conf_object_t *table = get_symtable();
 	if (table == NULL) {
@@ -318,6 +320,8 @@ int symtable_lookup(char *buf, int maxlen, int addr)
 
 	}
 	assert(SIM_attr_list_size(result) >= 3);
+
+	*unknown = false;
 
 	const char *file = SIM_attr_string(SIM_attr_list_item(result, 0));
 	int line = SIM_attr_integer(SIM_attr_list_item(result, 1));

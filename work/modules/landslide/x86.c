@@ -283,11 +283,11 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 #define MAX_TRACE_LEN 4096
 #define ADD_STR(buf, pos, maxlen, ...) \
 	do { pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
-#define ADD_FRAME(buf, pos, maxlen, eip) do {				\
+#define ADD_FRAME(buf, pos, maxlen, eip, unknown) do {			\
 	if (eip == kern_get_timer_wrap_begin()) {			\
 		pos += snprintf(buf + pos, maxlen - pos, "<timer_wrapper>"); \
 	} else {							\
-		pos += symtable_lookup(buf + pos, maxlen - pos, eip);	\
+		pos += symtable_lookup(buf + pos, maxlen - pos, eip, unknown);	\
 	}								\
 	} while (0)
 #define ENTRY_POINT "_start "
@@ -299,20 +299,33 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	 (unsigned int)(eip) < USER_MEM_START)
 
 /* Caller has to free the return value. */
-char *stack_trace(conf_object_t *cpu, int eip, int tid)
+char *stack_trace(struct ls_state *ls)
 {
+	conf_object_t *cpu = ls->cpu0;
+	int eip = ls->eip;
+	int tid = ls->sched.cur_agent->tid;
+
 	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
+	char *buf2;
 	int pos = 0, old_pos;
 	int stack_ptr = GET_CPU_ATTR(cpu, esp);
+	bool frame_unknown;
 
 	/* Add current frame, even if it's in kernel and we're in user. */
 	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ", tid, eip);
-	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip, &frame_unknown);
 
 	int stop_ebp = 0;
 	int ebp = GET_CPU_ATTR(cpu, ebp);
 	int rabbit = ebp;
 	int frame_count = 0;
+
+	/* Figure out if the thread is vanishing and we should expect its cr3
+	 * to have been freed (so we can't trace in userspace).
+	 * (Note this condition will also hit init/shell, but we should not
+	 * expect unknown symtable results from them in any case.) */
+	bool wrong_cr3 =
+		testing_userspace() && GET_CPU_ATTR(cpu, cr3) != ls->user_mem.cr3;
 
 	while (ebp != 0 && (testing_userspace() || (unsigned)ebp < USER_MEM_START)
 	       && frame_count++ < 1024) {
@@ -372,7 +385,10 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 				if (!SUPPRESS_FRAME(eip)) {
 					ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
 						STACK_TRACE_SEPARATOR, eip);
-					ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+					ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip,
+						  &frame_unknown);
+					if (frame_unknown && wrong_cr3)
+						goto done;
 				}
 
 				/* Keep walking looking for more extra frames. */
@@ -408,7 +424,9 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 			ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
 				STACK_TRACE_SEPARATOR, eip);
 			old_pos = pos;
-			ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip);
+			ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip, &frame_unknown);
+			if (frame_unknown && wrong_cr3)
+				goto done;
 			/* special-case termination condition */
 			if (pos - old_pos >= strlen(ENTRY_POINT) &&
 			    strncmp(buf + old_pos, ENTRY_POINT,
@@ -430,7 +448,8 @@ char *stack_trace(conf_object_t *cpu, int eip, int tid)
 		}
 	}
 
-	char *buf2 = MM_XSTRDUP(buf); /* truncate to save space */
+done:
+	buf2 = MM_XSTRDUP(buf); /* truncate to save space */
 	MM_FREE(buf);
 
 	return buf2;

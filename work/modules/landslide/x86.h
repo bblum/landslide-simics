@@ -75,19 +75,20 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define READ_STACK(cpu, offset) \
 	READ_MEMORY(cpu, GET_CPU_ATTR(cpu, esp) + ((offset) * WORD_SIZE))
 
+struct ls_state;
+
 void cause_timer_interrupt(conf_object_t *cpu);
 int cause_timer_interrupt_immediately(conf_object_t *cpu);
 int avoid_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
-char *stack_trace(conf_object_t *cpu, int eip, int tid);
+char *stack_trace(struct ls_state *ls);
 char *read_string(conf_object_t *cpu, int eip);
 
 #define LS_ABORT() do { dump_stack(); assert(0); } while (0)
 static inline void dump_stack() {
-	conf_object_t *cpu = SIM_get_object("cpu0");
-	char *stack = stack_trace(cpu, GET_CPU_ATTR(cpu, eip), -1);
+	char *stack = stack_trace((struct ls_state *)SIM_get_object("landslide0"));
 	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "Stack trace: %s\n"
 		 COLOUR_DEFAULT, stack);
 	MM_FREE(stack);

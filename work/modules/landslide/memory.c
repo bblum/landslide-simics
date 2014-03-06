@@ -336,8 +336,7 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
 		chunk->base = base;
 		chunk->len = m->alloc_request_size;
-		chunk->malloc_trace = stack_trace(ls->cpu0, ls->eip,
-						  ls->sched.cur_agent->tid);
+		chunk->malloc_trace = stack_trace(ls);
 		chunk->free_trace = NULL;
 
 		m->heap_size += m->alloc_request_size;
@@ -391,8 +390,7 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
 	if (chunk != NULL) {
 		m->heap_size -= chunk->len;
 		assert(chunk->free_trace == NULL);
-		chunk->free_trace = stack_trace(ls->cpu0, ls->eip,
-						ls->sched.cur_agent->tid);
+		chunk->free_trace = stack_trace(ls);
 		insert_chunk(&m->freed, chunk, true);
 	}
 
@@ -769,15 +767,16 @@ static void check_data_race(conf_object_t *cpu,
 			// To be safe, all pairs of locksets must have a lock in common.
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
 				char buf[BUF_SIZE];
+				bool _unknown;
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED "Data race: ");
 				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1);
 				printf(CHOICE, " at:\n");
-				symtable_lookup(buf, BUF_SIZE, ma0->eip);
+				symtable_lookup(buf, BUF_SIZE, ma0->eip, &_unknown);
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
 					 "0x%x %s [locks: ", ma0->eip, buf);
 				lockset_print(CHOICE, &l0->locks_held);
 				printf(CHOICE, "] and \n");
-				symtable_lookup(buf, BUF_SIZE, ma1->eip);
+				symtable_lookup(buf, BUF_SIZE, ma1->eip, &_unknown);
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
 					 "0x%x %s [locks: ", ma1->eip, buf);
 				lockset_print(CHOICE, &l1->locks_held);

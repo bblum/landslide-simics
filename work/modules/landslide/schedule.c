@@ -581,8 +581,7 @@ void sched_update(struct ls_state *ls)
 			s->voluntary_resched_tid = s->cur_agent->tid;
 			if (s->voluntary_resched_stack != NULL)
 				MM_FREE(s->voluntary_resched_stack);
-			s->voluntary_resched_stack =
-				stack_trace(ls->cpu0, ls->eip, s->cur_agent->tid);
+			s->voluntary_resched_stack = stack_trace(ls);
 		}
 		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_INT) {
 			/* I'm not actually sure if this is where an INT would

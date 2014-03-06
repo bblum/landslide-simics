@@ -48,7 +48,7 @@ struct ls_state {
 
 conf_object_t *get_symtable();
 void set_symtable(conf_object_t *symtable);
-int symtable_lookup(char *buf, int maxlen, int addr);
+int symtable_lookup(char *buf, int maxlen, int addr, bool *unknown);
 int symtable_lookup_data(char *buf, int maxlen, int addr);
 bool function_eip_offset(int eip, int *offset);
 int learn_user_mutex_size();
