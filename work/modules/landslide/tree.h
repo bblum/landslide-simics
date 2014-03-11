@@ -30,6 +30,7 @@ struct hax {
 	struct test_state *oldtest;
 	struct mem_state *old_kern_mem;
 	struct mem_state *old_user_mem;
+	struct mutex_state *oldmutexes;
 	conf_object_t *old_symtable;
 	/* List of things that are *not* saved/restored (i.e., glowing green):
 	 *  - arbiter_state (just a choice queue, maintained internally)

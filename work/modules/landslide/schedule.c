@@ -79,6 +79,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->kern_blocked_on_addr = -1;
 	a->kern_mutex_unlocking_addr = -1;
 	a->user_blocked_on_addr = -1;
+	a->user_mutex_initing_addr = -1;
 	a->user_mutex_locking_addr = -1;
 	a->user_mutex_unlocking_addr = -1;
 	a->user_rwlock_locking_addr = -1;
@@ -707,8 +708,25 @@ void sched_update(struct ls_state *ls)
 	/**********************************************************************
 	 * Userspace
 	 **********************************************************************/
+	} else if (user_mutex_init_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_mutex_initing));
+		assert(!ACTION(s, user_mutex_locking));
+		assert(!ACTION(s, user_mutex_unlocking));
+		ACTION(s, user_mutex_initing) = true;
+		s->cur_agent->user_mutex_initing_addr = lock_addr;
+	} else if (user_mutex_init_exiting(ls->eip)) {
+		assert(ACTION(s, user_mutex_initing));
+		assert(!ACTION(s, user_mutex_locking));
+		assert(!ACTION(s, user_mutex_unlocking));
+		assert(s->cur_agent->user_mutex_initing_addr != -1);
+		s->cur_agent->user_mutex_initing_addr = -1;
+		ACTION(s, user_mutex_initing) = false;
+	} else if (user_mutex_destroy_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		mutex_destroy(&ls->mutexes, lock_addr);
 	} else if (user_mutex_lock_entering(ls->cpu0, ls->eip, &lock_addr) ||
 	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		/* note: we don't assert on mutex_initing because mutex_init may
+		 * call mutex_lock for malloc mutexes, on a static heap mutex */
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;

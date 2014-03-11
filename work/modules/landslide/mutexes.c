@@ -16,6 +16,76 @@
 void mutexes_init(struct mutex_state *m)
 {
 	m->size = 0;
+	Q_INIT_HEAD(&m->user_mutexes);
+}
+
+/* register a malloced chunk as belonging to a particular mutex.
+ * will add mutex to the list of all mutexes if it's not already there. */
+void learn_malloced_mutex_structure(struct mutex_state *m, int lock_addr,
+				    int chunk_addr, int chunk_size)
+{
+	struct mutex *mp;
+	Q_SEARCH(mp, &m->user_mutexes, nobe, mp->addr == (unsigned int)lock_addr);
+	if (mp == NULL) {
+		lsprintf(DEV, "created user mutex 0x%x (%d others)\n",
+			 lock_addr, (int)Q_GET_SIZE(&m->user_mutexes));
+		mp = MM_XMALLOC(1, struct mutex);
+		mp->addr = (unsigned int)lock_addr;
+		Q_INIT_HEAD(&mp->chunks);
+		Q_INSERT_FRONT(&m->user_mutexes, mp, nobe);
+	}
+
+	struct mutex_chunk *c;
+	Q_SEARCH(c, &mp->chunks, nobe, c->base == chunk_addr);
+	assert(c == NULL && "chunk already exists");
+	c = MM_XMALLOC(1, struct mutex_chunk);
+	c->base = (unsigned int)chunk_addr;
+	c->size = (unsigned int)chunk_size;
+	Q_INSERT_FRONT(&mp->chunks, c, nobe);
+	lsprintf(DEV, "user mutex 0x%x grows chunk [0x%x | %d]\n",
+		 lock_addr, chunk_addr, chunk_size);
+}
+
+/* forget about a mutex that no longer exists. */
+void mutex_destroy(struct mutex_state *m, int lock_addr)
+{
+	struct mutex *mp;
+	Q_SEARCH(mp, &m->user_mutexes, nobe, mp->addr == (unsigned int)lock_addr);
+	if (mp != NULL) {
+		lsprintf(DEV, "forgetting about user mutex 0x%x (chunks:", lock_addr);
+		Q_REMOVE(&m->user_mutexes, mp, nobe);
+		while (Q_GET_SIZE(&mp->chunks) > 0) {
+			struct mutex_chunk *c = Q_GET_HEAD(&mp->chunks);
+			printf(DEV, " [0x%x | %d]", c->base, c->size);
+			Q_REMOVE(&mp->chunks, c, nobe);
+			MM_FREE(c);
+		}
+		printf(DEV, ")\n");
+		MM_FREE(mp);
+
+		Q_SEARCH(mp, &m->user_mutexes, nobe, mp->addr == lock_addr);
+		assert(mp == NULL && "user mutex existed twice??");
+	}
+}
+
+static bool lock_contains_addr(struct mutex_state *m,
+			       unsigned int lock_addr, unsigned int addr)
+{
+	if (addr >= lock_addr && addr < lock_addr + m->size) {
+		return true;
+	} else {
+		/* search heap chunks of known malloced mutexes */
+		struct mutex *mp;
+		Q_SEARCH(mp, &m->user_mutexes, nobe, mp->addr == lock_addr);
+		if (mp == NULL) {
+			return false;
+		} else {
+			struct mutex_chunk *c;
+			Q_SEARCH(c, &mp->chunks, nobe,
+				 addr >= c->base && addr < c->base + c->size);
+			return c != NULL;
+		}
+	}
 }
 
 #define MUTEX_TYPE_NAME "mutex_t"
@@ -57,7 +127,7 @@ void check_user_mutex_access(struct ls_state *ls, unsigned int addr)
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		unsigned int lock_addr = (unsigned int)a->user_blocked_on_addr;
 		if (lock_addr != (unsigned int)(-1) &&
-		    addr >= lock_addr && addr < lock_addr + m->size) {
+		    lock_contains_addr(m, (unsigned int)lock_addr, addr)) {
 			lsprintf(DEV, "Rogue write to %x, unblocks tid %d from %x\n",
 				 addr, a->tid, lock_addr);
 			a->user_blocked_on_addr = -1;

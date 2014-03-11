@@ -485,6 +485,14 @@ void mem_update(struct ls_state *ls)
 			mem_enter_bad_place(ls, false, size);
 		} else if (user_mm_malloc_exiting(ls->cpu0, ls->eip, &base)) {
 			mem_exit_bad_place(ls, false, base);
+			/* was this malloc part of a userspace mutex_init call?
+			 * here is where we discover the structure of student
+			 * mutexes that have dynamically-allocated bits. */
+			if (ls->sched.cur_agent->action.user_mutex_initing) {
+				learn_malloced_mutex_structure(&ls->mutexes,
+					ls->sched.cur_agent->user_mutex_initing_addr,
+					base, ls->user_mem.alloc_request_size);
+			}
 		} else if (user_mm_free_entering(ls->cpu0, ls->eip, &base)) {
 			mem_enter_free(ls, false, base);
 		} else if (user_mm_free_exiting(ls->eip)) {

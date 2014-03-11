@@ -24,6 +24,7 @@
 #include "found_a_bug.h"
 #include "landslide.h"
 #include "memory.h"
+#include "mutexes.h"
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
@@ -129,6 +130,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(action.just_forked);
 	COPY_FIELD(action.kern_mutex_locking);
 	COPY_FIELD(action.kern_mutex_unlocking);
+	COPY_FIELD(action.user_mutex_initing);
 	COPY_FIELD(action.user_mutex_locking);
 	COPY_FIELD(action.user_mutex_unlocking);
 	COPY_FIELD(action.user_mutex_yielding);
@@ -143,6 +145,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(kern_blocked_on_addr);
 	COPY_FIELD(kern_mutex_unlocking_addr);
 	COPY_FIELD(user_blocked_on_addr);
+	COPY_FIELD(user_mutex_initing_addr);
 	COPY_FIELD(user_mutex_locking_addr);
 	COPY_FIELD(user_mutex_unlocking_addr);
 	COPY_FIELD(user_rwlock_locking_addr);
@@ -290,6 +293,31 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->shm.rb_node        = NULL;
 	dest->freed.rb_node      = NULL;
 }
+static void copy_mutexes(struct mutex_state *dest, struct mutex_state *src)
+{
+	dest->size = src->size; // FIXME
+	Q_INIT_HEAD(&dest->user_mutexes);
+
+	struct mutex *mp_src;
+	Q_FOREACH(mp_src, &src->user_mutexes, nobe) {
+		struct mutex *mp_dest = MM_XMALLOC(1, struct mutex);
+		mp_dest->addr = mp_src->addr;
+		Q_INIT_HEAD(&mp_dest->chunks);
+
+		struct mutex_chunk *c_src;
+		Q_FOREACH(c_src, &mp_src->chunks, nobe) {
+			struct mutex_chunk *c_dest = MM_XMALLOC(1, struct mutex_chunk);
+			c_dest->base = c_src->base;
+			c_dest->size = c_src->size;
+			Q_INSERT_HEAD(&mp_dest->chunks, c_dest, nobe);
+		}
+		assert(Q_GET_SIZE(&mp_dest->chunks) == Q_GET_SIZE(&mp_src->chunks));
+
+		Q_INSERT_HEAD(&dest->user_mutexes, mp_dest, nobe);
+	}
+
+	assert(Q_GET_SIZE(&dest->user_mutexes) == Q_GET_SIZE(&src->user_mutexes));
+}
 
 /* To free copied state data structures. None of these free the arg pointer. */
 static void free_sched_q(struct agent_q *q)
@@ -352,6 +380,20 @@ static void free_mem(struct mem_state *m)
 	m->freed.rb_node = NULL;
 }
 
+static void free_mutexes(struct mutex_state *m)
+{
+	while (Q_GET_SIZE(&m->user_mutexes) > 0) {
+		struct mutex *mp = Q_GET_HEAD(&m->user_mutexes);
+		Q_REMOVE(&m->user_mutexes, mp, nobe);
+		while (Q_GET_SIZE(&mp->chunks) > 0) {
+			struct mutex_chunk *c = Q_GET_HEAD(&mp->chunks);
+			Q_REMOVE(&mp->chunks, c, nobe);
+			MM_FREE(c);
+		}
+		MM_FREE(mp);
+	}
+}
+
 static void free_arbiter_choices(struct arbiter_state *a)
 {
 // TODO: deprecate one of these
@@ -380,6 +422,8 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->old_kern_mem);
 	free_mem(h->old_user_mem);
 	MM_FREE(h->old_user_mem);
+	free_mutexes(h->oldmutexes);
+	MM_FREE(h->oldmutexes);
 	h->oldsched = NULL;
 	h->oldtest = NULL;
 	h->old_kern_mem = NULL;
@@ -411,6 +455,8 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	copy_mem(&ls->kern_mem, h->old_kern_mem); /* note: leaves shm empty, as we want */
 	free_mem(&ls->user_mem);
 	copy_mem(&ls->user_mem, h->old_user_mem); /* as above */
+	free_mutexes(&ls->mutexes);
+	copy_mutexes(&ls->mutexes, h->oldmutexes);
 	free_arbiter_choices(&ls->arbiter);
 
 	set_symtable(h->old_symtable);
@@ -690,6 +736,9 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 	h->old_user_mem = MM_XMALLOC(1, struct mem_state);
 	copy_mem(h->old_user_mem, &ls->user_mem);
+
+	h->oldmutexes = MM_XMALLOC(1, struct mutex_state);
+	copy_mutexes(h->oldmutexes, &ls->mutexes);
 
 	h->old_symtable = get_symtable();
 

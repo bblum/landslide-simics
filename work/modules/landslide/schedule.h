@@ -52,6 +52,7 @@ struct agent {
 		bool kern_mutex_locking;
 		bool kern_mutex_unlocking;
 		/* what about in userspace? */
+		bool user_mutex_initing;
 		bool user_mutex_locking;
 		bool user_mutex_unlocking;
 		bool user_mutex_yielding; /* if true, locking addr shall also be set */
@@ -70,6 +71,7 @@ struct agent {
 	int kern_mutex_unlocking_addr;
 	/* similar for userspace */
 	int user_blocked_on_addr;
+	int user_mutex_initing_addr;
 	int user_mutex_locking_addr;
 	int user_mutex_unlocking_addr;
 	int user_rwlock_locking_addr;
