@@ -293,9 +293,15 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->shm.rb_node        = NULL;
 	dest->freed.rb_node      = NULL;
 }
-static void copy_mutexes(struct mutex_state *dest, struct mutex_state *src)
+static void copy_mutexes(struct mutex_state *dest, struct mutex_state *src,
+			 int already_known_size)
 {
-	dest->size = src->size; // FIXME
+	if (already_known_size == 0) {
+		/* save work: don't clear an already learned size when jumping
+		 * back in time, which would make us search the symtables all
+		 * over again. it's not like user mutex size ever changes. */
+		dest->size = src->size;
+	}
 	Q_INIT_HEAD(&dest->user_mutexes);
 
 	struct mutex *mp_src;
@@ -380,7 +386,7 @@ static void free_mem(struct mem_state *m)
 	m->freed.rb_node = NULL;
 }
 
-static void free_mutexes(struct mutex_state *m)
+static int free_mutexes(struct mutex_state *m)
 {
 	while (Q_GET_SIZE(&m->user_mutexes) > 0) {
 		struct mutex *mp = Q_GET_HEAD(&m->user_mutexes);
@@ -392,6 +398,8 @@ static void free_mutexes(struct mutex_state *m)
 		}
 		MM_FREE(mp);
 	}
+
+	return m->size;
 }
 
 static void free_arbiter_choices(struct arbiter_state *a)
@@ -455,8 +463,8 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	copy_mem(&ls->kern_mem, h->old_kern_mem); /* note: leaves shm empty, as we want */
 	free_mem(&ls->user_mem);
 	copy_mem(&ls->user_mem, h->old_user_mem); /* as above */
-	free_mutexes(&ls->mutexes);
-	copy_mutexes(&ls->mutexes, h->oldmutexes);
+	int already_known_size = free_mutexes(&ls->mutexes);
+	copy_mutexes(&ls->mutexes, h->oldmutexes, already_known_size);
 	free_arbiter_choices(&ls->arbiter);
 
 	set_symtable(h->old_symtable);
@@ -738,7 +746,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	copy_mem(h->old_user_mem, &ls->user_mem);
 
 	h->oldmutexes = MM_XMALLOC(1, struct mutex_state);
-	copy_mutexes(h->oldmutexes, &ls->mutexes);
+	copy_mutexes(h->oldmutexes, &ls->mutexes, 0);
 
 	h->old_symtable = get_symtable();
 
