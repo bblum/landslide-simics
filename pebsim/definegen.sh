@@ -329,6 +329,7 @@ define_user_addr USER_MUTEX_LOCK mutex_lock
 define_user_addr USER_MUTEX_TRYLOCK mutex_trylock # not necessary; try some different
 define_user_addr USER_MUTEX_TRY_LOCK mutex_try_lock # plausible names hoping to find it
 define_user_addr USER_MUTEX_UNLOCK mutex_unlock
+define_user_addr USER_MUTEX_DESTROY mutex_destroy
 define_user_addr USER_COND_WAIT cond_wait
 define_user_addr USER_COND_SIGNAL cond_signal
 define_user_addr USER_COND_BROADCAST cond_broadcast

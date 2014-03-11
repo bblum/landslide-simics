@@ -353,6 +353,28 @@ bool user_mutex_unlock_exiting(int eip) {
 	return false;
 #endif
 }
+bool user_mutex_destroy_entering(conf_object_t *cpu, int eip, int *addr) {
+#ifdef USER_MUTEX_DESTROY_ENTER
+	if (eip == USER_MUTEX_DESTROY_ENTER) {
+		*addr = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+bool user_mutex_destroy_exiting(int eip) {
+#ifdef USER_MUTEX_DESTROY_EXIT
+	return eip == USER_MUTEX_DESTROY_EXIT;
+#else
+#ifdef USER_MUTEX_DESTROY_ENTER
+	STATIC_ASSERT(false && "MUTEX_DESTROY ENTER but not EXIT defined");
+#endif
+	return false;
+#endif
+}
 
 /******************************************************************************
  * Cvars
