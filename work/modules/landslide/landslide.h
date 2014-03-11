@@ -11,6 +11,7 @@
 
 #include "arbiter.h"
 #include "memory.h"
+#include "mutexes.h"
 #include "rand.h"
 #include "save.h"
 #include "schedule.h"
@@ -36,6 +37,7 @@ struct ls_state {
 	struct test_state test;
 	struct mem_state kern_mem;
 	struct mem_state user_mem;
+	struct mutex_state mutexes;
 	struct rand_state rand;
 
 	char *cmd_file;
@@ -51,6 +53,6 @@ void set_symtable(conf_object_t *symtable);
 int symtable_lookup(char *buf, int maxlen, int addr, bool *unknown);
 int symtable_lookup_data(char *buf, int maxlen, int addr);
 bool function_eip_offset(int eip, int *offset);
-int learn_user_mutex_size();
+bool find_user_global_of_type(const char *typename, int *size_result);
 
 #endif

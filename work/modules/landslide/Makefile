@@ -4,10 +4,8 @@
 # Simics module makefile
 #
 
-# USER-TODO: specify the class(es) implemented in this module
 MODULE_CLASSES=landslide
 
-# USER-TODO: set file-names
 SRC_FILES = landslide.h landslide.c \
 	    x86.c x86.h \
 	    kernel_specifics.h kernel_specifics.c student.c \
@@ -22,6 +20,7 @@ SRC_FILES = landslide.h landslide.c \
 	    found_a_bug.h found_a_bug.c \
 	    rbtree.h rbtree.c \
 	    memory.h memory.c \
+	    mutexes.h mutexes.c \
 	    rand.h rand.c \
 	    lockset.c lockset.h \
 	    variable_queue.h
