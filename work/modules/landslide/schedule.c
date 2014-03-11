@@ -335,7 +335,8 @@ void print_qs(verbosity v, const struct sched_state *s)
 }
 
 /* what is the current thread doing? */
-#define ACTION(s, act) ((s)->cur_agent->action.act)
+#define CURRENT(s, field) ((s)->cur_agent->field)
+#define ACTION(s, act) CURRENT((s), action.act)
 #define HANDLING_INTERRUPT(s) (ACTION(s, handling_timer)) /* FIXME: add kbd */
 #define NO_ACTION(s) (!(ACTION(s, handling_timer) || ACTION(s, context_switch) \
 			|| ACTION(s, forking) || ACTION(s, sleeping)           \
@@ -368,7 +369,7 @@ static void assert_no_action(struct sched_state *s, const char *new_act)
 static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 {
 	if (ACTION(s, forking) && !HANDLING_INTERRUPT(s) &&
-	    s->cur_agent->tid != target_tid) {
+	    CURRENT(s, tid) != target_tid) {
 		lsprintf(DEV, "agent %d forked (%s) -- ", target_tid,
 			  add_to_rq ? "rq" : "dq");
 		print_qs(DEV, s);
@@ -388,7 +389,7 @@ static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
 static void handle_sleep(struct sched_state *s)
 {
 	if (ACTION(s, sleeping) && !HANDLING_INTERRUPT(s)) {
-		lsprintf(DEV, "agent %d sleep -- ", s->cur_agent->tid);
+		lsprintf(DEV, "agent %d sleep -- ", CURRENT(s, tid));
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		agent_sleep(s);
@@ -401,7 +402,7 @@ static void handle_sleep(struct sched_state *s)
 static void handle_vanish(struct sched_state *s)
 {
 	if (ACTION(s, vanishing) && !HANDLING_INTERRUPT(s)) {
-		lsprintf(DEV, "agent %d vanish -- ", s->cur_agent->tid);
+		lsprintf(DEV, "agent %d vanish -- ", CURRENT(s, tid));
 		print_qs(DEV, s);
 		printf(DEV, "\n");
 		agent_vanish(s);
@@ -423,7 +424,7 @@ static void handle_unsleep(struct sched_state *s, int tid)
 void sched_update(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
-	int old_tid = s->cur_agent->tid;
+	int old_tid = CURRENT(s, tid);
 	int new_tid;
 
 	/* wait until the guest is ready */
@@ -512,16 +513,16 @@ void sched_update(struct ls_state *ls)
 			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Couldn't find "
 				 "new thread %d; current %d; did you forget to "
 				 "tell_landslide_forking()?\n" COLOUR_DEFAULT,
-				 new_tid, s->cur_agent->tid);
+				 new_tid, CURRENT(s, tid));
 			assert(0);
 		}
 		/* Some debug info to help the studence. */
-		if (s->cur_agent->tid == kern_get_init_tid()) {
+		if (CURRENT(s, tid) == kern_get_init_tid()) {
 			lskprintf(DEV, "Now running init.\n");
-		} else if (s->cur_agent->tid == kern_get_shell_tid()) {
+		} else if (CURRENT(s, tid) == kern_get_shell_tid()) {
 			lskprintf(DEV, "Now running shell.\n");
 		} else if (kern_has_idle() &&
-			   s->cur_agent->tid == kern_get_idle_tid()) {
+			   CURRENT(s, tid) == kern_get_idle_tid()) {
 			lskprintf(DEV, "Now idling.\n");
 		}
 	}
@@ -540,10 +541,10 @@ void sched_update(struct ls_state *ls)
 			assert(!ACTION(s, handling_timer));
 		} else {
 			lskprintf(DEV, "WARNING: allowing a nested timer on "
-			          "tid %d's stack\n", s->cur_agent->tid);
+			          "tid %d's stack\n", CURRENT(s, tid));
 		}
 		ACTION(s, handling_timer) = true;
-		lskprintf(INFO, "%d timer enter from 0x%x\n", s->cur_agent->tid,
+		lskprintf(INFO, "%d timer enter from 0x%x\n", CURRENT(s, tid),
 		          (unsigned int)READ_STACK(ls->cpu0, 0));
 	} else if (kern_timer_exiting(ls->eip)) {
 		if (ACTION(s, handling_timer)) {
@@ -578,7 +579,7 @@ void sched_update(struct ls_state *ls)
 			lsprintf(DEV, "Voluntary resched tid ");
 			print_agent(DEV, s->cur_agent);
 			printf(DEV, "\n");
-			s->voluntary_resched_tid = s->cur_agent->tid;
+			s->voluntary_resched_tid = CURRENT(s, tid);
 			if (s->voluntary_resched_stack != NULL)
 				MM_FREE(s->voluntary_resched_stack);
 			s->voluntary_resched_stack = stack_trace(ls);
@@ -647,21 +648,21 @@ void sched_update(struct ls_state *ls)
 		//assert(!ACTION(s, kern_mutex_locking));
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = true;
-		s->cur_agent->kern_blocked_on_addr = lock_addr;
-		lockset_add(&s->cur_agent->kern_locks_held, lock_addr, LOCK_MUTEX);
+		CURRENT(s, kern_blocked_on_addr) = lock_addr;
+		lockset_add(&CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
-		 * assert(s->cur_agent->kern_blocked_on == NULL);
-		 * assert(s->cur_agent->kern_blocked_on_tid == -1); */
+		 * assert(CURRENT(s, kern_blocked_on) == NULL);
+		 * assert(CURRENT(s, kern_blocked_on_tid) == -1); */
 		lskprintf(DEV, "mutex: on 0x%x tid %d blocks, owned by %d\n",
-		          s->cur_agent->kern_blocked_on_addr, s->cur_agent->tid,
+		          CURRENT(s, kern_blocked_on_addr), CURRENT(s, tid),
 		          target_tid);
-		s->cur_agent->kern_blocked_on_tid = target_tid;
+		CURRENT(s, kern_blocked_on_tid) = target_tid;
 		// An odd interleaving can cause a contendingthread to become
 		// unblocked before they run far enough to say they're blocked.
 		// So if they were unblocked, they are not really blocked.
-		if (s->cur_agent->kern_blocked_on_addr == -1) {
+		if (CURRENT(s, kern_blocked_on_addr) == -1) {
 			if (deadlocked(s)) {
 				lsprintf(BUG, COLOUR_BOLD COLOUR_RED
 					 "KERNEL DEADLOCK! ");
@@ -675,33 +676,33 @@ void sched_update(struct ls_state *ls)
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = false;
 		lskprintf(DEV, "mutex: on 0x%x tid %d unblocks\n",
-		          s->cur_agent->kern_blocked_on_addr, s->cur_agent->tid);
-		s->cur_agent->kern_blocked_on = NULL;
-		s->cur_agent->kern_blocked_on_tid = -1;
-		s->cur_agent->kern_blocked_on_addr = -1;
+		          CURRENT(s, kern_blocked_on_addr), CURRENT(s, tid));
+		CURRENT(s, kern_blocked_on) = NULL;
+		CURRENT(s, kern_blocked_on_tid) = -1;
+		CURRENT(s, kern_blocked_on_addr) = -1;
 		/* no need to check for deadlock; this can't create a cycle. */
 		kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
-					s->cur_agent->tid);
+					CURRENT(s, tid));
 	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &lock_addr)) {
 		/* It's allowed to have a mutex_unlock call inside a mutex_lock
 		 * (and it can happen), or mutex_lock inside of mutex_lock, but
 		 * not the other way around. */
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_unlocking) = true;
-		assert(s->cur_agent->kern_mutex_unlocking_addr == -1);
-		s->cur_agent->kern_mutex_unlocking_addr = lock_addr;
+		assert(CURRENT(s, kern_mutex_unlocking_addr) == -1);
+		CURRENT(s, kern_mutex_unlocking_addr) = lock_addr;
 		lskprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
-		          lock_addr, s->cur_agent->tid);
+		          lock_addr, CURRENT(s, tid));
 		kern_mutex_block_others(&s->rq, lock_addr, NULL, -1);
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_unlocking) = false;
-		assert(s->cur_agent->kern_mutex_unlocking_addr != -1);
-		lockset_remove(s, s->cur_agent->kern_mutex_unlocking_addr,
+		assert(CURRENT(s, kern_mutex_unlocking_addr) != -1);
+		lockset_remove(s, CURRENT(s, kern_mutex_unlocking_addr),
 			       LOCK_MUTEX, true);
-		s->cur_agent->kern_mutex_unlocking_addr = -1;
+		CURRENT(s, kern_mutex_unlocking_addr) = -1;
 		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
-			  s->cur_agent->tid);
+			  CURRENT(s, tid));
 
 	/**********************************************************************
 	 * Userspace
@@ -711,69 +712,66 @@ void sched_update(struct ls_state *ls)
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;
-		s->cur_agent->user_mutex_locking_addr = lock_addr;
+		CURRENT(s, user_mutex_locking_addr) = lock_addr;
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
-		lockset_add(&s->cur_agent->user_locks_held, lock_addr, LOCK_MUTEX);
-		lsprintf(DEV, "tid %d locks mutex 0x%x\n", s->cur_agent->tid,
+		lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
+		lsprintf(DEV, "tid %d locks mutex 0x%x\n", CURRENT(s, tid),
 			 lock_addr);
 	} else if (user_yielding(ls->eip) && ACTION(s, user_mutex_locking)) {
 		/* "Probably" blocked on the mutex. */
 		assert(!ACTION(s, user_mutex_unlocking));
-		assert(s->cur_agent->user_mutex_locking_addr != -1);
+		assert(CURRENT(s, user_mutex_locking_addr) != -1);
 		/* Could have been yielding before; gotten kicked awake but
 		 * didn't get the lock, have to yield again. */
 		ACTION(s, user_mutex_yielding) = true;
-		s->cur_agent->user_blocked_on_addr =
-			s->cur_agent->user_mutex_locking_addr;
+		CURRENT(s, user_blocked_on_addr) = CURRENT(s, user_mutex_locking_addr);
 	} else if (user_mutex_lock_exiting(ls->eip)) {
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
-		assert(s->cur_agent->user_mutex_locking_addr != -1);
+		assert(CURRENT(s, user_mutex_locking_addr) != -1);
 		ACTION(s, user_mutex_locking) = false;
 		ACTION(s, user_mutex_yielding) = false;
-		lsprintf(DEV, "tid %d locked mutex 0x%x\n", s->cur_agent->tid,
-			 s->cur_agent->user_mutex_locking_addr);
-		user_mutex_block_others(&s->rq, s->cur_agent->user_mutex_locking_addr, true);
-		s->cur_agent->user_mutex_locking_addr = -1;
+		lsprintf(DEV, "tid %d locked mutex 0x%x\n", CURRENT(s, tid),
+			 CURRENT(s, user_mutex_locking_addr));
+		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_locking_addr), true);
+		CURRENT(s, user_mutex_locking_addr) = -1;
 	} else if (user_mutex_trylock_exiting(ls->cpu0, ls->eip, &succeeded)) {
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
 		assert(!ACTION(s, user_mutex_unlocking));
-		assert(s->cur_agent->user_mutex_locking_addr != -1);
+		assert(CURRENT(s, user_mutex_locking_addr) != -1);
 		ACTION(s, user_mutex_locking) = false;
 		if (succeeded) {
 			lsprintf(DEV, "tid %d tried + could lock mutex 0x%x\n",
-				 s->cur_agent->tid,
-				 s->cur_agent->user_mutex_locking_addr);
-			user_mutex_block_others(&s->rq, s->cur_agent->user_mutex_locking_addr, true);
+				 CURRENT(s, tid), CURRENT(s, user_mutex_locking_addr));
+			user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_locking_addr), true);
 		} else {
 			lsprintf(DEV, "tid %d tried + failed to lock mutex 0x%x\n",
-				 s->cur_agent->tid,
-				 s->cur_agent->user_mutex_locking_addr);
-			lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr,
+				 CURRENT(s, tid), CURRENT(s, user_mutex_locking_addr));
+			lockset_remove(s, CURRENT(s, user_mutex_unlocking_addr),
 				       LOCK_MUTEX, false);
 		}
-		s->cur_agent->user_mutex_locking_addr = -1;
+		CURRENT(s, user_mutex_locking_addr) = -1;
 	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_unlocking) = true;
-		s->cur_agent->user_mutex_unlocking_addr = lock_addr;
-		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", s->cur_agent->tid, lock_addr);
+		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
+		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
 		assert(ACTION(s, user_mutex_unlocking));
-		assert(s->cur_agent->user_mutex_unlocking_addr != -1);
+		assert(CURRENT(s, user_mutex_unlocking_addr) != -1);
 		ACTION(s, user_mutex_unlocking) = false;
-		lockset_remove(s, s->cur_agent->user_mutex_unlocking_addr,
+		lockset_remove(s, CURRENT(s, user_mutex_unlocking_addr),
 			       LOCK_MUTEX, false);
-		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", s->cur_agent->tid,
-			 s->cur_agent->user_mutex_unlocking_addr);
-		user_mutex_block_others(&s->rq, s->cur_agent->user_mutex_unlocking_addr, false);
-		s->cur_agent->user_mutex_unlocking_addr = -1;
+		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", CURRENT(s, tid),
+			 CURRENT(s, user_mutex_unlocking_addr));
+		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_unlocking_addr), false);
+		CURRENT(s, user_mutex_unlocking_addr) = -1;
 	// TODO: model sems
 	// TODO: model rwlox (for these, don't give a free pass to contents of lock
 	} else if (user_rwlock_lock_entering(ls->cpu0, ls->eip, &lock_addr, &write_mode)) {
@@ -782,34 +780,34 @@ void sched_update(struct ls_state *ls)
 		ACTION(s, user_rwlock_locking) = true;
 		/* use low bit of addr to store mode */
 		assert((lock_addr & 0x1) == 0);
-		s->cur_agent->user_rwlock_locking_addr = lock_addr | (write_mode ? 1 : 0);
-		lsprintf(DEV, "tid %d locks rwlock 0x%x for %s\n", s->cur_agent->tid,
+		CURRENT(s, user_rwlock_locking_addr) = lock_addr | (write_mode ? 1 : 0);
+		lsprintf(DEV, "tid %d locks rwlock 0x%x for %s\n", CURRENT(s, tid),
 			 lock_addr, write_mode ? "writing" : "reading");
 	} else if (user_rwlock_lock_exiting(ls->eip)) {
 		assert(ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
-		assert(s->cur_agent->user_rwlock_locking_addr != -1);
-		int lock_addr = s->cur_agent->user_rwlock_locking_addr & ~0x1;
-		bool write_mode = (s->cur_agent->user_rwlock_locking_addr & 0x1) == 1;
-		s->cur_agent->user_rwlock_locking_addr = -1;
+		assert(CURRENT(s, user_rwlock_locking_addr) != -1);
+		int lock_addr = CURRENT(s, user_rwlock_locking_addr) & ~0x1;
+		bool write_mode = (CURRENT(s, user_rwlock_locking_addr) & 0x1) == 1;
+		CURRENT(s, user_rwlock_locking_addr) = -1;
 		ACTION(s, user_rwlock_locking) = false;
-		lsprintf(DEV, "tid %d locked rwlock 0x%x for %s\n", s->cur_agent->tid,
+		lsprintf(DEV, "tid %d locked rwlock 0x%x for %s\n", CURRENT(s, tid),
 			 lock_addr, write_mode ? "writing" : "reading");
 		/* Add to lockset INSIDE lock implementation; i.e., we consider
 		 * the implementation not protected by itself w.r.t data races. */
-		lockset_add(&s->cur_agent->user_locks_held, lock_addr,
+		lockset_add(&CURRENT(s, user_locks_held), lock_addr,
 			    write_mode ? LOCK_RWLOCK : LOCK_RWLOCK_READ);
 	} else if (user_rwlock_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
 		ACTION(s, user_rwlock_unlocking) = true;
-		lsprintf(DEV, "tid %d unlocks rwlock 0x%x\n", s->cur_agent->tid, lock_addr);
+		lsprintf(DEV, "tid %d unlocks rwlock 0x%x\n", CURRENT(s, tid), lock_addr);
 		lockset_remove(s, lock_addr, LOCK_RWLOCK, false);
 	} else if (user_rwlock_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(ACTION(s, user_rwlock_unlocking));
 		ACTION(s, user_rwlock_unlocking) = false;
-		lsprintf(DEV, "tid %d unlocked rwlock\n", s->cur_agent->tid);
+		lsprintf(DEV, "tid %d unlocked rwlock\n", CURRENT(s, tid));
 	}
 
 	/**********************************************************************
@@ -836,7 +834,7 @@ void sched_update(struct ls_state *ls)
 				/* Interrupts are "probably" off, but that's why
 				 * just_finished_reschedule is persistent. */
 				lskprintf(DEV, "Finished flying to %d.\n",
-				          s->cur_agent->tid);
+				          CURRENT(s, tid));
 				ACTION(s, schedule_target) = false;
 				ACTION(s, just_forked) = false;
 				s->schedule_in_flight = NULL;
@@ -971,7 +969,7 @@ void sched_update(struct ls_state *ls)
 		if (arbiter_choose(ls, &a, &our_choice)) {
 			/* Effect the choice that was made... */
 			if (a != s->cur_agent ||
-			    agent_by_tid_or_null(&s->sq, s->cur_agent->tid) != NULL) {
+			    agent_by_tid_or_null(&s->sq, CURRENT(s, tid)) != NULL) {
 				if (a == s->cur_agent) {
 					/* The arbiter picked to wake a thread
 					 * off the sleep queue. Prevent it from
@@ -981,7 +979,7 @@ void sched_update(struct ls_state *ls)
 				}
 				lsprintf(DEV, "from agent %d, arbiter chose "
 					 "%d at 0x%x (called at 0x%x)\n",
-					 s->cur_agent->tid, a->tid, ls->eip,
+					 CURRENT(s, tid), a->tid, ls->eip,
 					 (unsigned int)READ_STACK(ls->cpu0, 0));
 				set_schedule_target(s, a);
 				cause_timer_interrupt(ls->cpu0);
@@ -1013,7 +1011,7 @@ void sched_recover(struct ls_state *ls)
 	assert(ls->just_jumped);
 
 	if (arbiter_pop_choice(&ls->arbiter, &tid)) {
-		if (tid == s->cur_agent->tid) {
+		if (tid == CURRENT(s, tid)) {
 			/* Hmmmm */
 			if (kern_timer_entering(ls->eip)) {
 				/* Oops, we ended up trying to leave the thread
@@ -1047,7 +1045,7 @@ void sched_recover(struct ls_state *ls)
 
 			assert(a != NULL && "bogus explorer-chosen tid!");
 			lsprintf(INFO, "Recovering to explorer-chosen tid %d "
-				 "from tid %d\n", tid, s->cur_agent->tid);
+				 "from tid %d\n", tid, CURRENT(s, tid));
 			set_schedule_target(s, a);
 			/* Hmmmm */
 			if (!kern_timer_entering(ls->eip)) {
@@ -1057,7 +1055,7 @@ void sched_recover(struct ls_state *ls)
 			s->entering_timer = true;
 		}
 	} else {
-		tid = s->cur_agent->tid;
+		tid = CURRENT(s, tid);
 		lsprintf(BUG, "Explorer chose no tid; defaulting to %d\n", tid);
 	}
 
