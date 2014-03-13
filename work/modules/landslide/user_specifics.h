@@ -15,7 +15,7 @@
 
 bool testing_userspace();
 bool user_within_functions(conf_object_t *cpu, int eip);
-bool user_yielding(int eip);
+bool user_yielding(conf_object_t *cpu, int eip);
 
 bool user_mm_init_entering(int eip);
 bool user_mm_init_exiting(int eip);

@@ -741,7 +741,7 @@ void sched_update(struct ls_state *ls)
 		lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
 		lsprintf(DEV, "tid %d locks mutex 0x%x\n", CURRENT(s, tid),
 			 lock_addr);
-	} else if (user_yielding(ls->eip) && ACTION(s, user_mutex_locking)) {
+	} else if (user_yielding(ls->cpu0, ls->eip) && ACTION(s, user_mutex_locking)) {
 		/* "Probably" blocked on the mutex. */
 		assert(!ACTION(s, user_mutex_unlocking));
 		assert(CURRENT(s, user_mutex_locking_addr) != -1);

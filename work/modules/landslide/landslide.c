@@ -498,34 +498,6 @@ bool find_user_global_of_type(const char *typename, int *size_result)
  * pebbles system calls
  ******************************************************************************/
 
-#define FORK_INT            0x41
-#define EXEC_INT            0x42
-/* #define EXIT_INT            0x43 */
-#define WAIT_INT            0x44
-#define YIELD_INT           0x45
-#define DESCHEDULE_INT      0x46
-#define MAKE_RUNNABLE_INT   0x47
-#define GETTID_INT          0x48
-#define NEW_PAGES_INT       0x49
-#define REMOVE_PAGES_INT    0x4A
-#define SLEEP_INT           0x4B
-#define GETCHAR_INT         0x4C
-#define READLINE_INT        0x4D
-#define PRINT_INT           0x4E
-#define SET_TERM_COLOR_INT  0x4F
-#define SET_CURSOR_POS_INT  0x50
-#define GET_CURSOR_POS_INT  0x51
-#define THREAD_FORK_INT     0x52
-#define GET_TICKS_INT       0x53
-#define MISBEHAVE_INT       0x54
-#define HALT_INT            0x55
-#define LS_INT              0x56
-#define TASK_VANISH_INT     0x57 /* previously known as TASK_EXIT_INT */
-#define SET_STATUS_INT      0x59
-#define VANISH_INT          0x60
-/* #define CAS2I_RUNFLAG_INT   0x61 */
-#define SWEXN_INT           0x74
-
 #define CASE_SYSCALL(num, name) \
 	case (num): printf(CHOICE, "%s()\n", (name)); break
 
@@ -562,6 +534,7 @@ static void check_user_syscall(struct ls_state *ls)
 		CASE_SYSCALL(TASK_VANISH_INT, "task_vanish");
 		CASE_SYSCALL(SET_STATUS_INT, "set_status");
 		CASE_SYSCALL(VANISH_INT, "vanish");
+		CASE_SYSCALL(CAS2I_RUNFLAG_INT, "cas2i_runflag");
 		CASE_SYSCALL(SWEXN_INT, "swexn");
 		default:
 			printf(CHOICE, "((unknown 0x%x))\n", number);

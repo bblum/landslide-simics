@@ -27,10 +27,17 @@ bool user_within_functions(conf_object_t *cpu, int eip)
 	return _within_functions(cpu, eip, within_functions, length);
 }
 
-bool user_yielding(int eip)
+bool user_yielding(conf_object_t *cpu, int eip)
 {
 #ifdef USER_YIELD_ENTER
+#if 0
 	return eip == USER_YIELD_ENTER;
+#else
+	/* Special case frumious logic. Compare to check_user_syscall(). Handles
+	 * p2s with assembly yield invocations (sounds like a WISE IDEA). */
+	return eip >= USER_MEM_START && READ_BYTE(cpu, eip) == OPCODE_INT &&
+		OPCODE_INT_ARG(cpu, eip) == YIELD_INT;
+#endif
 #else
 	return false;
 #endif
