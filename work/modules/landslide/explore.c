@@ -67,6 +67,7 @@ static void branch_sanity(struct hax *root, struct hax *current)
 static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
 				       int *new_tid)
 {
+	assert(0 && "deprecated");
 	/* Find the most recent spot in our branch that is not all explored. */
 	while (1) {
 		/* Examine children */
@@ -88,6 +89,89 @@ static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
 			return NULL;
 		}
 	}
+}
+
+/******************************************************************************
+ * Skipping over transitions blocked in an open-coded userspace yield loop.
+ ******************************************************************************/
+
+/* The approach to deriving if a user thread is "blocked" in an
+ * open-coded yield loop involves waiting for it to do a certain number
+ * of yields in a row. However, this pollutes the tree with extra
+ * branches that are not actually progress, but just that thread ticking
+ * up its yield-loop counter. If we treated these as real transitions,
+ * we could end up tagging a sibling of every single one of them,
+ * while really (assuming we are right that the yield loop is doing
+ * nothing) it's a safe reduction technique to tag siblings of only one. */
+
+/* May return NULL if the chosen agent vanished during the transition. */
+static struct agent *find_old_agent_by_tid(struct hax *h, int tid)
+{
+	struct agent *a;
+	assert(h->parent != NULL);
+	assert(h->parent->oldsched != NULL);
+	FOR_EACH_RUNNABLE_AGENT(a, h->parent->oldsched,
+		if (a->tid == tid) {
+			return a;
+		}
+	);
+	return NULL;
+}
+static struct agent *find_chosen_agent(struct hax *h)
+{
+	return find_old_agent_by_tid(h, h->chosen_thread);
+}
+
+static void update_user_yield_blocked_transitions(struct hax *h0)
+{
+	/* Here we scan backwards looking for transitions where we realized
+	 * a user thread was yield-blocked (its yield-loop counter hit max),
+	 * and adjust the values of that thread's past transitions (where it
+	 * was still counting up to the max) to reflect that those transitions
+	 * are actually blocked as well.
+	 *
+	 * While we're at it, of course, we also check the invariant that the
+	 * yield-loop counters are either zero or counting up to the max. */
+
+	for (struct hax *h = h0; h->parent != NULL; h = h->parent) {
+		struct agent *a = find_chosen_agent(h);
+		struct hax *h2 = h->parent;
+		int count = a->user_yield_loop_count;
+		bool want_update = count == TOO_MANY_YIELDS;
+		assert(count >= 0);
+		while (count > 0) {
+			assert(h2 != NULL && "nonzero yield count at root");
+			struct agent *a2 = find_old_agent_by_tid(h2, a->tid);
+			assert(a2 != NULL && "yielding thread vanished in the past");
+			if (h2->chosen_thread == a->tid) {
+				/* Thread ran. Count must have incremented. */
+				assert(a2->user_yield_loop_count == count - 1);
+				count--;
+			} else {
+				/* Thread did not run; count should not have changed. */
+				assert(a2->user_yield_loop_count == count);
+			}
+
+			if (want_update) {
+				lsprintf(DEV, COLOUR_BOLD COLOUR_CYAN
+					 "Tid %d (yc%d) too many @ #%d/tid%d, from #%d/tid%d\n",
+					 a2->tid, a2->user_yield_loop_count, h2->depth,
+					 h2->chosen_thread, h->depth, h->chosen_thread);
+				a2->user_yield_loop_count = TOO_MANY_YIELDS;
+			}
+			h2 = h2->parent;
+		}
+	}
+}
+
+static bool is_user_yield_blocked(struct hax *h)
+{
+	/* Here note we are checking the yield-loop counter of the transition's
+	 * chosen-thread as it was BEFORE that transition began. This excludes
+	 * the 1st yield-blocked transition from being considered blocked, so
+	 * we can reorder other threads to occur directly before it. */
+	struct agent *a = find_chosen_agent(h);
+	return a != NULL && a->user_yield_loop_count == TOO_MANY_YIELDS;
 }
 
 /******************************************************************************
@@ -181,13 +265,26 @@ static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, int *new_tid)
 
 	current->all_explored = true;
 
+	/* this cannot happen in-line with walking the branch, below, since it
+	 * needs to be computed for all ancestors and be ready for checking
+	 * against descendants in advance. */
+	update_user_yield_blocked_transitions(current);
+
 	/* Compare each transition along this branch against each of its
 	 * ancestors. */
 	for (struct hax *h = current; h != NULL; h = h->parent) {
+		/* In outer loop, we include user threads blocked in a yield
+		 * loop as the "descendant" for comparison, because we want
+		 * to reorder them before conflicting ancestors if needed... */
 		for (struct hax *ancestor = h->parent; ancestor != NULL;
 		     ancestor = ancestor->parent) {
 			if (ancestor->parent == NULL) {
-				// ????
+				continue;
+			/* ...however, in this inner loop, we never consider
+			 * user yield-blocked threads as potential transitions
+			 * to interleave around. */
+			} else if (is_user_yield_blocked(ancestor)) {
+				continue;
 			/* Is the ancestor "evil"? */
 			} else if (is_evil_ancestor(h, ancestor)) {
 				/* Find which siblings need to be explored. */

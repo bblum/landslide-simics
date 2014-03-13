@@ -79,13 +79,22 @@ struct agent {
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;
+	/* how many transitions have gone by where the user did "nothing but"
+	 * spin in a yield loop? */
+	int user_yield_loop_count;
 	/* Used by partial order reduction, only in "oldsched"s in the tree. */
 	bool do_explore;
 };
 
 Q_NEW_HEAD(struct agent_q, struct agent);
 
-#define BLOCKED(a) ((a)->kern_blocked_on_tid != -1 || (a)->user_blocked_on_addr != -1)
+/* how many calls to yield makes us consider a user thread to be blocked? */
+#define TOO_MANY_YIELDS 10
+
+#define BLOCKED(a) \
+	((a)->kern_blocked_on_tid != -1 || (a)->user_blocked_on_addr != -1 || \
+	 ({ assert((a)->user_yield_loop_count <= TOO_MANY_YIELDS); \
+	    (a)->user_yield_loop_count == TOO_MANY_YIELDS; }))
 
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */

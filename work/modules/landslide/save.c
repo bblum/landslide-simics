@@ -151,6 +151,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(user_rwlock_locking_addr);
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
+	COPY_FIELD(user_yield_loop_count);
 
 	a_dest->do_explore = false;
 

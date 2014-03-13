@@ -87,6 +87,8 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	lockset_init(&a->kern_locks_held);
 	lockset_init(&a->user_locks_held);
 
+	a->user_yield_loop_count = 0;
+
 	if (on_runqueue) {
 		Q_INSERT_FRONT(&s->rq, a, nobe);
 	} else {
@@ -303,10 +305,13 @@ void print_agent(verbosity v, const struct agent *a)
 	if (a->action.readlining)      printf(v, "r");
 	if (a->action.schedule_target) printf(v, "*");
 	if (BLOCKED(a)) {
-		if (a->kern_blocked_on_tid != -1)
+		if (a->kern_blocked_on_tid != -1) {
 			printf(v, "<?%d>", a->kern_blocked_on_tid);
-		else
+		} else if (a->user_blocked_on_addr != -1) {
 			printf(v, "{?%x}", a->user_blocked_on_addr);
+		} else if (a->user_yield_loop_count == TOO_MANY_YIELDS) {
+			printf(v, "{?yield}");
+		}
 	}
 }
 
