@@ -68,6 +68,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->action.just_forked = true;
 	a->action.kern_mutex_locking = false;
 	a->action.kern_mutex_unlocking = false;
+	a->action.user_mutex_initing = false;
 	a->action.user_mutex_locking = false;
 	a->action.user_mutex_unlocking = false;
 	a->action.user_mutex_yielding = false;

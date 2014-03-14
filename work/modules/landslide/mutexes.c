@@ -25,6 +25,7 @@ void learn_malloced_mutex_structure(struct mutex_state *m, int lock_addr,
 				    int chunk_addr, int chunk_size)
 {
 	struct mutex *mp;
+	assert(lock_addr != -1);
 	Q_SEARCH(mp, &m->user_mutexes, nobe, mp->addr == (unsigned int)lock_addr);
 	if (mp == NULL) {
 		lsprintf(DEV, "created user mutex 0x%x (%d others)\n",
