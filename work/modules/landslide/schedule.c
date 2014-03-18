@@ -89,6 +89,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	lockset_init(&a->user_locks_held);
 
 	a->user_yield_loop_count = 0;
+	a->user_yield_blocked = false;
 
 	if (on_runqueue) {
 		Q_INSERT_FRONT(&s->rq, a, nobe);
@@ -293,6 +294,7 @@ void sched_init(struct sched_state *s)
 	s->entering_timer = false;
 	s->voluntary_resched_tid = -1;
 	s->voluntary_resched_stack = NULL;
+	s->user_yield_progress = NOTHING_INTERESTING;
 }
 
 void print_agent(verbosity v, const struct agent *a)
@@ -310,8 +312,11 @@ void print_agent(verbosity v, const struct agent *a)
 			printf(v, "<?%d>", a->kern_blocked_on_tid);
 		} else if (a->user_blocked_on_addr != -1) {
 			printf(v, "{?%x}", a->user_blocked_on_addr);
-		} else if (a->user_yield_loop_count == TOO_MANY_YIELDS) {
+		} else if (a->user_yield_loop_count == TOO_MANY_YIELDS ||
+			   a->user_yield_blocked) {
 			printf(v, "{?yield}");
+		} else {
+			assert(false && "unknown blocked condition");
 		}
 	}
 }
@@ -340,6 +345,10 @@ void print_qs(verbosity v, const struct sched_state *s)
 	print_q(v, " SQ {", &s->sq, "} ");
 	print_q(v, " DQ (", &s->dq, ") ");
 }
+
+/******************************************************************************
+ * Kernelspace lifecycle events
+ ******************************************************************************/
 
 /* what is the current thread doing? */
 #define CURRENT(s, field) ((s)->cur_agent->field)
@@ -427,6 +436,145 @@ static void handle_unsleep(struct sched_state *s, int tid)
 		Q_INSERT_FRONT(&s->dq, a, nobe);
 	}
 }
+
+/******************************************************************************
+ * Userspace yield-loop tracking
+ ******************************************************************************/
+
+/* Called at the end of each transition. */
+static void check_user_yield_activity(struct sched_state *s, bool voluntary)
+{
+	/* find the thread that just ran (even if we just switched away) */
+	struct agent *a = voluntary ? s->last_agent : s->cur_agent;
+	assert(a != NULL);
+	assert(a->user_yield_loop_count >= 0);
+	/* cannot be equal to the max, or we should not have run it. */
+	assert(a->user_yield_loop_count < TOO_MANY_YIELDS &&
+	       "we accidentally ran a thread stuck in a yield loop");
+	assert(!a->user_yield_blocked);
+
+	if (s->user_yield_progress == YIELDED) {
+		a->user_yield_loop_count++;
+		if (a->user_yield_loop_count == TOO_MANY_YIELDS) {
+			lsprintf(CHOICE, COLOUR_BOLD COLOUR_CYAN "TID %d yielded "
+				 "too many times (%d), marking it blocked.\n",
+				 a->tid, a->user_yield_loop_count);
+		} else {
+			lsprintf(CHOICE, COLOUR_BOLD COLOUR_CYAN "TID %d seems to "
+				 "be stuck in a yield loop (%d spins)\n",
+				 a->tid, a->user_yield_loop_count);
+		}
+	} else {
+		assert(s->user_yield_progress == NOTHING_INTERESTING ||
+		       s->user_yield_progress == ACTIVITY);
+		if (a->user_yield_loop_count > 0) {
+			/* User thread was yielding but stopped. */
+			lsprintf(DEV, COLOUR_BOLD COLOUR_CYAN "TID %d yielded "
+				 "%d times, but stopped.\n",
+				 a->tid, a->user_yield_loop_count);
+			a->user_yield_loop_count = 0;
+		} else {
+			/* Normal activity, nothing to see here. */
+		}
+	}
+
+	/* reset state flag for the next thread/transition to run. */
+	s->user_yield_progress = NOTHING_INTERESTING;
+}
+
+/* Called whenever the user hits an 'interesting' code point in userspace. */
+static void record_user_yield_activity(struct sched_state *s)
+{
+	/* Unconditionally indicate interesting activity. Even if the user
+	 * thread yields during this transition, we'll wait for it to actually
+	 * start doing nothing but yielding before counting it as blocked. */
+	s->user_yield_progress = ACTIVITY;
+}
+
+/* Called whenever the user makes a yield syscall. */
+static void record_user_yield(struct sched_state *s)
+{
+	/* If the user thread already did something interesting this
+	 * transition, let this pass. Otherwise, start counting. */
+	if (s->user_yield_progress == NOTHING_INTERESTING)
+		s->user_yield_progress = YIELDED;
+}
+
+#include "tree.h"
+// TODO: these two functions, eliminate by unifying with explore code
+static struct agent *find_old_agent_by_tid(struct hax *h, int tid)
+{
+        struct agent *a;
+        assert(h->parent != NULL);
+        assert(h->parent->oldsched != NULL);
+        FOR_EACH_RUNNABLE_AGENT(a, h->parent->oldsched,
+                if (a->tid == tid) {
+                        return a;
+                }
+        );
+        return NULL;
+}
+static struct agent *find_chosen_agent(struct hax *h)
+{
+        return find_old_agent_by_tid(h, h->chosen_thread);
+}
+
+/* Called for every userspace shared memory write by an active thread. */
+void check_unblock_yield_loop(struct ls_state *ls, unsigned int addr)
+{
+	struct agent *a;
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
+		if (a->user_yield_loop_count == TOO_MANY_YIELDS) {
+			assert(a->tid != ls->sched.cur_agent->tid);
+			bool found_one = false;
+
+			/* Find all past transitions by that thread (since it
+			 * started being in a yield loop). */
+			for (struct hax *h = ls->save.current; h->parent != NULL;
+			     h = h->parent) {
+				if (h->chosen_thread != a->tid) {
+					continue;
+				} else {
+					found_one = true;
+					/* Might this access cause the other
+					 * thread to stop yielding? */
+					if (shm_contains_addr(h->old_user_mem,
+							      addr)) {
+						lsprintf(DEV, COLOUR_BOLD COLOUR_MAGENTA "TID %d write to 0x%x unblocks yielding transition #%d/tid%d (ylc %d)\n",
+							 ls->sched.cur_agent->tid, addr,
+							 h->depth, a->tid,
+							 find_chosen_agent(h)->user_yield_loop_count);
+						/* Mark the thread unblocked. */
+						a->user_yield_loop_count = 0;
+						/* This flag need not have been
+						 * set, but it could have been
+						 * set from a past branch. */
+						a->user_yield_blocked = false;
+						break;
+					}
+					/* Note that this positively identifies
+					 * the oldest transition that IS in the
+					 * yield loop, which we wish to check,
+					 * so we do this check afterwards. */
+					struct agent *a2 = find_chosen_agent(h);
+					assert(a2 != NULL);
+					if (a2->user_yield_loop_count == 0) {
+						/* Oldest time it was blocked.
+						 * Don't check any further. */
+						break;
+					}
+				}
+				/* Search its memory accesses to see if the
+				 * current access would change its behaviour. */
+			}
+			assert(found_one);
+		}
+	);
+}
+
+/******************************************************************************
+ * Main entry point(s)
+ ******************************************************************************/
 
 void sched_update(struct ls_state *ls)
 {
@@ -714,21 +862,32 @@ void sched_update(struct ls_state *ls)
 	/**********************************************************************
 	 * Userspace
 	 **********************************************************************/
+
+	/* Tracking events in userspace. One thing to note about this section
+	 * is the record_user_yield{,_activity}() calls all over; these must be
+	 * in every case we wish to consider to mean the user thread is *not*
+	 * stuck in a yield loop. See logic in functions above for more. */
+
+	/* mutexes (and yielding) */
 	} else if (user_mutex_init_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_initing));
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
+		assert(CURRENT(s, user_mutex_initing_addr) == -1);
 		ACTION(s, user_mutex_initing) = true;
-		s->cur_agent->user_mutex_initing_addr = lock_addr;
+		CURRENT(s, user_mutex_initing_addr) = lock_addr;
+		record_user_yield_activity(s);
 	} else if (user_mutex_init_exiting(ls->eip)) {
 		assert(ACTION(s, user_mutex_initing));
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
-		assert(s->cur_agent->user_mutex_initing_addr != -1);
-		s->cur_agent->user_mutex_initing_addr = -1;
+		assert(CURRENT(s, user_mutex_initing_addr) != -1);
+		CURRENT(s, user_mutex_initing_addr) = -1;
 		ACTION(s, user_mutex_initing) = false;
+		record_user_yield_activity(s);
 	} else if (user_mutex_destroy_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		mutex_destroy(&ls->mutexes, lock_addr);
+		record_user_yield_activity(s);
 	} else if (user_mutex_lock_entering(ls->cpu0, ls->eip, &lock_addr) ||
 	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		/* note: we don't assert on mutex_initing because mutex_init may
@@ -740,16 +899,22 @@ void sched_update(struct ls_state *ls)
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
 		lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
-		lsprintf(DEV, "tid %d locks mutex 0x%x\n", CURRENT(s, tid),
-			 lock_addr);
-	} else if (user_yielding(ls->cpu0, ls->eip) && ACTION(s, user_mutex_locking)) {
-		/* "Probably" blocked on the mutex. */
-		assert(!ACTION(s, user_mutex_unlocking));
-		assert(CURRENT(s, user_mutex_locking_addr) != -1);
-		/* Could have been yielding before; gotten kicked awake but
-		 * didn't get the lock, have to yield again. */
-		ACTION(s, user_mutex_yielding) = true;
-		CURRENT(s, user_blocked_on_addr) = CURRENT(s, user_mutex_locking_addr);
+		record_user_yield_activity(s);
+	} else if (user_yielding(ls->cpu0, ls->eip)) {
+		if (ACTION(s, user_mutex_locking)) {
+			/* "Probably" blocked on the mutex. */
+			assert(!ACTION(s, user_mutex_unlocking));
+			assert(CURRENT(s, user_mutex_locking_addr) != -1);
+			/* Could have been yielding before; gotten kicked awake but
+			 * didn't get the lock, have to yield again. */
+			ACTION(s, user_mutex_yielding) = true;
+			CURRENT(s, user_blocked_on_addr) =
+				CURRENT(s, user_mutex_locking_addr);
+			record_user_yield_activity(s);
+		} else {
+			/* User yield outside of a mutex access. */
+			record_user_yield(s);
+		}
 	} else if (user_mutex_lock_exiting(ls->eip)) {
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
@@ -760,6 +925,7 @@ void sched_update(struct ls_state *ls)
 			 CURRENT(s, user_mutex_locking_addr));
 		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_locking_addr), true);
 		CURRENT(s, user_mutex_locking_addr) = -1;
+		record_user_yield_activity(s);
 	} else if (user_mutex_trylock_exiting(ls->cpu0, ls->eip, &succeeded)) {
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
@@ -777,6 +943,7 @@ void sched_update(struct ls_state *ls)
 				       LOCK_MUTEX, false);
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
+		record_user_yield_activity(s);
 	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
@@ -784,6 +951,7 @@ void sched_update(struct ls_state *ls)
 		ACTION(s, user_mutex_unlocking) = true;
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
+		record_user_yield_activity(s);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
@@ -796,8 +964,28 @@ void sched_update(struct ls_state *ls)
 			 CURRENT(s, user_mutex_unlocking_addr));
 		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_unlocking_addr), false);
 		CURRENT(s, user_mutex_unlocking_addr) = -1;
-	// TODO: model sems
-	// TODO: model rwlox (for these, don't give a free pass to contents of lock
+		record_user_yield_activity(s);
+	/* cvars */
+	} else if (user_cond_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		record_user_yield_activity(s);
+	} else if (user_cond_wait_exiting(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_cond_signal_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		record_user_yield_activity(s);
+	} else if (user_cond_signal_exiting(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_cond_broadcast_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		record_user_yield_activity(s);
+	} else if (user_cond_broadcast_exiting(ls->eip)) {
+	/* semaphores (TODO: model logic for these) */
+	} else if (user_sem_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		record_user_yield_activity(s);
+	} else if (user_sem_wait_exiting(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_sem_signal_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		record_user_yield_activity(s);
+	} else if (user_sem_signal_exiting(ls->eip)) {
+	/* rwlocks */
 	} else if (user_rwlock_lock_entering(ls->cpu0, ls->eip, &lock_addr, &write_mode)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
@@ -807,6 +995,7 @@ void sched_update(struct ls_state *ls)
 		CURRENT(s, user_rwlock_locking_addr) = lock_addr | (write_mode ? 1 : 0);
 		lsprintf(DEV, "tid %d locks rwlock 0x%x for %s\n", CURRENT(s, tid),
 			 lock_addr, write_mode ? "writing" : "reading");
+		record_user_yield_activity(s);
 	} else if (user_rwlock_lock_exiting(ls->eip)) {
 		assert(ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
@@ -821,17 +1010,37 @@ void sched_update(struct ls_state *ls)
 		 * the implementation not protected by itself w.r.t data races. */
 		lockset_add(&CURRENT(s, user_locks_held), lock_addr,
 			    write_mode ? LOCK_RWLOCK : LOCK_RWLOCK_READ);
+		record_user_yield_activity(s);
 	} else if (user_rwlock_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
 		ACTION(s, user_rwlock_unlocking) = true;
 		lsprintf(DEV, "tid %d unlocks rwlock 0x%x\n", CURRENT(s, tid), lock_addr);
 		lockset_remove(s, lock_addr, LOCK_RWLOCK, false);
+		record_user_yield_activity(s);
 	} else if (user_rwlock_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_rwlock_locking));
 		assert(ACTION(s, user_rwlock_unlocking));
 		ACTION(s, user_rwlock_unlocking) = false;
 		lsprintf(DEV, "tid %d unlocked rwlock\n", CURRENT(s, tid));
+		record_user_yield_activity(s);
+	/* thread library interface */
+	} else if (user_thr_init_entering(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_init_exiting(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_create_entering(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_create_exiting(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_join_entering(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_join_exiting(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_exit_entering(ls->eip)) {
+		record_user_yield_activity(s);
+	} else if (user_thr_exit_exiting(ls->eip)) {
+		record_user_yield_activity(s);
 	}
 
 	/**********************************************************************
@@ -986,6 +1195,13 @@ void sched_update(struct ls_state *ls)
 		if (need_handle_sleep) {
 			handle_sleep(s);
 		}
+
+		/* Right before the decision point is recorded, update the user
+		 * yield loop counter so our yield/activity tracker is clean.
+		 * Must also happen before the arbiter's choice (in case this
+		 * check causes us to consider the thread blocked, the arbiter
+		 * must not choose it). */
+		check_user_yield_activity(s, voluntary);
 
 		/* TODO: as an optimisation (in serialisation state / etc), the
 		 * arbiter may return NULL if there was only one possible

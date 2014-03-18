@@ -269,6 +269,23 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	rb_insert_color(&ma->nobe, &m->shm);
 }
 
+// XXX: Shm trees a re sorted with signed comparison. Fix that.
+bool shm_contains_addr(struct mem_state *m, int addr)
+{
+	struct mem_access *ma = MEM_ENTRY(m->shm.rb_node);
+
+	while (ma != NULL) {
+		if (addr == ma->addr) {
+			return true;
+		} else if (addr < ma->addr) {
+			ma = MEM_ENTRY(ma->nobe.rb_left);
+		} else {
+			ma = MEM_ENTRY(ma->nobe.rb_right);
+		}
+	}
+	return false;
+}
+
 /******************************************************************************
  * Interface
  ******************************************************************************/
@@ -602,6 +619,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			addr = virt_addr;
 			if (write) {
 				check_user_mutex_access(ls, (unsigned int)addr);
+				check_unblock_yield_loop(ls, (unsigned int)addr);
 			}
 		}
 	}
@@ -639,7 +657,9 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			add_shm(ls, m, c, addr, write, in_kernel);
 		}
 	} else if ((in_kernel && kern_address_global(addr)) ||
-		   (!in_kernel && user_address_global(addr))) {
+		   (!in_kernel /* && user_address_global(addr) */)) {
+		/* Record shm accesses for user threads even on their own
+		 * stacks, to deal with potential WISE IDEA yield loops. */
 		add_shm(ls, m, NULL, addr, write, in_kernel);
 	}
 }
@@ -657,16 +677,21 @@ static void print_shm_conflict(verbosity v, conf_object_t *cpu,
 	char buf[BUF_SIZE];
 	struct chunk *c0 = find_containing_chunk(&m0->heap, ma0->addr);
 	struct chunk *c1 = find_containing_chunk(&m1->heap, ma1->addr);
+	bool in_kernel = ma0->addr >= USER_MEM_START;
 
 	assert(ma0->addr == ma1->addr);
 
 	if (c0 == NULL && c1 == NULL) {
-		if (kern_address_in_heap(ma0->addr)) {
+		if ((in_kernel && kern_address_in_heap(ma0->addr)) ||
+		    (!in_kernel && user_address_in_heap(ma0->addr))) {
 			/* This could happen if both transitions did a heap
 			 * access, then did free() on the corresponding chunk
 			 * before the next choice point. TODO: free() might
 			 * itself be a good place to set choice points... */
 			snprintf(buf, BUF_SIZE, "heap0x%.8x", ma0->addr);
+		} else if (!in_kernel && !user_address_global(ma0->addr)) {
+			/* Userspace stack access. */
+			snprintf(buf, BUF_SIZE, "stack0x%.8x", ma0->addr);
 		} else {
 			/* Attempt to find its name in the symtable. */
 			symtable_lookup_data(buf, BUF_SIZE, ma0->addr);

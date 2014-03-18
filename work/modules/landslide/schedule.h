@@ -80,8 +80,11 @@ struct agent {
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;
 	/* how many transitions have gone by where the user did "nothing but"
-	 * spin in a yield loop? */
+	 * spin in a yield loop? in oldscheds in the tree, this can have values
+	 * 0 to TOO_MANY_YIELDS. */
 	int user_yield_loop_count;
+	/* flag associated with the above */
+	bool user_yield_blocked;
 	/* Used by partial order reduction, only in "oldsched"s in the tree. */
 	bool do_explore;
 };
@@ -94,7 +97,8 @@ Q_NEW_HEAD(struct agent_q, struct agent);
 #define BLOCKED(a) \
 	((a)->kern_blocked_on_tid != -1 || (a)->user_blocked_on_addr != -1 || \
 	 ({ assert((a)->user_yield_loop_count <= TOO_MANY_YIELDS); \
-	    (a)->user_yield_loop_count == TOO_MANY_YIELDS; }))
+	    (a)->user_yield_loop_count == TOO_MANY_YIELDS || \
+	    (a)->user_yield_blocked; }))
 
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */
@@ -130,6 +134,12 @@ struct sched_state {
 	 * a useful stack trace. Set at context switch entry. */
 	int voluntary_resched_tid;
 	char *voluntary_resched_stack;
+	/* state machine for the currently-executing thread to guess whether it's
+	 * stuck in a userspace yield loop. at the start of each transition. reset
+	 * at the beginning of each transition; if it says "yielded but didn't do
+	 * anything else interesting" at the next decision point, the current
+	 * thread's yield loop counter will be incremented at the checkpoint. */
+	enum { NOTHING_INTERESTING, YIELDED, ACTIVITY } user_yield_progress;
 	/* TODO: have a scheduler-global schedule_landing to assert against the
 	 * per-agent flag (only violated by interrupts we don't control) */
 };

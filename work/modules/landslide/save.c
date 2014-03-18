@@ -152,6 +152,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 	COPY_FIELD(user_yield_loop_count);
+	COPY_FIELD(user_yield_blocked);
 
 	a_dest->do_explore = false;
 
@@ -228,6 +229,10 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->voluntary_resched_stack =
 		(src->voluntary_resched_stack == NULL) ? NULL :
 			MM_XSTRDUP(src->voluntary_resched_stack);
+
+	assert(src->user_yield_progress == NOTHING_INTERESTING &&
+	       "sched user yield progress flag wasn't reset before checkpoint");
+	dest->user_yield_progress = NOTHING_INTERESTING;
 }
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
