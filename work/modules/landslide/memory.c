@@ -15,10 +15,10 @@
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "memory.h"
-#include "mutexes.h"
 #include "rbtree.h"
-#include "user_specifics.h"
 #include "tree.h"
+#include "user_specifics.h"
+#include "user_sync.h"
 
 /******************************************************************************
  * Heap helpers
@@ -506,7 +506,7 @@ void mem_update(struct ls_state *ls)
 			 * here is where we discover the structure of student
 			 * mutexes that have dynamically-allocated bits. */
 			if (ls->sched.cur_agent->action.user_mutex_initing) {
-				learn_malloced_mutex_structure(&ls->mutexes,
+				learn_malloced_mutex_structure(&ls->user_sync,
 					ls->sched.cur_agent->user_mutex_initing_addr,
 					base, ls->user_mem.alloc_request_size);
 			}

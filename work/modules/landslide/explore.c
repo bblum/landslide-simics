@@ -12,6 +12,7 @@
 #include "save.h"
 #include "schedule.h"
 #include "tree.h"
+#include "user_sync.h"
 #include "variable_queue.h"
 
 static bool is_child_searched(struct hax *h, int child_tid) {
@@ -89,121 +90,6 @@ static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
 			return NULL;
 		}
 	}
-}
-
-/******************************************************************************
- * Skipping over transitions blocked in an open-coded userspace yield loop.
- ******************************************************************************/
-
-/* The approach to deriving if a user thread is "blocked" in an
- * open-coded yield loop involves waiting for it to do a certain number
- * of yields in a row. However, this pollutes the tree with extra
- * branches that are not actually progress, but just that thread ticking
- * up its yield-loop counter. If we treated these as real transitions,
- * we could end up tagging a sibling of every single one of them,
- * while really (assuming we are right that the yield loop is doing
- * nothing) it's a safe reduction technique to tag siblings of only one. */
-
-/* May return NULL if the chosen agent vanished during the transition. */
-// FIXME: move this to sched.c
-static struct agent *runnable_agent_by_tid(struct sched_state *s, int tid)
-{
-	struct agent *a;
-	FOR_EACH_RUNNABLE_AGENT(a, s,
-		if (a->tid == tid) {
-			return a;
-		}
-	);
-	return NULL;
-}
-
-static void update_user_yield_blocked_transitions(struct hax *h0)
-{
-	/* Here we scan backwards looking for transitions where we realized
-	 * a user thread was yield-blocked (its yield-loop counter hit max),
-	 * and adjust the values of that thread's past transitions (where it
-	 * was still counting up to the max) to reflect that those transitions
-	 * are actually blocked as well.
-	 *
-	 * One important detail is that we leave the 1st yield-blocked
-	 * transition marked unblocked (i.e., don't propagate the max counter
-	 * value to it). This allows us to reorder other thread transitions
-	 * to occur directly before it.
-	 *
-	 * While we're at it, of course, we also check the invariant that the
-	 * yield-loop counters are either zero or counting up to the max. */
-
-	for (struct hax *h = h0; h->parent != NULL; h = h->parent) {
-		struct agent *a = runnable_agent_by_tid(h->oldsched, h->chosen_thread);
-		if (a == NULL) {
-			/* The chosen thread vanished during its transition.
-			 * Definitely not a yield-loop-blocked one. */
-			continue;
-		}
-
-		assert(a->user_yield_loop_count >= 0);
-		if (a->user_yield_loop_count < TOO_MANY_YIELDS) {
-			/* Only perform the below (expensive) check when a
-			 * thread actually became yield-loop-blocked. */
-			continue;
-		} else if (a->user_yield_blocked) {
-			/* skip it if we already marked it as propagated. */
-			lsprintf(DEV, "not propagating YB for #%d/tid%d "
-				 "(already did)\n", h->depth, h->chosen_thread);
-			continue;
-		}
-		int expected_count = a->user_yield_loop_count;
-
-		lsprintf(DEV, "scanning ylc for #%d/tid%d, ylc after was %d\n",
-			 h->depth, h->chosen_thread, a->user_yield_loop_count);
-
-		/* Propagate backwards in time the fact that this sequence of
-		 * yields reached the max number and is considered blocked.
-		 * Start at h, not h->parent, to include the one we just saw. */
-		for (struct hax *h2 = h; expected_count > 0; h2 = h2->parent) {
-			assert(h2 != NULL && "nonzero yield count at root");
-
-			/* Find the past version of the yield-blocked thread. */
-			struct agent *a2 = runnable_agent_by_tid(h2->oldsched, a->tid);
-			assert(a2 != NULL && "yielding thread vanished in the past");
-
-			/* Its count must have incremented between the end of
-			 * this (old) transition and the more recent one. */
-			assert(a2->user_yield_loop_count == expected_count);
-
-			/* Skip marking the "first" yield-blocked transition. */
-			if (expected_count > 1) {
-				lsprintf(DEV,  "#%d/tid%d is YLB (count %d), "
-					 "from #%d/tid%d\n",
-					 h2->depth, h2->chosen_thread,
-					 a2->user_yield_loop_count,
-					 h->depth, h->chosen_thread);
-				a2->user_yield_blocked = true;
-			}
-
-			/* Also, if that thread actually ran during this (old)
-			 * transition, expect its count to have increased. */
-			struct agent *a3 =
-				runnable_agent_by_tid(h2->parent->oldsched, a->tid);
-			if (h2->chosen_thread == a->tid) {
-				/* Thread ran. Count must have incremented. */
-				assert(a2->user_yield_loop_count ==
-				       a3->user_yield_loop_count + 1);
-				/* Update expected "future" count from the past. */
-				expected_count--;
-			} else {
-				/* Thread did not run; count should not have changed. */
-				assert(a2->user_yield_loop_count ==
-				       a3->user_yield_loop_count);
-			}
-		}
-	}
-}
-
-static bool is_user_yield_blocked(struct hax *h)
-{
-	struct agent *a = runnable_agent_by_tid(h->oldsched, h->chosen_thread);
-	return a != NULL && a->user_yield_blocked;
 }
 
 /******************************************************************************

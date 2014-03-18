@@ -74,7 +74,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	save_init(&ls->save);
 	test_init(&ls->test);
 	mem_init(ls);
-	mutexes_init(&ls->mutexes);
+	user_sync_init(&ls->user_sync);
 	rand_init(&ls->rand);
 
 	ls->cmd_file = NULL;

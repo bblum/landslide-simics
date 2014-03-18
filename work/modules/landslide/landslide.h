@@ -11,11 +11,11 @@
 
 #include "arbiter.h"
 #include "memory.h"
-#include "mutexes.h"
 #include "rand.h"
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
+#include "user_sync.h"
 
 #define SIM_MODULE_NAME "landslide"
 
@@ -37,7 +37,7 @@ struct ls_state {
 	struct test_state test;
 	struct mem_state kern_mem;
 	struct mem_state user_mem;
-	struct mutex_state mutexes;
+	struct user_sync_state user_sync;
 	struct rand_state rand;
 
 	char *cmd_file;

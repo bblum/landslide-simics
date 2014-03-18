@@ -24,11 +24,11 @@
 #include "found_a_bug.h"
 #include "landslide.h"
 #include "memory.h"
-#include "mutexes.h"
 #include "save.h"
 #include "schedule.h"
 #include "test.h"
 #include "tree.h"
+#include "user_sync.h"
 #include "x86.h"
 
 /******************************************************************************
@@ -112,6 +112,13 @@ static void copy_lockset(struct lockset *dest, struct lockset *src)
 	memcpy(dest->locks, src->locks, src->capacity * sizeof(struct lock));
 }
 
+static void copy_user_yield_state(struct user_yield_state *dest,
+				  struct user_yield_state *src)
+{
+	dest->loop_count = src->loop_count;
+	dest->blocked    = src->blocked;
+}
+
 #define COPY_FIELD(name) do { a_dest->name = a_src->name; } while (0)
 static struct agent *copy_agent(struct agent *a_src)
 {
@@ -151,8 +158,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(user_rwlock_locking_addr);
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
-	COPY_FIELD(user_yield_loop_count);
-	COPY_FIELD(user_yield_blocked);
+	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);
 
 	a_dest->do_explore = false;
 
@@ -229,11 +235,8 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->voluntary_resched_stack =
 		(src->voluntary_resched_stack == NULL) ? NULL :
 			MM_XSTRDUP(src->voluntary_resched_stack);
-
-	assert(src->user_yield_progress == NOTHING_INTERESTING &&
-	       "sched user yield progress flag wasn't reset before checkpoint");
-	dest->user_yield_progress = NOTHING_INTERESTING;
 }
+
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
 	dest->test_is_running      = src->test_is_running;
@@ -299,19 +302,20 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->shm.rb_node        = NULL;
 	dest->freed.rb_node      = NULL;
 }
-static void copy_mutexes(struct mutex_state *dest, struct mutex_state *src,
-			 int already_known_size)
+static void copy_user_sync(struct user_sync_state *dest,
+				 struct user_sync_state *src,
+				 int already_known_size)
 {
 	if (already_known_size == 0) {
 		/* save work: don't clear an already learned size when jumping
 		 * back in time, which would make us search the symtables all
 		 * over again. it's not like user mutex size ever changes. */
-		dest->size = src->size;
+		dest->mutex_size = src->mutex_size;
 	}
-	Q_INIT_HEAD(&dest->user_mutexes);
+	Q_INIT_HEAD(&dest->mutexes);
 
 	struct mutex *mp_src;
-	Q_FOREACH(mp_src, &src->user_mutexes, nobe) {
+	Q_FOREACH(mp_src, &src->mutexes, nobe) {
 		struct mutex *mp_dest = MM_XMALLOC(1, struct mutex);
 		mp_dest->addr = mp_src->addr;
 		Q_INIT_HEAD(&mp_dest->chunks);
@@ -325,10 +329,14 @@ static void copy_mutexes(struct mutex_state *dest, struct mutex_state *src,
 		}
 		assert(Q_GET_SIZE(&mp_dest->chunks) == Q_GET_SIZE(&mp_src->chunks));
 
-		Q_INSERT_HEAD(&dest->user_mutexes, mp_dest, nobe);
+		Q_INSERT_HEAD(&dest->mutexes, mp_dest, nobe);
 	}
 
-	assert(Q_GET_SIZE(&dest->user_mutexes) == Q_GET_SIZE(&src->user_mutexes));
+	assert(Q_GET_SIZE(&dest->mutexes) == Q_GET_SIZE(&src->mutexes));
+
+	assert(src->yield_progress == NOTHING_INTERESTING &&
+	       "user yield progress flag wasn't reset before checkpoint");
+	dest->yield_progress = NOTHING_INTERESTING;
 }
 
 /* To free copied state data structures. None of these free the arg pointer. */
@@ -392,11 +400,11 @@ static void free_mem(struct mem_state *m)
 	m->freed.rb_node = NULL;
 }
 
-static int free_mutexes(struct mutex_state *m)
+static int free_user_sync(struct user_sync_state *u)
 {
-	while (Q_GET_SIZE(&m->user_mutexes) > 0) {
-		struct mutex *mp = Q_GET_HEAD(&m->user_mutexes);
-		Q_REMOVE(&m->user_mutexes, mp, nobe);
+	while (Q_GET_SIZE(&u->mutexes) > 0) {
+		struct mutex *mp = Q_GET_HEAD(&u->mutexes);
+		Q_REMOVE(&u->mutexes, mp, nobe);
 		while (Q_GET_SIZE(&mp->chunks) > 0) {
 			struct mutex_chunk *c = Q_GET_HEAD(&mp->chunks);
 			Q_REMOVE(&mp->chunks, c, nobe);
@@ -405,7 +413,7 @@ static int free_mutexes(struct mutex_state *m)
 		MM_FREE(mp);
 	}
 
-	return m->size;
+	return u->mutex_size;
 }
 
 static void free_arbiter_choices(struct arbiter_state *a)
@@ -436,8 +444,8 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->old_kern_mem);
 	free_mem(h->old_user_mem);
 	MM_FREE(h->old_user_mem);
-	free_mutexes(h->oldmutexes);
-	MM_FREE(h->oldmutexes);
+	free_user_sync(h->old_user_sync);
+	MM_FREE(h->old_user_sync);
 	h->oldsched = NULL;
 	h->oldtest = NULL;
 	h->old_kern_mem = NULL;
@@ -469,8 +477,8 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	copy_mem(&ls->kern_mem, h->old_kern_mem); /* note: leaves shm empty, as we want */
 	free_mem(&ls->user_mem);
 	copy_mem(&ls->user_mem, h->old_user_mem); /* as above */
-	int already_known_size = free_mutexes(&ls->mutexes);
-	copy_mutexes(&ls->mutexes, h->oldmutexes, already_known_size);
+	int already_known_size = free_user_sync(&ls->user_sync);
+	copy_user_sync(&ls->user_sync, h->old_user_sync, already_known_size);
 	free_arbiter_choices(&ls->arbiter);
 
 	set_symtable(h->old_symtable);
@@ -751,8 +759,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	h->old_user_mem = MM_XMALLOC(1, struct mem_state);
 	copy_mem(h->old_user_mem, &ls->user_mem);
 
-	h->oldmutexes = MM_XMALLOC(1, struct mutex_state);
-	copy_mutexes(h->oldmutexes, &ls->mutexes, 0);
+	h->old_user_sync = MM_XMALLOC(1, struct user_sync_state);
+	copy_user_sync(h->old_user_sync, &ls->user_sync, 0);
 
 	h->old_symtable = get_symtable();
 

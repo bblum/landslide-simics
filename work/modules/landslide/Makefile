@@ -20,7 +20,7 @@ SRC_FILES = landslide.h landslide.c \
 	    found_a_bug.h found_a_bug.c \
 	    rbtree.h rbtree.c \
 	    memory.h memory.c \
-	    mutexes.h mutexes.c \
+	    user_sync.h user_sync.c \
 	    rand.h rand.c \
 	    lockset.c lockset.h \
 	    variable_queue.h
