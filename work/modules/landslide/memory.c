@@ -215,6 +215,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 
 	if (need_add) {
 		l = MM_XMALLOC(1, struct mem_lockset);
+		l->eip = ls->eip;
 		lockset_clone(&l->locks_held, l0);
 		Q_INSERT_FRONT(&ma->locksets, l, nobe);
 	}
@@ -251,7 +252,6 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	ma = MM_XMALLOC(1, struct mem_access);
 	ma->addr      = addr;
 	ma->write     = write;
-	ma->eip       = ls->eip;
 	ma->count     = 1;
 	ma->conflict  = false;
 	ma->other_tid = 0;
@@ -725,8 +725,10 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid,
 		if (*conflicts < MAX_CONFLICTS) {
 			if (*conflicts > 0)
 				printf(DEV, ", ");
+			struct mem_lockset *l = Q_GET_HEAD(&ma->locksets);
+			assert(l != NULL);
 			printf(DEV, "[tid%d stack %c%d 0x%x]", other_tid,
-			       ma->write ? 'w' : 'r', ma->count, ma->eip);
+			       ma->write ? 'w' : 'r', ma->count, l->eip);
 		}
 		ma->conflict = true;
 		(*conflicts)++;
@@ -771,14 +773,14 @@ static void check_data_race(conf_object_t *cpu,
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED "Data race: ");
 				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1);
 				printf(CHOICE, " at:\n");
-				symtable_lookup(buf, BUF_SIZE, ma0->eip, &_unknown);
+				symtable_lookup(buf, BUF_SIZE, l0->eip, &_unknown);
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
-					 "0x%x %s [locks: ", ma0->eip, buf);
+					 "0x%x %s [locks: ", l0->eip, buf);
 				lockset_print(CHOICE, &l0->locks_held);
 				printf(CHOICE, "] and \n");
-				symtable_lookup(buf, BUF_SIZE, ma1->eip, &_unknown);
+				symtable_lookup(buf, BUF_SIZE, l1->eip, &_unknown);
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
-					 "0x%x %s [locks: ", ma1->eip, buf);
+					 "0x%x %s [locks: ", l1->eip, buf);
 				lockset_print(CHOICE, &l1->locks_held);
 				printf(CHOICE, "]\n");
 				return;

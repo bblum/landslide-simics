@@ -19,6 +19,7 @@ struct hax;
  ******************************************************************************/
 
 struct mem_lockset {
+	int eip;
 	struct lockset locks_held;
 	Q_NEW_LINK(struct mem_lockset) nobe;
 };
@@ -29,7 +30,9 @@ Q_NEW_HEAD(struct mem_locksets, struct mem_lockset);
 struct mem_access {
 	int addr;      /* byte granularity */
 	bool write;    /* false == read; true == write */
-	int eip;       /* what instruction pointer */
+	/* PC is recorded per-lockset, so when there's a data race, the correct
+	 * eip can be reported instead of the first one. */
+	//int eip;       /* what instruction pointer */
 	int other_tid; /* does this access another thread's stack? 0 if none */
 	int count;     /* how many times accessed? (stats) */
 	bool conflict; /* does this conflict with another transition? (stats) */
