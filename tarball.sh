@@ -18,6 +18,7 @@ function verify_gone {
 verify_gone pobbles
 verify_gone ludicros
 verify_gone git
+verify_gone obfuscate_pass
 
 rm $0
 (cd .. && tar cvjf landslide.tar.bz2 landslide && scp landslide.tar.bz2 unix.andrew.cmu.edu:410/Web)
