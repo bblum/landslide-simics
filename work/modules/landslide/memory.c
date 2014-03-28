@@ -290,6 +290,15 @@ bool shm_contains_addr(struct mem_state *m, int addr)
  * Interface
  ******************************************************************************/
 
+/* Values for user process cr3 state machine. We would like to assert that no
+ * test case run during testing_userspace() uses multiple cr3 values, as that
+ * would screw up our memory access tracking. But, we have to wait until after
+ * the test case's process goes through exec() before recording its ultimate cr3
+ * value. See ignore-user-access for details. */
+#define USER_CR3_WAITING_FOR_THUNDERBIRDS 0
+#define USER_CR3_WAITING_FOR_EXEC 1
+#define USER_CR3_EXEC_HAPPENED 2
+
 static void mem_heap_init(struct mem_state *m)
 {
 	m->heap.rb_node = NULL;
@@ -298,7 +307,8 @@ static void mem_heap_init(struct mem_state *m)
 	m->in_mm_init = false;
 	m->in_alloc = false;
 	m->in_free = false;
-	m->cr3 = 0;
+	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
+	m->cr3_tid = 0;
 	m->user_mutex_size = 0;
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
@@ -446,17 +456,34 @@ static bool ignore_user_access(struct ls_state *ls)
 	    current_tid == kern_get_shell_tid() ||
 	    (kern_has_idle() && current_tid == kern_get_idle_tid())) {
 		return true;
-	} else if (ls->user_mem.cr3 == 0) {
+	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_THUNDERBIRDS) {
+		ls->user_mem.cr3 = USER_CR3_WAITING_FOR_EXEC;
+		ls->user_mem.cr3_tid = current_tid;
+		return true;
+	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_EXEC) {
+		/* must wait for a trip through kernelspace; see below */
+		return true;
+	} else if (ls->user_mem.cr3 == USER_CR3_EXEC_HAPPENED) {
+		/* recognized non-shell-non-idle-non-init user process has been
+		 * through exec and back. hopefully its new cr3 is permanent. */
+		assert(cr3 != USER_CR3_WAITING_FOR_EXEC);
+		assert(cr3 != USER_CR3_EXEC_HAPPENED);
 		ls->user_mem.cr3 = cr3;
 		lsprintf(DEV, "Registered cr3 value 0x%x for userspace "
 			 "tid %d.\n", cr3, current_tid);
+		dump_stack();
 		return false;
 	} else if (ls->user_mem.cr3 != cr3) {
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Memory tracking for "
 			 "more than 1 user address space is unsupported!\n");
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Already tracking for "
-			 "cr3 0x%x; current cr3 0x%x; current tid %d\n",
-			 ls->user_mem.cr3, cr3, current_tid);
+			 "cr3 0x%x, belonging to tid %d; current cr3 0x%x, "
+			 "current tid %d\n", ls->user_mem.cr3,
+			 ls->user_mem.cr3_tid, cr3, current_tid);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "If you're trying to "
+			 "run vanish_vanish, make sure TESTING_USERSPACE=0.\n");
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Otherwise, make sure "
+			 "your test case doesn't fork().\n" COLOUR_DEFAULT);
 		assert(0);
 		return false;
 	} else {
@@ -494,6 +521,13 @@ void mem_update(struct ls_state *ls)
 			mem_enter_free(ls, true, base);
 		} else if (kern_lmm_free_exiting(ls->eip)) {
 			mem_exit_free(ls, true);
+		} else if (testing_userspace() && kern_exec_enter(ls->eip)) {
+			/* Update user process cr3 state machine.
+			 * See ignore-user-access above and below. */
+			if (ls->user_mem.cr3_tid == ls->sched.cur_agent->tid &&
+			    ls->user_mem.cr3 == USER_CR3_WAITING_FOR_EXEC) {
+				ls->user_mem.cr3 = USER_CR3_EXEC_HAPPENED;
+			}
 		}
 	} else {
 		if (ignore_user_access(ls)) {

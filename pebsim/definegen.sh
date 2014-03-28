@@ -145,6 +145,7 @@ TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 CONTEXT_SWITCH_RETURN=
 CONTEXT_SWITCH_2=
+EXEC=
 source $CONFIG
 
 #####################################
@@ -232,6 +233,11 @@ echo
 # Readline
 echo "#define GUEST_READLINE_WINDOW_ENTER 0x`get_func $READLINE`"
 echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_ret $READLINE`"
+
+# Exec, only required if testing userspace
+if [ ! -z "$EXEC" ]; then
+	echo "#define GUEST_EXEC_ENTER 0x`get_func $EXEC`"
+fi
 
 echo
 

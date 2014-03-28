@@ -49,6 +49,7 @@ if [ ! -f "./$LANDSLIDE_CONFIG" ]; then
 fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
+TESTING_USERSPACE=0
 source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
@@ -97,6 +98,9 @@ verify_numeric EXPLORE_BACKWARDS
 verify_numeric DECISION_INFO_ONLY
 verify_numeric BREAK_ON_BUG
 verify_numeric TESTING_USERSPACE
+if [ "$TESTING_USERSPACE" = 1 ]; then
+	verify_nonempty EXEC
+fi
 
 #### Check kernel image ####
 

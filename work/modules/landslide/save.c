@@ -293,6 +293,7 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
 	dest->heap_size          = src->heap_size;
 	dest->cr3                = src->cr3;
+	dest->cr3_tid            = src->cr3_tid;
 	dest->user_mutex_size    = src->user_mutex_size;
 	/* NB: The shm and freed heaps are copied below, in shimsham_shm,
 	 * because this function is also used to restore when time travelling,

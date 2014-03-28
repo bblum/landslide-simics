@@ -265,6 +265,15 @@ bool kern_readline_exit(int eip)
 {
 	return eip == GUEST_READLINE_WINDOW_EXIT;
 }
+bool kern_exec_enter(int eip)
+{
+	if (TESTING_USERSPACE == 1) {
+		return eip == GUEST_EXEC_ENTER;
+	} else {
+		assert(false && "kernel exec hook not needed for kernelspace");
+		return false;
+	}
+}
 
 /* How to tell if a new thread is appearing or disappearing on the runqueue. */
 bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
