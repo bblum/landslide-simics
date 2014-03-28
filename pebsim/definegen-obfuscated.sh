@@ -74,19 +74,29 @@ function get_func_ret {
 	echo $RESULT
 }
 
+function get_test_file {
+	if [ -f $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE ]; then
+		echo "$KERNEL_SOURCE_DIR/user/progs/$TEST_CASE"
+	elif [ -f $KERNEL_SOURCE_DIR/410user/progs/$TEST_CASE ]; then
+		echo "$KERNEL_SOURCE_DIR/410user/progs/$TEST_CASE"
+	else
+		die "couldn't find $TEST_CASE in $KERNEL_SOURCE_DIR/{410,}user/progs!"
+	fi
+}
+
 # As above functions but objdumps the userspace program binary instead.
 # However, might emit the empty string if not present.
 function get_user_sym {
-	_get_sym $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+	_get_sym $1 `get_test_file`
 }
 function get_user_func {
-	_get_func $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+	_get_func $1 `get_test_file`
 }
 function get_user_func_end {
-	_get_func_end $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+	_get_func_end $1 `get_test_file`
 }
 function get_user_func_ret {
-	_get_func_ret $1 $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE
+	_get_func_ret $1 `get_test_file`
 }
 
 SCHED_FUNCS=
