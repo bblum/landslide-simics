@@ -33,7 +33,6 @@ bool user_thr_create_exiting(int eip);
 bool user_thr_join_entering(int eip);
 bool user_thr_join_exiting(int eip);
 bool user_thr_exit_entering(int eip);
-bool user_thr_exit_exiting(int eip);
 bool user_mutex_init_entering(conf_object_t *cpu, int eip, int *addr);
 bool user_mutex_init_exiting(int eip);
 bool user_mutex_lock_entering(conf_object_t *cpu, int eip, int *addr);

@@ -227,16 +227,7 @@ bool user_thr_exit_entering(int eip) {
 	return false;
 #endif
 }
-bool user_thr_exit_exiting(int eip) {
-#ifdef USER_THR_EXIT_EXIT
-	return eip == USER_THR_EXIT_EXIT;
-#else
-#ifdef USER_THR_EXIT_ENTER
-	STATIC_ASSERT(false && "THR_EXIT ENTER but not EXIT defined");
-#endif
-	return false;
-#endif
-}
+/* thr_exit_exiting does not make sense. */
 
 /******************************************************************************
  * Mutexes

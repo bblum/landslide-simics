@@ -912,8 +912,6 @@ void sched_update(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_thr_exit_entering(ls->eip)) {
 		record_user_yield_activity(&ls->user_sync);
-	} else if (user_thr_exit_exiting(ls->eip)) {
-		record_user_yield_activity(&ls->user_sync);
 	}
 
 	/**********************************************************************
