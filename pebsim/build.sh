@@ -107,8 +107,10 @@ if [ ! -z "$PREEMPT_ENABLE_FLAG" ]; then
 	verify_numeric PREEMPT_ENABLE_VALUE
 fi
 
-if [ "$CURRENT_THREAD_LIVES_ON_RQ" -ne 0 -a "$CURRENT_THREAD_LIVES_ON_RQ" -ne 1 ]; then
-	die "CURRENT_THREAD_LIVES_ON_RQ config must be either 0 or 1."
+if [ ! "$CURRENT_THREAD_LIVES_ON_RQ" = "0" ]; then
+	if [ ! "$CURRENT_THREAD_LIVES_ON_RQ" = "1" ]; then
+		die "CURRENT_THREAD_LIVES_ON_RQ config must be either 0 or 1."
+	fi
 fi
 
 #### Check kernel image ####
