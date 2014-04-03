@@ -1,7 +1,7 @@
 /**
  * @file student.c
  * @brief Guest-implementation-specific things landslide needs to know
- *        Example dummy implementation.
+ *        Implementation for the POBBLES kernel.
  *
  * @author Ben Blum, and you, the student :)
  */
@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <simics/api.h>
 
-#define MODULE_NAME "hqbovik"
+#define MODULE_NAME "student_glue"
 
 #include "common.h"
 #include "kernel_specifics.h"
@@ -23,33 +23,34 @@
  * GET_ESP0(cpu)          - Returns the current value of esp0
  */
 
-/* WARNING: scheduler designs are different, so for both of these functions,
- * you need to think about whether this sample code is exactly right, kind of
- * right, or very wrong for your kernel. */
-
 /* Is the currently-running thread not on the runqueue, and is runnable
  * anyway? For kernels that keep the current thread on the runqueue, this
  * function should return false always. */
-#define TCB_STATE_FLAG_OFFSET 31337
-#define TCB_STATE_FLAG_RUNNABLE 0x15410FA1L
 bool kern_current_extra_runnable(conf_object_t *cpu)
 {
-	int tcb = magic_get_current_tcb(cpu);
-
-	int state_flag = READ_MEMORY(cpu, tcb + TCB_STATE_FLAG_OFFSET);
-
-	return state_flag == TCB_STATE_FLAG_RUNNABLE;
+#ifdef CURRENT_THREAD_LIVES_ON_RQ
+	assert(CURRENT_THREAD_LIVES_ON_RQ == 1 ||
+	       CURRENT_THREAD_LIVES_ON_RQ == 0);
+	return !(bool)CURRENT_THREAD_LIVES_ON_RQ;
+#else
+	STATIC_ASSERT(false && "CURRENT_THREAD_LIVES_ON_RQ config missing -- must implement in student.c manually.");
+	return false;
+#endif
 }
 
-/* This function should return true at every point when Landslide can cause a
- * prompt thread switch by generating a clock interrupt. */
 bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
 {
-	/* Landslide already checks EFL_IF separately, so this example code is
-	 * actually equivalent to writing "return true;". */
-	int eflags = GET_CPU_ATTR(cpu, eflags);
-	return (eflags & EFL_IF) != 0;
+#ifdef PREEMPT_ENABLE_FLAG
+#ifndef PREEMPT_ENABLE_VALUE
+	STATIC_ASSERT(false && "preempt flag but not value defined");
+	return false;
+#else
+	return READ_MEMORY(cpu, PREEMPT_ENABLE_FLAG) == PREEMPT_ENABLE_VALUE;
+#endif
+#else
+	/* no preempt enable flag. assume the scheduler protects itself by
+	 * disabling interrupts wholesale. */
+	return true;
+#endif
 }
 
-/* vim: ft=c
- */
