@@ -698,7 +698,7 @@ static void check_test_state(struct ls_state *ls)
 				found_a_bug(ls);
 			}
 		} else {
-			lsprintf(ALWAYS, "ready to roll!\n");
+			lsprintf(DEV, "ready to roll!\n");
 			SIM_break_simulation(NULL);
 		}
 	} else if (!ensure_progress(ls)) {

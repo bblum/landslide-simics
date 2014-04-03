@@ -24,10 +24,10 @@ struct ls_state;
 	_lsprintf(v, mn, mc,						\
 		  "Current instruction count %lu, total instructions %lu\n", \
 		  ls->trigger_count, ls->absolute_trigger_count);	\
-	_lsprintf(v, mn, mc, "Total decision points %d, total backtracks %d\n", \
+	_lsprintf(v, mn, mc, "Total preemption-points %d, total backtracks %d\n", \
 		  ls->save.total_choices, ls->save.total_jumps);	\
 	_lsprintf(v, mn, mc,						\
-		  "Average instrs/decision %d, average branch depth %d\n", \
+		  "Average instrs/preemption-point %d, average branch depth %d\n", \
 		  ls->save.total_triggers / (1+ls->save.total_choices),	\
 		  ls->save.depth_total / (1+ls->save.total_jumps));	\
 	} while (0)

@@ -790,7 +790,7 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 	}
 }
 
-static void check_data_race(conf_object_t *cpu,
+static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 			    struct mem_state *m0, struct mem_state *m1,
 			    struct mem_access *ma0, struct mem_access *ma1)
 {
@@ -870,7 +870,9 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 				ma0->conflict = true;
 				ma1->conflict = true;
 				// FIXME: make this not interleave horribly with conflicts
+#ifdef PRINT_DATA_RACES
 				check_data_race(cpu, m0, m1, ma0, ma1);
+#endif
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));

@@ -50,6 +50,7 @@ fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 TESTING_USERSPACE=0
+PREEMPT_ENABLE_FLAG=
 source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
@@ -95,11 +96,19 @@ verify_numeric SHELL_TID
 verify_numeric FIRST_TID
 verify_numeric BUG_ON_THREADS_WEDGED
 verify_numeric EXPLORE_BACKWARDS
-verify_numeric DECISION_INFO_ONLY
+verify_numeric DONT_EXPLORE
 verify_numeric BREAK_ON_BUG
 verify_numeric TESTING_USERSPACE
 if [ "$TESTING_USERSPACE" = 1 ]; then
 	verify_nonempty EXEC
+fi
+
+if [ ! -z "$PREEMPT_ENABLE_FLAG" ]; then
+	verify_numeric PREEMPT_ENABLE_VALUE
+fi
+
+if [ "$CURRENT_THREAD_LIVES_ON_RQ" -ne 0 -a "$CURRENT_THREAD_LIVES_ON_RQ" -ne 1 ]; then
+	die "CURRENT_THREAD_LIVES_ON_RQ config must be either 0 or 1."
 fi
 
 #### Check kernel image ####
@@ -116,18 +125,18 @@ function verify_tell {
 	fi
 }
 
-verify_tell BdSfWtYekHgZIrgRvhjOBJZcaBOk
-verify_tell VctEddYWBoOmsvViAMLrBhgMClYkIA
-verify_tell WWCzWNfwDhCMmyOoMjkzqM
-verify_tell jEqsDtPugyVZgFYfNdUbBdjp
-verify_tell HiOxsIEPkyrBRLrxkQWOWZtnjkZ
-verify_tell qoICNoouqOWYvWrzwcMofmqGdPxa
-# verify_tell tell_landslide_thread_switch
-# verify_tell tell_landslide_sched_init_done
-# verify_tell tell_landslide_forking
-# verify_tell tell_landslide_vanishing
-# verify_tell tell_landslide_thread_on_rq
-# verify_tell tell_landslide_thread_off_rq
+# verify_tell BdSfWtYekHgZIrgRvhjOBJZcaBOk
+# verify_tell VctEddYWBoOmsvViAMLrBhgMClYkIA
+# verify_tell WWCzWNfwDhCMmyOoMjkzqM
+# verify_tell jEqsDtPugyVZgFYfNdUbBdjp
+# verify_tell HiOxsIEPkyrBRLrxkQWOWZtnjkZ
+# verify_tell qoICNoouqOWYvWrzwcMofmqGdPxa
+verify_tell tell_landslide_thread_switch
+verify_tell tell_landslide_sched_init_done
+verify_tell tell_landslide_forking
+verify_tell tell_landslide_vanishing
+verify_tell tell_landslide_thread_on_rq
+verify_tell tell_landslide_thread_off_rq
 
 if [ ! -z "$MISSING_ANNOTATIONS" ]; then
 	die "Please fix the missing annotations."
@@ -162,8 +171,8 @@ msg "Generating simics config..."
 ./configgen.sh > landslide-config.py || die "configgen.sh failed."
 if [ -z "$SKIP_HEADER" ]; then
 	msg "Generating header file..."
-	#./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
-	./definegen-obfuscated.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
+	./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
+	#./definegen-obfuscated.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
 else
 	msg "Header already generated; skipping."
 fi

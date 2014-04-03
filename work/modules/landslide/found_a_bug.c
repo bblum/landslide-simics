@@ -93,9 +93,9 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 {
 	if (bug_found) {
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_RED
-			 "****    A bug was found!     ****\n");
+			 "****     A bug was found!      ****\n");
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_RED
-			 "**** Decision trace follows. ****\n");
+			 "**** Preemption trace follows. ****\n");
 	} else {
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
 			 "(No bug was found.)\n");

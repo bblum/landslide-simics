@@ -156,6 +156,8 @@ IDLE_TID=
 CONTEXT_SWITCH_RETURN=
 CONTEXT_SWITCH_2=
 EXEC=
+TESTING_USERSPACE=0
+PREEMPT_ENABLE_FLAG=
 source $CONFIG
 
 #####################################
@@ -406,6 +408,15 @@ fi
 
 echo "#define GUEST_STARTING_THREAD_CODE do {$STARTING_THREADS } while (0)"
 
+# The config options that student.c once served to provide.
+
+echo "#define CURRENT_THREAD_LIVES_ON_RQ $CURRENT_THREAD_LIVES_ON_RQ"
+
+if [ ! -z "$PREEMPT_ENABLE_FLAG" ]; then
+	echo "#define PREEMPT_ENABLE_FLAG 0x`get_sym $PREEMPT_ENABLE_FLAG`"
+	echo "#define PREEMPT_ENABLE_VALUE $PREEMPT_ENABLE_VALUE"
+fi
+
 ###########################
 #### User-config stuff ####
 ###########################
@@ -421,7 +432,7 @@ echo -e "#define USER_WITHIN_FUNCTIONS { $WITHIN_USER_FUNCTIONS }"
 
 echo "#define BUG_ON_THREADS_WEDGED $BUG_ON_THREADS_WEDGED"
 echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"
-echo "#define DECISION_INFO_ONLY $DECISION_INFO_ONLY"
+echo "#define DECISION_INFO_ONLY $DONT_EXPLORE"
 echo "#define BREAK_ON_BUG $BREAK_ON_BUG"
 echo "#define TESTING_USERSPACE $TESTING_USERSPACE"
 

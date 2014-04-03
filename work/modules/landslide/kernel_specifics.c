@@ -268,7 +268,12 @@ bool kern_readline_exit(int eip)
 bool kern_exec_enter(int eip)
 {
 	if (TESTING_USERSPACE == 1) {
+#ifdef GUEST_EXEC_ENTER
 		return eip == GUEST_EXEC_ENTER;
+#else
+		assert(false && "EXEC must be defined if testing userspace");
+		return false;
+#endif
 	} else {
 		assert(false && "kernel exec hook not needed for kernelspace");
 		return false;

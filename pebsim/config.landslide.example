@@ -52,8 +52,14 @@ FIRST_TID=$INIT_TID
 # tells_landslide_sched_init_done(). The first argument is the TID; the second
 # is "1" if the thread is on the runqueue, and "0" if the thread is not (for
 # example, if it starts descheduled, or if it's the current thread and
-# kern_current_extra_runnable would return true, etc).
-starting_threads $INIT_TID 1
+# CURRENT_THREAD_LIVES_ON_RQ=1, etc).
+starting_threads $INIT_TID 0
+# starting_threads $IDLE_TID 1 # for example
+
+# When your kernel is actually running a thread, is that thread stored on
+# the runqueue, or is it taken off when it begins to run and put back on when
+# it finishes? (Corresponds to tell_landslide_(on/off)_rq().)
+CURRENT_THREAD_LIVES_ON_RQ=1
 
 #######################################
 #### Scheduler/globals information ####
@@ -84,14 +90,14 @@ ignore_sym timer_tick_count $INT_SIZE
 ignore_sym runqueue $QUEUE_SIZE
 ignore_sym some_global_mutex $MUTEX_SIZE
 
-####################################################
-#### Decision-point / Exploration configuration ####
-####################################################
+######################################################
+#### Preemption-point / Exploration configuration ####
+######################################################
 
-# Define choice points in your kernel itself using tell_landslide_decide().
+# Define preemption points in your kernel itself using tell_landslide_decide().
 
 # List the functions that landslide should "pay attention" to; i.e., landslide
-# will only make decision points if tell_landslide_decide() occurs within the
+# will only make preemption points if tell_landslide_decide() occurs within the
 # execution of one of these functions.
 # If you don't within_function at all, landslide will "pay attention" to
 # everything by default.
@@ -101,12 +107,15 @@ if [ "$TEST_CASE" = "vanish_vanish" ]; then
 elif [ "$TEST_CASE" = "double_wait" ]; then
 	within_function vanish
 	within_function wait
+elif [ "$TEST_CASE" = "double_thread_fork" ]; then
+	within_function vanish
+	within_function thread_fork
 	# etcetera...
 fi
 
 # You may also list functions that landslide should NOT pay attention to; i.e.,
 # even if within one of the "within_function"s (or if none were specified),
-# landslide will not make decision points if within a "without_function" also.
+# landslide will not make preemption points if within a "without_function" also.
 # Sequentially-later (i.e. in this file) calls to either within_function or
 # without_function take precedence over earlier ones.
 
@@ -128,7 +137,7 @@ extra_sym some_flag KERNEL_SOME_FLAG
 BUG_ON_THREADS_WEDGED=0
 
 # Exploring "backwards" means starting with a forced preemption at every
-# decision point. Exploring "forwards" means letting threads continue running by
+# preemption point. Exploring "forwards" means letting threads continue running by
 # default and adding extra preemptions as exploration progresses.
 # Backwards is likely to find bugs much more quickly, but will produce a
 # longer, more difficult to understand debug trace.
@@ -137,10 +146,10 @@ BUG_ON_THREADS_WEDGED=0
 EXPLORE_BACKWARDS=1
 
 # Set this to 1 if you want Landslide not to explore the tree, but to stop after
-# the first branch and print out the set of decision points that it found using
+# the first branch and print out the set of preemption points that it found using
 # your current configuration. This is useful for fine-tuning your set of custom
-# decision points.
-DECISION_INFO_ONLY=0
+# preemption points.
+DONT_EXPLORE=0
 
 # When Landslide finds a bug, should it make simics quit (0) or drop into the
 # command line (1)? (Quitting will make the correct elapsed time print out.)
