@@ -83,7 +83,7 @@ PTR_SIZE=4
 # accesses to. At the very least, it's recommended to ignore scheduler stuff
 # that is always accessed once per switch/interrupt (such as the runqueue),
 # to help partial order reduction prune the search space. See user guide section
-# 6.2.2 for more details.
+# 5.2.2 for more details.
 # Call "ignore_sym" once per symbol; arg1 is the symbol name, arg2 is the
 # type's size in bytes.
 ignore_sym timer_tick_count $INT_SIZE
