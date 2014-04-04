@@ -94,10 +94,10 @@ ignore_sym some_global_mutex $MUTEX_SIZE
 #### Preemption-point / Exploration configuration ####
 ######################################################
 
-# Define preemption points in your kernel itself using tell_landslide_decide().
+# Define preemption points in your kernel itself using tell_landslide_preempt().
 
 # List the functions that landslide should "pay attention" to; i.e., landslide
-# will only make preemption points if tell_landslide_decide() occurs within the
+# will only make preemption points if tell_landslide_preempt() occurs within the
 # execution of one of these functions.
 # If you don't within_function at all, landslide will "pay attention" to
 # everything by default.

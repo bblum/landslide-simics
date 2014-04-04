@@ -366,7 +366,7 @@ echo
 #### In-kernel annotations ####
 ###############################
 
-echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func tell_landslide_decide`"
+echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func tell_landslide_preempt`"
 echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func tell_landslide_thread_switch`"
 echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func tell_landslide_sched_init_done`"
 echo "#define TELL_LANDSLIDE_FORKING 0x`get_func tell_landslide_forking`"
