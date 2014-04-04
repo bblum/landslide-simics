@@ -8,6 +8,7 @@
 #define MODULE_COLOUR COLOUR_CYAN
 
 #include "common.h"
+#include "found_a_bug.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "schedule.h"
@@ -20,6 +21,25 @@ void test_init(struct test_state *t)
 	t->test_is_running  = false;
 	t->test_ever_caused = false;
 	t->current_test     = NULL;
+}
+
+static bool unexpected_idle()
+{
+	// XXX: Thread ls through instead of this grossness.
+	struct ls_state *ls = (struct ls_state *)SIM_get_object("landslide0");
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED
+		 "Init is still runnable but the kernel is idling.\n");
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "The kernel must not run the "
+		 "idle loop when other work can be done.\n");
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Scheduler state: ");
+	print_scheduler_state(ALWAYS, &ls->sched);
+	printf(ALWAYS, "\n");
+
+	if (ls->save.total_jumps > 0) {
+		/* ...a race? Give a full report instead of a terse complaint. */
+		found_a_bug(ls);
+	}
+	assert(0);
 }
 
 // TODO: some way of telling when actually ... use readline to know
@@ -74,11 +94,7 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 					       "running");
 					return true;
 				} else if (agent_by_tid_or_null(&s->rq, kern_get_init_tid()) != NULL) {
-					lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Init is still runnable but the kernel is idling. Please fix.\n");
-					lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Scheduler state: ");
-					print_scheduler_state(ALWAYS, s);
-					printf(ALWAYS, "\n");
-					assert(0);
+					return unexpected_idle();
 				} else {
 					REASON("Nobody alive: shell readlining "
 					       "& idle running.");
