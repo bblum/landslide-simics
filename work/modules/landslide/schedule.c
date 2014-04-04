@@ -627,6 +627,7 @@ void sched_update(struct ls_state *ls)
 		 * context switch if a timer goes off before c-s disables
 		 * interrupts. TODO: if we care, make this an int counter. */
 		ACTION(s, context_switch) = true;
+		lskprintf(DEV, "entering context switch (TID %d)\n", CURRENT(s, tid));
 		/* Maybe update the voluntary resched trace. See schedule.h */
 		if (!ACTION(s, handling_timer)) {
 			lsprintf(DEV, "Voluntary resched tid ");
@@ -647,6 +648,7 @@ void sched_update(struct ls_state *ls)
 		assert(ACTION(s, cs_free_pass) || ACTION(s, context_switch));
 		ACTION(s, context_switch) = false;
 		ACTION(s, cs_free_pass) = false;
+		lskprintf(DEV, "exiting context switch (TID %d)\n", CURRENT(s, tid));
 		/* the MZ memorial condition -- "some" context switchers might
 		 * also return from the timer interrupt handler. Attempt to cope. */
 		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_IRET) {
