@@ -479,7 +479,6 @@ void sched_update(struct ls_state *ls)
 	struct sched_state *s = &ls->sched;
 	int old_tid = CURRENT(s, tid);
 	int new_tid;
-	if (ls->eip == 0x01000455) { found_a_bug(ls); }
 
 	/* wait until the guest is ready */
 	if (!s->guest_init_done) {
