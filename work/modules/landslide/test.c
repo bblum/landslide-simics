@@ -76,7 +76,7 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 				} else if (agent_by_tid_or_null(&s->rq, kern_get_init_tid()) != NULL) {
 					lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Init is still runnable but the kernel is idling. Please fix.\n");
 					lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Scheduler state: ");
-					print_qs(ALWAYS, s);
+					print_scheduler_state(ALWAYS, s);
 					printf(ALWAYS, "\n");
 					assert(0);
 				} else {

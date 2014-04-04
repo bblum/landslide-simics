@@ -81,7 +81,7 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 		if (MAX_VERBOSITY >= DEV) {
 		       printf(BUG, "instr count = %lu; ", h->trigger_count);
 		}
-		print_qs(BUG, h->oldsched);
+		print_scheduler_state(BUG, h->oldsched);
 		printf(BUG, COLOUR_DEFAULT "\n");
 		print_stack_trace(BUG, bug_found, h->stack_trace);
 	}

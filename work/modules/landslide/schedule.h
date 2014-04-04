@@ -180,8 +180,8 @@ struct agent *agent_by_tid_or_null(struct agent_q *, int);
 void sched_init(struct sched_state *);
 
 void print_agent(verbosity v, const struct agent *);
-void print_q(verbosity v, const char *, const struct agent_q *, const char *);
 void print_qs(verbosity v, const struct sched_state *);
+void print_scheduler_state(verbosity v, const struct sched_state *);
 struct agent *find_runnable_agent(struct sched_state *s, int tid);
 
 /* called at every "interesting" point ... */

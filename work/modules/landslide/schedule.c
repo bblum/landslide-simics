@@ -21,6 +21,9 @@
 #include "variable_queue.h"
 #include "x86.h"
 
+static void print_q(verbosity v, const char *start, const struct agent_q *q,
+		    const char *end, int dont_print_tid);
+
 /******************************************************************************
  * Agence
  ******************************************************************************/
@@ -41,7 +44,7 @@ static struct agent *_agent_by_tid(struct agent_q *q, int tid, const char *q_nam
 			 "right queue (expected: %s); probably incorrect "
 			 "annotations?\n", tid, q_name);
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Queue contains: ");
-		print_q(ALWAYS, "", q, "");
+		print_q(ALWAYS, "", q, "", -1);
 		printf(ALWAYS, "\n");
 		LS_ABORT();
 	}
@@ -318,18 +321,21 @@ void print_agent(verbosity v, const struct agent *a)
 	}
 }
 
-void print_q(verbosity v, const char *start, const struct agent_q *q, const char *end)
+static void print_q(verbosity v, const char *start, const struct agent_q *q,
+		    const char *end, int dont_print_tid)
 {
 	struct agent *a;
 	bool first = true;
 
 	printf(v, "%s", start);
 	Q_FOREACH(a, q, nobe) {
-		if (first)
-			first = false;
-		else
-			printf(v, ", ");
-		print_agent(v, a);
+		if (a->tid != dont_print_tid) {
+			if (first)
+				first = false;
+			else
+				printf(v, ", ");
+			print_agent(v, a);
+		}
 	}
 	printf(v, "%s", end);
 }
@@ -338,9 +344,28 @@ void print_qs(verbosity v, const struct sched_state *s)
 	printf(v, "current ");
 	print_agent(v, s->cur_agent);
 	printf(v, " ");
-	print_q(v, " RQ [", &s->rq, "] ");
-	print_q(v, " SQ {", &s->sq, "} ");
-	print_q(v, " DQ (", &s->dq, ") ");
+	print_q(v, " RQ [", &s->rq, "] ", -1);
+	print_q(v, " SQ {", &s->sq, "} ", -1);
+	print_q(v, " DQ (", &s->dq, ") ", -1);
+}
+
+/* like print_qs, but human-friendly. */
+void print_scheduler_state(verbosity v, const struct sched_state *s)
+{
+	int dont_print_tid = -1;
+	printf(v, "runnable ");
+	if (s->current_extra_runnable) {
+		print_agent(v, s->cur_agent);
+		dont_print_tid = s->cur_agent->tid;
+		if (Q_GET_SIZE(&s->rq) != 0) {
+			printf(v, ", ");
+		}
+	}
+	print_q(v, "", &s->rq, "", dont_print_tid);
+	if (Q_GET_SIZE(&s->sq) != 0) {
+		print_q(v, "; sleeping", &s->sq, "", dont_print_tid);
+	}
+	print_q(v, "; descheduled ", &s->dq, "", dont_print_tid);
 }
 
 struct agent *find_runnable_agent(struct sched_state *s, int tid)
@@ -454,6 +479,7 @@ void sched_update(struct ls_state *ls)
 	struct sched_state *s = &ls->sched;
 	int old_tid = CURRENT(s, tid);
 	int new_tid;
+	if (ls->eip == 0x01000455) { found_a_bug(ls); }
 
 	/* wait until the guest is ready */
 	if (!s->guest_init_done) {
