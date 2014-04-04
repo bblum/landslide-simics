@@ -471,7 +471,6 @@ static bool ignore_user_access(struct ls_state *ls)
 		ls->user_mem.cr3 = cr3;
 		lsprintf(DEV, "Registered cr3 value 0x%x for userspace "
 			 "tid %d.\n", cr3, current_tid);
-		dump_stack();
 		return false;
 	} else if (ls->user_mem.cr3 != cr3) {
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Memory tracking for "
