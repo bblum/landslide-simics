@@ -113,6 +113,7 @@ bool interrupts_enabled(conf_object_t *cpu);
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
 char *stack_trace(struct ls_state *ls);
 char *read_string(conf_object_t *cpu, int eip);
+bool instruction_is_atomic_swap(conf_object_t *cpu, int eip);
 
 #define LS_ABORT() do { dump_stack(); assert(0); } while (0)
 static inline void dump_stack() {

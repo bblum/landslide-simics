@@ -94,7 +94,17 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	}
 
 	if (testing_userspace()) {
-		if (user_within_functions(ls->cpu0, ls->eip)) {
+		if (ls->eip < USER_MEM_START) {
+			return false;
+		} else if (instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
+			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {
+			/* User thread is blocked on an "xchg-continue" mutex.
+			 * Analogous to HLT state -- need to preempt it. */
+			assert((ls->save.next_tid == -1 ||
+			       ls->save.next_tid == ls->sched.cur_agent->tid) &&
+			       "Two threads in one transition?");
+			return true;
+		} else if (user_within_functions(ls->cpu0, ls->eip)) {
 			// TODO
 			int mutex_addr;
 			if (user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr)) {

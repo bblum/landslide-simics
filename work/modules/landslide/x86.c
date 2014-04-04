@@ -471,3 +471,24 @@ char *read_string(conf_object_t *cpu, int addr)
 
 	return buf;
 }
+
+bool instruction_is_atomic_swap(conf_object_t *cpu, int eip) {
+	int op = READ_BYTE(cpu, eip);
+	if (op == 0xf0) {
+		/* lock prefix */
+		return instruction_is_atomic_swap(cpu, eip + 1);
+	} else if (op == 0x86 || op == 0x87 || op == 0x90) {
+		/* xchg */
+		return true;
+	} else if (op == 0x0f) {
+		int op2 = READ_BYTE(cpu, eip + 1);
+		if (op2 == 0xb0 || op2 == 0xb1) {
+			/* cmpxchg */
+			return true;
+		} else {
+			return false;
+		}
+	} else {
+		return false;
+	}
+}

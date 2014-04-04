@@ -43,6 +43,9 @@ struct user_sync_state {
 	 * anything else interesting" at the next decision point, the current
 	 * thread's yield loop counter will be incremented at the checkpoint. */
 	enum { NOTHING_INTERESTING, YIELDED, ACTIVITY } yield_progress;
+	/* extra bonus part of the state machine for detecting tight spin-loops
+	 * around xchg (or cmpxchg). */
+	int xchg_count;
 };
 
 struct user_yield_state {
@@ -59,9 +62,14 @@ struct user_yield_state {
 /* how many calls to yield makes us consider a user thread to be blocked? */
 #define TOO_MANY_YIELDS 10
 
+/* how many times spinning around xchg/cmpxchg means a thread is blocked? */
+#define TOO_MANY_XCHGS 100
+
 #define agent_is_user_yield_blocked(y) \
-	 ({ assert((y)->loop_count <= TOO_MANY_YIELDS); \
-	    (y)->loop_count == TOO_MANY_YIELDS || (y)->blocked; })
+	 ({ assert((y)->loop_count <= TOO_MANY_YIELDS || \
+	           (y)->loop_count == TOO_MANY_XCHGS); \
+	    (y)->loop_count == TOO_MANY_YIELDS || \
+	    (y)->loop_count == TOO_MANY_XCHGS || (y)->blocked; })
 
 void user_sync_init(struct user_sync_state *u);
 void user_yield_state_init(struct user_yield_state *y);
@@ -80,6 +88,7 @@ void update_user_yield_blocked_transitions(struct hax *h);
 bool is_user_yield_blocked(struct hax *h);
 /* scheduler-related */
 void check_user_yield_activity(struct user_sync_state *u, struct agent *a);
+bool check_user_xchg(struct user_sync_state *u, struct agent *a);
 void record_user_yield_activity(struct user_sync_state *u);
 void record_user_yield(struct user_sync_state *u);
 /* memory-related */

@@ -20,6 +20,7 @@ void user_sync_init(struct user_sync_state *u)
 	u->mutex_size = 0;
 	Q_INIT_HEAD(&u->mutexes);
 	u->yield_progress = NOTHING_INTERESTING;
+	u->xchg_count = 0;
 }
 
 void user_yield_state_init(struct user_yield_state *y)
@@ -237,10 +238,17 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 			assert(a3 != NULL && "yielding thread vanished in the past");
 			if (h2->chosen_thread == a->tid) {
 				/* Thread ran. Count must have incremented. */
-				assert(a2->user_yield.loop_count ==
-				       a3->user_yield.loop_count + 1);
-				/* Update expected "future" count from the past. */
-				expected_count--;
+				if (a2->user_yield.loop_count == TOO_MANY_XCHGS) {
+					/* No telling what count was before
+					 * this transition. Stop checking. */
+					break;
+				} else {
+					assert(a2->user_yield.loop_count ==
+					       a3->user_yield.loop_count + 1);
+					/* Update expected "future" count
+					 * from the past. */
+					expected_count--;
+				}
 			} else {
 				/* Thread did not run; count should not have changed. */
 				assert(a2->user_yield.loop_count ==
@@ -265,11 +273,15 @@ void check_user_yield_activity(struct user_sync_state *u, struct agent *a)
 
 	assert(y->loop_count >= 0);
 	/* cannot be equal to the max, or we should not have run it. */
-	assert(y->loop_count < TOO_MANY_YIELDS &&
+	assert((y->loop_count < TOO_MANY_YIELDS ||
+	        y->loop_count == TOO_MANY_XCHGS) &&
 	       "we accidentally ran a thread stuck in a yield loop");
 	assert(!y->blocked);
 
-	if (u->yield_progress == YIELDED) {
+	if (y->loop_count == TOO_MANY_XCHGS) {
+		lsprintf(CHOICE, COLOUR_BOLD COLOUR_CYAN "TID %d looped around "
+			 "xchg too many times, marking it blocked.\n", a->tid);
+	} else if (u->yield_progress == YIELDED) {
 		y->loop_count++;
 		if (y->loop_count == TOO_MANY_YIELDS) {
 			lsprintf(CHOICE, COLOUR_BOLD COLOUR_CYAN "TID %d yielded "
@@ -294,8 +306,37 @@ void check_user_yield_activity(struct user_sync_state *u, struct agent *a)
 		}
 	}
 
-	/* reset state flag for the next thread/transition to run. */
+	/* reset state for the next thread/transition to run. */
 	u->yield_progress = NOTHING_INTERESTING;
+	u->xchg_count = 0;
+}
+
+bool check_user_xchg(struct user_sync_state *u, struct agent *a)
+{
+	struct user_yield_state *y = &a->user_yield;
+	assert(u->xchg_count >= 0);
+	assert(u->xchg_count < TOO_MANY_XCHGS);
+	/* We use TOO_MANY_XCHGS as a special value for the yield counter so
+	 * we can piggy-back on the check-yield code. So we need to make sure
+	 * we don't collide with the space of possible values the yield code
+	 * might use, and also leave TOO_MANY_YIELDS + 1 free as an impossible
+	 * value that we can assert on. (I wish I had sum types...) */
+	STATIC_ASSERT(TOO_MANY_XCHGS > TOO_MANY_YIELDS + 1);
+
+	u->xchg_count++;
+	lsprintf(DEV, "user xchg TID %d (%dth time)\n", a->tid, u->xchg_count);
+
+	if (u->xchg_count == TOO_MANY_XCHGS) {
+		/* Set up user yield state to make check_user_yield() treat
+		 * this the same as if it yielded too many times (even if it had
+		 * other activity - an xchg loop is blocked for sure). */
+		y->loop_count = TOO_MANY_XCHGS;
+		/* Transition ends. Reset global counter for the next one. */
+		u->xchg_count = 0;
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /* Called whenever the user hits an 'interesting' code point in userspace. */
@@ -305,6 +346,7 @@ void record_user_yield_activity(struct user_sync_state *u)
 	 * thread yields during this transition, we'll wait for it to actually
 	 * start doing nothing but yielding before counting it as blocked. */
 	u->yield_progress = ACTIVITY;
+	u->xchg_count = 0;
 }
 
 /* Called whenever the user makes a yield syscall. */
@@ -320,7 +362,6 @@ void record_user_yield(struct user_sync_state *u)
 
 static void maybe_unblock(struct ls_state *ls, struct agent *a, unsigned int addr)
 {
-	assert(a->tid != ls->sched.cur_agent->tid);
 	bool found_one = false;
 
 	/* Find all its past transitions (since it started yielding) */
@@ -338,16 +379,20 @@ static void maybe_unblock(struct ls_state *ls, struct agent *a, unsigned int add
 		assert(h->parent != NULL && "reached root too soon");
 		struct agent *a2 = find_runnable_agent(h->parent->oldsched, a->tid);
 		assert(a2 != NULL);
-		if (a2->user_yield.loop_count == 0) {
+		/* ...unless it became blocked in an xchg loop, in which case
+		 * there won't be a chain of counting-up transitions. */
+		if (a->user_yield.loop_count != TOO_MANY_XCHGS &&
+		    a2->user_yield.loop_count == 0) {
 			/* First time it was blocked. Don't continue. */
 			break;
 		}
 
 		/* Actual check. Might the access cause it to stop yielding? */
 		if (shm_contains_addr(h->old_user_mem, addr)) {
-			lsprintf(DEV, "TID %d's write to 0x%x unblocks yielding "
-				 "thread #%d/tid%d\n", ls->sched.cur_agent->tid,
-				 addr, h->depth, a->tid);
+			lsprintf(DEV, "TID %d's write to 0x%x unblocks %s thread "
+				 "#%d/tid%d\n", ls->sched.cur_agent->tid, addr,
+				 a->user_yield.loop_count == TOO_MANY_XCHGS ?
+				 "xchging" : "yielding", h->depth, a->tid);
 			/* Mark the thread unblocked. */
 			a->user_yield.loop_count = 0;
 			/* This flag need not have been set, but it might have
@@ -364,7 +409,9 @@ void check_unblock_yield_loop(struct ls_state *ls, unsigned int addr)
 {
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		if (a->user_yield.loop_count == TOO_MANY_YIELDS) {
+		if (a->tid != ls->sched.cur_agent->tid &&
+		    (a->user_yield.loop_count == TOO_MANY_YIELDS ||
+		    a->user_yield.loop_count == TOO_MANY_XCHGS)) {
 			maybe_unblock(ls, a, addr);
 		}
 	);
