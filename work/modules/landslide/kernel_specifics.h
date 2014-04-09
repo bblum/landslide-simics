@@ -76,5 +76,6 @@ bool kern_has_idle(void);
 void kern_init_threads(struct sched_state *,
 		       void (*)(struct sched_state *, int, bool));
 bool kern_current_extra_runnable(conf_object_t *cpu);
+bool kern_wants_us_to_dump_stack(int eip);
 
 #endif

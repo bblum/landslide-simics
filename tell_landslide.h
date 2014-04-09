@@ -29,4 +29,7 @@ void tell_landslide_mutex_unlocking_done(void);
  * blocked threads on the runqueue. */
 void tell_landslide_mutex_blocking(int owner_tid);
 
+/* Bonus annotations */
+void tell_landslide_dump_stack(void);
+
 #endif

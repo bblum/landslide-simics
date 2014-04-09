@@ -758,6 +758,9 @@ void sched_update(struct ls_state *ls)
 		CURRENT(s, kern_mutex_unlocking_addr) = -1;
 		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
 			  CURRENT(s, tid));
+	/* Etc. */
+	} else if (kern_wants_us_to_dump_stack(ls->eip)) {
+		dump_stack();
 
 	/**********************************************************************
 	 * Userspace

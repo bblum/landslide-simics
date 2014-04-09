@@ -19,3 +19,4 @@ void tell_landslide_mutex_blocking(int owner_tid) { }
 void tell_landslide_mutex_locking_done(void) { }
 void tell_landslide_mutex_unlocking(void *mutex_addr) { }
 void tell_landslide_mutex_unlocking_done(void) { }
+void tell_landslide_dump_stack(void) { }

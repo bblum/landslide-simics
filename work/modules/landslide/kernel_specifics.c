@@ -455,3 +455,12 @@ void kern_init_threads(struct sched_state *s,
 {
 	GUEST_STARTING_THREAD_CODE;
 }
+
+bool kern_wants_us_to_dump_stack(int eip)
+{
+#ifdef TELL_LANDSLIDE_DUMP_STACK
+	return eip == TELL_LANDSLIDE_DUMP_STACK;
+#else
+	return false;
+#endif
+}
