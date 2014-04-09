@@ -575,6 +575,8 @@ static void wrong_panic(struct ls_state *ls, const char *panicked, const char *e
 static bool ensure_progress(struct ls_state *ls)
 {
 	char *buf;
+	int tid = ls->sched.cur_agent->tid;
+
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PANIC: %s\n", buf);
 		MM_FREE(buf);
@@ -582,7 +584,9 @@ static bool ensure_progress(struct ls_state *ls)
 			wrong_panic(ls, "kernel", "user");
 		}
 		return false;
-	} else if (user_panicked(ls->cpu0, ls->eip, &buf)) {
+	} else if (user_panicked(ls->cpu0, ls->eip, &buf) &&
+		   tid != kern_get_init_tid() && tid != kern_get_shell_tid() &&
+		   !(kern_has_idle() && tid == kern_get_idle_tid())) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USERSPACE PANIC: %s\n", buf);
 		MM_FREE(buf);
 		if (!testing_userspace()) {
