@@ -158,6 +158,7 @@ CONTEXT_SWITCH_2=
 EXEC=
 TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
+PAGE_FAULT_WRAPPER=
 source $CONFIG
 
 #####################################
@@ -292,6 +293,10 @@ echo "#define GUEST_BSS_END GUEST_IMG_END"
 
 echo "#define GUEST_PANIC 0x`get_func panic`"
 echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
+
+if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
+	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"
+fi
 
 echo
 

@@ -589,6 +589,21 @@ static bool ensure_progress(struct ls_state *ls)
 			wrong_panic(ls, "user", "kernel");
 		}
 		return false;
+#ifdef GUEST_PF_HANDLER
+#define BUF_SIZE 256
+	} else if (ls->eip == GUEST_PF_HANDLER) {
+		/* did it come from kernel-space? */
+		int from_eip = READ_STACK(ls->cpu0, 1);
+		char buf[BUF_SIZE];
+		bool unknown;
+		symtable_lookup(buf, BUF_SIZE, from_eip,  &unknown);
+		lsprintf(DEV, "page fault from 0x%x %s\n", from_eip,
+			 unknown ? "<unknown>" : buf);
+		if (from_eip < USER_MEM_START) {
+			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PAGE FAULT\n");
+			return false;
+		}
+#endif
 	}
 
 	/* FIXME: find a less false-negative way to tell when we have enough
