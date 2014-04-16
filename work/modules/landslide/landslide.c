@@ -543,6 +543,48 @@ static void check_user_syscall(struct ls_state *ls)
 }
 #undef CASE_SYSCALL
 
+#define TRIPLE_FAULT_EXCEPTION 1024 /* special simics value */
+
+static const char *exception_names[] = {
+	"divide error",
+	"single-step exception",
+	"nmi",
+	"breakpoint",
+	"overflow",
+	"bounds check",
+	"invalid opcode",
+	"coprocessor not available",
+	"double fault",
+	"coprocessor segment overrun",
+	"invalid tss",
+	"segment not present",
+	"stack segment exception",
+	"general protection fault",
+	"page fault",
+	"<reserved>",
+	"coprocessor error",
+};
+
+#define BUF_SIZE 256
+
+static void check_exception(struct ls_state *ls, int number)
+{
+	char buf[BUF_SIZE];
+	bool _unknown;
+	symtable_lookup(buf, BUF_SIZE, ls->eip, &_unknown);
+
+	if (number < ARRAY_SIZE(exception_names)) {
+		lsprintf(CHOICE, "Exception #%d (%s) taken at 0x%x %s\n",
+			 number, exception_names[number], ls->eip, buf);
+	} else if (number == TRIPLE_FAULT_EXCEPTION) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Triple fault!\n");
+		found_a_bug(ls);
+	} else {
+		lsprintf(INFO, "Exception #%d (syscall or interrupt) @ 0x%x %s\n",
+			 number, ls->eip, buf);
+	}
+}
+
 /******************************************************************************
  * actual interesting landslide logic
  ******************************************************************************/
@@ -594,7 +636,6 @@ static bool ensure_progress(struct ls_state *ls)
 		}
 		return false;
 #ifdef GUEST_PF_HANDLER
-#define BUF_SIZE 256
 	} else if (ls->eip == GUEST_PF_HANDLER) {
 		/* did it come from kernel-space? */
 		int from_eip = READ_STACK(ls->cpu0, 1);
@@ -736,8 +777,10 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 		/* mem access - do heap checks, whether user or kernel */
 		mem_check_shared_access(ls, entry->pa, entry->va,
 					(entry->read_or_write == Sim_RW_Write));
+	} else if (entry->trace_type == TR_Exception) {
+		check_exception(ls, entry->value.exception);
 	} else if (entry->trace_type != TR_Instruction) {
-		/* non-data non-instr event, such as an exception - don't care */
+		/* other event (TR_Execute?) - don't care */
 	} else {
 		if (ls->eip >= USER_MEM_START) {
 			check_user_syscall(ls);
