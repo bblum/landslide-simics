@@ -11,6 +11,7 @@
 #include "landslide.h"
 #include "lockset.h"
 #include "schedule.h"
+#include "x86.h"
 
 void lockset_init(struct lockset *l)
 {

@@ -14,6 +14,7 @@
 #include "common.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
+#include "student_specifics.h"
 #include "x86.h"
 
 /* Horribly, simics's attributes for the segsels are lists instead of ints. */
@@ -53,7 +54,7 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 
 		lsprintf(DEV, "tock! from userspace! (0x%x)\n", eip);
 
-		int esp0 = GET_ESP0(cpu);
+		int esp0 = READ_MEMORY(cpu, GUEST_ESP0_ADDR);
 		/* 20 is the size of an IRET frame coming from userland. */
 		int new_esp = esp0 - 20;
 		SET_CPU_ATTR(cpu, esp, new_esp);

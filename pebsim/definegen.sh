@@ -190,15 +190,12 @@ echo
 echo "#ifndef __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
 echo "#define __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
 echo
-echo "#include \"x86.h\""
-echo
 
 ########################
 #### TCB management ####
 ########################
 
 echo "#define GUEST_ESP0_ADDR (0x`get_sym init_tss` + 4)" # see 410kern/x86/asm.S
-echo "#define GET_ESP0(cpu) READ_MEMORY(cpu, GUEST_ESP0_ADDR)"
 
 ###################################
 #### Thread lifecycle tracking ####

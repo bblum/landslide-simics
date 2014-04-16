@@ -14,6 +14,7 @@
 #include "user_specifics.h"
 #include "user_sync.h"
 #include "variable_queue.h"
+#include "x86.h"
 
 void user_sync_init(struct user_sync_state *u)
 {

@@ -19,6 +19,7 @@
 #include "tree.h"
 #include "user_specifics.h"
 #include "user_sync.h"
+#include "x86.h"
 
 /******************************************************************************
  * Heap helpers
