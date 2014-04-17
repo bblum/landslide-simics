@@ -325,7 +325,9 @@ bool check_user_xchg(struct user_sync_state *u, struct agent *a)
 	STATIC_ASSERT(TOO_MANY_XCHGS > TOO_MANY_YIELDS + 1);
 
 	u->xchg_count++;
-	lsprintf(DEV, "user xchg TID %d (%dth time)\n", a->tid, u->xchg_count);
+	lsprintf(DEV, "user xchg TID %d (%d%s time)\n", a->tid, u->xchg_count,
+		 u->xchg_count == 1 ? "st" : u->xchg_count == 2 ? "nd" :
+		 u->xchg_count == 3 ? "rd" : "th");
 
 	if (u->xchg_count == TOO_MANY_XCHGS) {
 		/* Set up user yield state to make check_user_yield() treat
