@@ -159,6 +159,8 @@ EXEC=
 TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
 PAGE_FAULT_WRAPPER=
+VERBOSE=0
+EXTRA_VERBOSE=0
 source $CONFIG
 
 #####################################
@@ -426,9 +428,9 @@ fi
 
 echo -e "$EXTRA_SYMS"
 
-#######################
-#### Choice points ####
-#######################
+#############################
+#### Misc config options ####
+#############################
 
 echo -e "#define KERN_WITHIN_FUNCTIONS { $WITHIN_KERN_FUNCTIONS }"
 echo -e "#define USER_WITHIN_FUNCTIONS { $WITHIN_USER_FUNCTIONS }"
@@ -438,6 +440,9 @@ echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"
 echo "#define DECISION_INFO_ONLY $DONT_EXPLORE"
 echo "#define BREAK_ON_BUG $BREAK_ON_BUG"
 echo "#define TESTING_USERSPACE $TESTING_USERSPACE"
+
+echo "#define VERBOSE $VERBOSE"
+echo "#define EXTRA_VERBOSE $EXTRA_VERBOSE"
 
 echo
 

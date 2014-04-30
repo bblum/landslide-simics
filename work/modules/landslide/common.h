@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include "student_specifics.h" // for verbosity
+
 #ifndef MODULE_NAME
 #error "Please define MODULE_NAME before including common.h!"
 #endif
@@ -39,7 +41,13 @@
 #define DEV    3 /* messages only useful for development */
 #define INFO   4 /* if you wouldn't put it anywhere but twitter */
 
-#define MAX_VERBOSITY CHOICE
+#if VERBOSE == 0 && EXTRA_VERBOSE == 0
+#define MAX_VERBOSITY CHOICE // default
+#elif EXTRA_VERBOSE != 0
+#define MAX_VERBOSITY INFO // EXTRA_VERBOSE overrides VERBOSE
+#else
+#define MAX_VERBOSITY DEV
+#endif
 
 typedef int verbosity;
 

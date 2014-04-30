@@ -155,4 +155,8 @@ DONT_EXPLORE=0
 # command line (1)? (Quitting will make the correct elapsed time print out.)
 BREAK_ON_BUG=1
 
+# Set to 1 to make landslide emit more diagnostics which may aid in debugging
+# annotations (or a landslide bug). EXTRA_VERBOSE=1 is available for even more.
+VERBOSE=0
+
 # vim: ft=sh
