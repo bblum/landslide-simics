@@ -871,7 +871,9 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 				ma1->conflict = true;
 				// FIXME: make this not interleave horribly with conflicts
 #ifdef PRINT_DATA_RACES
+#if PRINT_DATA_RACES != 0
 				check_data_race(cpu, m0, m1, ma0, ma1);
+#endif
 #endif
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
