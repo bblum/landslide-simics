@@ -51,6 +51,9 @@ TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
+PRINT_DATA_RACES=0
+VERBOSE=0
+EXTRA_VERBOSE=0
 source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
@@ -99,6 +102,9 @@ verify_numeric EXPLORE_BACKWARDS
 verify_numeric DONT_EXPLORE
 verify_numeric BREAK_ON_BUG
 verify_numeric TESTING_USERSPACE
+verify_numeric PRINT_DATA_RACES
+verify_numeric VERBOSE
+verify_numeric EXTRA_VERBOSE
 if [ "$TESTING_USERSPACE" = 1 ]; then
 	verify_nonempty EXEC
 fi
