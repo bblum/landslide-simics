@@ -745,8 +745,6 @@ static void check_test_state(struct ls_state *ls)
 			lsprintf(DEV, "test case ended!\n");
 
 			if (DECISION_INFO_ONLY != 0) {
-				lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
-					 "These were the decision points:\n");
 				dump_decision_info(ls);
 			} else if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true,

@@ -159,4 +159,9 @@ BREAK_ON_BUG=1
 # annotations (or a landslide bug). EXTRA_VERBOSE=1 is available for even more.
 VERBOSE=0
 
+# Set to 1 to make landslide emit preemption traces in the "tabular" format
+# popular in 15-410, with each column in the table representing a different
+# thread. By default landslide will emit it in plaintext, all threads together.
+TABULAR_TRACE=0
+
 # vim: ft=sh

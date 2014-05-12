@@ -54,6 +54,7 @@ PREEMPT_ENABLE_FLAG=
 PRINT_DATA_RACES=0
 VERBOSE=0
 EXTRA_VERBOSE=0
+TABULAR_TRACE=0
 source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
@@ -105,6 +106,7 @@ verify_numeric TESTING_USERSPACE
 verify_numeric PRINT_DATA_RACES
 verify_numeric VERBOSE
 verify_numeric EXTRA_VERBOSE
+verify_numeric TABULAR_TRACE
 if [ "$TESTING_USERSPACE" = 1 ]; then
 	verify_nonempty EXEC
 fi

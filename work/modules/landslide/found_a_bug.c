@@ -38,26 +38,82 @@
 		_PRINT_TREE_INFO(v, INFO_NAME, INFO_COLOUR, ls);	\
 	} } while (0)
 
+/******************************************************************************
+ * Helpers for printing a tabular trace in html
+ ******************************************************************************/
+
+/* bypass the lsprintf printing framework entirely */
+#define print_html(...) do { \
+		fprintf(stderr, COLOUR_BOLD COLOUR_CYAN __VA_ARGS__); /* FIXME */ \
+		fprintf(stderr, COLOUR_DEFAULT); \
+	} while (0)
+
+// TODO: html filename
+static void emit_html_header(int num_columns) {
+	print_html("\\documentclass{article}\n"
+		   "\\usepackage{fullpage}\n"
+		   "\\begin{document}\n");
+
+	print_html("\\begin{tabular}{|");
+	assert(num_columns > 0);
+	for (int i = 0; i < num_columns; i++) {
+		print_html("l|");
+	}
+	print_html("}\n");
+}
+
+static void emit_html_footer() {
+	print_html("\\end{tabular}\n");
+	print_html("\\end{document}\n");
+}
+
+/******************************************************************************
+ * Original flavour
+ ******************************************************************************/
+
 /* Prints a stack trace with newlines and tabs instead of ", "s. */
-void print_stack_trace(verbosity v, bool bug_found, const char *stack) {
+static void _print_stack_trace(verbosity v, bool bug_found, bool tabular,
+			       const char *stack) {
 	const char *current_frame = stack;
 	bool first_frame = true;
+
+	if (tabular) {
+		print_html("\\begin{tabular}{l}\n");
+		// FIXME: strip "TID X at" prelude
+	}
+
 	while (current_frame != NULL) {
 		const char *next_frame =
 			strstr(current_frame, STACK_TRACE_SEPARATOR);
-		lsprintf(v, bug_found, "\t%s%.*s\n", first_frame ? "" : "\t",
-			 next_frame == NULL ? (int)strlen(current_frame)
-			                    : (int)(next_frame - current_frame),
-			 current_frame);
+		int frame_length = next_frame == NULL ?
+			(int)strlen(current_frame) :
+			(int)(next_frame - current_frame);
+
+		if (tabular) {
+			print_html("%.*s\\\\\n", frame_length, current_frame);
+			// FIXME: truncate filename; probably need stack trace datatype
+		} else {
+			lsprintf(v, bug_found, "\t%s%.*s\n", first_frame ? "" : "\t",
+				 frame_length, current_frame);
+		}
+
 		first_frame = false;
 		if ((current_frame = next_frame) != NULL) {
 			current_frame += strlen(STACK_TRACE_SEPARATOR);
 		}
 	}
+
+	if (tabular) {
+		print_html("\\end{tabular}\n");
+	}
+}
+
+void print_stack_trace(verbosity v, bool bug_found, const char *stack) {
+	_print_stack_trace(v, bug_found, false, stack);
 }
 
 static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
-			   bool verbose)
+			   bool tabular, bool verbose)
 {
 	int num;
 
@@ -67,7 +123,7 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 	}
 	
 	num = 1 + print_tree_from(h->parent, h->chosen_thread, bug_found,
-				  verbose);
+				  tabular, verbose);
 
 	if (h->chosen_thread != choose_thread || verbose) {
 		lsprintf(BUG, bug_found,
@@ -83,7 +139,7 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 		}
 		print_scheduler_state(BUG, h->oldsched);
 		printf(BUG, COLOUR_DEFAULT "\n");
-		print_stack_trace(BUG, bug_found, h->stack_trace);
+		_print_stack_trace(BUG, bug_found, tabular, h->stack_trace);
 	}
 
 	return num;
@@ -91,6 +147,10 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 {
+	/* Should we emit a "tabular" preemption trace using html, or
+	 * default to the all-threads-in-one-column plaintext output? */
+	bool tabular = TABULAR_TRACE != 0;
+
 	if (bug_found) {
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_RED
 			 "****     A bug was found!      ****\n");
@@ -98,19 +158,27 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 			 "**** Preemption trace follows. ****\n");
 	} else {
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
-			 "(No bug was found.)\n");
+			 "These were the decision points (no bug was found):\n");
+	}
+
+	if (tabular) {
+		emit_html_header(1);
 	}
 
 	print_tree_from(ls->save.current, ls->save.next_tid, bug_found,
-			verbose);
+			tabular, verbose);
 
 	char *stack = stack_trace(ls);
 	lsprintf(BUG, bug_found, COLOUR_BOLD "%sCurrent stack:\n"
 		 COLOUR_DEFAULT, bug_found ? COLOUR_RED : COLOUR_GREEN);
-	print_stack_trace(BUG, bug_found, stack);
+	_print_stack_trace(BUG, bug_found, tabular, stack);
 	MM_FREE(stack);
 
 	PRINT_TREE_INFO(BUG, bug_found, ls);
+
+	if (tabular) {
+		emit_html_footer();
+	}
 
 	if (BREAK_ON_BUG) {
 		lsprintf(ALWAYS, bug_found, COLOUR_BOLD COLOUR_YELLOW "%s", bug_found ?

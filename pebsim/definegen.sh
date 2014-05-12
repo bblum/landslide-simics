@@ -162,6 +162,7 @@ PAGE_FAULT_WRAPPER=
 PRINT_DATA_RACES=0
 VERBOSE=0
 EXTRA_VERBOSE=0
+TABULAR_TRACE=0
 source $CONFIG
 
 #####################################
@@ -444,6 +445,7 @@ echo "#define TESTING_USERSPACE $TESTING_USERSPACE"
 echo "#define PRINT_DATA_RACES $PRINT_DATA_RACES"
 echo "#define VERBOSE $VERBOSE"
 echo "#define EXTRA_VERBOSE $EXTRA_VERBOSE"
+echo "#define TABULAR_TRACE $TABULAR_TRACE"
 
 echo
 
