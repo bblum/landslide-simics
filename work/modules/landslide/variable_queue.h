@@ -160,12 +160,12 @@
  *  @return Void
  **/
 #define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) do {       \
-		STATIC_ASSERT(!"XXX: Use Q_INSERT_HEAD not Q_INSERT_TAIL."); \
+		(Q_ELEM)->LINK_NAME.prev = (Q_HEAD)->tail;      	\
+		(Q_ELEM)->LINK_NAME.next = NULL;					\
 		if (!(Q_HEAD)->head) {                              \
 			(Q_HEAD)->head = (Q_HEAD)->tail = (Q_ELEM);     \
 		} else {                                            \
 			(Q_HEAD)->tail->LINK_NAME.next = (Q_ELEM);      \
-			(Q_ELEM)->LINK_NAME.prev = (Q_HEAD)->tail;      \
 			(Q_HEAD)->tail = (Q_ELEM);                      \
 		}                                                   \
 		(Q_HEAD)->count++;                                  \
