@@ -17,8 +17,8 @@
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "schedule.h"
+#include "stack.h"
 #include "tree.h"
-#include "x86.h"
 
 /* The default print macros would print big red "[BUG!]"s even if we're just
  * dumping decision info. Redefine them to be flexible around this point. */

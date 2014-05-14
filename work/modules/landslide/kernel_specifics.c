@@ -12,6 +12,7 @@
 #include "common.h"
 #include "kernel_specifics.h"
 #include "schedule.h" /* TODO: separate the struct part into schedule_type.h */
+#include "stack.h"
 #include "x86.h"
 
 /******************************************************************************

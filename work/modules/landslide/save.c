@@ -26,10 +26,10 @@
 #include "memory.h"
 #include "save.h"
 #include "schedule.h"
+#include "stack.h"
 #include "test.h"
 #include "tree.h"
 #include "user_sync.h"
-#include "x86.h"
 
 /******************************************************************************
  * simics goo
