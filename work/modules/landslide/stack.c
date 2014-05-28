@@ -77,11 +77,28 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	(MAX_VERBOSITY < DEV && testing_userspace() && \
 	 (unsigned int)(eip) < USER_MEM_START)
 
+/* Emits a "0xADDR in NAME (FILE:LINE)" line with pretty colours. */
+void print_stack_frame(verbosity v, struct stack_frame *f)
+{
+	printf(v, "0x%.8x in ", f->eip);
+	if (f->name == NULL) {
+		printf(v, UNKNOWN_COLOUR "<unknown in %s>" COLOUR_DEFAULT,
+		       f->eip < USER_MEM_START ? "kernel" : "user");
+	} else {
+		printf(v, FUNCTION_COLOUR "%s " FUNCTION_INFO_COLOUR, f->name);
+		if (f->file == NULL) {
+			printf(v, "<unknown assembly>");
+		} else {
+			printf(v, "(%s:%d)", f->file, f->line);
+		}
+		printf(v, COLOUR_DEFAULT);
+	}
+}
+
 /* Prints a stack trace to the console. Uses printf, not lsprintf, separates
  * frames with ", ", and does not emit a newline at the end. */
 void print_stack_trace(verbosity v, struct stack_trace *st)
 {
-	// TODO: add color throughout this
 	struct stack_frame *f;
 	bool first_frame = true;
 
@@ -94,7 +111,7 @@ void print_stack_trace(verbosity v, struct stack_trace *st)
 			printf(v, ", ");
 		}
 		first_frame = false;
-		printf(v, "0x%x in %s (%s:%d)", f->eip, f->name, f->file, f->line);
+		print_stack_frame(v, f);
 	}
 }
 

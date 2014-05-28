@@ -7,6 +7,7 @@
 #define MODULE_NAME "symtable glue"
 
 #include "common.h"
+#include "stack.h"
 #include "symtable.h"
 #include "x86.h"
 
@@ -14,13 +15,9 @@
 
 #define LIKELY_DIR "pebsim/"
 #define UNKNOWN_FILE "410kern/boot/head.S"
-#define UNKNOWN_FILE_INSTEAD "<unknown assembly>"
 
-#define FUNCTION_COLOUR      COLOUR_BOLD COLOUR_CYAN
-#define FUNCTION_INFO_COLOUR COLOUR_DARK COLOUR_GREY
 #define GLOBAL_COLOUR        COLOUR_BOLD COLOUR_YELLOW
 #define GLOBAL_INFO_COLOUR   COLOUR_DARK COLOUR_GREY
-#define UNKNOWN_COLOUR       COLOUR_BOLD COLOUR_MAGENTA
 
 conf_object_t *get_symtable()
 {
@@ -87,7 +84,7 @@ bool _symtable_lookup(int eip, char **func, char **file, int *line)
 	/* The symbol table will claim that unknown assembly comes from
 	 * 410kern/boot/head.S. Print an 'unknown' message instead. */
 	if (strncmp(maybe_file, UNKNOWN_FILE, strlen(maybe_file)) == 0) {
-		*file = MM_XSTRDUP(UNKNOWN_FILE_INSTEAD);
+		*file = NULL;
 	} else {
 		*file = MM_XSTRDUP(maybe_file);
 	}
@@ -106,6 +103,7 @@ int symtable_lookup(char *buf, int maxlen, int eip, bool *unknown)
 
 	if (_symtable_lookup(eip, &func, &file, &line)) {
 		*unknown = false;
+		// TODO: :(
 		int ret = snprintf(buf, maxlen, FUNCTION_COLOUR "%s"
 				   FUNCTION_INFO_COLOUR " (%s:%d)" COLOUR_DEFAULT,
 				   func, file, line);

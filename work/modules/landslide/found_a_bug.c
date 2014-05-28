@@ -79,8 +79,7 @@ void print_stack_to_console(struct stack_trace *st, bool bug_found, const char *
 			lsprintf(BUG, bug_found, "%s\t", prefix);
 		}
 		first_frame = false;
-		printf(BUG, "0x%x in %s (%s:%d)",
-		       f->eip, f->name, f->file, f->line);
+		print_stack_frame(BUG, f);
 	}
 
 	printf(BUG, "\n");
