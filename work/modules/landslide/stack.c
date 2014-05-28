@@ -60,6 +60,11 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	return false;
 }
 
+/******************************************************************************
+ * printing utilities / glue
+ ******************************************************************************/
+
+#if 0
 #define MAX_TRACE_LEN 4096
 #define ADD_STR(buf, pos, maxlen, ...) \
 	do { pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
@@ -70,12 +75,21 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 		pos += symtable_lookup(buf + pos, maxlen - pos, eip, unknown);	\
 	}								\
 	} while (0)
+#endif
 
 /* Suppress stack frames from userspace, if testing userland, unless the
  * verbosity setting is high enough. */
 #define SUPPRESS_FRAME(eip) \
 	(MAX_VERBOSITY < DEV && testing_userspace() && \
 	 (unsigned int)(eip) < USER_MEM_START)
+
+static bool eip_to_frame(int eip, struct stack_frame *f)
+{
+	f->eip = eip;
+	f->name = NULL;
+	f->file = NULL;
+	return symtable_lookup(eip, &f->name, &f->file, &f->line);
+}
 
 /* Emits a "0xADDR in NAME (FILE:LINE)" line with pretty colours. */
 void print_stack_frame(verbosity v, struct stack_frame *f)
@@ -93,6 +107,14 @@ void print_stack_frame(verbosity v, struct stack_frame *f)
 		}
 		printf(v, COLOUR_DEFAULT);
 	}
+}
+
+/* Same as print_stack_frame but includes the symbol table lookup. */
+void print_eip(verbosity v, int eip)
+{
+	struct stack_frame f;
+	eip_to_frame(eip, &f);
+	print_stack_frame(v, &f);
 }
 
 /* Prints a stack trace to the console. Uses printf, not lsprintf, separates
@@ -157,16 +179,17 @@ void free_stack_trace(struct stack_trace *st)
 	MM_FREE(st);
 }
 
+/******************************************************************************
+ * actual logic
+ ******************************************************************************/
+
 /* returns false if symtable lookup failed */
 static bool add_frame(struct ls_state *ls, struct stack_trace *st, int eip)
 {
 	struct stack_frame *f = MM_XMALLOC(1, struct stack_frame);
-	f->eip = eip;
-	f->name = NULL;
-	f->file = NULL;
-	bool success = _symtable_lookup(eip, &f->name, &f->file, &f->line);
+	bool lookup_success = eip_to_frame(eip, f);
 	Q_INSERT_TAIL(&st->frames, f, nobe);
-	return success;
+	return lookup_success;
 }
 
 struct stack_trace *stack_trace(struct ls_state *ls)

@@ -807,19 +807,19 @@ static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			// To be safe, all pairs of locksets must have a lock in common.
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
-				char buf[BUF_SIZE];
-				bool _unknown;
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED "Data race: ");
 				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1);
 				printf(CHOICE, " at:\n");
-				symtable_lookup(buf, BUF_SIZE, l0->eip, &_unknown);
-				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
-					 "0x%x %s [locks: ", l0->eip, buf);
+
+				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
+				print_eip(CHOICE, l0->eip);
+				printf(CHOICE, " [locks: ");
 				lockset_print(CHOICE, &l0->locks_held);
 				printf(CHOICE, "] and \n");
-				symtable_lookup(buf, BUF_SIZE, l1->eip, &_unknown);
-				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED
-					 "0x%x %s [locks: ", l1->eip, buf);
+
+				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
+				print_eip(CHOICE, l1->eip);
+				printf(CHOICE, "[locks: ");
 				lockset_print(CHOICE, &l1->locks_held);
 				printf(CHOICE, "]\n");
 				return;

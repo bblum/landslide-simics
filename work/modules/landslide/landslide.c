@@ -47,7 +47,6 @@
 #include "memory.h"
 #include "rand.h"
 #include "save.h"
-#include "symtable.h"
 #include "test.h"
 #include "tree.h"
 #include "user_specifics.h"
@@ -322,19 +321,18 @@ static const char *exception_names[] = {
 
 static void check_exception(struct ls_state *ls, int number)
 {
-	char buf[BUF_SIZE];
-	bool _unknown;
-	symtable_lookup(buf, BUF_SIZE, ls->eip, &_unknown);
-
 	if (number < ARRAY_SIZE(exception_names)) {
-		lsprintf(CHOICE, "Exception #%d (%s) taken at 0x%x %s\n",
-			 number, exception_names[number], ls->eip, buf);
+		lsprintf(CHOICE, "Exception #%d (%s) taken at ",
+			 number, exception_names[number]);
+		print_eip(CHOICE, ls->eip);
+		printf(CHOICE, "\n");
 	} else if (number == TRIPLE_FAULT_EXCEPTION) {
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Triple fault!\n");
 		found_a_bug(ls);
 	} else {
-		lsprintf(INFO, "Exception #%d (syscall or interrupt) @ 0x%x %s\n",
-			 number, ls->eip, buf);
+		lsprintf(INFO, "Exception #%d (syscall or interrupt) @ ", number);
+		print_eip(INFO, ls->eip);
+		printf(INFO, "\n");
 	}
 }
 
@@ -390,13 +388,11 @@ static bool ensure_progress(struct ls_state *ls)
 		return false;
 #ifdef GUEST_PF_HANDLER
 	} else if (ls->eip == GUEST_PF_HANDLER) {
-		/* did it come from kernel-space? */
 		int from_eip = READ_STACK(ls->cpu0, 1);
-		char buf[BUF_SIZE];
-		bool unknown;
-		symtable_lookup(buf, BUF_SIZE, from_eip,  &unknown);
-		lsprintf(DEV, "page fault from 0x%x %s\n", from_eip,
-			 unknown ? "<unknown>" : buf);
+		lsprintf(DEV, "page fault from ");
+		print_eip(DEV, from_eip);
+		printf(DEV, "\n");
+		/* did it come from kernel-space? */
 		if (from_eip < USER_MEM_START) {
 			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PAGE FAULT\n");
 			return false;

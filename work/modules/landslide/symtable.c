@@ -55,7 +55,7 @@ void set_symtable(conf_object_t *symtable)
 
 /* New interface. Returns malloced strings through output parameters,
  * which caller must free result strings if returnval is true */
-bool _symtable_lookup(int eip, char **func, char **file, int *line)
+bool symtable_lookup(int eip, char **func, char **file, int *line)
 {
 	conf_object_t *table = get_symtable();
 	if (table == NULL) {
@@ -92,34 +92,6 @@ bool _symtable_lookup(int eip, char **func, char **file, int *line)
 	SIM_free_attribute(result);
 	SIM_free_attribute(idx);
 	return true;
-}
-
-/* Old interface. Formats into a string coloured for console output. */
-int symtable_lookup(char *buf, int maxlen, int eip, bool *unknown)
-{
-	char *func;
-	char *file;
-	int line;
-
-	if (_symtable_lookup(eip, &func, &file, &line)) {
-		*unknown = false;
-		// TODO: :(
-		int ret = snprintf(buf, maxlen, FUNCTION_COLOUR "%s"
-				   FUNCTION_INFO_COLOUR " (%s:%d)" COLOUR_DEFAULT,
-				   func, file, line);
-		MM_FREE(func);
-		MM_FREE(file);
-		return ret;
-	} else {
-		*unknown = true;
-		if ((unsigned int)eip < USER_MEM_START) {
-			return snprintf(buf, maxlen, UNKNOWN_COLOUR
-					"<unknown in kernel>" COLOUR_DEFAULT);
-		} else {
-			return snprintf(buf, maxlen, UNKNOWN_COLOUR
-					"<unknown in user>" COLOUR_DEFAULT);
-		}
-	}
 }
 
 // TODO: fix this to be more like the new symtable lookup interface
