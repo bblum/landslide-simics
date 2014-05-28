@@ -17,6 +17,7 @@
 #include "memory.h"
 #include "rbtree.h"
 #include "stack.h"
+#include "symtable.h"
 #include "tree.h"
 #include "user_specifics.h"
 #include "user_sync.h"
@@ -166,10 +167,14 @@ static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct h
 			 before->chosen_thread);
 	}
 
-	lsprintf(BUG, "[0x%x | %d] was allocated by %s\n",
-		 c->base, c->len, c->malloc_trace);
-	lsprintf(BUG, "...and, between choices %s and %s, freed by %s\n",
-		 after_buf, before_buf, c->free_trace);
+	// TODO: when print stack trace can be made to use printf instead of lsprintf
+	lsprintf(BUG, "[0x%x | %d] was allocated by ", c->base, c->len);
+	print_stack_trace(BUG, c->malloc_trace);
+	printf(BUG, "\n");
+	lsprintf(BUG, "...and, between preemptions %s and %s, freed by ",
+		 after_buf, before_buf);
+	print_stack_trace(BUG, c->free_trace);
+	printf(BUG, "\n");
 }
 
 /******************************************************************************

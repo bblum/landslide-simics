@@ -45,14 +45,8 @@ struct ls_state {
 	bool just_jumped;
 };
 
+/* process exit codes */
 #define LS_NO_KNOWN_BUG 0
 #define LS_BUG_FOUND 1
-
-conf_object_t *get_symtable();
-void set_symtable(conf_object_t *symtable);
-int symtable_lookup(char *buf, int maxlen, int addr, bool *unknown);
-int symtable_lookup_data(char *buf, int maxlen, int addr);
-bool function_eip_offset(int eip, int *offset);
-bool find_user_global_of_type(const char *typename, int *size_result);
 
 #endif

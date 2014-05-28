@@ -14,6 +14,7 @@
 struct ls_state;
 struct mem_state;
 struct sched_state;
+struct stack_trace;
 struct test_state;
 
 /* Represents a single choice point in the decision tree.
@@ -73,7 +74,7 @@ struct hax {
 
 	bool all_explored;
 
-	char *stack_trace;
+	struct stack_trace *stack_trace;
 };
 
 #endif

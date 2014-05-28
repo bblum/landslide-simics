@@ -39,8 +39,6 @@ struct ls_state;
 #define dump_decision_info(ls) _found_a_bug(ls, false, true)        // Verbose
 #define dump_decision_info_quiet(ls) _found_a_bug(ls, false, false) // Not
 
-void print_stack_trace(verbosity v, bool bug_found, const char *stack);
-
 void _found_a_bug(struct ls_state *, bool, bool);
 
 #endif

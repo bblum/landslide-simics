@@ -13,6 +13,7 @@
 #include "rbtree.h"
 
 struct hax;
+struct stack_trace;
 
 /******************************************************************************
  * Shared memory access tracking
@@ -50,8 +51,8 @@ struct chunk {
 	int len;
 	struct rb_node nobe;
 	/* for use-after-free reporting */
-	char *malloc_trace;
-	char *free_trace;
+	struct stack_trace *malloc_trace;
+	struct stack_trace *free_trace;
 };
 
 struct mem_state {

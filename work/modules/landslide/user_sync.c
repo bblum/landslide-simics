@@ -10,6 +10,7 @@
 #include "common.h"
 #include "landslide.h"
 #include "schedule.h"
+#include "symtable.h"
 #include "tree.h"
 #include "user_specifics.h"
 #include "user_sync.h"

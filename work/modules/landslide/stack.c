@@ -11,12 +11,16 @@
 
 #include "common.h"
 #include "landslide.h"
+#include "kernel_specifics.h"
 #include "stack.h"
+#include "symtable.h"
+#include "variable_queue.h"
 #include "x86.h"
 
 /* Performs a stack trace to see if the current call stack has the given
  * function somewhere on it. */
 // FIXME: make this as intelligent as stack_trace.
+// TODO: convert it to just call stack trace and look inside.
 bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 {
 	if (eip >= func && eip < func_end)
@@ -66,7 +70,6 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 		pos += symtable_lookup(buf + pos, maxlen - pos, eip, unknown);	\
 	}								\
 	} while (0)
-#define ENTRY_POINT "_start "
 
 /* Suppress stack frames from userspace, if testing userland, unless the
  * verbosity setting is high enough. */
@@ -74,22 +77,95 @@ bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
 	(MAX_VERBOSITY < DEV && testing_userspace() && \
 	 (unsigned int)(eip) < USER_MEM_START)
 
-/* Caller has to free the return value. */
-char *stack_trace(struct ls_state *ls)
+/* Prints a stack trace to the console. Uses printf, not lsprintf, separates
+ * frames with ", ", and does not emit a newline at the end. */
+void print_stack_trace(verbosity v, struct stack_trace *st)
+{
+	// TODO: add color throughout this
+	struct stack_frame *f;
+	bool first_frame = true;
+
+	/* print TID prefix before first frame */
+	printf(v, "TID%d at ", st->tid);
+
+	/* print each frame */
+	Q_FOREACH(f, &st->frames, nobe) {
+		if (!first_frame) {
+			printf(v, ", ");
+		}
+		first_frame = false;
+		printf(v, "0x%x in %s (%s:%d)", f->eip, f->name, f->file, f->line);
+	}
+}
+
+/* Prints a stack trace to a multiline html table. Returns a malloced string. */
+char *html_stack_trace(struct stack_trace *st)
+{
+	// TODO
+	assert(0);
+	return NULL;
+}
+
+struct stack_trace *copy_stack_trace(struct stack_trace *src)
+{
+	struct stack_trace *dest = MM_XMALLOC(1, struct stack_trace);
+	struct stack_frame *f_src;
+	dest->tid = src->tid;
+	Q_INIT_HEAD(&dest->frames);
+
+	Q_FOREACH(f_src, &src->frames, nobe) {
+		struct stack_frame *f_dest = MM_XMALLOC(1, struct stack_frame);
+		f_dest->eip = f_src->eip;
+		f_dest->name = f_src->name == NULL ? NULL : MM_XSTRDUP(f_src->name);
+		f_dest->file = f_src->file == NULL ? NULL : MM_XSTRDUP(f_src->file);
+		f_dest->line = f_src->line;
+		Q_INSERT_TAIL(&dest->frames, f_dest, nobe);
+	}
+	return dest;
+}
+
+void free_stack_trace(struct stack_trace *st)
+{
+	while (Q_GET_SIZE(&st->frames) > 0) {
+		struct stack_frame *f = Q_GET_HEAD(&st->frames);
+		Q_REMOVE(&st->frames, f, nobe);
+		if (f->name != NULL) {
+			MM_FREE(f->name);
+		}
+		if (f->file != NULL) {
+			MM_FREE(f->file);
+		}
+		MM_FREE(f);
+	}
+	MM_FREE(st);
+}
+
+/* returns false if symtable lookup failed */
+static bool add_frame(struct ls_state *ls, struct stack_trace *st, int eip)
+{
+	struct stack_frame *f = MM_XMALLOC(1, struct stack_frame);
+	f->eip = eip;
+	f->name = NULL;
+	f->file = NULL;
+	bool success = _symtable_lookup(eip, &f->name, &f->file, &f->line);
+	Q_INSERT_TAIL(&st->frames, f, nobe);
+	return success;
+}
+
+struct stack_trace *stack_trace(struct ls_state *ls)
 {
 	conf_object_t *cpu = ls->cpu0;
 	int eip = ls->eip;
 	int tid = ls->sched.cur_agent->tid;
 
-	char *buf = MM_XMALLOC(MAX_TRACE_LEN, char);
-	char *buf2;
-	int pos = 0, old_pos;
 	int stack_ptr = GET_CPU_ATTR(cpu, esp);
-	bool frame_unknown;
+
+	struct stack_trace *st = MM_XMALLOC(1, struct stack_trace);
+	st->tid = tid;
+	Q_INIT_HEAD(&st->frames);
 
 	/* Add current frame, even if it's in kernel and we're in user. */
-	ADD_STR(buf, pos, MAX_TRACE_LEN, "TID%d at 0x%.8x in ", tid, eip);
-	ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip, &frame_unknown);
+	add_frame(ls, st, eip);
 
 	int stop_ebp = 0;
 	int ebp = GET_CPU_ATTR(cpu, ebp);
@@ -159,12 +235,9 @@ char *stack_trace(struct ls_state *ls)
 			if (extra_frame) {
 				eip = READ_MEMORY(cpu, stack_ptr);
 				if (!SUPPRESS_FRAME(eip)) {
-					ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
-						STACK_TRACE_SEPARATOR, eip);
-					ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip,
-						  &frame_unknown);
-					if (frame_unknown && wrong_cr3)
-						goto done;
+					bool success = add_frame(ls, st, eip);
+					if (!success && wrong_cr3)
+						return st;
 				}
 
 				/* Keep walking looking for more extra frames. */
@@ -197,16 +270,12 @@ char *stack_trace(struct ls_state *ls)
 		stack_ptr = ebp + (2 * WORD_SIZE);
 		/* Suppress kernel frames if testing user, unless verbose enough. */
 		if (!SUPPRESS_FRAME(eip)) {
-			ADD_STR(buf, pos, MAX_TRACE_LEN, "%s0x%.8x in ",
-				STACK_TRACE_SEPARATOR, eip);
-			old_pos = pos;
-			ADD_FRAME(buf, pos, MAX_TRACE_LEN, eip, &frame_unknown);
-			if (frame_unknown && wrong_cr3)
-				goto done;
-			/* special-case termination condition */
-			if (pos - old_pos >= strlen(ENTRY_POINT) &&
-			    strncmp(buf + old_pos, ENTRY_POINT,
-				    strlen(ENTRY_POINT)) == 0) {
+			bool success = add_frame(ls, st, eip);
+			if (!success && wrong_cr3)
+				return st;
+
+			/* special-case termination condition -- _start */
+			if (eip == GUEST_START) {
 				break;
 			}
 		}
@@ -224,9 +293,5 @@ char *stack_trace(struct ls_state *ls)
 		}
 	}
 
-done:
-	buf2 = MM_XSTRDUP(buf); /* truncate to save space */
-	MM_FREE(buf);
-
-	return buf2;
+	return st;
 }

@@ -12,6 +12,7 @@
 #include "lockset.h"
 #include "schedule.h"
 #include "stack.h"
+#include "symtable.h"
 
 void lockset_init(struct lockset *l)
 {

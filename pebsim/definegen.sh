@@ -294,6 +294,7 @@ echo "#define GUEST_BSS_END GUEST_IMG_END"
 
 echo "#define GUEST_PANIC 0x`get_func panic`"
 echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
+echo "#define GUEST_START 0x`get_func _start`"
 
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"

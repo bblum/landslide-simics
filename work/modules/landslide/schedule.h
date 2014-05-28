@@ -12,6 +12,7 @@
 #include "common.h"
 #include "kernel_specifics.h"
 #include "lockset.h"
+#include "stack.h"
 #include "user_sync.h"
 #include "variable_queue.h"
 
@@ -125,7 +126,7 @@ struct sched_state {
 	 * save.c, when voluntary resched decision points are too late to get
 	 * a useful stack trace. Set at context switch entry. */
 	int voluntary_resched_tid;
-	char *voluntary_resched_stack;
+	struct stack_trace *voluntary_resched_stack;
 	/* TODO: have a scheduler-global schedule_landing to assert against the
 	 * per-agent flag (only violated by interrupts we don't control) */
 };

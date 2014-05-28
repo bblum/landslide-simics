@@ -27,6 +27,7 @@
 #include "save.h"
 #include "schedule.h"
 #include "stack.h"
+#include "symtable.h"
 #include "test.h"
 #include "tree.h"
 #include "user_sync.h"
@@ -34,6 +35,8 @@
 /******************************************************************************
  * simics goo
  ******************************************************************************/
+
+// TODO: find a better home for this
 
 /* The bookmark name is this prefix concatenated with the hexadecimal address
  * of the choice struct (no "0x"). */
@@ -234,7 +237,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->voluntary_resched_tid  = src->voluntary_resched_tid;
 	dest->voluntary_resched_stack =
 		(src->voluntary_resched_stack == NULL) ? NULL :
-			MM_XSTRDUP(src->voluntary_resched_stack);
+			copy_stack_trace(src->voluntary_resched_stack);
 }
 
 static void copy_test(struct test_state *dest, const struct test_state *src)
@@ -273,12 +276,12 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 	if (src->malloc_trace == NULL) {
 		dest->malloc_trace = NULL;
 	} else {
-		dest->malloc_trace = MM_XSTRDUP(src->malloc_trace);
+		dest->malloc_trace = copy_stack_trace(src->malloc_trace);
 	}
 	if (src->free_trace == NULL) {
 		dest->free_trace = NULL;
 	} else {
-		dest->free_trace = MM_XSTRDUP(src->free_trace);
+		dest->free_trace = copy_stack_trace(src->free_trace);
 	}
 
 	return &dest->nobe;
@@ -372,8 +375,8 @@ static void free_heap(struct rb_node *nobe)
 	free_heap(nobe->rb_right);
 
 	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
-	if (c->malloc_trace != NULL) MM_FREE(c->malloc_trace);
-	if (c->free_trace   != NULL) MM_FREE(c->free_trace);
+	if (c->malloc_trace != NULL) free_stack_trace(c->malloc_trace);
+	if (c->free_trace   != NULL) free_stack_trace(c->free_trace);
 	MM_FREE(c);
 }
 
@@ -457,7 +460,7 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->happens_before);
 	h->conflicts = NULL;
 	h->happens_before = NULL;
-	MM_FREE(h->stack_trace);
+	free_stack_trace(h->stack_trace);
 }
 
 /* Reverse that which is not glowing green. */
@@ -797,8 +800,9 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		lsprintf(CHOICE, COLOUR_BOLD MODULE_COLOUR "#%d: Preempting "
 			 "TID %d to switch to TID %d\n" COLOUR_DEFAULT,
 			 h->depth, h->chosen_thread, ss->next_tid);
-		lsprintf(CHOICE, "Current stack:\n");
-		print_stack_trace(CHOICE, false, h->stack_trace);
+		lsprintf(CHOICE, "Current stack: ");
+		print_stack_trace(CHOICE, h->stack_trace);
+		printf(CHOICE, "\n");
 	} else {
 		lsprintf(CHOICE, MODULE_COLOUR "#%d: Allowing TID %d to continue.\n"
 			 COLOUR_DEFAULT, h->depth, h->chosen_thread);

@@ -636,7 +636,7 @@ void sched_update(struct ls_state *ls)
 			printf(DEV, "\n");
 			s->voluntary_resched_tid = CURRENT(s, tid);
 			if (s->voluntary_resched_stack != NULL)
-				MM_FREE(s->voluntary_resched_stack);
+				free_stack_trace(s->voluntary_resched_stack);
 			s->voluntary_resched_stack = stack_trace(ls);
 		}
 		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_INT) {
