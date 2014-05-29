@@ -41,6 +41,7 @@ struct ls_state {
 	struct rand_state rand;
 
 	char *cmd_file;
+	char *html_file;
 
 	bool just_jumped;
 };

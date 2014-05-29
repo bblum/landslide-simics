@@ -10,78 +10,16 @@
 #define MODULE_COLOUR COLOUR_DARK COLOUR_BLUE
 
 #include "common.h"
-#include "landslide.h"
 #include "kernel_specifics.h"
+#include "landslide.h"
 #include "stack.h"
 #include "symtable.h"
 #include "variable_queue.h"
 #include "x86.h"
 
-/* Performs a stack trace to see if the current call stack has the given
- * function somewhere on it. */
-// FIXME: make this as intelligent as stack_trace.
-// TODO: convert it to just call stack trace and look inside.
-bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
-{
-	if (eip >= func && eip < func_end)
-		return true;
-
-	bool in_userland = eip >= USER_MEM_START;
-
-	eip = READ_STACK(cpu, 0);
-
-	if (eip >= func && eip < func_end)
-		return true;
-
-	int stop_ebp = 0;
-	int ebp = GET_CPU_ATTR(cpu, ebp);
-	int rabbit = ebp;
-	int frame_count = 0;
-
-	while (ebp != stop_ebp && (in_userland || (unsigned)ebp < USER_MEM_START)
-	       && frame_count++ < 1024) {
-		/* Test eip against given range. */
-		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
-		if (eip >= func && eip < func_end)
-			return true;
-
-		/* Advance ebp and rabbit. Rabbit must go first to set stop_ebp
-		 * accurately. */
-		// XXX XXX XXX Actually fix the cycle detection - read from
-		// rabbit not ebp; and get rid of the frame counter.
-		// Fix this same bug in stack trace function below.
-		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
-		if (rabbit == ebp) stop_ebp = ebp;
-		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
-		if (rabbit == ebp) stop_ebp = ebp;
-		ebp = READ_MEMORY(cpu, ebp);
-	}
-
-	return false;
-}
-
 /******************************************************************************
  * printing utilities / glue
  ******************************************************************************/
-
-#if 0
-#define MAX_TRACE_LEN 4096
-#define ADD_STR(buf, pos, maxlen, ...) \
-	do { pos += snprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
-#define ADD_FRAME(buf, pos, maxlen, eip, unknown) do {			\
-	if (eip == kern_get_timer_wrap_begin()) {			\
-		pos += snprintf(buf + pos, maxlen - pos, "<timer_wrapper>"); \
-	} else {							\
-		pos += symtable_lookup(buf + pos, maxlen - pos, eip, unknown);	\
-	}								\
-	} while (0)
-#endif
-
-/* Suppress stack frames from userspace, if testing userland, unless the
- * verbosity setting is high enough. */
-#define SUPPRESS_FRAME(eip) \
-	(MAX_VERBOSITY < DEV && testing_userspace() && \
-	 (unsigned int)(eip) < USER_MEM_START)
 
 static bool eip_to_frame(int eip, struct stack_frame *f)
 {
@@ -96,10 +34,11 @@ void print_stack_frame(verbosity v, struct stack_frame *f)
 {
 	printf(v, "0x%.8x in ", f->eip);
 	if (f->name == NULL) {
-		printf(v, UNKNOWN_COLOUR "<unknown in %s>" COLOUR_DEFAULT,
-		       f->eip < USER_MEM_START ? "kernel" : "user");
+		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<unknown in %s>" COLOUR_DEFAULT,
+		       (unsigned int)f->eip < USER_MEM_START ? "kernel" : "user");
 	} else {
-		printf(v, FUNCTION_COLOUR "%s " FUNCTION_INFO_COLOUR, f->name);
+		printf(v, COLOUR_BOLD COLOUR_CYAN "%s "
+		       COLOUR_DARK COLOUR_GREY, f->name);
 		if (f->file == NULL) {
 			printf(v, "<unknown assembly>");
 		} else {
@@ -137,12 +76,59 @@ void print_stack_trace(verbosity v, struct stack_trace *st)
 	}
 }
 
-/* Prints a stack trace to a multiline html table. Returns a malloced string. */
-char *html_stack_trace(struct stack_trace *st)
+#define HTML_COLOUR_RED     "#cc0000"
+#define HTML_COLOUR_BLUE    "#0000ff"
+#define HTML_COLOUR_GREEN   "#00cc00"
+#define HTML_COLOUR_MAGENTA "#880088"
+#define HTML_COLOUR_YELLOW  "#888800"
+#define HTML_COLOUR_CYAN    "#008888"
+#define HTML_COLOUR_GREY    "#666666"
+
+#define HTML_COLOUR_START(c) "<span style=\"color: " c ";\">"
+#define HTML_COLOUR_END      "</span>"
+
+#if 0
+#define HTML_NBSP "&nbsp;"
+#define HTML_TAB  HTML_NBSP HTML_NBSP HTML_NBSP HTML_NBSP \
+                  HTML_NBSP HTML_NBSP HTML_NBSP HTML_NBSP
+#endif
+
+/* Prints a stack trace to a multiline html table. Returns length printed. */
+int html_stack_trace(char *buf, int maxlen, struct stack_trace *st)
 {
-	// TODO
-	assert(0);
-	return NULL;
+#define PRINT(...) do { pos += snprintf(buf + pos, maxlen, __VA_ARGS__); } while (0)
+	int pos = 0;
+	bool first_frame = true;
+	struct stack_frame *f;
+
+	Q_FOREACH(f, &st->frames, nobe) {
+		if (!first_frame) {
+			PRINT("<br />");
+		}
+		first_frame = false;
+		/* see print_stack_frame, above */
+		PRINT("0x%.8x in ", f->eip);
+		if (f->name == NULL) {
+			PRINT(HTML_COLOUR_START(HTML_COLOUR_MAGENTA)
+			      "&lt;unknown in %s&gt;" HTML_COLOUR_END,
+			      (unsigned)f->eip < USER_MEM_START ? "kernel" : "user");
+		} else {
+			PRINT(HTML_COLOUR_START(HTML_COLOUR_CYAN) "<b>%s</b>"
+			      HTML_COLOUR_END " "
+			      HTML_COLOUR_START(HTML_COLOUR_GREY) "<small>",
+			      f->name);
+			if (f->file == NULL) {
+				PRINT("&lt;unknown assembly&gt;");
+			} else {
+				PRINT("(%s:%d)", f->file, f->line);
+			}
+			PRINT("</small>" HTML_COLOUR_END);
+		}
+		PRINT("\n");
+	}
+
+	return pos;
+#undef PRINT
 }
 
 struct stack_trace *copy_stack_trace(struct stack_trace *src)
@@ -191,6 +177,12 @@ static bool add_frame(struct ls_state *ls, struct stack_trace *st, int eip)
 	Q_INSERT_TAIL(&st->frames, f, nobe);
 	return lookup_success;
 }
+
+/* Suppress stack frames from userspace, if testing userland, unless the
+ * verbosity setting is high enough. */
+#define SUPPRESS_FRAME(eip) \
+	(MAX_VERBOSITY < DEV && testing_userspace() && \
+	 (unsigned int)(eip) < USER_MEM_START)
 
 struct stack_trace *stack_trace(struct ls_state *ls)
 {
@@ -334,4 +326,47 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 	}
 
 	return st;
+}
+
+/* Performs a stack trace to see if the current call stack has the given
+ * function somewhere on it. */
+// FIXME: make this as intelligent as stack_trace.
+// TODO: convert it to just call stack trace and look inside.
+bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
+{
+	if (eip >= func && eip < func_end)
+		return true;
+
+	bool in_userland = eip >= USER_MEM_START;
+
+	eip = READ_STACK(cpu, 0);
+
+	if (eip >= func && eip < func_end)
+		return true;
+
+	int stop_ebp = 0;
+	int ebp = GET_CPU_ATTR(cpu, ebp);
+	int rabbit = ebp;
+	int frame_count = 0;
+
+	while (ebp != stop_ebp && (in_userland || (unsigned)ebp < USER_MEM_START)
+	       && frame_count++ < 1024) {
+		/* Test eip against given range. */
+		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
+		if (eip >= func && eip < func_end)
+			return true;
+
+		/* Advance ebp and rabbit. Rabbit must go first to set stop_ebp
+		 * accurately. */
+		// XXX XXX XXX Actually fix the cycle detection - read from
+		// rabbit not ebp; and get rid of the frame counter.
+		// Fix this same bug in stack trace function below.
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit == ebp) stop_ebp = ebp;
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit == ebp) stop_ebp = ebp;
+		ebp = READ_MEMORY(cpu, ebp);
+	}
+
+	return false;
 }

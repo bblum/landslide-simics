@@ -4,6 +4,9 @@
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
+#include <fcntl.h> /* for open */
+#include <unistd.h> /* for write */
+
 #include <simics/api.h>
 
 #define MODULE_NAME "BUG!"
@@ -42,19 +45,133 @@
  * Helpers for printing a tabular trace in html
  ******************************************************************************/
 
-/* bypass the lsprintf printing framework entirely */
-#define print_html(...) do { \
-		fprintf(stderr, COLOUR_BOLD COLOUR_CYAN __VA_ARGS__); /* FIXME */ \
-		fprintf(stderr, COLOUR_DEFAULT); \
-	} while (0)
+/******************** gross glue ********************/
 
-// TODO: html filename
-static void emit_html_header() {
-	assert(0);
+/* FFS, it's 2014. In any civilized language this would be 0 lines of code. */
+struct table_column_map {
+	int *tids;
+	/* if this research project lives long enough to see the day when
+	 * computers routinely have 5 billion threads, i will have bigger
+	 * problems than overflow. */
+	unsigned int num_tids;
+	unsigned int capacity;
+};
+
+#define FOREACH_TABLE_COLUMN(tid_var, m)		\
+	for (int __col = 0, tid_var = (m)->tids[__col];	\
+	     __col < (m)->num_tids;			\
+	     __col++, tid_var = (m)->tids[__col])
+
+static void add_table_column_tid(struct table_column_map *m, int tid)
+{
+	assert(m->num_tids <= m->capacity);
+	if (m->num_tids == m->capacity) {
+		int *old_array = m->tids;
+		assert(m->capacity < UINT_MAX / 2);
+		m->capacity *= 2;
+		m->tids = MM_XMALLOC(m->capacity, typeof(*m->tids));
+		memcpy(m->tids, old_array, m->num_tids * sizeof(*m->tids));
+		MM_FREE(old_array);
+	}
+	m->tids[m->num_tids] = tid;
+	m->num_tids++;
 }
 
-static void emit_html_footer() {
-	assert(0);
+static void init_table_column_map(struct table_column_map *m, struct save_state *ss,
+				  int current_tid)
+{
+	m->capacity = 128; /* whatever */
+	m->num_tids = 0;
+	m->tids = MM_XMALLOC(m->capacity, typeof(*m->tids));
+
+	/* current tid may not show up in history. add as a special case. */
+	add_table_column_tid(m, current_tid);
+	for (struct hax *h = ss->current; h != NULL; h = h->parent) {
+		/* add it if it's not already present */
+		bool present = false;
+		for (int i = 0; i < m->num_tids; i++) {
+			if (m->tids[i] == h->stack_trace->tid) {
+				present = true;
+				break;
+			}
+		}
+		if (!present) {
+			add_table_column_tid(m, h->stack_trace->tid);
+		}
+	}
+
+	/* sort for user friendliness */
+	for (int i = 0; i < m->num_tids; i++) {
+		for (int j = i + 1; j < m->num_tids; j++) {
+			if (m->tids[j] < m->tids[i]) {
+				int tmp = m->tids[j];
+				m->tids[j] = m->tids[i];
+				m->tids[i] = tmp;
+			}
+		}
+	}
+}
+
+#define clear_table_column_map(m) MM_FREE((m)->tids)
+
+/******************** actual logic ********************/
+
+#define html_print_buf(fd, buf, len) do {		\
+		int ret = write(fd, buf, len);		\
+		assert(ret > 0 && "failed write");	\
+	} while (0)
+
+#define html_printf(fd, ...) do {				\
+		const int buflen = 1024;			\
+		char buf[buflen];				\
+		int len = snprintf(buf, buflen, __VA_ARGS__);	\
+		assert(len > 0 && "failed snprintf");		\
+		html_print_buf(fd, buf, len);			\
+	} while(0)
+
+/* returns an open file descriptor */
+static int begin_html_output(struct ls_state *ls, int num_columns) {
+	int fd = open(ls->html_file, O_CREAT | O_WRONLY | O_APPEND,
+		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	assert(fd != -1 && "failed open html file");
+
+	html_printf(fd, "<html><head><title>\n");
+	html_printf(fd, "landslide preemption trace output\n");
+	html_printf(fd, "</title><style>\n");
+	html_printf(fd, "table,th,td { border:1px solid black; }\n");
+	html_printf(fd, "</style></head><body>\n");
+	html_printf(fd, "<marquee>&iexcl;CUIDADO! &iexcl;LAS LLAMAS SON MUY PELIGROSAS!</marquee>\n");
+	return fd;
+}
+
+static void end_html_output(int fd) {
+	html_printf(fd, "</body>\n");
+	html_printf(fd, "</html>\n");
+	int ret = close(fd);
+	assert(ret == 0 && "failed close");
+}
+
+#define MAX_TRACE_LEN 2048
+
+static void html_print_stack_trace(int fd, struct table_column_map *m,
+				   struct stack_trace *st)
+{
+	bool found = false;
+	html_printf(fd, "<tr>");
+	for (int i = 0; i < m->num_tids; i++) {
+		html_printf(fd, "<td>");
+		if (m->tids[i] == st->tid) {
+			/* found appropriate column. render stack trace in
+			 * html and spit it out into this table cell. */
+			char buf[MAX_TRACE_LEN];
+			int length = html_stack_trace(buf, MAX_TRACE_LEN, st);
+			html_print_buf(fd, buf, length);
+			found = true;
+		}
+		html_printf(fd, "</td>");
+	}
+	html_printf(fd, "</tr>\n");
+	assert(found && "tid missing in table column map");
 }
 
 /******************************************************************************
@@ -65,7 +182,6 @@ static void emit_html_footer() {
  * with tabs for alignment, rather than on one line with comma separators. */
 void print_stack_to_console(struct stack_trace *st, bool bug_found, const char *prefix)
 {
-	// TODO: add color throughout this
 	struct stack_frame *f;
 	bool first_frame = true;
 
@@ -85,8 +201,10 @@ void print_stack_to_console(struct stack_trace *st, bool bug_found, const char *
 	printf(BUG, "\n");
 }
 
+/* html_fd and map are valid iff tabular is true */
 static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
-			   bool tabular, bool verbose)
+			   bool tabular, int html_fd, struct table_column_map *map,
+			   bool verbose)
 {
 	int num;
 
@@ -94,9 +212,9 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 		assert(choose_thread == -1);
 		return 0;
 	}
-	
+
 	num = 1 + print_tree_from(h->parent, h->chosen_thread, bug_found,
-				  tabular, verbose);
+				  tabular, html_fd, map, verbose);
 
 	if (h->chosen_thread != choose_thread || verbose) {
 		lsprintf(BUG, bug_found,
@@ -113,11 +231,9 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 		print_scheduler_state(BUG, h->oldsched);
 		printf(BUG, COLOUR_DEFAULT "\n");
 		/* print stack trace, either in html or console format */
+		print_stack_to_console(h->stack_trace, bug_found, "\t");
 		if (tabular) {
-			// TODO
-			assert(0 && "tabular trace printing unimplemented");
-		} else {
-			print_stack_to_console(h->stack_trace, bug_found, "\t");
+			html_print_stack_trace(html_fd, map, h->stack_trace);
 		}
 	}
 
@@ -140,24 +256,48 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 			 "These were the decision points (no bug was found):\n");
 	}
 
+	struct stack_trace *stack = stack_trace(ls);
+	int html_fd;
+	struct table_column_map map;
+
 	if (tabular) {
-		emit_html_header();
+		/* Also print trace to html output file. */
+		html_fd = begin_html_output(ls, map.num_tids);
+
+		// TODO: print infoz about the test parameters / bug found?
+
+		/* Figure out how many columns the table will need. */
+		init_table_column_map(&map, &ls->save, stack->tid);
+		assert(map.num_tids > 0);
+
+		html_printf(html_fd, "<table><tr>\n");
+		int MAYBE_UNUSED /* wtf, gcc? */ tid;
+		FOREACH_TABLE_COLUMN(tid, &map) {
+			html_printf(html_fd, "<td><div style=\"%s\">",
+				    "font-size:large;text-align:center");
+			html_printf(html_fd, "TID %d</div></td>\n", tid);
+		}
+		html_printf(html_fd, "</tr>\n");
 	}
 
+	/* Walk current branch from root. */
 	print_tree_from(ls->save.current, ls->save.next_tid, bug_found,
-			tabular, verbose);
+			tabular, html_fd, &map, verbose);
 
-	struct stack_trace *stack = stack_trace(ls);
 	lsprintf(BUG, bug_found, COLOUR_BOLD "%sCurrent stack:\n"
 		 COLOUR_DEFAULT, bug_found ? COLOUR_RED : COLOUR_GREEN);
 	print_stack_to_console(stack, bug_found, "");
-	MM_FREE(stack);
 
 	PRINT_TREE_INFO(BUG, bug_found, ls);
 
 	if (tabular) {
-		emit_html_footer();
+		/* Finish up html output */
+		html_print_stack_trace(html_fd, &map, stack);
+		html_printf(html_fd, "</table>\n");
+		clear_table_column_map(&map);
+		end_html_output(html_fd);
 	}
+	MM_FREE(stack);
 
 	if (BREAK_ON_BUG) {
 		lsprintf(ALWAYS, bug_found, COLOUR_BOLD COLOUR_YELLOW "%s", bug_found ?

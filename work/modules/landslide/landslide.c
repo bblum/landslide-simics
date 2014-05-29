@@ -78,6 +78,7 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	rand_init(&ls->rand);
 
 	ls->cmd_file = NULL;
+	ls->html_file = NULL;
 	ls->just_jumped = false;
 
 	return &ls->log.obj;
@@ -166,6 +167,25 @@ static attr_value_t get_ls_cmd_file_attribute(
 	return SIM_make_attr_string(path);
 }
 
+static set_error_t set_ls_html_file_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	struct ls_state *ls = (struct ls_state *)obj;
+	if (ls->html_file == NULL) {
+		ls->html_file = MM_XSTRDUP(SIM_attr_string(*val));
+		return Sim_Set_Ok;
+	} else {
+		return Sim_Set_Not_Writable;
+	}
+}
+static attr_value_t get_ls_html_file_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	struct ls_state *ls = (struct ls_state *)obj;
+	const char *path = ls->html_file != NULL ? ls->html_file : "/dev/null";
+	return SIM_make_attr_string(path);
+}
+
 // save_path is deprecated. TODO remove
 #if 0
 static set_error_t set_ls_save_path_attribute(
@@ -242,6 +262,8 @@ void init_local(void)
 			 "Which test case should we run?");
 	LS_ATTR_REGISTER(conf_class, cmd_file, "s",
 			 "Filename to use for communication with the wrapper");
+	LS_ATTR_REGISTER(conf_class, html_file, "s",
+			 "Filename to use for HTML preemption trace output");
 
 	lsprintf(ALWAYS, "welcome to landslide.\n");
 }

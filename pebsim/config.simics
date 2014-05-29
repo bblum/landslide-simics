@@ -88,6 +88,8 @@ load-module landslide
 @landslide = SIM_create_object("landslide", "landslide0", [])
 @cmd_file = "/dev/shm/landslide-save-" + str(time.time()) + ".simics"
 @SIM_set_attribute(landslide, "cmd_file", cmd_file)
+@html_file = "landslide-trace-" + str(time.time()) + ".html"
+@SIM_set_attribute(landslide, "html_file", html_file)
 
 break (sym _start)
 run
