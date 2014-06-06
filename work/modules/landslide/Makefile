@@ -25,6 +25,7 @@ SRC_FILES = landslide.h landslide.c \
 	    lockset.c lockset.h \
 	    stack.c stack.h \
 	    symtable.c symtable.h \
+	    html.h \
 	    variable_queue.h
 
 MODULE_CFLAGS =

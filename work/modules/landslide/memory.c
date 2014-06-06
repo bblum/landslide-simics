@@ -338,9 +338,8 @@ static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, int size)
 
 	assert(!m->in_mm_init);
 	if (m->in_alloc || m->in_free) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Malloc (in %s) reentered %s!\n",
-			 K_STR(in_kernel), m->in_alloc ? "Malloc" : "Free");
-		found_a_bug(ls);
+		FOUND_A_BUG(ls, "Malloc (in %s) reentered %s!", K_STR(in_kernel),
+			    m->in_alloc ? "Malloc" : "Free");
 	}
 
 	m->in_alloc = true;
@@ -389,9 +388,8 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
 
 	assert(!m->in_mm_init);
 	if (m->in_alloc || m->in_free) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Free (in %s) reentered %s!\n",
-			 K_STR(in_kernel), m->in_alloc ? "Malloc" : "Free");
-		found_a_bug(ls);
+		FOUND_A_BUG(ls, "Free (in %s) reentered %s!", K_STR(in_kernel),
+			    m->in_alloc ? "Malloc" : "Free");
 	}
 
 	chunk = remove_chunk(&m->heap, base);
@@ -404,20 +402,17 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
 		struct hax *after;
 		chunk = find_freed_chunk(ls, base, in_kernel, &before, &after);
 		if (chunk != NULL) {
-			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "DOUBLE FREE (in %s) "
-				 "of 0x%x!\n", K_STR(in_kernel), base);
 			print_freed_chunk_info(chunk, before, after);
+			FOUND_A_BUG(ls, "DOUBLE FREE (in %s) of 0x%x!",
+				    K_STR(in_kernel), base);
 		} else {
-			lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-				 "Attempted to free (in %s) 0x%x, which was "
-				 "never alloc'ed!\n", K_STR(in_kernel), base);
+			FOUND_A_BUG(ls, "Attempted to free (in %s) 0x%x, which was "
+				    "never alloc'ed!", K_STR(in_kernel), base);
 		}
-		found_a_bug(ls);
 	} else if (chunk->base != base) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "Attempted to free 0x%x "
-			 "(in %s), contained within [0x%x | %d]\n", base,
-			 K_STR(in_kernel), chunk->base, chunk->len);
-		found_a_bug(ls);
+		FOUND_A_BUG(ls, "Attempted to free 0x%x (in %s), "
+			    "contained within [0x%x | %d]", base,
+			    K_STR(in_kernel), chunk->base, chunk->len);
 	} else if (in_kernel != testing_userspace()) {
 		lsprintf(DEV, "Free() chunk 0x%x, in %s\n", base, K_STR(in_kernel));
 	}
@@ -573,9 +568,6 @@ static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_ke
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
 	// TODO: do something analogous to a wrong_panic() assert here
-	lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USE AFTER FREE - %s 0x%.8x at eip"
-		 " 0x%.8x\n", write ? "write to" : "read from", addr,
-		 (int)GET_CPU_ATTR(ls->cpu0, eip));
 	lsprintf(BUG, "Heap contents: {");
 	print_heap(BUG, m->heap.rb_node, true);
 	printf(BUG, "}\n");
@@ -591,7 +583,9 @@ static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_ke
 		print_freed_chunk_info(c, before, after);
 	}
 
-	found_a_bug(ls);
+	FOUND_A_BUG(ls, "USE AFTER FREE - %s 0x%.8x at eip"
+		    " 0x%.8x", write ? "write to" : "read from", addr,
+		    (int)GET_CPU_ATTR(ls->cpu0, eip));
 }
 
 void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,

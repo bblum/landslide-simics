@@ -17,6 +17,7 @@
 
 #include "common.h"
 #include "found_a_bug.h"
+#include "html.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "schedule.h"
@@ -130,8 +131,8 @@ static void init_table_column_map(struct table_column_map *m, struct save_state 
 	} while(0)
 
 /* returns an open file descriptor */
-static int begin_html_output(struct ls_state *ls, int num_columns) {
-	int fd = open(ls->html_file, O_CREAT | O_WRONLY | O_APPEND,
+static int begin_html_output(const char *filename, int num_columns) {
+	int fd = open(filename, O_CREAT | O_WRONLY | O_APPEND,
 		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	assert(fd != -1 && "failed open html file");
 
@@ -240,11 +241,17 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 	return num;
 }
 
-void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
+void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
+		  char *reason, int reason_len)
 {
 	/* Should we emit a "tabular" preemption trace using html, or
 	 * default to the all-threads-in-one-column plaintext output? */
 	bool tabular = TABULAR_TRACE != 0;
+
+	if (reason) {
+		lsprintf(BUG, bug_found, COLOUR_BOLD "%s%.*s\n" COLOUR_DEFAULT,
+			 bug_found ? COLOUR_RED : COLOUR_GREEN, reason_len, reason);
+	}
 
 	if (bug_found) {
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_RED
@@ -262,9 +269,27 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 
 	if (tabular) {
 		/* Also print trace to html output file. */
-		html_fd = begin_html_output(ls, map.num_tids);
+		html_fd = begin_html_output(ls->html_file, map.num_tids);
 
-		// TODO: print infoz about the test parameters / bug found?
+		if (bug_found) {
+			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_RED)
+				    "<h2>A bug was found!</h2><br />\n"
+				    HTML_COLOUR_END);
+		} else {
+			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_BLUE)
+				    "<h2>Preemption point info follows. "
+				    "No bug was found.</h2><br />\n" HTML_COLOUR_END);
+		}
+		if (reason) {
+			// FIXME: Sanitize reason; e.g. for deadlocks the message
+			// will contain "->" which may not render properly.
+			html_printf(html_fd, "%s<h3>%.*s</h3><br />\n" HTML_COLOUR_END,
+				    bug_found ? HTML_COLOUR_START(HTML_COLOUR_RED)
+				              : HTML_COLOUR_START(HTML_COLOUR_BLUE),
+				    reason_len, reason);
+		}
+		html_printf(html_fd, "Total backtracks: %d<br /><br />\n",
+			    ls->save.total_jumps);
 
 		/* Figure out how many columns the table will need. */
 		init_table_column_map(&map, &ls->save, stack->tid);
@@ -296,6 +321,9 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose)
 		html_printf(html_fd, "</table>\n");
 		clear_table_column_map(&map);
 		end_html_output(html_fd);
+		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
+			 "Tabular preemption trace output to %s\n." COLOUR_DEFAULT,
+			 ls->html_file);
 	}
 	MM_FREE(stack);
 

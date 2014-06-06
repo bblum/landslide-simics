@@ -37,7 +37,7 @@ static bool unexpected_idle()
 
 	if (ls->save.total_jumps > 0) {
 		/* ...a race? Give a full report instead of a terse complaint. */
-		found_a_bug(ls);
+		FOUND_A_BUG(ls, "Kernel is unexpectedly idling.");
 	}
 	assert(0);
 }

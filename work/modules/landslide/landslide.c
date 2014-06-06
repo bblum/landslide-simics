@@ -116,9 +116,9 @@ static set_error_t set_ls_decision_trace_attribute(
 	int value = SIM_attr_integer(*val);
 	if (value != 0x15410de0u) {
 		if (value == 0) {
-			dump_decision_info_quiet((struct ls_state *)obj);
+			DUMP_DECISION_INFO_QUIET((struct ls_state *)obj);
 		} else {
-			dump_decision_info((struct ls_state *)obj);
+			DUMP_DECISION_INFO((struct ls_state *)obj);
 		}
 	}
 	return Sim_Set_Ok;
@@ -349,8 +349,7 @@ static void check_exception(struct ls_state *ls, int number)
 		print_eip(CHOICE, ls->eip);
 		printf(CHOICE, "\n");
 	} else if (number == TRIPLE_FAULT_EXCEPTION) {
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Triple fault!\n");
-		found_a_bug(ls);
+		FOUND_A_BUG(ls, "Triple fault!");
 	} else {
 		lsprintf(INFO, "Exception #%d (syscall or interrupt) @ ", number);
 		print_eip(INFO, ls->eip);
@@ -383,7 +382,7 @@ static void wrong_panic(struct ls_state *ls, const char *panicked, const char *e
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
 		 "or a reference kernel bug, than a bug in your code.\n");
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "********************************\n");
-	found_a_bug(ls);
+	FOUND_A_BUG(ls, "Unexpected %s panic during %sspace test", panicked, expected);
 	assert(0 && "wrong panic");
 }
 
@@ -393,20 +392,22 @@ static bool ensure_progress(struct ls_state *ls)
 	int tid = ls->sched.cur_agent->tid;
 
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PANIC: %s\n", buf);
-		MM_FREE(buf);
 		if (testing_userspace()) {
 			wrong_panic(ls, "kernel", "user");
+		} else {
+			FOUND_A_BUG(ls, "KERNEL PANIC: %s", buf);
 		}
+		MM_FREE(buf);
 		return false;
 	} else if (user_panicked(ls->cpu0, ls->eip, &buf) &&
 		   tid != kern_get_init_tid() && tid != kern_get_shell_tid() &&
 		   !(kern_has_idle() && tid == kern_get_idle_tid())) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USERSPACE PANIC: %s\n", buf);
-		MM_FREE(buf);
-		if (!testing_userspace()) {
+		if (testing_userspace()) {
+			FOUND_A_BUG(ls, "USERSPACE PANIC: %s", buf);
+		} else {
 			wrong_panic(ls, "user", "kernel");
 		}
+		MM_FREE(buf);
 		return false;
 #ifdef GUEST_PF_HANDLER
 	} else if (ls->eip == GUEST_PF_HANDLER) {
@@ -416,7 +417,7 @@ static bool ensure_progress(struct ls_state *ls)
 		printf(DEV, "\n");
 		/* did it come from kernel-space? */
 		if (from_eip < USER_MEM_START) {
-			lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL PAGE FAULT\n");
+			FOUND_A_BUG(ls, "KERNEL PAGE FAULT");
 			return false;
 		}
 #endif
@@ -433,10 +434,9 @@ static bool ensure_progress(struct ls_state *ls)
 	int average_triggers = ls->save.total_triggers / ls->save.total_choices;
 	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "NO PROGRESS (infinite loop?)\n");
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
 			 "%d instructions since last decision; average %d\n",
 			 most_recent, average_triggers);
+		FOUND_A_BUG(ls, "NO PROGRESS (infinite loop?)");
 		return false;
 	}
 
@@ -445,10 +445,9 @@ static bool ensure_progress(struct ls_state *ls)
 	int average_depth = ls->save.depth_total / (1 + ls->save.total_jumps);
 	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "NO PROGRESS (stuck thread(s)?)\n");
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
 			 "Current branch depth %d; average depth %d\n",
 			 ls->save.current->depth, average_depth);
+		FOUND_A_BUG(ls, "NO PROGRESS (stuck thread(s)?)");
 		return false;
 	}
 
@@ -463,12 +462,12 @@ static bool test_ended_safely(struct ls_state *ls)
 	// TODO: the test could copy the heap to indicate which blocks
 	// TODO: do some assert analogous to wrong_panic() for this
 	if (ls->test.start_kern_heap_size > ls->kern_mem.heap_size) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "KERNEL MEMORY LEAK (%d bytes)!\n",
-			 ls->test.start_kern_heap_size - ls->kern_mem.heap_size);
+		FOUND_A_BUG(ls, "KERNEL MEMORY LEAK (%d bytes)!",
+			    ls->test.start_kern_heap_size - ls->kern_mem.heap_size);
 		return false;
 	} else if (ls->test.start_user_heap_size > ls->user_mem.heap_size) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "USER MEMORY LEAK (%d bytes)!\n",
-			 ls->test.start_user_heap_size - ls->user_mem.heap_size);
+		FOUND_A_BUG(ls, "USER MEMORY LEAK (%d bytes)!",
+			    ls->test.start_user_heap_size - ls->user_mem.heap_size);
 		return false;
 	}
 
@@ -516,22 +515,20 @@ static void check_test_state(struct ls_state *ls)
 			lsprintf(DEV, "test case ended!\n");
 
 			if (DECISION_INFO_ONLY != 0) {
-				dump_decision_info(ls);
+				DUMP_DECISION_INFO(ls);
 			} else if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true,
 					    false);
 				if (!time_travel(ls)) {
 					found_no_bug(ls);
 				}
-			} else {
-				found_a_bug(ls);
 			}
 		} else {
 			lsprintf(DEV, "ready to roll!\n");
 			SIM_break_simulation(NULL);
 		}
-	} else if (!ensure_progress(ls)) {
-		found_a_bug(ls);
+	} else {
+		ensure_progress(ls);
 	}
 }
 

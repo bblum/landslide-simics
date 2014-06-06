@@ -10,6 +10,7 @@
 #define MODULE_COLOUR COLOUR_DARK COLOUR_BLUE
 
 #include "common.h"
+#include "html.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "stack.h"
@@ -75,23 +76,6 @@ void print_stack_trace(verbosity v, struct stack_trace *st)
 		print_stack_frame(v, f);
 	}
 }
-
-#define HTML_COLOUR_RED     "#cc0000"
-#define HTML_COLOUR_BLUE    "#0000ff"
-#define HTML_COLOUR_GREEN   "#00cc00"
-#define HTML_COLOUR_MAGENTA "#880088"
-#define HTML_COLOUR_YELLOW  "#888800"
-#define HTML_COLOUR_CYAN    "#008888"
-#define HTML_COLOUR_GREY    "#666666"
-
-#define HTML_COLOUR_START(c) "<span style=\"color: " c ";\">"
-#define HTML_COLOUR_END      "</span>"
-
-#if 0
-#define HTML_NBSP "&nbsp;"
-#define HTML_TAB  HTML_NBSP HTML_NBSP HTML_NBSP HTML_NBSP \
-                  HTML_NBSP HTML_NBSP HTML_NBSP HTML_NBSP
-#endif
 
 /* Prints a stack trace to a multiline html table. Returns length printed. */
 int html_stack_trace(char *buf, int maxlen, struct stack_trace *st)

@@ -226,15 +226,16 @@ static bool deadlocked(struct sched_state *s)
 	return false;
 }
 
-static void print_deadlock(verbosity v, struct agent *a)
+static int print_deadlock(char *buf, int len, struct agent *a)
 {
 	struct agent *start = a;
-	printf(v, "(%d", a->tid);
+	int pos = snprintf(buf, len, "(%d", a->tid);
 	for (a = a->kern_blocked_on; a != start; a = a->kern_blocked_on) {
 		assert(a != NULL && "a wasn't deadlocked!");
-		printf(v, " -> %d", a->tid);
+		pos += snprintf(buf + pos, len - pos, " -> %d", a->tid);
 	}
-	printf(v, " -> %d)", a->tid);
+	pos += snprintf(buf + pos, len - pos, " -> %d)", a->tid);
+	return pos;
 }
 
 static void kern_mutex_block_others(struct agent_q *q, int mutex_addr,
@@ -720,11 +721,9 @@ void sched_update(struct ls_state *ls)
 		// So if they were unblocked, they are not really blocked.
 		if (CURRENT(s, kern_blocked_on_addr) == -1) {
 			if (deadlocked(s)) {
-				lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-					 "KERNEL DEADLOCK! ");
-				print_deadlock(BUG, s->cur_agent);
-				printf(BUG, "\n");
-				found_a_bug(ls);
+				char buf[256];
+				int len = print_deadlock(buf, 256, s->cur_agent);
+				FOUND_A_BUG(ls, "KERNEL DEADLOCK! %.*s", len, buf);
 			}
 		}
 	} else if (kern_mutex_locking_done(ls->eip)) {

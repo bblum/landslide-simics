@@ -15,11 +15,6 @@
 
 struct ls_state;
 
-#define FOUND_A_BUG(ls, ...) do { 	\
-		lsprintf(__VA_ARGS__);	\
-		found_a_bug(ls);	\
-	} while (0)
-
 #define _PRINT_TREE_INFO(v, mn, mc, ls) do {				\
 	_lsprintf(v, mn, mc,						\
 		  "Current instruction count %lu, total instructions %lu\n", \
@@ -35,10 +30,16 @@ struct ls_state;
 #define PRINT_TREE_INFO(v, ls) \
 	_PRINT_TREE_INFO(v, MODULE_NAME, MODULE_COLOUR, ls)
 
-#define found_a_bug(ls) _found_a_bug(ls, true, false)
-#define dump_decision_info(ls) _found_a_bug(ls, false, true)        // Verbose
-#define dump_decision_info_quiet(ls) _found_a_bug(ls, false, false) // Not
+void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
+				  char *reason, int reason_len);
 
-void _found_a_bug(struct ls_state *, bool, bool);
+#define FOUND_A_BUG(ls, ...) do { 								\
+		char __fab_buf[1024];									\
+		int __fab_len = snprintf(__fab_buf, 1024, __VA_ARGS__);	\
+		_found_a_bug(ls, true, false, __fab_buf, __fab_len);	\
+	} while (0)
+
+#define DUMP_DECISION_INFO(ls) _found_a_bug(ls, false, true, NULL, 0)        // Verbose
+#define DUMP_DECISION_INFO_QUIET(ls) _found_a_bug(ls, false, false, NULL, 0) // Not
 
 #endif
