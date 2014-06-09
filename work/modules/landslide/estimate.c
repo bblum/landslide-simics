@@ -55,7 +55,7 @@ static bool is_child_marked(struct hax *h, struct agent *a)
 	return false;
 }
 
-void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
+static void _estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 {
 	/* The estimated proportion of this branch, which we will accumulate. */
 	long double this_nobe_proportion = 1.0L;
@@ -148,7 +148,15 @@ void estimate(struct estimate_state *e, struct hax *root, struct hax *current)
 		h->proportion += this_nobe_proportion;
 
 	}
+}
 
-	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "Estimate: %Lf%%\n"
-		 COLOUR_DEFAULT, root->proportion * 100);
+long double estimate(struct estimate_state *e, struct hax *root, struct hax *current)
+{
+	if (current->estimate_computed) {
+		return root->proportion;
+	} else {
+		_estimate(e, root, current);
+		current->estimate_computed = true;
+		return root->proportion;
+	}
 }

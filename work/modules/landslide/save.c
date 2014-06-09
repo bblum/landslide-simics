@@ -700,6 +700,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			/* Subsequent choice. */
 			assert(ss->current != NULL);
 			assert(end_of_test || ss->next_tid != -1);
+			assert(!ss->current->estimate_computed &&
+			       "last nobe was estimate()d; cannot give it a child");
 
 			// XXX: Q_INSERT_TAIL causes a sigsegv
 			Q_INSERT_HEAD(&ss->current->children, h, sibling);
@@ -719,6 +721,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		h->marked_children = 0;
 		h->proportion = 0.0L;
+		h->estimate_computed = false;
 
 		if (voluntary) {
 			assert(h->chosen_thread == -1 || h->chosen_thread ==
@@ -818,6 +821,7 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 
 	assert(ss->root != NULL && "Can't longjmp with no decision tree!");
 	assert(ss->current != NULL);
+	assert(ss->current->estimate_computed);
 
 	ss->depth_total += ss->current->depth;
 

@@ -24,6 +24,6 @@ void estimate_init(struct estimate_state *e);
 /* returns elapsed usecs since last call, or undefined if no last call. */
 uint64_t estimate_update_time(struct estimate_state *e);
 
-void estimate(struct estimate_state *e, struct hax *root, struct hax *current);
+long double estimate(struct estimate_state *e, struct hax *root, struct hax *current);
 
 #endif

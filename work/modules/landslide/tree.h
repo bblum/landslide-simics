@@ -67,6 +67,10 @@ struct hax {
 	/* cumulative sum of the usecs/branches in this nobe's subtree */
 	uint64_t subtree_usecs;
 	unsigned long subtree_branches;
+	/* was an estimate already computed with this nobe as the leaf? used to
+	 * avoid recomputing (causing double-counting) and to ensure non-leaf
+	 * nodes cannot be used as the source of an estimate. */
+	bool estimate_computed;
 
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! Also, the "tags" that POR uses to denote to-be-explored
