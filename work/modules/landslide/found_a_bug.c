@@ -16,6 +16,7 @@
 #define INFO_COLOUR COLOUR_DARK COLOUR_GREEN
 
 #include "common.h"
+#include "explore.h"
 #include "found_a_bug.h"
 #include "html.h"
 #include "kernel_specifics.h"
@@ -154,19 +155,22 @@ static void end_html_output(int fd) {
 
 #define MAX_TRACE_LEN 2048
 
-static void html_print_stack_trace(int fd, struct table_column_map *m,
-				   struct stack_trace *st)
+static void html_print_stack_trace(int fd, struct stack_trace *st)
+{
+	char buf[MAX_TRACE_LEN];
+	int length = html_stack_trace(buf, MAX_TRACE_LEN, st);
+	html_print_buf(fd, buf, length);
+}
+
+static void html_print_stack_trace_in_table(int fd, struct table_column_map *m,
+					    struct stack_trace *st)
 {
 	bool found = false;
 	html_printf(fd, "<tr>");
 	for (int i = 0; i < m->num_tids; i++) {
 		html_printf(fd, "<td>");
 		if (m->tids[i] == st->tid) {
-			/* found appropriate column. render stack trace in
-			 * html and spit it out into this table cell. */
-			char buf[MAX_TRACE_LEN];
-			int length = html_stack_trace(buf, MAX_TRACE_LEN, st);
-			html_print_buf(fd, buf, length);
+			html_print_stack_trace(fd, st);
 			found = true;
 		}
 		html_printf(fd, "</td>");
@@ -234,12 +238,65 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 		/* print stack trace, either in html or console format */
 		print_stack_to_console(h->stack_trace, bug_found, "\t");
 		if (tabular) {
-			html_print_stack_trace(html_fd, map, h->stack_trace);
+			html_print_stack_trace_in_table(html_fd, map, h->stack_trace);
 		}
 	}
 
 	return num;
 }
+
+/* ensure that a state space estimate has been computed, if it has not already,
+ * and adjust for whether we aborted this branch early because we found a bug. */
+// XXX: There's not really any one good place to put this function.
+// FIXME: This will be an important puzzle piece when it's time to make
+// landslide able to continue exploration after finding_a_bug. Will need to
+// coalesce the logic here with the logic in landslide.c to do time travel.
+static long double compute_state_space_size(struct ls_state *ls,
+					    bool *needed_compute /* XXX hack */)
+{
+	/* How can our estimate be accurate when we are possibly aborting this
+	 * branch early due to a bug? If we run the estimation algorithm with
+	 * the current state as the leaf nobe, it will incorrectly assume that
+	 * sibling subtrees are "truncated" the same way this branch was.
+	 *
+	 * Instead, we'll just use whatever value the last estimation computed
+	 * for the size of the "lost" subtree below this point. The exception is
+	 * when we're on the 1st branch (either dumping preemption info, or
+	 * foundabug deterministically), in which case we don't even know how
+	 * long the test execution is supposed to run, so doing the estimation
+	 * after all is the best we can do. */
+	if (ls->save.total_jumps == 0) {
+		/* First branch - either found a 'deterministic' bug, or
+		 * asked to output PP info after branch completion. Either way,
+		 * need to add a terminal 'leaf' nobe before computing the
+		 * estimate. (See landslide.c:check_test_state().)
+		 *
+		 * Note that this is compatible with the assertion in save.c
+		 * that non-leaf nobes don't get estimated upon, because we are
+		 * adding the leaf nobe here. */
+		// FIXME: Figure out whether "estimate the first branch" will
+		// screw up future estimations if we keep exploring, and if we
+		// shouldn't instead just output "estimate unknown" or somehow
+		// reverse it in that case.
+		assert(ls->save.root->proportion == 0.0L);
+		save_setjmp(&ls->save, ls, -1, true, true, false);
+		int _tid;
+		explore(&ls->save, &_tid);
+		*needed_compute = true;
+		return estimate(&ls->save.estimate, ls->save.root, ls->save.current);
+	} else {
+		// FIXME: Is "don't estimate this branch" sustainable in the
+		// sense that if we explore more, future estimations will DTRT?
+		assert(ls->save.root->proportion != 0.0L);
+		assert(ls->save.root->proportion != -0.0L);
+		*needed_compute = false;
+		/* Modify the proportion to account for this 1 branch that we
+		 * explored since. (Matters more with small state spaces.) */
+		return ((ls->save.total_jumps + 1.0L) / ls->save.total_jumps)
+			* ls->save.root->proportion;
+	}
+}
+
 
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		  char *reason, int reason_len)
@@ -260,12 +317,15 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			 "**** Preemption trace follows. ****\n");
 	} else {
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
-			 "These were the decision points (no bug was found):\n");
+			 "These were the preemption points (no bug was found):\n");
 	}
 
 	struct stack_trace *stack = stack_trace(ls);
 	int html_fd;
 	struct table_column_map map;
+
+	bool needed_compute_estimate; /* XXX hack */
+	long double proportion = compute_state_space_size(ls, &needed_compute_estimate);
 
 	if (tabular) {
 		/* Also print trace to html output file. */
@@ -275,6 +335,8 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_RED)
 				    "<h2>A bug was found!</h2><br />\n"
 				    HTML_COLOUR_END);
+			html_printf(html_fd, "Current stack:<br />\n");
+			html_print_stack_trace(html_fd, stack);
 		} else {
 			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_BLUE)
 				    "<h2>Preemption point info follows. "
@@ -288,8 +350,13 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 				              : HTML_COLOUR_START(HTML_COLOUR_BLUE),
 				    reason_len, reason);
 		}
-		html_printf(html_fd, "Total backtracks: %d<br /><br />\n",
+		html_printf(html_fd, "Total backtracks: %d<br />\n",
 			    ls->save.total_jumps);
+		html_printf(html_fd, "Estimated state space size: %Lf<br />\n",
+			    (ls->save.total_jumps + 1) / proportion);
+		html_printf(html_fd, "Estimated state space coverage: %Lf%%<br />\n",
+			    proportion * 100);
+		html_printf(html_fd, "<br />\n");
 
 		/* Figure out how many columns the table will need. */
 		init_table_column_map(&map, &ls->save, stack->tid);
@@ -315,9 +382,17 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 
 	PRINT_TREE_INFO(BUG, bug_found, ls);
 
+	lsprintf(BUG, bug_found, "Estimated state space size: %Lf; coverage: %Lf%%\n",
+		 (ls->save.total_jumps + 1) / proportion, proportion * 100);
+
 	if (tabular) {
 		/* Finish up html output */
-		html_print_stack_trace(html_fd, &map, stack);
+		if (!needed_compute_estimate) {
+			/* XXX hack -- suppress printing duplicate preemption
+			 * point if a dummy preemption point was added for
+			 * the purpose of computing a state space estimate. */
+			html_print_stack_trace_in_table(html_fd, &map, stack);
+		}
 		html_printf(html_fd, "</table>\n");
 		clear_table_column_map(&map);
 		end_html_output(html_fd);
