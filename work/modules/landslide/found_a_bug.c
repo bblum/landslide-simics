@@ -301,6 +301,9 @@ static long double compute_state_space_size(struct ls_state *ls,
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		  char *reason, int reason_len)
 {
+	bool needed_compute_estimate; /* XXX hack */
+	long double proportion = compute_state_space_size(ls, &needed_compute_estimate);
+
 	/* Should we emit a "tabular" preemption trace using html, or
 	 * default to the all-threads-in-one-column plaintext output? */
 	bool tabular = TABULAR_TRACE != 0;
@@ -323,9 +326,6 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 	struct stack_trace *stack = stack_trace(ls);
 	int html_fd;
 	struct table_column_map map;
-
-	bool needed_compute_estimate; /* XXX hack */
-	long double proportion = compute_state_space_size(ls, &needed_compute_estimate);
 
 	if (tabular) {
 		/* Also print trace to html output file. */
