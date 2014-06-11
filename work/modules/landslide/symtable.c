@@ -51,8 +51,6 @@ void set_symtable(conf_object_t *symtable)
 	SIM_free_attribute(table);
 }
 
-// TODO: rename & reorg
-
 /* New interface. Returns malloced strings through output parameters,
  * which caller must free result strings if returnval is true */
 bool symtable_lookup(int eip, char **func, char **file, int *line)
@@ -94,7 +92,6 @@ bool symtable_lookup(int eip, char **func, char **file, int *line)
 	return true;
 }
 
-// TODO: fix this to be more like the new symtable lookup interface
 int symtable_lookup_data(char *buf, int maxlen, int addr)
 {
 	conf_object_t *table = get_symtable();
