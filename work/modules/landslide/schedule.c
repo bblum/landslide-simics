@@ -230,12 +230,12 @@ static bool deadlocked(struct sched_state *s)
 static int print_deadlock(char *buf, int len, struct agent *a)
 {
 	struct agent *start = a;
-	int pos = snprintf(buf, len, "(%d", a->tid);
+	int pos = scnprintf(buf, len, "(%d", a->tid);
 	for (a = a->kern_blocked_on; a != start; a = a->kern_blocked_on) {
 		assert(a != NULL && "a wasn't deadlocked!");
-		pos += snprintf(buf + pos, len - pos, " -> %d", a->tid);
+		pos += scnprintf(buf + pos, len - pos, " -> %d", a->tid);
 	}
-	pos += snprintf(buf + pos, len - pos, " -> %d)", a->tid);
+	pos += scnprintf(buf + pos, len - pos, " -> %d)", a->tid);
 	return pos;
 }
 

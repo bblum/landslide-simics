@@ -80,7 +80,7 @@ void print_stack_trace(verbosity v, struct stack_trace *st)
 /* Prints a stack trace to a multiline html table. Returns length printed. */
 int html_stack_trace(char *buf, int maxlen, struct stack_trace *st)
 {
-#define PRINT(...) do { pos += snprintf(buf + pos, maxlen, __VA_ARGS__); } while (0)
+#define PRINT(...) do { pos += scnprintf(buf + pos, maxlen, __VA_ARGS__); } while (0)
 	int pos = 0;
 	bool first_frame = true;
 	struct stack_frame *f;

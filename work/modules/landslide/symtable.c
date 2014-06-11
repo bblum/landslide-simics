@@ -96,8 +96,8 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 {
 	conf_object_t *table = get_symtable();
 	if (table == NULL) {
-		return snprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
-				COLOUR_DEFAULT, addr);
+		return scnprintf(buf, maxlen, GLOBAL_COLOUR "global0x%.8x"
+				 COLOUR_DEFAULT, addr);
 	}
 
 	attr_value_t idx = SIM_make_attr_integer(addr);
@@ -105,10 +105,10 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
 		if ((unsigned int)addr < USER_MEM_START) {
-			return snprintf(buf, maxlen, "<user global0x%x>", addr);
+			return scnprintf(buf, maxlen, "<user global0x%x>", addr);
 		} else {
-			return snprintf(buf, maxlen, GLOBAL_COLOUR
-					"<kernel global0x%.8x>" COLOUR_DEFAULT, addr);
+			return scnprintf(buf, maxlen, GLOBAL_COLOUR
+					 "<kernel global0x%.8x>" COLOUR_DEFAULT, addr);
 		}
 	}
 	assert(SIM_attr_list_size(result) >= 4);
@@ -117,12 +117,12 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 	const char *typename = SIM_attr_string(SIM_attr_list_item(result, 2));
 	int offset = SIM_attr_integer(SIM_attr_list_item(result, 3));
 
-	int ret = snprintf(buf, maxlen, GLOBAL_COLOUR "%s", globalname);
+	int ret = scnprintf(buf, maxlen, GLOBAL_COLOUR "%s", globalname);
 	if (offset != 0) {
-		ret += snprintf(buf+ret, maxlen-ret, "+%d", offset);
+		ret += scnprintf(buf+ret, maxlen-ret, "+%d", offset);
 	}
-	ret += snprintf(buf+ret, maxlen-ret, GLOBAL_INFO_COLOUR
-			" (%s at 0x%.8x)" COLOUR_DEFAULT, typename, addr);
+	ret += scnprintf(buf+ret, maxlen-ret, GLOBAL_INFO_COLOUR
+			 " (%s at 0x%.8x)" COLOUR_DEFAULT, typename, addr);
 
 	SIM_free_attribute(result);
 	SIM_free_attribute(idx);

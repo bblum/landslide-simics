@@ -73,9 +73,9 @@ static void run_command_cb(lang_void *addr)
 
 	/* Generate command */
 	assert(CMD_BUF_LEN > strlen(p->cmd) + 1 + BOOKMARK_MAX_LEN);
-	ret = snprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx\n",
-		       p->cmd, BOOKMARK_SUFFIX_LEN, p->label);
-	assert(ret > 0 && "failed snprintf");
+	ret = scnprintf(buf, CMD_BUF_LEN, "%s " BOOKMARK_PREFIX "%.*llx\n",
+		        p->cmd, BOOKMARK_SUFFIX_LEN, p->label);
+	assert(ret > 0 && "failed scnprintf");
 	ret = write(fd, buf, ret);
 	assert(ret > 0 && "failed write");
 

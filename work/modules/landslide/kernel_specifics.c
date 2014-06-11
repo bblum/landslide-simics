@@ -151,7 +151,7 @@ void read_panic_message(conf_object_t *cpu, int eip, char **buf)
 #endif
 
 	*buf = read_string(cpu, READ_STACK(cpu, 1));
-	/* Can't call out to snprintf in the general case because it
+	/* Can't call out to scnprintf in the general case because it
 	 * would need repeated calls to read_string, and would basically
 	 * need to be reimplemented entirely. Instead, special-case. */
 	if (strcmp(*buf, GUEST_ASSERT_MSG) == 0) {
@@ -164,8 +164,8 @@ void read_panic_message(conf_object_t *cpu, int eip, char **buf)
 			     + strlen(assert_msg) + 12;
 		MM_FREE(*buf);
 		*buf = MM_XMALLOC(length, char);
-		snprintf(*buf, length, GUEST_ASSERT_MSG, file_str, line,
-			 assert_msg);
+		scnprintf(*buf, length, GUEST_ASSERT_MSG, file_str, line,
+			  assert_msg);
 		MM_FREE(file_str);
 		MM_FREE(assert_msg);
 	}
@@ -405,17 +405,17 @@ void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
 		       int chunk, int size)
 {
 	if (size == GUEST_TCB_CHUNK_SIZE) {
-		snprintf(buf, buflen, "tcb%d->%s",
-			 (int)TID_FROM_TCB(cpu, chunk + GUEST_TCB_OFFSET),
-			 member_name(guest_tcb_t, ARRAY_SIZE(guest_tcb_t),
-		                     addr - chunk));
+		scnprintf(buf, buflen, "tcb%d->%s",
+			  (int)TID_FROM_TCB(cpu, chunk + GUEST_TCB_OFFSET),
+			  member_name(guest_tcb_t, ARRAY_SIZE(guest_tcb_t),
+		                      addr - chunk));
 	} else if (size == GUEST_PCB_T_SIZE) {
-		snprintf(buf, buflen, "pcb%d->%s",
-			 (int)PID_FROM_PCB(cpu, chunk),
-			 member_name(guest_pcb_t, ARRAY_SIZE(guest_pcb_t),
-		                     addr - chunk));
+		scnprintf(buf, buflen, "pcb%d->%s",
+			  (int)PID_FROM_PCB(cpu, chunk),
+			  member_name(guest_pcb_t, ARRAY_SIZE(guest_pcb_t),
+		                      addr - chunk));
 	} else {
-		snprintf(buf, buflen, "0x%.8x", addr);
+		scnprintf(buf, buflen, "0x%.8x", addr);
 	}
 }
 #endif

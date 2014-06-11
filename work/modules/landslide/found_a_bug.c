@@ -126,8 +126,8 @@ static void init_table_column_map(struct table_column_map *m, struct save_state 
 #define html_printf(fd, ...) do {				\
 		const int buflen = 1024;			\
 		char buf[buflen];				\
-		int len = snprintf(buf, buflen, __VA_ARGS__);	\
-		assert(len > 0 && "failed snprintf");		\
+		int len = scnprintf(buf, buflen, __VA_ARGS__);	\
+		assert(len > 0 && "failed scnprintf");		\
 		html_print_buf(fd, buf, len);			\
 	} while(0)
 

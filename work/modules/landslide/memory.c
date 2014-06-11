@@ -155,16 +155,16 @@ static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct h
 	char after_buf[BUF_SIZE];
 
 	if (after == NULL) {
-		snprintf(after_buf, BUF_SIZE, "<root>");
+		scnprintf(after_buf, BUF_SIZE, "<root>");
 	} else {
-		snprintf(after_buf, BUF_SIZE, "#%d/tid%d", after->depth,
-			 after->chosen_thread);
+		scnprintf(after_buf, BUF_SIZE, "#%d/tid%d", after->depth,
+			  after->chosen_thread);
 	}
 	if (before == NULL) {
-		snprintf(before_buf, BUF_SIZE, "<current>");
+		scnprintf(before_buf, BUF_SIZE, "<current>");
 	} else {
-		snprintf(before_buf, BUF_SIZE, "#%d/tid%d", before->depth,
-			 before->chosen_thread);
+		scnprintf(before_buf, BUF_SIZE, "#%d/tid%d", before->depth,
+			  before->chosen_thread);
 	}
 
 	// TODO: when print stack trace can be made to use printf instead of lsprintf
@@ -698,7 +698,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 /* Remove the need for the student to implement kern_address_hint. */
 #ifdef STUDENT_FRIENDLY
 #define kern_address_hint(cpu, buf, size, addr, base, len) \
-	snprintf(buf, size, "0x%.8x in [0x%x | %d]", addr, base, len)
+	scnprintf(buf, size, "0x%.8x in [0x%x | %d]", addr, base, len)
 #endif
 
 static void print_shm_conflict(verbosity v, conf_object_t *cpu,
@@ -719,10 +719,10 @@ static void print_shm_conflict(verbosity v, conf_object_t *cpu,
 			 * access, then did free() on the corresponding chunk
 			 * before the next choice point. TODO: free() might
 			 * itself be a good place to set choice points... */
-			snprintf(buf, BUF_SIZE, "heap0x%.8x", ma0->addr);
+			scnprintf(buf, BUF_SIZE, "heap0x%.8x", ma0->addr);
 		} else if (!in_kernel && !user_address_global(ma0->addr)) {
 			/* Userspace stack access. */
-			snprintf(buf, BUF_SIZE, "stack0x%.8x", ma0->addr);
+			scnprintf(buf, BUF_SIZE, "stack0x%.8x", ma0->addr);
 		} else {
 			/* Attempt to find its name in the symtable. */
 			symtable_lookup_data(buf, BUF_SIZE, ma0->addr);

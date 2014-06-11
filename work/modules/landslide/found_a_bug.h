@@ -33,10 +33,10 @@ struct ls_state;
 void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
 				  char *reason, int reason_len);
 
-#define FOUND_A_BUG(ls, ...) do { 								\
-		char __fab_buf[1024];									\
-		int __fab_len = snprintf(__fab_buf, 1024, __VA_ARGS__);	\
-		_found_a_bug(ls, true, false, __fab_buf, __fab_len);	\
+#define FOUND_A_BUG(ls, ...) do { 									\
+		char __fab_buf[1024];										\
+		int __fab_len = scnprintf(__fab_buf, 1024, __VA_ARGS__);	\
+		_found_a_bug(ls, true, false, __fab_buf, __fab_len);		\
 	} while (0)
 
 #define DUMP_DECISION_INFO(ls) _found_a_bug(ls, false, true, NULL, 0)        // Verbose
