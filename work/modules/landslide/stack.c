@@ -154,7 +154,7 @@ void free_stack_trace(struct stack_trace *st)
  ******************************************************************************/
 
 /* returns false if symtable lookup failed */
-static bool add_frame(struct ls_state *ls, struct stack_trace *st, int eip)
+static bool add_frame(struct stack_trace *st, int eip)
 {
 	struct stack_frame *f = MM_XMALLOC(1, struct stack_frame);
 	bool lookup_success = eip_to_frame(eip, f);
@@ -181,7 +181,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 	Q_INIT_HEAD(&st->frames);
 
 	/* Add current frame, even if it's in kernel and we're in user. */
-	add_frame(ls, st, eip);
+	add_frame(st, eip);
 
 	int stop_ebp = 0;
 	int ebp = GET_CPU_ATTR(cpu, ebp);
@@ -251,7 +251,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			if (extra_frame) {
 				eip = READ_MEMORY(cpu, stack_ptr);
 				if (!SUPPRESS_FRAME(eip)) {
-					bool success = add_frame(ls, st, eip);
+					bool success = add_frame(st, eip);
 					if (!success && wrong_cr3)
 						return st;
 				}
@@ -286,7 +286,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 		stack_ptr = ebp + (2 * WORD_SIZE);
 		/* Suppress kernel frames if testing user, unless verbose enough. */
 		if (!SUPPRESS_FRAME(eip)) {
-			bool success = add_frame(ls, st, eip);
+			bool success = add_frame(st, eip);
 			if (!success && wrong_cr3)
 				return st;
 
@@ -314,43 +314,20 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 
 /* Performs a stack trace to see if the current call stack has the given
  * function somewhere on it. */
-// FIXME: make this as intelligent as stack_trace.
-// TODO: convert it to just call stack trace and look inside.
-bool within_function(conf_object_t *cpu, int eip, int func, int func_end)
+bool within_function(struct ls_state *ls, int func, int func_end)
 {
-	if (eip >= func && eip < func_end)
-		return true;
-
-	bool in_userland = eip >= USER_MEM_START;
-
-	eip = READ_STACK(cpu, 0);
-
-	if (eip >= func && eip < func_end)
-		return true;
-
-	int stop_ebp = 0;
-	int ebp = GET_CPU_ATTR(cpu, ebp);
-	int rabbit = ebp;
-	int frame_count = 0;
-
-	while (ebp != stop_ebp && (in_userland || (unsigned)ebp < USER_MEM_START)
-	       && frame_count++ < 1024) {
-		/* Test eip against given range. */
-		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
-		if (eip >= func && eip < func_end)
-			return true;
-
-		/* Advance ebp and rabbit. Rabbit must go first to set stop_ebp
-		 * accurately. */
-		// XXX XXX XXX Actually fix the cycle detection - read from
-		// rabbit not ebp; and get rid of the frame counter.
-		// Fix this same bug in stack trace function below.
-		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
-		if (rabbit == ebp) stop_ebp = ebp;
-		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
-		if (rabbit == ebp) stop_ebp = ebp;
-		ebp = READ_MEMORY(cpu, ebp);
+	/* Note while it may seem wasteful to malloc a bunch of times to make
+	 * the stack trace, many (not all) of the mallocs are actually needed
+	 * because the 'wrong cr3' end condition requires a symtable lookup. */
+	struct stack_trace *st = stack_trace(ls);
+	struct stack_frame *f;
+	bool result = false;
+	Q_FOREACH(f, &st->frames, nobe) {
+		if (f->eip >= func && f->eip < func_end) {
+			result = true;
+			break;
+		}
 	}
-
-	return false;
+	free_stack_trace(st);
+	return result;
 }

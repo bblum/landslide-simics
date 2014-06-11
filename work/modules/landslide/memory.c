@@ -506,14 +506,12 @@ void mem_update(struct ls_state *ls)
 		} else {
 			return;
 		}
+	} else if (ls->sched.cur_agent->action.lmm_remove_free) {
+		return;
 	}
 
 	if (ls->eip < USER_MEM_START) {
-		// XXX: issue #24
-		if (within_function(ls->cpu0, ls->eip, GUEST_LMM_REMOVE_FREE_ENTER,
-				    GUEST_LMM_REMOVE_FREE_EXIT)) {
-			return;
-		} else if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
+		if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
 			mem_enter_bad_place(ls, true, size);
 		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
 			mem_exit_bad_place(ls, true, base);

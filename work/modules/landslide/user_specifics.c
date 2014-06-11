@@ -20,11 +20,11 @@ bool testing_userspace()
 	return TESTING_USERSPACE == 1;
 }
 
-bool user_within_functions(conf_object_t *cpu, int eip)
+bool user_within_functions(struct ls_state *ls)
 {
 	static const int within_functions[][3] = USER_WITHIN_FUNCTIONS;
 	int length = ARRAY_SIZE(within_functions);
-	return _within_functions(cpu, eip, within_functions, length);
+	return _within_functions(ls, within_functions, length);
 }
 
 bool user_yielding(conf_object_t *cpu, int eip)

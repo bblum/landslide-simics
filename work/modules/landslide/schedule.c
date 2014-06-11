@@ -70,6 +70,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->action.vanishing = false;
 	a->action.readlining = false;
 	a->action.just_forked = true;
+	a->action.lmm_remove_free = false;
 	a->action.kern_mutex_locking = false;
 	a->action.kern_mutex_unlocking = false;
 	a->action.user_mutex_initing = false;
@@ -759,6 +760,12 @@ void sched_update(struct ls_state *ls)
 		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
 			  CURRENT(s, tid));
 	/* Etc. */
+	} else if (kern_lmm_remove_free_entering(ls->eip)) {
+		assert_no_action(s, "lmm remove free");
+		ACTION(s, lmm_remove_free) = true;
+	} else if (kern_lmm_remove_free_exiting(ls->eip)) {
+		assert(ACTION(s, lmm_remove_free));
+		ACTION(s, lmm_remove_free) = false;
 	} else if (kern_wants_us_to_dump_stack(ls->eip)) {
 		dump_stack();
 

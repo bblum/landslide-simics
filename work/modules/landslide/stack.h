@@ -40,7 +40,7 @@ void free_stack_trace(struct stack_trace *st);
 
 /* actual logic */
 struct stack_trace *stack_trace(struct ls_state *ls);
-bool within_function(conf_object_t *cpu, int eip, int func, int func_end);
+bool within_function(struct ls_state *ls, int func, int func_end);
 
 /* convenience */
 #define LS_ABORT() do { dump_stack(); assert(0); } while (0)

@@ -12,6 +12,7 @@
 #include "student_specifics.h"
 
 struct sched_state;
+struct ls_state;
 
 /* Miscellaneous simple information */
 bool kern_decision_point(int eip);
@@ -25,8 +26,8 @@ bool kern_sched_init_done(int eip);
 bool kern_in_scheduler(conf_object_t *cpu, int eip);
 bool kern_access_in_scheduler(int addr);
 bool kern_ready_for_timer_interrupt(conf_object_t *cpu);
-bool kern_within_functions(conf_object_t *cpu, int eip);
-bool _within_functions(conf_object_t *cpu, int eip, const int within_functions[][3], int length);
+bool kern_within_functions(struct ls_state *ls);
+bool _within_functions(struct ls_state *ls, const int within_functions[][3], int length);
 void read_panic_message(conf_object_t *cpu, int eip, char **buf);
 bool kern_panicked(conf_object_t *cpu, int eip, char **buf);
 bool kern_kernel_main(int eip);
@@ -53,6 +54,8 @@ bool kern_lmm_alloc_entering(conf_object_t *cpu, int eip, int *size);
 bool kern_lmm_alloc_exiting(conf_object_t *cpu, int eip, int *base);
 bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size);
 bool kern_lmm_free_exiting(int eip);
+bool kern_lmm_remove_free_entering(int eip);
+bool kern_lmm_remove_free_exiting(int eip);
 
 /* Other memory operations */
 bool kern_address_in_heap(int addr);

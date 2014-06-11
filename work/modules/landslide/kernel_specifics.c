@@ -102,7 +102,7 @@ bool kern_access_in_scheduler(int addr)
 	return false;
 }
 
-bool _within_functions(conf_object_t *cpu, int eip, const int within_functions[][3], int length)
+bool _within_functions(struct ls_state *ls, const int within_functions[][3], int length)
 {
 	/* The array is: { start_addr, end_addr, within ? 1 : 0 }.
 	 * Later ones take precedence, so all of them have to be compared. */
@@ -119,12 +119,12 @@ bool _within_functions(conf_object_t *cpu, int eip, const int within_functions[]
 				any_withins = true;
 				answer = false;
 			}
-			if (within_function(cpu, eip, within_functions[i][0],
+			if (within_function(ls, within_functions[i][0],
 					    within_functions[i][1])) {
 				answer = true;
 			}
 		} else {
-			if (within_function(cpu, eip, within_functions[i][0],
+			if (within_function(ls, within_functions[i][0],
 					    within_functions[i][1])) {
 				answer = false;
 			}
@@ -133,11 +133,11 @@ bool _within_functions(conf_object_t *cpu, int eip, const int within_functions[]
 	return answer;
 }
 
-bool kern_within_functions(conf_object_t *cpu, int eip)
+bool kern_within_functions(struct ls_state *ls)
 {
 	static const int within_functions[][3] = KERN_WITHIN_FUNCTIONS;
 	int length = ARRAY_SIZE(within_functions);
-	return _within_functions(cpu, eip, within_functions, length);
+	return _within_functions(ls, within_functions, length);
 }
 
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
@@ -344,6 +344,16 @@ bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size)
 bool kern_lmm_free_exiting(int eip)
 {
 	return (eip == GUEST_LMM_FREE_EXIT);
+}
+
+bool kern_lmm_remove_free_entering(int eip)
+{
+	return eip == GUEST_LMM_REMOVE_FREE_ENTER;
+}
+
+bool kern_lmm_remove_free_exiting(int eip)
+{
+	return eip == GUEST_LMM_REMOVE_FREE_EXIT;
 }
 
 bool kern_address_in_heap(int addr)

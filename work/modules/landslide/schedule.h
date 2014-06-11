@@ -50,6 +50,8 @@ struct agent {
 		bool readlining;
 		/* have they not even had a chance to run yet? */
 		bool just_forked;
+		/* special action flag for ignoring heap accesses */
+		bool lmm_remove_free;
 		/* are they taking or releasing a mutex? */
 		bool kern_mutex_locking;
 		bool kern_mutex_unlocking;

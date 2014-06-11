@@ -94,6 +94,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	}
 
 	if (testing_userspace()) {
+		int mutex_addr;
 		if (ls->eip < USER_MEM_START) {
 			return false;
 		} else if (instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
@@ -104,23 +105,19 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 			       "Two threads in one transition?");
 			return true;
-		} else if (user_within_functions(ls->cpu0, ls->eip)) {
-			// TODO
-			int mutex_addr;
-			if (user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
-			    user_mutex_unlock_exiting(ls->eip)) {
-				assert((ls->save.next_tid == -1 ||
-				       ls->save.next_tid == ls->sched.cur_agent->tid) &&
-				       "Two threads in one transition?");
-				return true;
-			} else {
-				return false;
-			}
+		// TODO
+		} else if ((user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
+			    user_mutex_unlock_exiting(ls->eip)) &&
+			   user_within_functions(ls)) {
+			assert((ls->save.next_tid == -1 ||
+			       ls->save.next_tid == ls->sched.cur_agent->tid) &&
+			       "Two threads in one transition?");
+			return true;
 		} else {
 			return false;
 		}
 	} else if (kern_decision_point(ls->eip) &&
-		   kern_within_functions(ls->cpu0, ls->eip)) {
+		   kern_within_functions(ls)) {
 		assert((ls->save.next_tid == -1 ||
 		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
 		       "Two threads in one transition?");
