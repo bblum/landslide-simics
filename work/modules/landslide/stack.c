@@ -195,7 +195,8 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 	bool wrong_cr3 =
 		testing_userspace() && GET_CPU_ATTR(cpu, cr3) != ls->user_mem.cr3;
 
-	while (ebp != 0 && (testing_userspace() || (unsigned)ebp < USER_MEM_START)
+	while (ebp != stop_ebp &&
+	       (testing_userspace() || (unsigned)ebp < USER_MEM_START)
 	       && frame_count++ < 1024) {
 		bool extra_frame;
 
@@ -296,9 +297,9 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			}
 		}
 
-		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, rabbit);
 		if (rabbit == ebp) stop_ebp = ebp;
-		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, ebp);
+		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, rabbit);
 		if (rabbit == ebp) stop_ebp = ebp;
 		ebp = READ_MEMORY(cpu, ebp);
 		if ((unsigned int)ebp < GUEST_DATA_START) {

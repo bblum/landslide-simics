@@ -239,6 +239,56 @@ bool interrupts_enabled(conf_object_t *cpu)
 	return (eflags & EFL_IF) != 0;
 }
 
+static bool mem_translate(conf_object_t *cpu, int addr0, int *result)
+{
+	unsigned int addr = (unsigned int)addr0;
+
+	if (addr < ((unsigned int)USER_MEM_START)) {
+		/* assume kern mem direct-mapped -- not strictly necessary */
+		*result = addr;
+		return true;
+	} else if ((GET_CPU_ATTR(cpu, cr0) & CR0_PG) == 0) {
+		/* paging disabled; cannot translate user address */
+		return false;
+	}
+
+	unsigned int upper = addr >> 22;
+	unsigned int lower = (addr >> 12) & 1023;
+	unsigned int offset = addr & 4095;
+	unsigned int cr3 = GET_CPU_ATTR(cpu, cr3);
+	unsigned int pde_addr = cr3 + (4 * upper);
+	unsigned int pde = SIM_read_phys_memory(cpu, pde_addr, WORD_SIZE);
+	assert(SIM_get_pending_exception() == SimExc_No_Exception &&
+	       "failed memory read during VM translation -- kernel VM bug?");
+	/* check present bit of pde to not anger the simics gods */
+	if ((pde & 0x1) == 0) {
+		return false;
+	}
+	unsigned int pte_addr = (pde & ~4095) + (4 * lower);
+	unsigned int pte = SIM_read_phys_memory(cpu, pte_addr, WORD_SIZE);
+	assert(SIM_get_pending_exception() == SimExc_No_Exception &&
+	       "failed memory read during VM translation -- kernel VM bug?");
+	/* check present bit of pte to not anger the simics gods */
+	if ((pte & 0x1) == 0) {
+		return false;
+	}
+	*result = (pte & ~4095) + offset;
+	return true;
+}
+
+int read_memory(conf_object_t *cpu, int addr, int width)
+{
+	int phys_addr;
+	if (mem_translate(cpu, addr, &phys_addr)) {
+		int result = (int)SIM_read_phys_memory(cpu, phys_addr, width);
+		assert(SIM_get_pending_exception() == SimExc_No_Exception &&
+		       "failed memory read during VM translation -- kernel VM bug?");
+		return result;
+	} else {
+		return 0; /* :( */
+	}
+}
+
 char *read_string(conf_object_t *cpu, int addr)
 {
 	int length = 0;

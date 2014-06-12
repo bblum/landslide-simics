@@ -29,8 +29,14 @@ conf_object_t *get_symtable()
 	attr_value_t table = SIM_get_attribute(cell0_context, "symtable");
 	if (!SIM_attr_is_object(table)) {
 		SIM_free_attribute(table);
-		lsprintf(ALWAYS, "WARNING: cell0_context.symtable not an obj\n");
-		return NULL;
+		// ugh, wtf simics
+		table = SIM_get_attribute(cell0_context, "symtable");
+		if (!SIM_attr_is_object(table)) {
+			SIM_free_attribute(table);
+			lsprintf(ALWAYS, "WARNING: cell0_context.symtable not an obj\n");
+			assert(0);
+			return NULL;
+		}
 	}
 	conf_object_t *symtable = SIM_attr_object(table);
 	SIM_free_attribute(table);

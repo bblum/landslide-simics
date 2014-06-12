@@ -14,14 +14,15 @@
 #define GET_CPU_ATTR(cpu, name) get_cpu_attr(cpu, #name)
 
 static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
-	attr_value_t ebp_attr = SIM_get_attribute(cpu, name);
-	if (!SIM_attr_is_integer(ebp_attr)) {
-		assert(ebp_attr.kind == Sim_Val_Invalid &&
-		       "GET_CPU_ATTR failed!");
+	attr_value_t register_attr = SIM_get_attribute(cpu, name);
+	if (!SIM_attr_is_integer(register_attr)) {
+		assert(register_attr.kind == Sim_Val_Invalid && "GET_CPU_ATTR failed!");
 		// "Try again." WTF, simics??
-		return ((int)SIM_attr_integer(SIM_get_attribute(cpu, name)));
+		register_attr = SIM_get_attribute(cpu, name);
+		assert(SIM_attr_is_integer(register_attr));
+		return (int)SIM_attr_integer(register_attr);
 	}
-	return ((int)SIM_attr_integer(ebp_attr));
+	return ((int)SIM_attr_integer(register_attr));
 }
 #define SET_CPU_ATTR(cpu, name, val) do {				\
 		attr_value_t noob = SIM_make_attr_integer(val);		\
@@ -68,6 +69,7 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define SEGSEL_KERNEL_DS 0x18
 #define SEGSEL_USER_CS 0x23
 #define SEGSEL_USER_DS 0x2b
+#define CR0_PG (1 << 31)
 #define TIMER_INTERRUPT_NUMBER 0x20
 #define INT_CTL_PORT 0x20 /* MASTER_ICW == ADDR_PIC_BASE + OFF_ICW */
 #define INT_ACK_CURRENT 0x20 /* NON_SPEC_EOI */
@@ -83,32 +85,22 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define POPA_WORDS 8
 #define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
 
-#define MEM_TRANSLATE(cpu, addr) /* I am sorry for writing this */	\
-	(((unsigned int)(addr)) < ((unsigned int)USER_MEM_START) ? (addr) :	\
-	({	unsigned int upper = ((unsigned int)(addr)) >> 22;		\
-		unsigned int lower = (((unsigned int)(addr)) >> 12) & 1023;	\
-		unsigned int offset = ((unsigned int)(addr)) & 4095;		\
-		unsigned int pde = SIM_read_phys_memory(cpu, GET_CPU_ATTR(cpu, cr3) + (4 * upper), WORD_SIZE); \
-		unsigned int pte = SIM_read_phys_memory(cpu, (pde & ~4095) + (4 * lower), WORD_SIZE); \
-		(pte & ~4095) + offset; }))
+void cause_timer_interrupt(conf_object_t *cpu);
+int cause_timer_interrupt_immediately(conf_object_t *cpu);
+int avoid_timer_interrupt_immediately(conf_object_t *cpu);
+void cause_keypress(conf_object_t *kbd, char);
+bool interrupts_enabled(conf_object_t *cpu);
+int read_memory(conf_object_t *cpu, int addr, int width);
+char *read_string(conf_object_t *cpu, int eip);
+bool instruction_is_atomic_swap(conf_object_t *cpu, int eip);
 
-#define READ_BYTE(cpu, addr) \
-	((int)SIM_read_phys_memory(cpu, MEM_TRANSLATE(cpu, addr), 1))
-#define READ_MEMORY(cpu, addr) \
-	((int)SIM_read_phys_memory(cpu, MEM_TRANSLATE(cpu, addr), WORD_SIZE))
+#define READ_BYTE(cpu, addr)   read_memory(cpu, addr, 1)
+#define READ_MEMORY(cpu, addr) read_memory(cpu, addr, WORD_SIZE)
 
 /* reading the stack. can be used to examine function arguments, if used either
  * at the very end or the very beginning of a function, when esp points to the
  * return address. */
 #define READ_STACK(cpu, offset) \
 	READ_MEMORY(cpu, GET_CPU_ATTR(cpu, esp) + ((offset) * WORD_SIZE))
-
-void cause_timer_interrupt(conf_object_t *cpu);
-int cause_timer_interrupt_immediately(conf_object_t *cpu);
-int avoid_timer_interrupt_immediately(conf_object_t *cpu);
-void cause_keypress(conf_object_t *kbd, char);
-bool interrupts_enabled(conf_object_t *cpu);
-char *read_string(conf_object_t *cpu, int eip);
-bool instruction_is_atomic_swap(conf_object_t *cpu, int eip);
 
 #endif
