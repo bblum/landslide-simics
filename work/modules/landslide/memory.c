@@ -492,6 +492,15 @@ static bool ignore_user_access(struct ls_state *ls)
 	}
 }
 
+/* Are we currently in the address space associated with the test program? */
+bool check_user_address_space(struct ls_state *ls)
+{
+	return ls->user_mem.cr3 != USER_CR3_WAITING_FOR_THUNDERBIRDS &&
+		ls->user_mem.cr3 != USER_CR3_WAITING_FOR_EXEC &&
+		ls->user_mem.cr3 != USER_CR3_EXEC_HAPPENED &&
+		ls->user_mem.cr3 == GET_CPU_ATTR(ls->cpu0, cr3);
+}
+
 void mem_update(struct ls_state *ls)
 {
 	/* Dynamic memory allocation tracking */

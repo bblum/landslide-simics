@@ -90,4 +90,6 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h2,
 
 bool shm_contains_addr(struct mem_state *m, int addr);
 
+bool check_user_address_space(struct ls_state *ls);
+
 #endif

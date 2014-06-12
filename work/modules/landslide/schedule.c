@@ -477,118 +477,11 @@ static void handle_unsleep(struct sched_state *s, int tid)
  * Main entry point(s)
  ******************************************************************************/
 
-void sched_update(struct ls_state *ls)
+static void sched_update_kern_state_machine(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
-	int old_tid = CURRENT(s, tid);
-	int new_tid;
-
-	/* wait until the guest is ready */
-	if (!s->guest_init_done) {
-		if (kern_sched_init_done(ls->eip)) {
-			s->guest_init_done = true;
-			/* Deprecated since kern_get_current_tid went away. */
-			// assert(old_tid == new_tid && "init tid mismatch");
-		} else {
-			return;
-		}
-	}
-
-	/* The Importance of Being Assertive, A Trivial Style Guideline for
-	 * Serious Programmers, by Ben Blum */
-	if (s->entering_timer) {
-		assert(ls->eip == kern_get_timer_wrap_begin() &&
-		       "simics is a clown and tried to delay our interrupt :<");
-		s->entering_timer = false;
-	} else {
-		if (kern_timer_entering(ls->eip)) {
-			lsprintf(DEV, "A timer tick that wasn't ours (0x%x).\n",
-				 (int)READ_STACK(ls->cpu0, 0));
-			ls->eip = avoid_timer_interrupt_immediately(ls->cpu0);
-			// Print whether it thinks anybody's alive.
-			anybody_alive(ls->cpu0, &ls->test, s, true);
-			// Dump scheduler state, too.
-			lsprintf(DEV, "scheduler state: ");
-			print_qs(DEV, s);
-			printf(DEV, "\n");
-		}
-	}
-
-	/**********************************************************************
-	 * Update scheduler state.
-	 **********************************************************************/
-
-	if (kern_thread_switch(ls->cpu0, ls->eip, &new_tid) && new_tid != old_tid) {
-		/*
-		 * So, fork needs to be handled twice, both here and below in the
-		 * runnable case. And for kernels that trigger both, both places will
-		 * need to have a check for whether the newly forked thread exists
-		 * already.
-		 *
-		 * Sleep and vanish actually only need to happen here. They should
-		 * check both the rq and the dq, 'cause there's no telling where the
-		 * thread got moved to before. As for the descheduling case, that needs
-		 * to check for a new type of action flag "asleep" or "vanished" (and
-		 * I guess using last_vanished_agent might work), and probably just
-		 * assert that that condition holds if the thread couldn't be found
-		 * for the normal descheduling case.
-		 */
-		/* Has to be handled before updating cur_agent, of course. */
-		handle_sleep(s);
-		handle_vanish(s);
-		handle_unsleep(s, new_tid);
-
-		/* Careful! On some kernels, the trigger for a new agent forking
-		 * (where it first gets added to the RQ) may happen AFTER its
-		 * tcb is set to be the currently running thread. This would
-		 * cause this case to be reached before agent_fork() is called,
-		 * so agent_by_tid would fail. Instead, we have an option to
-		 * find it later. (see the kern_thread_runnable case below.) */
-		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
-		if (next == NULL) next = agent_by_tid_or_null(&s->dq, new_tid);
-
-		if (next != NULL) {
-			lsprintf(DEV, "switched threads %d -> %d\n", old_tid,
-				 new_tid);
-			s->last_agent = s->cur_agent;
-			s->cur_agent = next;
-		/* This fork check is for kernels which context switch to a
-		 * newly-forked thread before adding it to the runqueue - and
-		 * possibly won't do so at all (if current_extra_runnable). We
-		 * need to do agent_fork now. (agent_fork *also* needs to be
-		 * handled below, for kernels which don't c-s to the new thread
-		 * immediately.) The */
-		} else if (handle_fork(s, new_tid, false)) {
-			next = agent_by_tid_or_null(&s->dq, new_tid);
-			assert(next != NULL && "Newly forked thread not on DQ");
-			lsprintf(DEV, "switching threads %d -> %d\n", old_tid,
-				 new_tid);
-			s->last_agent = s->cur_agent;
-			s->cur_agent = next;
-		} else {
-			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Couldn't find "
-				 "new thread %d; current %d; did you forget to "
-				 "tell_landslide_forking()?\n" COLOUR_DEFAULT,
-				 new_tid, CURRENT(s, tid));
-			assert(0);
-		}
-		/* Some debug info to help the studence. */
-		if (CURRENT(s, tid) == kern_get_init_tid()) {
-			lskprintf(DEV, "Now running init.\n");
-		} else if (CURRENT(s, tid) == kern_get_shell_tid()) {
-			lskprintf(DEV, "Now running shell.\n");
-		} else if (kern_has_idle() &&
-			   CURRENT(s, tid) == kern_get_idle_tid()) {
-			lskprintf(DEV, "Now idling.\n");
-		}
-	}
-
-	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
-
 	int target_tid;
 	int lock_addr;
-	bool succeeded;
-	bool write_mode;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -768,18 +661,31 @@ void sched_update(struct ls_state *ls)
 		ACTION(s, lmm_remove_free) = false;
 	} else if (kern_wants_us_to_dump_stack(ls->eip)) {
 		dump_stack();
+	}
+}
 
-	/**********************************************************************
-	 * Userspace
-	 **********************************************************************/
-
+static void sched_update_user_state_machine(struct ls_state *ls)
+{
 	/* Tracking events in userspace. One thing to note about this section
 	 * is the record_user_yield{,_activity}() calls all over; these must be
 	 * in every case we wish to consider to mean the user thread is *not*
 	 * stuck in a yield loop. See logic in functions above for more. */
+	struct sched_state *s = &ls->sched;
+	int lock_addr;
+	bool succeeded;
+	bool write_mode;
+
+	/* Prevent the rwlock downgrade test memorial bug. The following logic
+	 * checks eip against hardcoded user addresses obtained from objdump,
+	 * which may accidentally collide with totally unrelated addresses in
+	 * the shell or init or idle or whatever. So we can't look for such
+	 * activity if the entire address space is wrong. */
+	if (!check_user_address_space(ls)) {
+		return;
+	}
 
 	/* mutexes (and yielding) */
-	} else if (user_mutex_init_entering(ls->cpu0, ls->eip, &lock_addr)) {
+	if (user_mutex_init_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_initing));
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
@@ -949,6 +855,121 @@ void sched_update(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_thr_exit_entering(ls->eip)) {
 		record_user_yield_activity(&ls->user_sync);
+	}
+}
+
+void sched_update(struct ls_state *ls)
+{
+	struct sched_state *s = &ls->sched;
+	int old_tid = CURRENT(s, tid);
+	int new_tid;
+
+	/* wait until the guest is ready */
+	if (!s->guest_init_done) {
+		if (kern_sched_init_done(ls->eip)) {
+			s->guest_init_done = true;
+			/* Deprecated since kern_get_current_tid went away. */
+			// assert(old_tid == new_tid && "init tid mismatch");
+		} else {
+			return;
+		}
+	}
+
+	/* The Importance of Being Assertive, A Trivial Style Guideline for
+	 * Serious Programmers, by Ben Blum */
+	if (s->entering_timer) {
+		assert(ls->eip == kern_get_timer_wrap_begin() &&
+		       "simics is a clown and tried to delay our interrupt :<");
+		s->entering_timer = false;
+	} else {
+		if (kern_timer_entering(ls->eip)) {
+			lsprintf(DEV, "A timer tick that wasn't ours (0x%x).\n",
+				 (int)READ_STACK(ls->cpu0, 0));
+			ls->eip = avoid_timer_interrupt_immediately(ls->cpu0);
+			// Print whether it thinks anybody's alive.
+			anybody_alive(ls->cpu0, &ls->test, s, true);
+			// Dump scheduler state, too.
+			lsprintf(DEV, "scheduler state: ");
+			print_qs(DEV, s);
+			printf(DEV, "\n");
+		}
+	}
+
+	/**********************************************************************
+	 * Update scheduler state.
+	 **********************************************************************/
+
+	if (kern_thread_switch(ls->cpu0, ls->eip, &new_tid) && new_tid != old_tid) {
+		/*
+		 * So, fork needs to be handled twice, both here and below in the
+		 * runnable case. And for kernels that trigger both, both places will
+		 * need to have a check for whether the newly forked thread exists
+		 * already.
+		 *
+		 * Sleep and vanish actually only need to happen here. They should
+		 * check both the rq and the dq, 'cause there's no telling where the
+		 * thread got moved to before. As for the descheduling case, that needs
+		 * to check for a new type of action flag "asleep" or "vanished" (and
+		 * I guess using last_vanished_agent might work), and probably just
+		 * assert that that condition holds if the thread couldn't be found
+		 * for the normal descheduling case.
+		 */
+		/* Has to be handled before updating cur_agent, of course. */
+		handle_sleep(s);
+		handle_vanish(s);
+		handle_unsleep(s, new_tid);
+
+		/* Careful! On some kernels, the trigger for a new agent forking
+		 * (where it first gets added to the RQ) may happen AFTER its
+		 * tcb is set to be the currently running thread. This would
+		 * cause this case to be reached before agent_fork() is called,
+		 * so agent_by_tid would fail. Instead, we have an option to
+		 * find it later. (see the kern_thread_runnable case below.) */
+		struct agent *next = agent_by_tid_or_null(&s->rq, new_tid);
+		if (next == NULL) next = agent_by_tid_or_null(&s->dq, new_tid);
+
+		if (next != NULL) {
+			lsprintf(DEV, "switched threads %d -> %d\n", old_tid,
+				 new_tid);
+			s->last_agent = s->cur_agent;
+			s->cur_agent = next;
+		/* This fork check is for kernels which context switch to a
+		 * newly-forked thread before adding it to the runqueue - and
+		 * possibly won't do so at all (if current_extra_runnable). We
+		 * need to do agent_fork now. (agent_fork *also* needs to be
+		 * handled below, for kernels which don't c-s to the new thread
+		 * immediately.) The */
+		} else if (handle_fork(s, new_tid, false)) {
+			next = agent_by_tid_or_null(&s->dq, new_tid);
+			assert(next != NULL && "Newly forked thread not on DQ");
+			lsprintf(DEV, "switching threads %d -> %d\n", old_tid,
+				 new_tid);
+			s->last_agent = s->cur_agent;
+			s->cur_agent = next;
+		} else {
+			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Couldn't find "
+				 "new thread %d; current %d; did you forget to "
+				 "tell_landslide_forking()?\n" COLOUR_DEFAULT,
+				 new_tid, CURRENT(s, tid));
+			assert(0);
+		}
+		/* Some debug info to help the studence. */
+		if (CURRENT(s, tid) == kern_get_init_tid()) {
+			lskprintf(DEV, "Now running init.\n");
+		} else if (CURRENT(s, tid) == kern_get_shell_tid()) {
+			lskprintf(DEV, "Now running shell.\n");
+		} else if (kern_has_idle() &&
+			   CURRENT(s, tid) == kern_get_idle_tid()) {
+			lskprintf(DEV, "Now idling.\n");
+		}
+	}
+
+	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
+
+	if (ls->eip < USER_MEM_START) {
+		sched_update_kern_state_machine(ls);
+	} else {
+		sched_update_user_state_machine(ls);
 	}
 
 	/**********************************************************************
