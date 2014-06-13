@@ -49,6 +49,7 @@ struct mem_access {
 struct chunk {
 	int base;
 	int len;
+	int id; /* distinguishes chunks in same-space-different-time */
 	struct rb_node nobe;
 	/* for use-after-free reporting */
 	struct stack_trace *malloc_trace;
@@ -58,6 +59,7 @@ struct chunk {
 struct mem_state {
 	struct rb_root heap;
 	int heap_size;
+	int heap_next_id; /* generation counter for chunks */
 	/* dynamic allocation request state */
 	bool guest_init_done;
 	bool in_mm_init; /* userspace only */

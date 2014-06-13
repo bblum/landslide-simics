@@ -272,7 +272,8 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 	dest->nobe.rb_left  = dup_chunk(src->nobe.rb_left, &dest->nobe);
 
 	dest->base = src->base;
-	dest->len = src->len;
+	dest->len  = src->len;
+	dest->id   = src->id;
 
 	if (src->malloc_trace == NULL) {
 		dest->malloc_trace = NULL;
@@ -296,6 +297,7 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	dest->alloc_request_size = src->alloc_request_size;
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
 	dest->heap_size          = src->heap_size;
+	dest->heap_next_id       = src->heap_next_id;
 	dest->cr3                = src->cr3;
 	dest->cr3_tid            = src->cr3_tid;
 	dest->user_mutex_size    = src->user_mutex_size;

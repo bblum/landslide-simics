@@ -310,6 +310,7 @@ static void mem_heap_init(struct mem_state *m)
 {
 	m->heap.rb_node = NULL;
 	m->heap_size = 0;
+	m->heap_next_id = 0;
 	m->guest_init_done = false;
 	m->in_mm_init = false;
 	m->in_alloc = false;
@@ -361,7 +362,7 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 	if (in_kernel) {
 		assert(base < USER_MEM_START);
 	} else {
-		assert(base >= USER_MEM_START);
+		assert(base == 0 || base >= USER_MEM_START);
 	}
 
 	if (base == 0) {
@@ -370,10 +371,13 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
 		chunk->base = base;
 		chunk->len = m->alloc_request_size;
+		chunk->id = m->heap_next_id;
 		chunk->malloc_trace = stack_trace(ls);
 		chunk->free_trace = NULL;
 
 		m->heap_size += m->alloc_request_size;
+		assert(m->heap_next_id != INT_MAX && "need a wider type");
+		m->heap_next_id++;
 		insert_chunk(&m->heap, chunk, false);
 	}
 
@@ -707,16 +711,15 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 /* Remove the need for the student to implement kern_address_hint. */
 #ifdef STUDENT_FRIENDLY
 #define kern_address_hint(cpu, buf, size, addr, base, len) \
-	scnprintf(buf, size, "0x%.8x in [0x%x | %d]", addr, base, len)
+	scnprintf(buf, size, "0x%x in [0x%x | %d]", addr, base, len)
 #endif
 
 static void print_shm_conflict(verbosity v, conf_object_t *cpu,
 			       struct mem_state *m0, struct mem_state *m1,
-			       struct mem_access *ma0, struct mem_access *ma1)
+			       struct mem_access *ma0, struct mem_access *ma1,
+			       struct chunk *c0, struct chunk *c1)
 {
 	char buf[BUF_SIZE];
-	struct chunk *c0 = find_containing_chunk(&m0->heap, ma0->addr);
-	struct chunk *c1 = find_containing_chunk(&m1->heap, ma1->addr);
 	bool in_kernel = ma0->addr >= USER_MEM_START;
 
 	assert(ma0->addr == ma1->addr);
@@ -799,17 +802,24 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 
 static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 			    struct mem_state *m0, struct mem_state *m1,
-			    struct mem_access *ma0, struct mem_access *ma1)
+			    struct mem_access *ma0, struct mem_access *ma1,
+			    struct chunk *c0, struct chunk *c1)
 {
 	struct mem_lockset *l0;
 	struct mem_lockset *l1;
+
+	if (c0 != NULL && c1 != NULL && c0->id != c1->id) {
+		/* The apparent data race was actually in a part of the heap
+		 * that was freed and re-malloced in between. */
+		return;
+	}
 
 	Q_FOREACH(l0, &ma0->locksets, nobe) {
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			// To be safe, all pairs of locksets must have a lock in common.
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED "Data race: ");
-				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1);
+				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1, c0, c1);
 				printf(CHOICE, " at:\n");
 
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
@@ -866,12 +876,16 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 		} else {
 			/* found a match; advance both */
 			if (ma0->write || ma1->write) {
+				struct chunk *c0 =
+					find_containing_chunk(&m0->heap, ma0->addr);
+				struct chunk *c1 =
+					find_containing_chunk(&m1->heap, ma1->addr);
 				if (conflicts < MAX_CONFLICTS) {
 					if (conflicts > 0)
 						printf(DEV, ", ");
 					/* the match is also a conflict */
 					print_shm_conflict(DEV, cpu, m0, m1,
-							   ma0, ma1);
+							   ma0, ma1, c0, c1);
 				}
 				conflicts++;
 				ma0->conflict = true;
@@ -879,7 +893,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 				// FIXME: make this not interleave horribly with conflicts
 #ifdef PRINT_DATA_RACES
 #if PRINT_DATA_RACES != 0
-				check_data_race(cpu, m0, m1, ma0, ma1);
+				check_data_race(cpu, m0, m1, ma0, ma1, c0, c1);
 #endif
 #endif
 			}
