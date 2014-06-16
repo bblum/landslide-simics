@@ -333,7 +333,7 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 
 		if (bug_found) {
 			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_RED)
-				    "<h2>A bug was found!</h2><br />\n"
+				    "<h2>A bug was found!</h2>\n"
 				    HTML_COLOUR_END);
 			html_printf(html_fd, "Current stack:<br />\n");
 			html_print_stack_trace(html_fd, stack);
@@ -345,7 +345,7 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		if (reason) {
 			// FIXME: Sanitize reason; e.g. for deadlocks the message
 			// will contain "->" which may not render properly.
-			html_printf(html_fd, "%s<h3>%.*s</h3><br />\n" HTML_COLOUR_END,
+			html_printf(html_fd, "%s<h3>%.*s</h3>\n" HTML_COLOUR_END,
 				    bug_found ? HTML_COLOUR_START(HTML_COLOUR_RED)
 				              : HTML_COLOUR_START(HTML_COLOUR_BLUE),
 				    reason_len, reason);
@@ -367,7 +367,15 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		FOREACH_TABLE_COLUMN(tid, &map) {
 			html_printf(html_fd, "<td><div style=\"%s\">",
 				    "font-size:large;text-align:center");
-			html_printf(html_fd, "TID %d</div></td>\n", tid);
+			html_printf(html_fd, "TID %d", tid);
+			if (tid == kern_get_init_tid()) {
+				html_printf(html_fd, " (init)");
+			} else if (tid == kern_get_shell_tid()) {
+				html_printf(html_fd, " (shell)");
+			} else if (kern_has_idle() && tid == kern_get_idle_tid()) {
+				html_printf(html_fd, " (idle)");
+			}
+			html_printf(html_fd, "</div></td>\n");
 		}
 		html_printf(html_fd, "</tr>\n");
 	}
