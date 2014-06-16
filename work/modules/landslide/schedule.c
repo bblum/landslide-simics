@@ -474,8 +474,21 @@ static void handle_unsleep(struct sched_state *s, int tid)
 }
 
 /******************************************************************************
- * Main entry point(s)
+ * Main entry point(s) and state machine logic
  ******************************************************************************/
+
+static void sched_check_lmm_remove_free(struct ls_state *ls)
+{
+	struct sched_state *s = &ls->sched;
+
+	if (kern_lmm_remove_free_entering(ls->eip)) {
+		assert_no_action(s, "lmm remove free");
+		ACTION(s, lmm_remove_free) = true;
+	} else if (kern_lmm_remove_free_exiting(ls->eip)) {
+		assert(ACTION(s, lmm_remove_free));
+		ACTION(s, lmm_remove_free) = false;
+	}
+}
 
 static void sched_update_kern_state_machine(struct ls_state *ls)
 {
@@ -653,14 +666,10 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
 			  CURRENT(s, tid));
 	/* Etc. */
-	} else if (kern_lmm_remove_free_entering(ls->eip)) {
-		assert_no_action(s, "lmm remove free");
-		ACTION(s, lmm_remove_free) = true;
-	} else if (kern_lmm_remove_free_exiting(ls->eip)) {
-		assert(ACTION(s, lmm_remove_free));
-		ACTION(s, lmm_remove_free) = false;
 	} else if (kern_wants_us_to_dump_stack(ls->eip)) {
 		dump_stack();
+	} else {
+		sched_check_lmm_remove_free(ls);
 	}
 }
 
@@ -871,6 +880,7 @@ void sched_update(struct ls_state *ls)
 			/* Deprecated since kern_get_current_tid went away. */
 			// assert(old_tid == new_tid && "init tid mismatch");
 		} else {
+			sched_check_lmm_remove_free(ls);
 			return;
 		}
 	}
