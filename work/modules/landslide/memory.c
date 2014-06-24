@@ -833,7 +833,7 @@ static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
 				printf(CHOICE, "TID %d at ", tid1);
 				print_eip(CHOICE, l1->eip);
-				printf(CHOICE, "[locks: ");
+				printf(CHOICE, " [locks: ");
 				lockset_print(CHOICE, &l1->locks_held);
 				printf(CHOICE, "]\n");
 				return;
