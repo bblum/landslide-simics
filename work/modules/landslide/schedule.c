@@ -495,6 +495,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	struct sched_state *s = &ls->sched;
 	int target_tid;
 	int lock_addr;
+	bool succeeded;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -634,6 +635,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 			}
 		}
 	} else if (kern_mutex_locking_done(ls->eip)) {
+		// XXX: Why is this assert commented out? I don't remember.
 		//assert(ACTION(s, kern_mutex_locking));
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = false;
@@ -642,9 +644,27 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		CURRENT(s, kern_blocked_on) = NULL;
 		CURRENT(s, kern_blocked_on_tid) = -1;
 		CURRENT(s, kern_blocked_on_addr) = -1;
+		// FIXME: issue #51.
+		lock_addr = 0;
 		/* no need to check for deadlock; this can't create a cycle. */
 		kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
 					CURRENT(s, tid));
+	} else if (kern_mutex_trylocking(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, kern_mutex_unlocking));
+		ACTION(s, kern_mutex_locking) = true;
+		lockset_add(&CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
+	} else if (kern_mutex_trylocking_done(ls->cpu0, ls->eip, &lock_addr, &succeeded)) {
+		assert(ACTION(s, kern_mutex_locking));
+		assert(!ACTION(s, kern_mutex_unlocking));
+		ACTION(s, kern_mutex_locking) = false;
+		if (succeeded) {
+			/* similar to mutex_locking_done case */
+			kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
+						CURRENT(s, tid));
+		} else {
+			/* simply undo changes from trylock begin */
+			lockset_remove(s, lock_addr, LOCK_MUTEX, true);
+		}
 	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &lock_addr)) {
 		/* It's allowed to have a mutex_unlock call inside a mutex_lock
 		 * (and it can happen), or mutex_lock inside of mutex_lock, but
