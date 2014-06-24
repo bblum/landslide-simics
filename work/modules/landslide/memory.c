@@ -651,7 +651,8 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			return;
 		} else if (ignore_user_access(ls)) {
 			/* Ignore accesses from userspace programs such as shell,
-			 * idle, or shell-post-fork-pre-exec. */
+			 * idle, or shell-post-fork-pre-exec. Or ignore accesses
+			 * if we're in a kernel test (esp. vanish_vanish!). */
 			return;
 		} else if (virt_addr == 0) {
 			/* Read from page table. */
@@ -676,15 +677,23 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	if (ls->sched.schedule_in_flight != NULL) {
 		assert(ls->sched.schedule_in_flight->tid != ls->sched.cur_agent->tid);
 		assert(ls->save.current != NULL);
-		if (in_kernel)
+		if (ls->sched.cur_agent->tid != ls->save.current->chosen_thread) {
+			/* Don't record this access at all if this is just an
+			 * "intermediate" thread during a schedule-in-flight,
+			 * i.e., this thread wasn't the one that ran last. */
+			return;
+		} else if (in_kernel) {
 			m = ls->save.current->old_kern_mem;
-		else
+		} else {
 			m = ls->save.current->old_user_mem;
+		}
 	} else {
-		if (in_kernel)
+		/* Not a special "access belongs to someone else" situation. */
+		if (in_kernel) {
 			m = &ls->kern_mem;
-		else
+		} else {
 			m = &ls->user_mem;
+		}
 	}
 
 	/* the allocator has a free pass to its own accesses */
