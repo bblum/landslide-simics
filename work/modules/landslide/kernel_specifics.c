@@ -241,6 +241,27 @@ bool kern_mutex_unlocking_done(int eip)
 	return eip == TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE;
 }
 
+bool kern_mutex_trylocking(conf_object_t *cpu, int eip, int *mutex)
+{
+	if (eip == TELL_LANDSLIDE_MUTEX_TRYLOCKING) {
+		*mutex = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_mutex_trylocking_done(conf_object_t *cpu, int eip, int *mutex, bool *success)
+{
+	if (eip == TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE) {
+		*mutex = READ_STACK(cpu, 1);
+		*success = READ_STACK(cpu, 2) != 0;
+		return true;
+	} else {
+		return false;
+	}
+}
+
 /******************************************************************************
  * Lifecycle
  ******************************************************************************/

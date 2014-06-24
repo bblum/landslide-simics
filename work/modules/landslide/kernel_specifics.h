@@ -38,6 +38,8 @@ bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *tid);
 bool kern_mutex_locking_done(int eip);
 bool kern_mutex_unlocking(conf_object_t *cpu, int eip, int *mutex);
 bool kern_mutex_unlocking_done(int eip);
+bool kern_mutex_trylocking(conf_object_t *cpu, int eip, int *mutex);
+bool kern_mutex_trylocking_done(conf_object_t *cpu, int eip, int *mutex, bool *success);
 
 /* Lifecycle */
 bool kern_forking(int eip);
