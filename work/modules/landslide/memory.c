@@ -810,7 +810,7 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 }
 
 static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
-			    int tid0, int tid1,
+			    struct hax *h0, struct hax *h1,
 			    struct mem_state *m0, struct mem_state *m1,
 			    struct mem_access *ma0, struct mem_access *ma1,
 			    struct chunk *c0, struct chunk *c1)
@@ -833,14 +833,14 @@ static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 				printf(CHOICE, " between:\n");
 
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
-				printf(CHOICE, "TID %d at ", tid0);
+				printf(CHOICE, "#%d/tid%d at ", h0->depth, h0->chosen_thread);
 				print_eip(CHOICE, l0->eip);
 				printf(CHOICE, " [locks: ");
 				lockset_print(CHOICE, &l0->locks_held);
 				printf(CHOICE, "] and \n");
 
 				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
-				printf(CHOICE, "TID %d at ", tid1);
+				printf(CHOICE, "#%d/tid%d at ", h1->depth, h1->chosen_thread);
 				print_eip(CHOICE, l1->eip);
 				printf(CHOICE, " [locks: ");
 				lockset_print(CHOICE, &l1->locks_held);
@@ -905,8 +905,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 				// FIXME: make this not interleave horribly with conflicts
 #ifdef PRINT_DATA_RACES
 #if PRINT_DATA_RACES != 0
-				check_data_race(cpu, tid0, tid1,
-						m0, m1, ma0, ma1, c0, c1);
+				check_data_race(cpu, h0, h1, m0, m1, ma0, ma1, c0, c1);
 #endif
 #endif
 			}
