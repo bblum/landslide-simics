@@ -542,6 +542,13 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
 	if (entry->trace_type == TR_Data) {
+		if (ls->just_jumped) {
+			/* stray access associated with the last instruction
+			 * of a past branch. at this point the rest of our
+			 * state has already been rewound, so it's too late to
+			 * record the access where/when it belongs. */
+			return;
+		}
 		/* mem access - do heap checks, whether user or kernel */
 		mem_check_shared_access(ls, entry->pa, entry->va,
 					(entry->read_or_write == Sim_RW_Write));
