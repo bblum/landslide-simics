@@ -804,9 +804,15 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		lsprintf(CHOICE, MODULE_COLOUR "#%d: Test ends with TID %d.\n"
 			 COLOUR_DEFAULT, h->depth, h->chosen_thread);
 	} else if (h->chosen_thread != ss->next_tid) {
-		lsprintf(CHOICE, COLOUR_BOLD MODULE_COLOUR "#%d: Preempting "
-			 "TID %d to switch to TID %d\n" COLOUR_DEFAULT,
-			 h->depth, h->chosen_thread, ss->next_tid);
+		if (voluntary) {
+			lsprintf(CHOICE, COLOUR_BOLD MODULE_COLOUR "#%d: Voluntary "
+				 "reschedule from TID %d to TID %d\n" COLOUR_DEFAULT,
+				 h->depth, h->chosen_thread, ss->next_tid);
+		} else {
+			lsprintf(CHOICE, COLOUR_BOLD MODULE_COLOUR "#%d: Preempting "
+				 "TID %d to switch to TID %d\n" COLOUR_DEFAULT,
+				 h->depth, h->chosen_thread, ss->next_tid);
+		}
 		lsprintf(CHOICE, "Current stack: ");
 		print_stack_trace(CHOICE, h->stack_trace);
 		printf(CHOICE, "\n");
