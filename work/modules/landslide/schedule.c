@@ -73,6 +73,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	a->action.lmm_remove_free = false;
 	a->action.kern_mutex_locking = false;
 	a->action.kern_mutex_unlocking = false;
+	a->action.kern_mutex_trylocking = false;
 	a->action.user_mutex_initing = false;
 	a->action.user_mutex_locking = false;
 	a->action.user_mutex_unlocking = false;
@@ -243,6 +244,7 @@ static void kern_mutex_block_others(struct agent_q *q, int mutex_addr,
 			            struct agent *kern_blocked_on, int kern_blocked_on_tid)
 {
 	struct agent *a;
+	assert(mutex_addr != -1);
 	Q_FOREACH(a, q, nobe) {
 		if (a->kern_blocked_on_addr == mutex_addr) {
 			lsprintf(DEV, "mutex: on 0x%x tid %d now blocks on %d "
@@ -650,13 +652,16 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
 					CURRENT(s, tid));
 	} else if (kern_mutex_trylocking(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, kern_mutex_unlocking));
-		ACTION(s, kern_mutex_locking) = true;
+		/* trylocking can happen in the timer handler, so it is expected
+		 * to preempt a lock or unlock operation. */
+		// XXX: couldn't it also preempt itself, with a PP on trylock?
+		assert(!ACTION(s, kern_mutex_trylocking));
+		ACTION(s, kern_mutex_trylocking) = true;
 		lockset_add(&CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
 	} else if (kern_mutex_trylocking_done(ls->cpu0, ls->eip, &lock_addr, &succeeded)) {
-		assert(ACTION(s, kern_mutex_locking));
+		assert(ACTION(s, kern_mutex_trylocking));
 		assert(!ACTION(s, kern_mutex_unlocking));
-		ACTION(s, kern_mutex_locking) = false;
+		ACTION(s, kern_mutex_trylocking) = false;
 		if (succeeded) {
 			/* similar to mutex_locking_done case */
 			kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,

@@ -55,6 +55,7 @@ struct agent {
 		/* are they taking or releasing a mutex? */
 		bool kern_mutex_locking;
 		bool kern_mutex_unlocking;
+		bool kern_mutex_trylocking;
 		/* what about in userspace? */
 		bool user_mutex_initing;
 		bool user_mutex_locking;
