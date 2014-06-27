@@ -232,14 +232,14 @@ static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, int *new_tid)
 	 * flags gets left behind. */
 	for (struct hax *h = current->parent; h != NULL; h = h->parent) {
 		if (any_tagged_child(h, new_tid)) {
-			lsprintf(BRANCH, "from #%d/tid%d (%p), chose tid %d, "
-				 "child of #%d/tid%d (%p)\n",
-				 current->depth, current->chosen_thread, current,
-				 *new_tid, h->depth, h->chosen_thread, h);
+			lsprintf(BRANCH, "from #%d/tid%d, chose tid %d, "
+				 "child of #%d/tid%d\n",
+				 current->depth, current->chosen_thread,
+				 *new_tid, h->depth, h->chosen_thread);
 			return h;
 		} else {
-			lsprintf(DEV, "#%d/tid%d (%p) all_explored\n",
-				 h->depth, h->chosen_thread, h);
+			lsprintf(DEV, "#%d/tid%d all_explored\n",
+				 h->depth, h->chosen_thread);
 			print_pruned_children(ss, h);
 			h->all_explored = true;
 		}
