@@ -23,6 +23,100 @@
 #include "user_sync.h"
 #include "x86.h"
 
+/* Values for user process cr3 state machine. We would like to assert that no
+ * test case run during testing_userspace() uses multiple cr3 values, as that
+ * would screw up our memory access tracking. But, we have to wait until after
+ * the test case's process goes through exec() before recording its ultimate cr3
+ * value. See ignore-user-access for details. */
+#define USER_CR3_WAITING_FOR_THUNDERBIRDS 0
+#define USER_CR3_WAITING_FOR_EXEC 1
+#define USER_CR3_EXEC_HAPPENED 2
+
+static void mem_heap_init(struct mem_state *m)
+{
+	m->heap.rb_node = NULL;
+	m->heap_size = 0;
+	m->heap_next_id = 0;
+	m->guest_init_done = false;
+	m->in_mm_init = false;
+	m->in_alloc = false;
+	m->in_free = false;
+	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
+	m->cr3_tid = 0;
+	m->user_mutex_size = 0;
+	m->shm.rb_node = NULL;
+	m->freed.rb_node = NULL;
+}
+
+void mem_init(struct ls_state *ls)
+{
+	mem_heap_init(&ls->kern_mem);
+	mem_heap_init(&ls->user_mem);
+}
+
+/* The user mem heap tracking can only work for a single address space. We want
+ * to pay attention to the userspace program under test, not the shell or init
+ * or idle or anything like that. Figure out what that process's cr3 is. */
+static bool ignore_user_access(struct ls_state *ls)
+{
+	int current_tid = ls->sched.cur_agent->tid;
+	int cr3 = GET_CPU_ATTR(ls->cpu0, cr3);;
+
+	if (!testing_userspace()) {
+		/* Don't attempt to track user accesses for kernelspace tests.
+		 * Tests like vanish_vanish require multiple user cr3s, which
+		 * we don't support when tracking user accesses. When doing a
+		 * userspace test, we need to do the below cr3 assertion, but
+		 * when doing a kernel test we cannot, so instead we have to
+		 * ignore all user accesses entirely. */
+		return true;
+	} else if (current_tid == kern_get_init_tid() ||
+	    current_tid == kern_get_shell_tid() ||
+	    (kern_has_idle() && current_tid == kern_get_idle_tid())) {
+		return true;
+	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_THUNDERBIRDS) {
+		ls->user_mem.cr3 = USER_CR3_WAITING_FOR_EXEC;
+		ls->user_mem.cr3_tid = current_tid;
+		return true;
+	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_EXEC) {
+		/* must wait for a trip through kernelspace; see below */
+		return true;
+	} else if (ls->user_mem.cr3 == USER_CR3_EXEC_HAPPENED) {
+		/* recognized non-shell-non-idle-non-init user process has been
+		 * through exec and back. hopefully its new cr3 is permanent. */
+		assert(cr3 != USER_CR3_WAITING_FOR_EXEC);
+		assert(cr3 != USER_CR3_EXEC_HAPPENED);
+		ls->user_mem.cr3 = cr3;
+		lsprintf(DEV, "Registered cr3 value 0x%x for userspace "
+			 "tid %d.\n", cr3, current_tid);
+		return false;
+	} else if (ls->user_mem.cr3 != cr3) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Memory tracking for "
+			 "more than 1 user address space is unsupported!\n");
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Already tracking for "
+			 "cr3 0x%x, belonging to tid %d; current cr3 0x%x, "
+			 "current tid %d\n", ls->user_mem.cr3,
+			 ls->user_mem.cr3_tid, cr3, current_tid);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "If you're trying to "
+			 "run vanish_vanish, make sure TESTING_USERSPACE=0.\n");
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Otherwise, make sure "
+			 "your test case doesn't fork().\n" COLOUR_DEFAULT);
+		assert(0);
+		return false;
+	} else {
+		return false;
+	}
+}
+
+/* Are we currently in the address space associated with the test program? */
+bool check_user_address_space(struct ls_state *ls)
+{
+	return ls->user_mem.cr3 != USER_CR3_WAITING_FOR_THUNDERBIRDS &&
+		ls->user_mem.cr3 != USER_CR3_WAITING_FOR_EXEC &&
+		ls->user_mem.cr3 != USER_CR3_EXEC_HAPPENED &&
+		ls->user_mem.cr3 == GET_CPU_ATTR(ls->cpu0, cr3);
+}
+
 /******************************************************************************
  * Heap helpers
  ******************************************************************************/
@@ -178,157 +272,8 @@ static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct h
 }
 
 /******************************************************************************
- * shm helpers
+ * heap state tracking
  ******************************************************************************/
-
-// Actually looking for data races cannot happen until we know the
-// happens-before relationship to previous transitions, in save.c.
-static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
-			       bool in_kernel)
-{
-	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
-	                                 &ls->sched.cur_agent->user_locks_held;
-	struct mem_lockset *l;
-
-	bool need_add = true;
-	bool remove_prev = false;
-
-	Q_FOREACH(l, &ma->locksets, nobe) {
-		if (remove_prev) {
-			struct mem_lockset *l_old = l->nobe.prev;
-			Q_REMOVE(&ma->locksets, l_old, nobe);
-			lockset_free(&l_old->locks_held);
-			MM_FREE(l_old);
-		}
-
-		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
-		if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
-			// if l subset l0, then we already have a better lockset
-			// than l0 for finding data races on this access, so no
-			// need to add l0 in addition.
-			need_add = false;
-			break;
-		} else {
-			// if subset, then l0 would be a strict upgrade over l,
-			// in terms of finding data races, so we can remove l.
-			remove_prev = (r == LOCKSETS_SUBSET);
-		}
-	}
-
-	if (remove_prev) {
-		l = Q_GET_TAIL(&ma->locksets);
-		Q_REMOVE(&ma->locksets, l, nobe);
-	}
-
-	if (need_add) {
-		l = MM_XMALLOC(1, struct mem_lockset);
-		l->eip = ls->eip;
-		lockset_clone(&l->locks_held, l0);
-		Q_INSERT_FRONT(&ma->locksets, l, nobe);
-	}
-}
-
-#define MEM_ENTRY(rb) \
-	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
-
-static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
-		    int addr, bool write, bool in_kernel)
-{
-	struct rb_node **p = &m->shm.rb_node;
-	struct rb_node *parent = NULL;
-	struct mem_access *ma;
-
-	while (*p) {
-		parent = *p;
-		ma = MEM_ENTRY(parent);
-
-		if (addr < ma->addr) {
-			p = &(*p)->rb_left;
-		} else if (addr > ma->addr) {
-			p = &(*p)->rb_right;
-		} else {
-			/* access already exists */
-			ma->count++;
-			ma->write = ma->write || write;
-			add_lockset_to_shm(ls, ma, in_kernel);
-			return;
-		}
-	}
-
-	/* doesn't exist; create a new one */
-	ma = MM_XMALLOC(1, struct mem_access);
-	ma->addr      = addr;
-	ma->write     = write;
-	ma->count     = 1;
-	ma->conflict  = false;
-	ma->other_tid = 0;
-	Q_INIT_HEAD(&ma->locksets);
-	add_lockset_to_shm(ls, ma, in_kernel);
-
-#ifndef STUDENT_FRIENDLY
-	if (c != NULL) {
-		kern_address_other_kstack(ls->cpu0, addr, c->base, c->len,
-					  &ma->other_tid);
-	}
-#endif
-
-	rb_link_node(&ma->nobe, parent, p);
-	rb_insert_color(&ma->nobe, &m->shm);
-}
-
-// XXX: Shm trees a re sorted with signed comparison. Fix that.
-bool shm_contains_addr(struct mem_state *m, int addr)
-{
-	struct mem_access *ma = MEM_ENTRY(m->shm.rb_node);
-
-	while (ma != NULL) {
-		if (addr == ma->addr) {
-			return true;
-		} else if (addr < ma->addr) {
-			ma = MEM_ENTRY(ma->nobe.rb_left);
-		} else {
-			ma = MEM_ENTRY(ma->nobe.rb_right);
-		}
-	}
-	return false;
-}
-
-/******************************************************************************
- * Interface
- ******************************************************************************/
-
-/* Values for user process cr3 state machine. We would like to assert that no
- * test case run during testing_userspace() uses multiple cr3 values, as that
- * would screw up our memory access tracking. But, we have to wait until after
- * the test case's process goes through exec() before recording its ultimate cr3
- * value. See ignore-user-access for details. */
-#define USER_CR3_WAITING_FOR_THUNDERBIRDS 0
-#define USER_CR3_WAITING_FOR_EXEC 1
-#define USER_CR3_EXEC_HAPPENED 2
-
-static void mem_heap_init(struct mem_state *m)
-{
-	m->heap.rb_node = NULL;
-	m->heap_size = 0;
-	m->heap_next_id = 0;
-	m->guest_init_done = false;
-	m->in_mm_init = false;
-	m->in_alloc = false;
-	m->in_free = false;
-	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
-	m->cr3_tid = 0;
-	m->user_mutex_size = 0;
-	m->shm.rb_node = NULL;
-	m->freed.rb_node = NULL;
-}
-
-void mem_init(struct ls_state *ls)
-{
-	mem_heap_init(&ls->kern_mem);
-	mem_heap_init(&ls->user_mem);
-}
-
-/* heap interface */
 
 #define K_STR(in_kernel) ((in_kernel) ? "kernel" : "userspace")
 
@@ -442,69 +387,6 @@ static void mem_exit_free(struct ls_state *ls, bool in_kernel)
 }
 #undef K_STR
 
-/* The user mem heap tracking can only work for a single address space. We want
- * to pay attention to the userspace program under test, not the shell or init
- * or idle or anything like that. Figure out what that process's cr3 is. */
-static bool ignore_user_access(struct ls_state *ls)
-{
-	int current_tid = ls->sched.cur_agent->tid;
-	int cr3 = GET_CPU_ATTR(ls->cpu0, cr3);;
-
-	if (!testing_userspace()) {
-		/* Don't attempt to track user accesses for kernelspace tests.
-		 * Tests like vanish_vanish require multiple user cr3s, which
-		 * we don't support when tracking user accesses. When doing a
-		 * userspace test, we need to do the below cr3 assertion, but
-		 * when doing a kernel test we cannot, so instead we have to
-		 * ignore all user accesses entirely. */
-		return true;
-	} else if (current_tid == kern_get_init_tid() ||
-	    current_tid == kern_get_shell_tid() ||
-	    (kern_has_idle() && current_tid == kern_get_idle_tid())) {
-		return true;
-	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_THUNDERBIRDS) {
-		ls->user_mem.cr3 = USER_CR3_WAITING_FOR_EXEC;
-		ls->user_mem.cr3_tid = current_tid;
-		return true;
-	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_EXEC) {
-		/* must wait for a trip through kernelspace; see below */
-		return true;
-	} else if (ls->user_mem.cr3 == USER_CR3_EXEC_HAPPENED) {
-		/* recognized non-shell-non-idle-non-init user process has been
-		 * through exec and back. hopefully its new cr3 is permanent. */
-		assert(cr3 != USER_CR3_WAITING_FOR_EXEC);
-		assert(cr3 != USER_CR3_EXEC_HAPPENED);
-		ls->user_mem.cr3 = cr3;
-		lsprintf(DEV, "Registered cr3 value 0x%x for userspace "
-			 "tid %d.\n", cr3, current_tid);
-		return false;
-	} else if (ls->user_mem.cr3 != cr3) {
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Memory tracking for "
-			 "more than 1 user address space is unsupported!\n");
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Already tracking for "
-			 "cr3 0x%x, belonging to tid %d; current cr3 0x%x, "
-			 "current tid %d\n", ls->user_mem.cr3,
-			 ls->user_mem.cr3_tid, cr3, current_tid);
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "If you're trying to "
-			 "run vanish_vanish, make sure TESTING_USERSPACE=0.\n");
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Otherwise, make sure "
-			 "your test case doesn't fork().\n" COLOUR_DEFAULT);
-		assert(0);
-		return false;
-	} else {
-		return false;
-	}
-}
-
-/* Are we currently in the address space associated with the test program? */
-bool check_user_address_space(struct ls_state *ls)
-{
-	return ls->user_mem.cr3 != USER_CR3_WAITING_FOR_THUNDERBIRDS &&
-		ls->user_mem.cr3 != USER_CR3_WAITING_FOR_EXEC &&
-		ls->user_mem.cr3 != USER_CR3_EXEC_HAPPENED &&
-		ls->user_mem.cr3 == GET_CPU_ATTR(ls->cpu0, cr3);
-}
-
 void mem_update(struct ls_state *ls)
 {
 	/* Dynamic memory allocation tracking */
@@ -572,7 +454,104 @@ void mem_update(struct ls_state *ls)
 	}
 }
 
-/* shm interface */
+/******************************************************************************
+ * recording shm accesses (per-instruction)
+ ******************************************************************************/
+
+/* Actually looking for data races cannot happen until we know the
+ * happens-before relationship to previous transitions, in save.c. */
+static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
+			       bool in_kernel)
+{
+	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
+	                                 &ls->sched.cur_agent->user_locks_held;
+	struct mem_lockset *l;
+
+	bool need_add = true;
+	bool remove_prev = false;
+
+	Q_FOREACH(l, &ma->locksets, nobe) {
+		if (remove_prev) {
+			struct mem_lockset *l_old = l->nobe.prev;
+			Q_REMOVE(&ma->locksets, l_old, nobe);
+			lockset_free(&l_old->locks_held);
+			MM_FREE(l_old);
+		}
+
+		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
+		if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
+			// if l subset l0, then we already have a better lockset
+			// than l0 for finding data races on this access, so no
+			// need to add l0 in addition.
+			need_add = false;
+			break;
+		} else {
+			// if subset, then l0 would be a strict upgrade over l,
+			// in terms of finding data races, so we can remove l.
+			remove_prev = (r == LOCKSETS_SUBSET);
+		}
+	}
+
+	if (remove_prev) {
+		l = Q_GET_TAIL(&ma->locksets);
+		Q_REMOVE(&ma->locksets, l, nobe);
+	}
+
+	if (need_add) {
+		l = MM_XMALLOC(1, struct mem_lockset);
+		l->eip = ls->eip;
+		lockset_clone(&l->locks_held, l0);
+		Q_INSERT_FRONT(&ma->locksets, l, nobe);
+	}
+}
+
+#define MEM_ENTRY(rb) \
+	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
+
+static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
+		    int addr, bool write, bool in_kernel)
+{
+	struct rb_node **p = &m->shm.rb_node;
+	struct rb_node *parent = NULL;
+	struct mem_access *ma;
+
+	while (*p) {
+		parent = *p;
+		ma = MEM_ENTRY(parent);
+
+		if (addr < ma->addr) {
+			p = &(*p)->rb_left;
+		} else if (addr > ma->addr) {
+			p = &(*p)->rb_right;
+		} else {
+			/* access already exists */
+			ma->count++;
+			ma->write = ma->write || write;
+			add_lockset_to_shm(ls, ma, in_kernel);
+			return;
+		}
+	}
+
+	/* doesn't exist; create a new one */
+	ma = MM_XMALLOC(1, struct mem_access);
+	ma->addr      = addr;
+	ma->write     = write;
+	ma->count     = 1;
+	ma->conflict  = false;
+	ma->other_tid = 0;
+	Q_INIT_HEAD(&ma->locksets);
+	add_lockset_to_shm(ls, ma, in_kernel);
+
+#ifndef STUDENT_FRIENDLY
+	if (c != NULL) {
+		kern_address_other_kstack(ls->cpu0, addr, c->base, c->len,
+					  &ma->other_tid);
+	}
+#endif
+
+	rb_link_node(&ma->nobe, parent, p);
+	rb_insert_color(&ma->nobe, &m->shm);
+}
 
 static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_kernel)
 {
@@ -717,6 +696,27 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	}
 }
 
+// XXX: Shm trees a re sorted with signed comparison. Fix that.
+bool shm_contains_addr(struct mem_state *m, int addr)
+{
+	struct mem_access *ma = MEM_ENTRY(m->shm.rb_node);
+
+	while (ma != NULL) {
+		if (addr == ma->addr) {
+			return true;
+		} else if (addr < ma->addr) {
+			ma = MEM_ENTRY(ma->nobe.rb_left);
+		} else {
+			ma = MEM_ENTRY(ma->nobe.rb_right);
+		}
+	}
+	return false;
+}
+
+/******************************************************************************
+ * checking shm conflicts (per-preemption-point)
+ ******************************************************************************/
+
 /* Remove the need for the student to implement kern_address_hint. */
 #ifdef STUDENT_FRIENDLY
 #define kern_address_hint(cpu, buf, size, addr, base, len) \
@@ -824,6 +824,12 @@ static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 		return;
 	}
 
+	/* Note since we're just identifying *suspected* data races here, we
+	 * need to pay attention to each distinct eip pair, rather than just
+	 * calling it a day after the first matching eip pair. (IOW, suppose
+	 * ma0's eips are [A,B], ma1's eips are [C,D], and the race (A,C) ends
+	 * up being nonreorderable, while (B,D) is reorderable: in this case
+	 * stopping after (A,C) would report no confirmed data races at all.) */
 	Q_FOREACH(l0, &ma0->locksets, nobe) {
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			// To be safe, all pairs of locksets must have a lock in common.
@@ -845,7 +851,8 @@ static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 				printf(CHOICE, " [locks: ");
 				lockset_print(CHOICE, &l1->locks_held);
 				printf(CHOICE, "]\n");
-				return;
+				// FIXME: see note above
+				// return;
 			}
 		}
 	}
