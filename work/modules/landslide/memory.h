@@ -122,7 +122,7 @@ void mem_update(struct ls_state *);
 
 void mem_check_shared_access(struct ls_state *, int phys_addr, int virt_addr,
 							 bool write);
-bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h2,
+bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h2,
                        bool in_kernel);
 
 bool shm_contains_addr(struct mem_state *m, int addr);

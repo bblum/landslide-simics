@@ -516,7 +516,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	struct rb_node *parent = NULL;
 	struct mem_access *ma;
 
-	while (*p) {
+	while (*p != NULL) {
 		parent = *p;
 		ma = MEM_ENTRY(parent);
 
@@ -810,12 +810,106 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 	}
 }
 
-static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
-			    struct hax *h0, struct hax *h1,
-			    struct mem_state *m0, struct mem_state *m1,
+static void print_data_race(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 			    struct mem_access *ma0, struct mem_access *ma1,
-			    struct chunk *c0, struct chunk *c1)
+			    struct chunk *c0, struct chunk *c1,
+			    struct mem_lockset *l0, struct mem_lockset *l1,
+			    bool in_kernel, bool confirmed)
 {
+#ifdef PRINT_DATA_RACES
+#if PRINT_DATA_RACES != 0
+	struct mem_state *m0 = in_kernel ? h0->old_kern_mem : h0->old_user_mem;
+	struct mem_state *m1 = in_kernel ? h1->old_kern_mem : h1->old_user_mem;
+
+	const char *colour =
+		confirmed ? COLOUR_BOLD COLOUR_RED : COLOUR_BOLD COLOUR_YELLOW;
+	verbosity v = confirmed ? CHOICE : DEV;
+
+	lsprintf(v, "%sData race: ", colour);
+	print_shm_conflict(v, cpu, m0, m1, ma0, ma1, c0, c1);
+	printf(v, " between:\n");
+
+	lsprintf(v, "%s", colour);
+	printf(v, "#%d/tid%d at ", h0->depth, h0->chosen_thread);
+	print_eip(v, l0->eip);
+	printf(v, " [locks: ");
+	lockset_print(v, &l0->locks_held);
+	printf(v, "] and \n");
+
+	lsprintf(v, "%s", colour);
+	printf(v, "#%d/tid%d at ", h1->depth, h1->chosen_thread);
+	print_eip(v, l1->eip);
+	printf(v, " [locks: ");
+	lockset_print(v, &l1->locks_held);
+	printf(v, "]\n");
+#endif
+#endif
+}
+
+#define DR_ENTRY(rb) \
+	((rb) == NULL ? NULL : rb_entry(rb, struct data_race, nobe))
+
+/* checks for both orderings of eips in a suspected data race, occurring across
+ * multiple branches of the state space, before confirming the possibility of a
+ * data race. see comment above struct data_race in memory.h for reasoning. */
+static bool check_data_race(struct mem_state *m, int eip0, int  eip1)
+{
+	struct rb_node **p = &m->data_races.rb_node;
+	struct rb_node *parent = NULL;
+	struct data_race *dr;
+
+	/* lower eip is first, regardless of order */
+	bool eip0_first = eip0 < eip1;
+	int first_eip = eip0_first ? eip0 : eip1;
+	int other_eip = eip0_first ? eip1 : eip0;
+
+	while (*p != NULL) {
+		parent = *p;
+		dr = DR_ENTRY(parent);
+		assert(dr->first_before_other || dr->other_before_first);
+
+		/* lexicographic ordering of eips */
+		if (first_eip < dr->first_eip ||
+		    (first_eip == dr->first_eip && other_eip < dr->other_eip)) {
+			p = &(*p)->rb_left;
+		} else if (first_eip > dr->first_eip ||
+			   (first_eip == dr->first_eip && other_eip > dr->other_eip)) {
+			p = &(*p)->rb_right;
+		} else {
+			assert(first_eip == dr->first_eip);
+			assert(other_eip == dr->other_eip);
+
+			/* found existing entry for eip pair; check eip order */
+			if (eip0_first && dr->other_before_first) {
+				dr->first_before_other = true;
+				return true;
+			} else if (!eip0_first && dr->first_before_other) {
+				dr->other_before_first = true;
+				return true;
+			} else {
+				/* second order not observed yet */
+				return false;
+			}
+		}
+	}
+
+	/* this eip pair has never raced before; create a new entry */
+	dr = MM_XMALLOC(1, struct data_race);
+	dr->first_eip          = first_eip;
+	dr->other_eip          = other_eip;
+	dr->first_before_other = eip0_first;
+	dr->other_before_first = !eip0_first;
+
+	rb_link_node(&dr->nobe, parent, p);
+	rb_insert_color(&dr->nobe, &m->data_races);
+	return false;
+}
+
+static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
+			   struct mem_access *ma0, struct mem_access *ma1,
+			   struct chunk *c0, struct chunk *c1, bool in_kernel)
+{
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 	struct mem_lockset *l0;
 	struct mem_lockset *l1;
 
@@ -833,36 +927,22 @@ static void MAYBE_UNUSED check_data_race(conf_object_t *cpu,
 	 * stopping after (A,C) would report no confirmed data races at all.) */
 	Q_FOREACH(l0, &ma0->locksets, nobe) {
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
-			// To be safe, all pairs of locksets must have a lock in common.
+			/* Are there any 2 locksets without a lock in common? */
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
-				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED "Data race: ");
-				print_shm_conflict(CHOICE, cpu, m0, m1, ma0, ma1, c0, c1);
-				printf(CHOICE, " between:\n");
-
-				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
-				printf(CHOICE, "#%d/tid%d at ", h0->depth, h0->chosen_thread);
-				print_eip(CHOICE, l0->eip);
-				printf(CHOICE, " [locks: ");
-				lockset_print(CHOICE, &l0->locks_held);
-				printf(CHOICE, "] and \n");
-
-				lsprintf(CHOICE, COLOUR_BOLD COLOUR_RED);
-				printf(CHOICE, "#%d/tid%d at ", h1->depth, h1->chosen_thread);
-				print_eip(CHOICE, l1->eip);
-				printf(CHOICE, " [locks: ");
-				lockset_print(CHOICE, &l1->locks_held);
-				printf(CHOICE, "]\n");
-				// FIXME: see note above
-				// return;
+				bool confirmed = check_data_race(m, l0->eip, l1->eip);
+				print_data_race(ls->cpu0, h0, h1, ma0, ma1, c0, c1,
+						l0, l1, in_kernel, confirmed);
 			}
 		}
 	}
 }
 
 /* Compute the intersection of two transitions' shm accesses */
-bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
-                       bool in_kernel)
+bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
+		       bool in_kernel)
 {
+	conf_object_t *cpu = ls->cpu0; // FIXME(#58) can be removed
+
 	struct mem_state *m0 = in_kernel ? h0->old_kern_mem : h0->old_user_mem;
 	struct mem_state *m1 = in_kernel ? h1->old_kern_mem : h1->old_user_mem;
 	int tid0 = h0->chosen_thread;
@@ -911,11 +991,7 @@ bool mem_shm_intersect(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 				ma0->conflict = true;
 				ma1->conflict = true;
 				// FIXME: make this not interleave horribly with conflicts
-#ifdef PRINT_DATA_RACES
-#if PRINT_DATA_RACES != 0
-				check_data_race(cpu, h0, h1, m0, m1, ma0, ma1, c0, c1);
-#endif
-#endif
+				check_locksets(ls, h0, h1, ma0, ma1, c0, c1, in_kernel);
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));

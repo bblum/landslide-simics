@@ -636,7 +636,7 @@ static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 			 * they are possibly 'concurrent' with each other. */
 			h->conflicts[old->depth] =
 				(!h->happens_before[old->depth]) &&
-				mem_shm_intersect(ls->cpu0, h, old, in_kernel);
+				mem_shm_intersect(ls, h, old, in_kernel);
 		}
 	}
 }
