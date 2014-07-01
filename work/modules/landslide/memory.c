@@ -46,6 +46,7 @@ static void mem_heap_init(struct mem_state *m)
 	m->user_mutex_size = 0;
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
+	m->data_races.rb_node = NULL;
 }
 
 void mem_init(struct ls_state *ls)

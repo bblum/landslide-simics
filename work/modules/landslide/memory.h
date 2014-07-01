@@ -41,6 +41,34 @@ struct mem_access {
 	struct rb_node nobe;
 };
 
+/* represents two instructions by different threads which accessed the same
+ * memory location, where both threads did not hold the same lock and there was
+ * not a happens-before relation between them [insert citation here]. the
+ * intuition behind these criteria is that the memory accesses are "concurrent"
+ * and can be interleaved at instruction granularity. in iterative deepening,
+ * we use data race reports to identify places for new preemption points.
+ *
+ * a data race may be either "suspected" or "confirmed", the distinction being
+ * whether we have yet observed that the instruction pair can actually be
+ * reordered. in some cases a "suspected" data race cannot actually be reordered
+ * because of an implicit HB relationship that's established through some other
+ * shared variable communication. these are invisible to us during single-branch
+ * analysis, because we compute HB only by runqueues, and can't see how shm
+ * communication might affect flow control. fortunately, unlike single-branch
+ * detectors (eraser, tsan, go test -race), we can remember data race reports
+ * cross-branch and suppress false positives by confirming the absence of such
+ * implicit HB relations. it should be clear that this reduction is sound. */
+struct data_race {
+	int first_eip;
+	int other_eip;
+	/* which order were they observed in? "confirmed" iff both are true. */
+	bool first_before_other;
+	bool other_before_first;
+	// TODO: record stack traces?
+	// TODO: record originating tids (even when stack unavailable)?
+	struct rb_node nobe;
+};
+
 /******************************************************************************
  * Heap state tracking
  ******************************************************************************/
@@ -57,6 +85,7 @@ struct chunk {
 };
 
 struct mem_state {
+	/**** heap state tracking ****/
 	struct rb_root heap;
 	int heap_size;
 	int heap_next_id; /* generation counter for chunks */
@@ -66,15 +95,21 @@ struct mem_state {
 	bool in_alloc;
 	bool in_free;
 	int alloc_request_size; /* valid iff in_alloc */
+
+	/**** userspace information ****/
 	int cr3; /* 0 == uninitialized or this is for kernel mem */
 	int cr3_tid; /* tid for which cr3 was registered (main tid of process) */
 	int user_mutex_size; /* 0 == uninitialized or kernel mem as above */
+
+	/**** shared memory conflict detection ****/
 	/* set of all shared accesses that happened during this transition;
 	 * cleared after each save point - done in save.c */
 	struct rb_root shm;
 	/* set of all chunks that were freed during this transition; cleared
 	 * after each save point just like the shared memory one above */
 	struct rb_root freed;
+	/* set of candidate data races, maintained cross-branch */
+	struct rb_root data_races;
 };
 
 /******************************************************************************

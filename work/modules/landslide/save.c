@@ -289,7 +289,7 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 
 	return &dest->nobe;
 }
-static void copy_mem(struct mem_state *dest, const struct mem_state *src)
+static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool in_tree)
 {
 	dest->guest_init_done    = src->guest_init_done;
 	dest->in_mm_init         = src->in_mm_init;
@@ -309,6 +309,11 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src)
 	 * the shimsham_shm call, so we at least must initialize them here. */
 	dest->shm.rb_node        = NULL;
 	dest->freed.rb_node      = NULL;
+	/* do NOT copy data_races! */
+	if (in_tree) {
+		/* see corresponding assert in free_mem() */
+		dest->data_races.rb_node = NULL;
+	}
 }
 static void copy_user_sync(struct user_sync_state *dest,
 				 struct user_sync_state *src,
@@ -400,7 +405,7 @@ static void free_shm(struct rb_node *nobe)
 	MM_FREE(ma);
 }
 
-static void free_mem(struct mem_state *m)
+static void free_mem(struct mem_state *m, bool in_tree)
 {
 	free_heap(m->heap.rb_node);
 	m->heap.rb_node = NULL;
@@ -408,6 +413,11 @@ static void free_mem(struct mem_state *m)
 	m->shm.rb_node = NULL;
 	free_heap(m->freed.rb_node);
 	m->freed.rb_node = NULL;
+	if (in_tree) {
+		/* data races are "glowing green", and should only appear in the
+		 * copy of mem_state owned by landslide itself; never copied */
+		assert(m->data_races.rb_node == NULL);
+	}
 }
 
 static int free_user_sync(struct user_sync_state *u)
@@ -450,9 +460,9 @@ static void free_hax(struct hax *h)
 	MM_FREE(h->oldsched);
 	free_test(h->oldtest);
 	MM_FREE(h->oldtest);
-	free_mem(h->old_kern_mem);
+	free_mem(h->old_kern_mem, true);
 	MM_FREE(h->old_kern_mem);
-	free_mem(h->old_user_mem);
+	free_mem(h->old_user_mem, true);
 	MM_FREE(h->old_user_mem);
 	free_user_sync(h->old_user_sync);
 	MM_FREE(h->old_user_sync);
@@ -483,10 +493,10 @@ static void restore_ls(struct ls_state *ls, struct hax *h)
 	copy_sched(&ls->sched, h->oldsched);
 	free_test(&ls->test);
 	copy_test(&ls->test, h->oldtest);
-	free_mem(&ls->kern_mem);
-	copy_mem(&ls->kern_mem, h->old_kern_mem); /* note: leaves shm empty, as we want */
-	free_mem(&ls->user_mem);
-	copy_mem(&ls->user_mem, h->old_user_mem); /* as above */
+	free_mem(&ls->kern_mem, false);
+	copy_mem(&ls->kern_mem, h->old_kern_mem, false); /* note: leaves shm empty, as we want */
+	free_mem(&ls->user_mem, false);
+	copy_mem(&ls->user_mem, h->old_user_mem, false); /* as above */
 	int already_known_size = free_user_sync(&ls->user_sync);
 	copy_user_sync(&ls->user_sync, h->old_user_sync, already_known_size);
 	free_arbiter_choices(&ls->arbiter);
@@ -767,10 +777,10 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 	copy_test(h->oldtest, &ls->test);
 
 	h->old_kern_mem = MM_XMALLOC(1, struct mem_state);
-	copy_mem(h->old_kern_mem, &ls->kern_mem);
+	copy_mem(h->old_kern_mem, &ls->kern_mem, true);
 
 	h->old_user_mem = MM_XMALLOC(1, struct mem_state);
-	copy_mem(h->old_user_mem, &ls->user_mem);
+	copy_mem(h->old_user_mem, &ls->user_mem, true);
 
 	h->old_user_sync = MM_XMALLOC(1, struct user_sync_state);
 	copy_user_sync(h->old_user_sync, &ls->user_sync, 0);
