@@ -313,6 +313,8 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool i
 	if (in_tree) {
 		/* see corresponding assert in free_mem() */
 		dest->data_races.rb_node = NULL;
+		dest->data_races_suspected = 0;
+		dest->data_races_confirmed = 0;
 	}
 }
 static void copy_user_sync(struct user_sync_state *dest,
@@ -417,6 +419,8 @@ static void free_mem(struct mem_state *m, bool in_tree)
 		/* data races are "glowing green", and should only appear in the
 		 * copy of mem_state owned by landslide itself; never copied */
 		assert(m->data_races.rb_node == NULL);
+		assert(m->data_races_suspected == 0);
+		assert(m->data_races_confirmed == 0);
 	}
 }
 

@@ -110,6 +110,8 @@ struct mem_state {
 	struct rb_root freed;
 	/* set of candidate data races, maintained cross-branch */
 	struct rb_root data_races;
+	int data_races_suspected;
+	int data_races_confirmed;
 };
 
 /******************************************************************************

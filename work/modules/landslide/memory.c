@@ -47,6 +47,8 @@ static void mem_heap_init(struct mem_state *m)
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
 	m->data_races.rb_node = NULL;
+	m->data_races_suspected = 0;
+	m->data_races_confirmed = 0;
 }
 
 void mem_init(struct ls_state *ls)
@@ -810,7 +812,7 @@ static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
 	}
 }
 
-static void print_data_race(conf_object_t *cpu, struct hax *h0, struct hax *h1,
+static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			    struct mem_access *ma0, struct mem_access *ma1,
 			    struct chunk *c0, struct chunk *c1,
 			    struct mem_lockset *l0, struct mem_lockset *l1,
@@ -818,6 +820,7 @@ static void print_data_race(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 {
 #ifdef PRINT_DATA_RACES
 #if PRINT_DATA_RACES != 0
+	struct mem_state *m  = in_kernel ? &ls->kern_mem    : &ls->user_mem;
 	struct mem_state *m0 = in_kernel ? h0->old_kern_mem : h0->old_user_mem;
 	struct mem_state *m1 = in_kernel ? h1->old_kern_mem : h1->old_user_mem;
 
@@ -826,7 +829,7 @@ static void print_data_race(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 	verbosity v = confirmed ? CHOICE : DEV;
 
 	lsprintf(v, "%sData race: ", colour);
-	print_shm_conflict(v, cpu, m0, m1, ma0, ma1, c0, c1);
+	print_shm_conflict(v, ls->cpu0, m0, m1, ma0, ma1, c0, c1);
 	printf(v, " between:\n");
 
 	lsprintf(v, "%s", colour);
@@ -842,6 +845,9 @@ static void print_data_race(conf_object_t *cpu, struct hax *h0, struct hax *h1,
 	printf(v, " [locks: ");
 	lockset_print(v, &l1->locks_held);
 	printf(v, "]\n");
+
+	lsprintf(DEV, "Num data races suspected: %d; confirmed: %d\n",
+		 m->data_races_suspected, m->data_races_confirmed);
 #endif
 #endif
 }
@@ -881,10 +887,16 @@ static bool check_data_race(struct mem_state *m, int eip0, int  eip1)
 
 			/* found existing entry for eip pair; check eip order */
 			if (eip0_first && dr->other_before_first) {
-				dr->first_before_other = true;
+				if (!dr->first_before_other) {
+					dr->first_before_other = true;
+					m->data_races_confirmed++;
+				}
 				return true;
 			} else if (!eip0_first && dr->first_before_other) {
-				dr->other_before_first = true;
+				if (!dr->other_before_first) {
+					dr->other_before_first = true;
+					m->data_races_confirmed++;
+				}
 				return true;
 			} else {
 				/* second order not observed yet */
@@ -902,6 +914,8 @@ static bool check_data_race(struct mem_state *m, int eip0, int  eip1)
 
 	rb_link_node(&dr->nobe, parent, p);
 	rb_insert_color(&dr->nobe, &m->data_races);
+
+	m->data_races_suspected++;
 	return false;
 }
 
@@ -930,7 +944,7 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			/* Are there any 2 locksets without a lock in common? */
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
 				bool confirmed = check_data_race(m, l0->eip, l1->eip);
-				print_data_race(ls->cpu0, h0, h1, ma0, ma1, c0, c1,
+				print_data_race(ls, h0, h1, ma0, ma1, c0, c1,
 						l0, l1, in_kernel, confirmed);
 			}
 		}
