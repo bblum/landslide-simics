@@ -339,8 +339,6 @@ static const char *exception_names[] = {
 	"coprocessor error",
 };
 
-#define BUF_SIZE 256
-
 static void check_exception(struct ls_state *ls, int number)
 {
 	if (number < ARRAY_SIZE(exception_names)) {

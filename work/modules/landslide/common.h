@@ -33,6 +33,8 @@
 #define COLOUR_WHITE "\033[38m"
 #define COLOUR_DEFAULT "\033[00m"
 
+#define BUF_SIZE 256 /* default length for internal print buffers */
+
 /* Verbosity levels */
 #define ALWAYS 0 /* yeah, uh */
 #define BUG    ALWAYS /* stuff that must get printed to be ever useful */

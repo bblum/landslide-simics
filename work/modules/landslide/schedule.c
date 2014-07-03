@@ -634,9 +634,9 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		// So if they were unblocked, they are not really blocked.
 		if (CURRENT(s, kern_blocked_on_addr) == -1) {
 			if (deadlocked(s)) {
-				char buf[256];
+				char buf[BUF_SIZE];
 				unsigned int len =
-					print_deadlock(buf, 256, s->cur_agent);
+					print_deadlock(buf, BUF_SIZE, s->cur_agent);
 				FOUND_A_BUG(ls, "KERNEL DEADLOCK! %.*s", len, buf);
 			}
 		}

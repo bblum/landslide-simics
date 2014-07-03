@@ -215,8 +215,6 @@ static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
 	print_heap(v, c->nobe.rb_right, rightmost);
 }
 
-#define BUF_SIZE 256
-
 /* Attempt to find a freed chunk among all transitions */
 static struct chunk *find_freed_chunk(struct ls_state *ls, unsigned int addr,
 				      bool in_kernel,
