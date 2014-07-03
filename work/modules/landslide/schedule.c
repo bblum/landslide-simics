@@ -307,20 +307,22 @@ void sched_init(struct sched_state *s)
 void print_agent(verbosity v, const struct agent *a)
 {
 	printf(v, "%d", a->tid);
-	if (a->action.handling_timer)  printf(v, "t");
-	if (a->action.context_switch)  printf(v, "c");
-	if (a->action.forking)         printf(v, "f");
-	if (a->action.sleeping)        printf(v, "s");
-	if (a->action.vanishing)       printf(v, "v");
-	if (a->action.readlining)      printf(v, "r");
-	if (a->action.schedule_target) printf(v, "*");
+	if (MAX_VERBOSITY >= DEV) {
+		if (a->action.handling_timer)  printf(v, "t");
+		if (a->action.context_switch)  printf(v, "c");
+		if (a->action.forking)         printf(v, "f");
+		if (a->action.sleeping)        printf(v, "s");
+		if (a->action.vanishing)       printf(v, "v");
+		if (a->action.readlining)      printf(v, "r");
+		if (a->action.schedule_target) printf(v, "*");
+	}
 	if (BLOCKED(a)) {
 		if (a->kern_blocked_on_tid != -1) {
-			printf(v, "<?%d>", a->kern_blocked_on_tid);
+			printf(v, "<blocked on %d>", a->kern_blocked_on_tid);
 		} else if (a->user_blocked_on_addr != -1) {
-			printf(v, "{?%x}", a->user_blocked_on_addr);
+			printf(v, "{blocked on %x}", a->user_blocked_on_addr);
 		} else if (agent_is_user_yield_blocked(&a->user_yield)) {
-			printf(v, "{?yield}");
+			printf(v, "{yield loop}");
 		} else {
 			assert(false && "unknown blocked condition");
 		}
