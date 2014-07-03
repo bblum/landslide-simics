@@ -62,15 +62,6 @@ bool kern_lmm_remove_free_exiting(int eip);
 /* Other memory operations */
 bool kern_address_in_heap(int addr);
 bool kern_address_global(int addr);
-/* The following three are optional; you don't need to worry about them :) */
-#define STUDENT_FRIENDLY
-#ifndef STUDENT_FRIENDLY
-bool kern_address_own_kstack(conf_object_t *cpu, int addr);
-bool kern_address_other_kstack(conf_object_t *, int addr, int chunk, int size,
-			       int *tid);
-void kern_address_hint(conf_object_t *, char *buf, int buflen,
-		       int addr, int chunk, int size);
-#endif
 
 /* Other / init */
 int kern_get_init_tid(void);

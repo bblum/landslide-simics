@@ -388,59 +388,6 @@ bool kern_address_global(int addr)
 		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
 }
 
-#if 0
-bool kern_address_own_kstack(conf_object_t *cpu, int addr)
-{
-	int stack_bottom = STACK_FROM_TCB(kern_get_current_tcb(cpu));
-	return (addr >= stack_bottom && addr < stack_bottom + GUEST_STACK_SIZE);
-}
-
-bool kern_address_other_kstack(conf_object_t *cpu, int addr, int chunk,
-			       int size, int *tid)
-{
-	if (size == GUEST_TCB_CHUNK_SIZE) {
-		//int stack_bottom = STACK_FROM_TCB(chunk+GUEST_TCB_OFFSET);
-		int stack_bottom = chunk;
-		if (addr >= stack_bottom &&
-		    addr < stack_bottom + GUEST_STACK_SIZE) {
-			*tid = TID_FROM_TCB(cpu, chunk + GUEST_TCB_OFFSET);
-			return true;
-		}
-	}
-	return false;
-}
-
-static const char *member_name(const struct struct_member *members,
-			       int num_members, int offset)
-{
-	for (int i = 0; i < num_members; i++) {
-		if (offset >= members[i].offset &&
-		    offset < members[i].offset + members[i].size) {
-			return members[i].name;
-		}
-	}
-	return "((unknown))";
-}
-
-void kern_address_hint(conf_object_t *cpu, char *buf, int buflen, int addr,
-		       int chunk, int size)
-{
-	if (size == GUEST_TCB_CHUNK_SIZE) {
-		scnprintf(buf, buflen, "tcb%d->%s",
-			  (int)TID_FROM_TCB(cpu, chunk + GUEST_TCB_OFFSET),
-			  member_name(guest_tcb_t, ARRAY_SIZE(guest_tcb_t),
-		                      addr - chunk));
-	} else if (size == GUEST_PCB_T_SIZE) {
-		scnprintf(buf, buflen, "pcb%d->%s",
-			  (int)PID_FROM_PCB(cpu, chunk),
-			  member_name(guest_pcb_t, ARRAY_SIZE(guest_pcb_t),
-		                      addr - chunk));
-	} else {
-		scnprintf(buf, buflen, "0x%.8x", addr);
-	}
-}
-#endif
-
 /******************************************************************************
  * Other / Init
  ******************************************************************************/

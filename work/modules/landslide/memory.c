@@ -545,13 +545,6 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	Q_INIT_HEAD(&ma->locksets);
 	add_lockset_to_shm(ls, ma, in_kernel);
 
-#ifndef STUDENT_FRIENDLY
-	if (c != NULL) {
-		kern_address_other_kstack(ls->cpu0, addr, c->base, c->len,
-					  &ma->other_tid);
-	}
-#endif
-
 	rb_link_node(&ma->nobe, parent, p);
 	rb_insert_color(&ma->nobe, &m->shm);
 }
@@ -619,12 +612,6 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 		if (testing_userspace()) {
 			return;
 		}
-#ifndef STUDENT_FRIENDLY
-		/* ignore certain "probably innocent" accesses */
-		if (kern_address_own_kstack(ls->cpu0, addr)) {
-			return;
-		}
-#endif
 	} else {
 		/* USER SPACE */
 		if (phys_addr < USER_MEM_START) {
@@ -720,14 +707,10 @@ bool shm_contains_addr(struct mem_state *m, int addr)
  * checking shm conflicts (per-preemption-point)
  ******************************************************************************/
 
-/* Remove the need for the student to implement kern_address_hint. */
-#ifdef STUDENT_FRIENDLY
-#define kern_address_hint(cpu, buf, size, addr, base, len) \
+#define print_heap_address(buf, size, addr, base, len) \
 	scnprintf(buf, size, "0x%x in [0x%x | %d]", addr, base, len)
-#endif
 
-static void print_shm_conflict(verbosity v, conf_object_t *cpu,
-			       struct mem_state *m0, struct mem_state *m1,
+static void print_shm_conflict(verbosity v, struct mem_state *m0, struct mem_state *m1,
 			       struct mem_access *ma0, struct mem_access *ma1,
 			       struct chunk *c0, struct chunk *c1)
 {
@@ -759,8 +742,7 @@ static void print_shm_conflict(verbosity v, conf_object_t *cpu,
 		 * assert(c1 == NULL ||
 		 *        (c0->base == c1->base && c0->len == c1->len));
 		 */
-		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
-				  c0->base, c0->len);
+		print_heap_address(buf, BUF_SIZE, ma0->addr, c0->base, c0->len);
 	}
 	printf(v, "[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
 	       ma1->write ? 'w' : 'r', ma1->count);
@@ -768,8 +750,7 @@ static void print_shm_conflict(verbosity v, conf_object_t *cpu,
 
 #define MAX_CONFLICTS 10
 
-static void check_stack_conflict(struct mem_access *ma, int other_tid,
-				 int *conflicts)
+static void check_stack_conflict(struct mem_access *ma, int other_tid, int *conflicts)
 {
 	/* The motivation for this function is that, as an optimisation, we
 	 * don't record shm accesses to a thread's own stack. The flip-side of
@@ -790,16 +771,14 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid,
 	}
 }
 
-static void check_freed_conflict(conf_object_t *cpu, struct mem_access *ma0,
-				 struct mem_state *m1, int other_tid,
-				 int *conflicts)
+static void check_freed_conflict(struct mem_access *ma0, struct mem_state *m1,
+				 int other_tid, int *conflicts)
 {
 	struct chunk *c = find_containing_chunk(&m1->freed, ma0->addr);
 
 	if (c != NULL) {
 		char buf[BUF_SIZE];
-		kern_address_hint(cpu, buf, BUF_SIZE, ma0->addr,
-				  c->base, c->len);
+		print_heap_address(buf, BUF_SIZE, ma0->addr, c->base, c->len);
 
 		if (*conflicts < MAX_CONFLICTS) {
 			if (*conflicts > 0)
@@ -829,7 +808,7 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	verbosity v = confirmed ? CHOICE : DEV;
 
 	lsprintf(v, "%sData race: ", colour);
-	print_shm_conflict(v, ls->cpu0, m0, m1, ma0, ma1, c0, c1);
+	print_shm_conflict(v, m0, m1, ma0, ma1, c0, c1);
 	printf(v, " between:\n");
 
 	lsprintf(v, "%s", colour);
@@ -955,8 +934,6 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		       bool in_kernel)
 {
-	conf_object_t *cpu = ls->cpu0; // FIXME(#58) can be removed
-
 	struct mem_state *m0 = in_kernel ? h0->old_kern_mem : h0->old_user_mem;
 	struct mem_state *m1 = in_kernel ? h1->old_kern_mem : h1->old_user_mem;
 	int tid0 = h0->chosen_thread;
@@ -979,12 +956,12 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	while (ma0 != NULL && ma1 != NULL) {
 		if (ma0->addr < ma1->addr) {
 			check_stack_conflict(ma0, tid1, &conflicts);
-			check_freed_conflict(cpu, ma0, m1, tid1, &conflicts);
+			check_freed_conflict(ma0, m1, tid1, &conflicts);
 			/* advance ma0 */
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 		} else if (ma0->addr > ma1->addr) {
 			check_stack_conflict(ma1, tid0, &conflicts);
-			check_freed_conflict(cpu, ma1, m0, tid0, &conflicts);
+			check_freed_conflict(ma1, m0, tid0, &conflicts);
 			/* advance ma1 */
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 		} else {
@@ -998,7 +975,7 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 					if (conflicts > 0)
 						printf(DEV, ", ");
 					/* the match is also a conflict */
-					print_shm_conflict(DEV, cpu, m0, m1,
+					print_shm_conflict(DEV, m0, m1,
 							   ma0, ma1, c0, c1);
 				}
 				conflicts++;
@@ -1016,12 +993,12 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	 * to check the other one's remaining accesses for the one's stack. */
 	while (ma0 != NULL) {
 		check_stack_conflict(ma0, tid1, &conflicts);
-		check_freed_conflict(cpu, ma0, m1, tid1, &conflicts);
+		check_freed_conflict(ma0, m1, tid1, &conflicts);
 		ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 	}
 	while (ma1 != NULL) {
 		check_stack_conflict(ma1, tid0, &conflicts);
-		check_freed_conflict(cpu, ma1, m0, tid0, &conflicts);
+		check_freed_conflict(ma1, m0, tid0, &conflicts);
 		ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 	}
 
