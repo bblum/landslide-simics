@@ -27,7 +27,7 @@ bool user_within_functions(struct ls_state *ls)
 	return _within_functions(ls, within_functions, length);
 }
 
-bool user_yielding(conf_object_t *cpu, int eip)
+bool user_yielding(conf_object_t *cpu, unsigned int eip)
 {
 #ifdef USER_YIELD_ENTER
 #if 0
@@ -35,7 +35,7 @@ bool user_yielding(conf_object_t *cpu, int eip)
 #else
 	/* Special case frumious logic. Compare to check_user_syscall(). Handles
 	 * p2s with assembly yield invocations (sounds like a WISE IDEA). */
-	return eip >= USER_MEM_START && READ_BYTE(cpu, eip) == OPCODE_INT &&
+	return USER_MEMORY(eip) && READ_BYTE(cpu, eip) == OPCODE_INT &&
 		OPCODE_INT_ARG(cpu, eip) == YIELD_INT;
 #endif
 #else
@@ -47,7 +47,7 @@ bool user_yielding(conf_object_t *cpu, int eip)
  * Malloc
  ******************************************************************************/
 
-bool user_mm_init_entering(int eip)
+bool user_mm_init_entering(unsigned int eip)
 {
 #ifdef USER_MM_INIT_ENTER
 	return eip == USER_MM_INIT_ENTER;
@@ -56,7 +56,7 @@ bool user_mm_init_entering(int eip)
 #endif
 }
 
-bool user_mm_init_exiting(int eip)
+bool user_mm_init_exiting(unsigned int eip)
 {
 #ifdef USER_MM_INIT_EXIT
 	return eip == USER_MM_INIT_EXIT;
@@ -68,7 +68,7 @@ bool user_mm_init_exiting(int eip)
 #endif
 }
 
-bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size)
+bool user_mm_malloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size)
 {
 #ifdef USER_MM_MALLOC_ENTER
 	if (eip == USER_MM_MALLOC_ENTER) {
@@ -82,7 +82,7 @@ bool user_mm_malloc_entering(conf_object_t *cpu, int eip, int *size)
 #endif
 }
 
-bool user_mm_malloc_exiting(conf_object_t *cpu, int eip, int *base)
+bool user_mm_malloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base)
 {
 #ifdef USER_MM_MALLOC_EXIT
 	if (eip == USER_MM_MALLOC_EXIT) {
@@ -99,7 +99,7 @@ bool user_mm_malloc_exiting(conf_object_t *cpu, int eip, int *base)
 #endif
 }
 
-bool user_mm_free_entering(conf_object_t *cpu, int eip, int *base)
+bool user_mm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base)
 {
 #ifdef USER_MM_FREE_ENTER
 	if (eip == USER_MM_FREE_ENTER) {
@@ -113,7 +113,7 @@ bool user_mm_free_entering(conf_object_t *cpu, int eip, int *base)
 #endif
 }
 
-bool user_mm_free_exiting(int eip)
+bool user_mm_free_exiting(unsigned int eip)
 {
 #ifdef USER_MM_FREE_EXIT
 	return (eip == USER_MM_FREE_EXIT);
@@ -129,7 +129,7 @@ bool user_mm_free_exiting(int eip)
  * ELF regions
  ******************************************************************************/
 
-bool user_address_in_heap(int addr)
+bool user_address_in_heap(unsigned int addr)
 {
 #ifdef USER_IMG_END
 	/* Note: We also want to exclude stack addresses, but those are
@@ -141,7 +141,7 @@ bool user_address_in_heap(int addr)
 #endif
 }
 
-bool user_address_global(int addr)
+bool user_address_global(unsigned int addr)
 {
 #if defined(USER_DATA_START) && defined(USER_DATA_END) && defined(USER_BSS_START) &&  defined(USER_IMG_END)
 	return ((addr >= USER_DATA_START && addr < USER_DATA_END) ||
@@ -151,7 +151,7 @@ bool user_address_global(int addr)
 #endif
 }
 
-bool user_panicked(conf_object_t *cpu, int addr, char **buf)
+bool user_panicked(conf_object_t *cpu, unsigned int addr, char **buf)
 {
 #ifdef USER_PANIC_ENTER
 	if (addr == USER_PANIC_ENTER) {
@@ -169,14 +169,14 @@ bool user_panicked(conf_object_t *cpu, int addr, char **buf)
  * Thread library
  ******************************************************************************/
 
-bool user_thr_init_entering(int eip) {
+bool user_thr_init_entering(unsigned int eip) {
 #ifdef USER_THR_INIT_ENTER
 	return eip == USER_THR_INIT_ENTER;
 #else
 	return false;
 #endif
 }
-bool user_thr_init_exiting(int eip) {
+bool user_thr_init_exiting(unsigned int eip) {
 #ifdef USER_THR_INIT_EXIT
 	return eip == USER_THR_INIT_EXIT;
 #else
@@ -186,14 +186,14 @@ bool user_thr_init_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_thr_create_entering(int eip) {
+bool user_thr_create_entering(unsigned int eip) {
 #ifdef USER_THR_CREATE_ENTER
 	return eip == USER_THR_CREATE_ENTER;
 #else
 	return false;
 #endif
 }
-bool user_thr_create_exiting(int eip) {
+bool user_thr_create_exiting(unsigned int eip) {
 #ifdef USER_THR_CREATE_EXIT
 	return eip == USER_THR_CREATE_EXIT;
 #else
@@ -203,14 +203,14 @@ bool user_thr_create_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_thr_join_entering(int eip) {
+bool user_thr_join_entering(unsigned int eip) {
 #ifdef USER_THR_JOIN_ENTER
 	return eip == USER_THR_JOIN_ENTER;
 #else
 	return false;
 #endif
 }
-bool user_thr_join_exiting(int eip) {
+bool user_thr_join_exiting(unsigned int eip) {
 #ifdef USER_THR_JOIN_EXIT
 	return eip == USER_THR_JOIN_EXIT;
 #else
@@ -220,7 +220,7 @@ bool user_thr_join_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_thr_exit_entering(int eip) {
+bool user_thr_exit_entering(unsigned int eip) {
 #ifdef USER_THR_EXIT_ENTER
 	return eip == USER_THR_EXIT_ENTER;
 #else
@@ -233,7 +233,7 @@ bool user_thr_exit_entering(int eip) {
  * Mutexes
  ******************************************************************************/
 
-bool user_mutex_init_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_mutex_init_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_MUTEX_INIT_ENTER
 	if (eip == USER_MUTEX_INIT_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -245,7 +245,7 @@ bool user_mutex_init_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_mutex_init_exiting(int eip) {
+bool user_mutex_init_exiting(unsigned int eip) {
 #ifdef USER_MUTEX_INIT_EXIT
 	return eip == USER_MUTEX_INIT_EXIT;
 #else
@@ -255,7 +255,7 @@ bool user_mutex_init_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_mutex_lock_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_mutex_lock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_MUTEX_LOCK_ENTER
 	if (eip == USER_MUTEX_LOCK_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -267,7 +267,7 @@ bool user_mutex_lock_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_mutex_lock_exiting(int eip) {
+bool user_mutex_lock_exiting(unsigned int eip) {
 #ifdef USER_MUTEX_LOCK_EXIT
 	return eip == USER_MUTEX_LOCK_EXIT;
 #else
@@ -278,7 +278,7 @@ bool user_mutex_lock_exiting(int eip) {
 #endif
 }
 /* The following two functions look funny because of two possible names. */
-bool user_mutex_trylock_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_mutex_trylock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_MUTEX_TRYLOCK_ENTER
 	if (eip == USER_MUTEX_TRYLOCK_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -302,7 +302,7 @@ bool user_mutex_trylock_entering(conf_object_t *cpu, int eip, int *addr) {
 // XXX XXX XXX: Other student trylock implementations may return false/true
 // instead of -1/0 like POBBLES does. How can we deal with this??
 #define TRYLOCK_SUCCESS_VAL 0
-bool user_mutex_trylock_exiting(conf_object_t *cpu, int eip, bool *succeeded) {
+bool user_mutex_trylock_exiting(conf_object_t *cpu, unsigned int eip, bool *succeeded) {
 #ifdef USER_MUTEX_TRYLOCK_EXIT
 	if (eip == USER_MUTEX_TRYLOCK_EXIT) {
 		*succeeded = GET_CPU_ATTR(cpu, eax) == TRYLOCK_SUCCESS_VAL;
@@ -329,7 +329,7 @@ bool user_mutex_trylock_exiting(conf_object_t *cpu, int eip, bool *succeeded) {
 #endif
 #endif
 }
-bool user_mutex_unlock_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_mutex_unlock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_MUTEX_UNLOCK_ENTER
 	if (eip == USER_MUTEX_UNLOCK_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -341,7 +341,7 @@ bool user_mutex_unlock_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_mutex_unlock_exiting(int eip) {
+bool user_mutex_unlock_exiting(unsigned int eip) {
 #ifdef USER_MUTEX_UNLOCK_EXIT
 	return eip == USER_MUTEX_UNLOCK_EXIT;
 #else
@@ -351,7 +351,7 @@ bool user_mutex_unlock_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_mutex_destroy_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_mutex_destroy_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_MUTEX_DESTROY_ENTER
 	if (eip == USER_MUTEX_DESTROY_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -363,7 +363,7 @@ bool user_mutex_destroy_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_mutex_destroy_exiting(int eip) {
+bool user_mutex_destroy_exiting(unsigned int eip) {
 #ifdef USER_MUTEX_DESTROY_EXIT
 	return eip == USER_MUTEX_DESTROY_EXIT;
 #else
@@ -378,7 +378,7 @@ bool user_mutex_destroy_exiting(int eip) {
  * Cvars
  ******************************************************************************/
 
-bool user_cond_wait_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_cond_wait_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_COND_WAIT_ENTER
 	if (eip == USER_COND_WAIT_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -390,7 +390,7 @@ bool user_cond_wait_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_cond_wait_exiting(int eip) {
+bool user_cond_wait_exiting(unsigned int eip) {
 #ifdef USER_COND_WAIT_EXIT
 	return eip == USER_COND_WAIT_EXIT;
 #else
@@ -400,7 +400,7 @@ bool user_cond_wait_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_cond_signal_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_cond_signal_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_COND_SIGNAL_ENTER
 	if (eip == USER_COND_SIGNAL_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -412,7 +412,7 @@ bool user_cond_signal_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_cond_signal_exiting(int eip) {
+bool user_cond_signal_exiting(unsigned int eip) {
 #ifdef USER_COND_SIGNAL_EXIT
 	return eip == USER_COND_SIGNAL_EXIT;
 #else
@@ -422,7 +422,7 @@ bool user_cond_signal_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_cond_broadcast_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_cond_broadcast_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_COND_BROADCAST_ENTER
 	if (eip == USER_COND_BROADCAST_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -434,7 +434,7 @@ bool user_cond_broadcast_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_cond_broadcast_exiting(int eip) {
+bool user_cond_broadcast_exiting(unsigned int eip) {
 #ifdef USER_COND_BROADCAST_EXIT
 	return eip == USER_COND_BROADCAST_EXIT;
 #else
@@ -449,7 +449,7 @@ bool user_cond_broadcast_exiting(int eip) {
  * Semaphores
  ******************************************************************************/
 
-bool user_sem_wait_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_sem_wait_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_SEM_WAIT_ENTER
 	if (eip == USER_SEM_WAIT_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -461,7 +461,7 @@ bool user_sem_wait_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_sem_wait_exiting(int eip) {
+bool user_sem_wait_exiting(unsigned int eip) {
 #ifdef USER_SEM_WAIT_EXIT
 	return eip == USER_SEM_WAIT_EXIT;
 #else
@@ -471,7 +471,7 @@ bool user_sem_wait_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_sem_signal_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_sem_signal_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_SEM_SIGNAL_ENTER
 	if (eip == USER_SEM_SIGNAL_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -483,7 +483,7 @@ bool user_sem_signal_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_sem_signal_exiting(int eip) {
+bool user_sem_signal_exiting(unsigned int eip) {
 #ifdef USER_SEM_SIGNAL_EXIT
 	return eip == USER_SEM_SIGNAL_EXIT;
 #else
@@ -499,7 +499,7 @@ bool user_sem_signal_exiting(int eip) {
  ******************************************************************************/
 
 /* Mode: 0 == read; 1 == write */
-bool user_rwlock_lock_entering(conf_object_t *cpu, int eip, int *addr, bool *write) {
+bool user_rwlock_lock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr, bool *write) {
 #ifdef USER_RWLOCK_LOCK_ENTER
 	if (eip == USER_RWLOCK_LOCK_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -512,7 +512,7 @@ bool user_rwlock_lock_entering(conf_object_t *cpu, int eip, int *addr, bool *wri
 	return false;
 #endif
 }
-bool user_rwlock_lock_exiting(int eip) {
+bool user_rwlock_lock_exiting(unsigned int eip) {
 #ifdef USER_RWLOCK_LOCK_EXIT
 	return eip == USER_RWLOCK_LOCK_EXIT;
 #else
@@ -522,7 +522,7 @@ bool user_rwlock_lock_exiting(int eip) {
 	return false;
 #endif
 }
-bool user_rwlock_unlock_entering(conf_object_t *cpu, int eip, int *addr) {
+bool user_rwlock_unlock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr) {
 #ifdef USER_RWLOCK_UNLOCK_ENTER
 	if (eip == USER_RWLOCK_UNLOCK_ENTER) {
 		*addr = READ_STACK(cpu, 1);
@@ -534,7 +534,7 @@ bool user_rwlock_unlock_entering(conf_object_t *cpu, int eip, int *addr) {
 	return false;
 #endif
 }
-bool user_rwlock_unlock_exiting(int eip) {
+bool user_rwlock_unlock_exiting(unsigned int eip) {
 #ifdef USER_RWLOCK_UNLOCK_EXIT
 	return eip == USER_RWLOCK_UNLOCK_EXIT;
 #else

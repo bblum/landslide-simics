@@ -1,6 +1,6 @@
 /**
  * @file tree.h
- * @brief choice tree tracking
+ * @brief exploration tree tracking
  * @author Ben Blum
  */
 
@@ -17,11 +17,11 @@ struct sched_state;
 struct stack_trace;
 struct test_state;
 
-/* Represents a single choice point in the decision tree.
+/* Represents a single preemption point in the decision tree.
  * The data here stored actually reflects the state upon the *completion* of
- * that choice; i.e., when the next choice has to be made. */
+ * that transition; i.e., when the next preemption has to be made. */
 struct hax {
-	int eip;           /* The eip for the *next* choice point. */
+	unsigned int eip; /* The eip for the *next* preemption point. */
 	unsigned long trigger_count; /* from ls_state */
 	int chosen_thread; /* TID that was chosen to get here. -1 if root. */
 
@@ -34,9 +34,10 @@ struct hax {
 	struct user_sync_state *old_user_sync;
 	conf_object_t *old_symtable;
 	/* List of things that are *not* saved/restored (i.e., glowing green):
-	 *  - arbiter_state (just a choice queue, maintained internally)
+	 *  - arbiter_state (just a preemption history queue, maintained internally)
 	 *  - ls_state's absolute_trigger_count (obv.)
 	 *  - save_state (duh)
+	 *  - data_races
 	 */
 
 	/* Tree link data. */

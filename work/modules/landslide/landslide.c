@@ -389,7 +389,7 @@ static void wrong_panic(struct ls_state *ls, const char *panicked, const char *e
 static bool ensure_progress(struct ls_state *ls)
 {
 	char *buf;
-	int tid = ls->sched.cur_agent->tid;
+	unsigned int tid = ls->sched.cur_agent->tid;
 
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
 		if (testing_userspace()) {
@@ -411,12 +411,12 @@ static bool ensure_progress(struct ls_state *ls)
 		return false;
 #ifdef GUEST_PF_HANDLER
 	} else if (ls->eip == GUEST_PF_HANDLER) {
-		int from_eip = READ_STACK(ls->cpu0, 1);
+		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
 		lsprintf(DEV, "page fault from ");
 		print_eip(DEV, from_eip);
 		printf(DEV, "\n");
 		/* did it come from kernel-space? */
-		if (from_eip < USER_MEM_START) {
+		if (KERNEL_MEMORY(from_eip)) {
 			FOUND_A_BUG(ls, "KERNEL PAGE FAULT");
 			return false;
 		}
@@ -477,7 +477,7 @@ static bool test_ended_safely(struct ls_state *ls)
 static bool time_travel(struct ls_state *ls)
 {
 	/* find where we want to go in the tree, and choose what to do there */
-	int tid;
+	unsigned int tid;
 	struct hax *h = explore(&ls->save, &tid);
 	long double proportion =
 		estimate(&ls->save.estimate, ls->save.root, ls->save.current);
@@ -557,7 +557,7 @@ static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
 	} else if (entry->trace_type != TR_Instruction) {
 		/* other event (TR_Execute?) - don't care */
 	} else {
-		if (ls->eip >= USER_MEM_START) {
+		if (USER_MEMORY(ls->eip)) {
 			check_user_syscall(ls);
 		}
 		ls->trigger_count++;

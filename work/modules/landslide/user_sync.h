@@ -33,7 +33,7 @@ Q_NEW_HEAD(struct mutexes, struct mutex);
 
 /* the state of all mutexes known in userspace. */
 struct user_sync_state {
-	int mutex_size;
+	unsigned int mutex_size;
 	/* list of all known mutexes in userspace. note that mutexes are only
 	 * placed on this list if mutex_init is observed to malloc. */
 	struct mutexes mutexes;
@@ -45,14 +45,14 @@ struct user_sync_state {
 	enum { NOTHING_INTERESTING, YIELDED, ACTIVITY } yield_progress;
 	/* extra bonus part of the state machine for detecting tight spin-loops
 	 * around xchg (or cmpxchg). */
-	int xchg_count;
+	unsigned int xchg_count;
 };
 
 struct user_yield_state {
 	/* how many transitions have gone by where the user did "nothing but"
 	 * spin in a yield loop? in oldscheds in the tree, this can have values
 	 * 0 to TOO_MANY_YIELDS. */
-	int loop_count;
+	unsigned int loop_count;
 	/* flag associated with the above; used at the end of each branch to
 	 * retroactively mark as blocked the transitions preceding the one where
 	 * its yield counter hit the maximum. */
@@ -76,9 +76,9 @@ void user_yield_state_init(struct user_yield_state *y);
 
 /* user mutexes interface  */
 
-void learn_malloced_mutex_structure(struct user_sync_state *u, int lock_addr,
-									int chunk_addr, int chunk_size);
-void mutex_destroy(struct user_sync_state *u, int lock_addr);
+void learn_malloced_mutex_structure(struct user_sync_state *u, unsigned int lock_addr,
+									unsigned int chunk_addr, unsigned int chunk_size);
+void mutex_destroy(struct user_sync_state *u, unsigned int lock_addr);
 void check_user_mutex_access(struct ls_state *ls, unsigned int addr);
 
 /* user yield-loop-blocking interface  */

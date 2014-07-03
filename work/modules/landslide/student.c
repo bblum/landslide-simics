@@ -45,7 +45,7 @@ bool kern_ready_for_timer_interrupt(conf_object_t *cpu)
 	STATIC_ASSERT(false && "preempt flag but not value defined");
 	return false;
 #else
-	return READ_MEMORY(cpu, PREEMPT_ENABLE_FLAG) == PREEMPT_ENABLE_VALUE;
+	return READ_MEMORY(cpu, (unsigned int)PREEMPT_ENABLE_FLAG) == PREEMPT_ENABLE_VALUE;
 #endif
 #else
 	/* no preempt enable flag. assume the scheduler protects itself by

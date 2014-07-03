@@ -424,7 +424,7 @@ static void free_mem(struct mem_state *m, bool in_tree)
 	}
 }
 
-static int free_user_sync(struct user_sync_state *u)
+static unsigned int free_user_sync(struct user_sync_state *u)
 {
 	while (Q_GET_SIZE(&u->mutexes) > 0) {
 		struct mutex *mp = Q_GET_HEAD(&u->mutexes);

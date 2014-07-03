@@ -19,12 +19,12 @@
  * Miscellaneous information
  ******************************************************************************/
 
-bool kern_decision_point(int eip)
+bool kern_decision_point(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_DECIDE;
 }
 
-bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid)
+bool kern_thread_switch(conf_object_t *cpu, unsigned int eip, unsigned int *new_tid)
 {
 	if (eip == TELL_LANDSLIDE_THREAD_SWITCH) {
 		*new_tid = READ_STACK(cpu, 1);
@@ -35,11 +35,11 @@ bool kern_thread_switch(conf_object_t *cpu, int eip, int *new_tid)
 }
 
 /* The boundaries of the timer handler wrapper. */
-bool kern_timer_entering(int eip)
+bool kern_timer_entering(unsigned int eip)
 {
 	return eip == GUEST_TIMER_WRAP_ENTER;
 }
-bool kern_timer_exiting(int eip)
+bool kern_timer_exiting(unsigned int eip)
 {
 	return eip == GUEST_TIMER_WRAP_EXIT;
 }
@@ -49,7 +49,7 @@ int kern_get_timer_wrap_begin()
 }
 
 /* the boundaries of the context switcher */
-bool kern_context_switch_entering(int eip)
+bool kern_context_switch_entering(unsigned int eip)
 {
 	return eip == GUEST_CONTEXT_SWITCH_ENTER
 #ifdef GUEST_CONTEXT_SWITCH_ENTER2
@@ -57,7 +57,7 @@ bool kern_context_switch_entering(int eip)
 #endif
 		;
 }
-bool kern_context_switch_exiting(int eip)
+bool kern_context_switch_exiting(unsigned int eip)
 {
 	return eip == GUEST_CONTEXT_SWITCH_EXIT
 #ifdef GUEST_CONTEXT_SWITCH_EXIT0
@@ -69,12 +69,12 @@ bool kern_context_switch_exiting(int eip)
 		;
 }
 
-bool kern_sched_init_done(int eip)
+bool kern_sched_init_done(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_SCHED_INIT_DONE;
 }
 
-bool kern_in_scheduler(conf_object_t *cpu, int eip)
+bool kern_in_scheduler(conf_object_t *cpu, unsigned int eip)
 {
 	static const int sched_funx[][2] = GUEST_SCHEDULER_FUNCTIONS;
 
@@ -89,7 +89,7 @@ bool kern_in_scheduler(conf_object_t *cpu, int eip)
 	return false;
 }
 
-bool kern_access_in_scheduler(int addr)
+bool kern_access_in_scheduler(unsigned int addr)
 {
 	static const int sched_syms[][2] = GUEST_SCHEDULER_GLOBALS;
 
@@ -102,7 +102,7 @@ bool kern_access_in_scheduler(int addr)
 	return false;
 }
 
-bool _within_functions(struct ls_state *ls, const int within_functions[][3], int length)
+bool _within_functions(struct ls_state *ls, const int within_functions[][3], unsigned int length)
 {
 	/* The array is: { start_addr, end_addr, within ? 1 : 0 }.
 	 * Later ones take precedence, so all of them have to be compared. */
@@ -142,7 +142,7 @@ bool kern_within_functions(struct ls_state *ls)
 
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
 
-void read_panic_message(conf_object_t *cpu, int eip, char **buf)
+void read_panic_message(conf_object_t *cpu, unsigned int eip, char **buf)
 {
 #ifdef USER_PANIC_ENTER
 	assert(eip == GUEST_PANIC || eip == USER_PANIC_ENTER);
@@ -171,7 +171,7 @@ void read_panic_message(conf_object_t *cpu, int eip, char **buf)
 	}
 }
 
-bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
+bool kern_panicked(conf_object_t *cpu, unsigned int eip, char **buf)
 {
 	if (eip == GUEST_PANIC) {
 		read_panic_message(cpu, eip, buf);
@@ -181,7 +181,7 @@ bool kern_panicked(conf_object_t *cpu, int eip, char **buf)
 	}
 }
 
-bool kern_kernel_main(int eip)
+bool kern_kernel_main(unsigned int eip)
 {
 	return eip == GUEST_KERNEL_MAIN;
 }
@@ -198,7 +198,7 @@ bool kern_kernel_main(int eip)
  * instruction is executed. Hence (as a small-hammer solution) we don't allow
  * choice points to happen inside mutex_{,un}lock. */
 
-bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex)
+bool kern_mutex_locking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_LOCKING) {
 		*mutex = READ_STACK(cpu, 1);
@@ -209,7 +209,7 @@ bool kern_mutex_locking(conf_object_t *cpu, int eip, int *mutex)
 }
 
 /* Is the thread becoming "disabled" because the mutex is owned? */
-bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *owner_tid)
+bool kern_mutex_blocking(conf_object_t *cpu, unsigned int eip, unsigned int *owner_tid)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_BLOCKING) {
 		*owner_tid = READ_STACK(cpu, 1);
@@ -220,13 +220,13 @@ bool kern_mutex_blocking(conf_object_t *cpu, int eip, int *owner_tid)
 }
 
 /* This one also tells if the thread is re-enabled. */
-bool kern_mutex_locking_done(int eip)
+bool kern_mutex_locking_done(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_MUTEX_LOCKING_DONE;
 }
 
 /* Need to re-read the mutex addr because of unlocking mutexes in any order. */
-bool kern_mutex_unlocking(conf_object_t *cpu, int eip, int *mutex)
+bool kern_mutex_unlocking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_UNLOCKING) {
 		*mutex = READ_STACK(cpu, 1);
@@ -236,12 +236,12 @@ bool kern_mutex_unlocking(conf_object_t *cpu, int eip, int *mutex)
 	}
 }
 
-bool kern_mutex_unlocking_done(int eip)
+bool kern_mutex_unlocking_done(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE;
 }
 
-bool kern_mutex_trylocking(conf_object_t *cpu, int eip, int *mutex)
+bool kern_mutex_trylocking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_TRYLOCKING) {
 		*mutex = READ_STACK(cpu, 1);
@@ -251,7 +251,7 @@ bool kern_mutex_trylocking(conf_object_t *cpu, int eip, int *mutex)
 	}
 }
 
-bool kern_mutex_trylocking_done(conf_object_t *cpu, int eip, int *mutex, bool *success)
+bool kern_mutex_trylocking_done(conf_object_t *cpu, unsigned int eip, unsigned int *mutex, bool *success)
 {
 	if (eip == TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE) {
 		*mutex = READ_STACK(cpu, 1);
@@ -267,27 +267,27 @@ bool kern_mutex_trylocking_done(conf_object_t *cpu, int eip, int *mutex, bool *s
  ******************************************************************************/
 
 /* How to tell if a thread's life is beginning or ending */
-bool kern_forking(int eip)
+bool kern_forking(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_FORKING;
 }
-bool kern_sleeping(int eip)
+bool kern_sleeping(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_SLEEPING;
 }
-bool kern_vanishing(int eip)
+bool kern_vanishing(unsigned int eip)
 {
 	return eip == TELL_LANDSLIDE_VANISHING;
 }
-bool kern_readline_enter(int eip)
+bool kern_readline_enter(unsigned int eip)
 {
 	return eip == GUEST_READLINE_WINDOW_ENTER;
 }
-bool kern_readline_exit(int eip)
+bool kern_readline_exit(unsigned int eip)
 {
 	return eip == GUEST_READLINE_WINDOW_EXIT;
 }
-bool kern_exec_enter(int eip)
+bool kern_exec_enter(unsigned int eip)
 {
 	if (TESTING_USERSPACE == 1) {
 #ifdef GUEST_EXEC_ENTER
@@ -303,7 +303,7 @@ bool kern_exec_enter(int eip)
 }
 
 /* How to tell if a new thread is appearing or disappearing on the runqueue. */
-bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
+bool kern_thread_runnable(conf_object_t *cpu, unsigned int eip, unsigned int *tid)
 {
 	if (eip == TELL_LANDSLIDE_THREAD_RUNNABLE) {
 		/* 0(%esp) points to the return address; get the arg above it */
@@ -314,7 +314,7 @@ bool kern_thread_runnable(conf_object_t *cpu, int eip, int *tid)
 	}
 }
 
-bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
+bool kern_thread_descheduling(conf_object_t *cpu, unsigned int eip, unsigned int *tid)
 {
 	if (eip == TELL_LANDSLIDE_THREAD_DESCHEDULING) {
 		*tid = READ_STACK(cpu, 1);
@@ -328,7 +328,7 @@ bool kern_thread_descheduling(conf_object_t *cpu, int eip, int *tid)
  * LMM
  ******************************************************************************/
 
-bool kern_lmm_alloc_entering(conf_object_t *cpu, int eip, int *size)
+bool kern_lmm_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size)
 {
 	if (eip == GUEST_LMM_ALLOC_ENTER) {
 		*size = READ_STACK(cpu, GUEST_LMM_ALLOC_SIZE_ARGNUM);
@@ -341,7 +341,7 @@ bool kern_lmm_alloc_entering(conf_object_t *cpu, int eip, int *size)
 	}
 }
 
-bool kern_lmm_alloc_exiting(conf_object_t *cpu, int eip, int *base)
+bool kern_lmm_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base)
 {
 	if (eip == GUEST_LMM_ALLOC_EXIT || eip == GUEST_LMM_ALLOC_GEN_EXIT) {
 		*base = GET_CPU_ATTR(cpu, eax);
@@ -351,7 +351,7 @@ bool kern_lmm_alloc_exiting(conf_object_t *cpu, int eip, int *base)
 	}
 }
 
-bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size)
+bool kern_lmm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base, unsigned int *size)
 {
 	if (eip == GUEST_LMM_FREE_ENTER) {
 		*base = READ_STACK(cpu, GUEST_LMM_FREE_BASE_ARGNUM);
@@ -362,27 +362,27 @@ bool kern_lmm_free_entering(conf_object_t *cpu, int eip, int *base, int *size)
 	}
 }
 
-bool kern_lmm_free_exiting(int eip)
+bool kern_lmm_free_exiting(unsigned int eip)
 {
 	return (eip == GUEST_LMM_FREE_EXIT);
 }
 
-bool kern_lmm_remove_free_entering(int eip)
+bool kern_lmm_remove_free_entering(unsigned int eip)
 {
 	return eip == GUEST_LMM_REMOVE_FREE_ENTER;
 }
 
-bool kern_lmm_remove_free_exiting(int eip)
+bool kern_lmm_remove_free_exiting(unsigned int eip)
 {
 	return eip == GUEST_LMM_REMOVE_FREE_EXIT;
 }
 
-bool kern_address_in_heap(int addr)
+bool kern_address_in_heap(unsigned int addr)
 {
-	return (addr >= GUEST_IMG_END && addr < USER_MEM_START);
+	return (addr >= GUEST_IMG_END && KERNEL_MEMORY(addr));
 }
 
-bool kern_address_global(int addr)
+bool kern_address_global(unsigned int addr)
 {
 	return ((addr >= GUEST_DATA_START && addr < GUEST_DATA_END) ||
 		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
@@ -429,13 +429,13 @@ bool kern_has_idle()
 }
 
 void kern_init_threads(struct sched_state *s,
-                       void (*add_thread)(struct sched_state *, int tid,
+                       void (*add_thread)(struct sched_state *, unsigned int tid,
                                           bool on_runqueue))
 {
 	GUEST_STARTING_THREAD_CODE;
 }
 
-bool kern_wants_us_to_dump_stack(int eip)
+bool kern_wants_us_to_dump_stack(unsigned int eip)
 {
 #ifdef TELL_LANDSLIDE_DUMP_STACK
 	return eip == TELL_LANDSLIDE_DUMP_STACK;

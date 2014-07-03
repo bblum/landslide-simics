@@ -13,16 +13,16 @@
 /* reading and writing cpu registers */
 #define GET_CPU_ATTR(cpu, name) get_cpu_attr(cpu, #name)
 
-static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
+static inline unsigned int get_cpu_attr(conf_object_t *cpu, const char *name) {
 	attr_value_t register_attr = SIM_get_attribute(cpu, name);
 	if (!SIM_attr_is_integer(register_attr)) {
 		assert(register_attr.kind == Sim_Val_Invalid && "GET_CPU_ATTR failed!");
 		// "Try again." WTF, simics??
 		register_attr = SIM_get_attribute(cpu, name);
 		assert(SIM_attr_is_integer(register_attr));
-		return (int)SIM_attr_integer(register_attr);
+		return SIM_attr_integer(register_attr);
 	}
-	return ((int)SIM_attr_integer(register_attr));
+	return SIM_attr_integer(register_attr);
 }
 #define SET_CPU_ATTR(cpu, name, val) do {				\
 		attr_value_t noob = SIM_make_attr_integer(val);		\
@@ -36,6 +36,9 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define PAGE_ALIGN(x) ((x) & ~(PAGE_SIZE-1))
 
 #define USER_MEM_START 0x01000000
+
+#define KERNEL_MEMORY(addr) ({ ASSERT_UNSIGNED(addr); (addr) <  USER_MEM_START; })
+#define USER_MEMORY(addr)   ({ ASSERT_UNSIGNED(addr); (addr) >= USER_MEM_START; })
 
 #define FORK_INT            0x41
 #define EXEC_INT            0x42
@@ -86,16 +89,24 @@ static inline int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
 
 void cause_timer_interrupt(conf_object_t *cpu);
-int cause_timer_interrupt_immediately(conf_object_t *cpu);
-int avoid_timer_interrupt_immediately(conf_object_t *cpu);
+unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu);
+unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
-int read_memory(conf_object_t *cpu, int addr, int width);
-char *read_string(conf_object_t *cpu, int eip);
-bool instruction_is_atomic_swap(conf_object_t *cpu, int eip);
+unsigned int read_memory(conf_object_t *cpu, unsigned int addr, unsigned int width);
+char *read_string(conf_object_t *cpu, unsigned int eip);
+bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip);
 
-#define READ_BYTE(cpu, addr)   read_memory(cpu, addr, 1)
-#define READ_MEMORY(cpu, addr) read_memory(cpu, addr, WORD_SIZE)
+#define ASSERT_UNSIGNED(addr) do {					\
+		typeof(addr) __must_not_be_signed = (typeof(addr))(-1);	\
+		assert(__must_not_be_signed > 0 &&			\
+		       "type error: unsigned type required here");	\
+	} while (0)
+
+#define READ_BYTE(cpu, addr) \
+	({ ASSERT_UNSIGNED(addr); read_memory(cpu, addr, 1); })
+#define READ_MEMORY(cpu, addr) \
+	({ ASSERT_UNSIGNED(addr); read_memory(cpu, addr, WORD_SIZE); })
 
 /* reading the stack. can be used to examine function arguments, if used either
  * at the very end or the very beginning of a function, when esp points to the

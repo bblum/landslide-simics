@@ -11,10 +11,10 @@
 
 conf_object_t *get_symtable();
 void set_symtable(conf_object_t *symtable);
-bool symtable_lookup(int eip, char **func, char **file, int *line);
+bool symtable_lookup(unsigned int eip, char **func, char **file, int *line);
 // TODO: make new version for data version too
-int symtable_lookup_data(char *buf, int maxlen, int addr);
-bool function_eip_offset(int eip, int *offset);
-bool find_user_global_of_type(const char *typename, int *size_result);
+unsigned int symtable_lookup_data(char *buf, unsigned int maxlen, unsigned int addr);
+bool function_eip_offset(unsigned int eip, unsigned int *offset);
+bool find_user_global_of_type(const char *typename, unsigned int *size_result);
 
 #endif

@@ -21,7 +21,7 @@ struct ls_state;
 /* The agent represents a single thread, or active schedulable node on the
  * runqueue. */
 struct agent {
-	int tid;
+	unsigned int tid;
 	/* Link in our runqueue */
 	Q_NEW_LINK(struct agent) nobe;
 	/* state tracking for what the corresponding kthread is up to */
@@ -69,17 +69,17 @@ struct agent {
 	/* For noob deadlock detection. The pointer might not be set; if it is
 	 * NULL but the tid field is not -1, it should be computed. */
 	struct agent *kern_blocked_on;
-	int kern_blocked_on_tid;
+	unsigned int kern_blocked_on_tid;
 	/* action.locking implies addr is valid; also kern_blocked_on set implies
 	 * locking, which implies addr is valid. -1 if nothing. */
-	int kern_blocked_on_addr;
-	int kern_mutex_unlocking_addr;
+	unsigned int kern_blocked_on_addr;
+	unsigned int kern_mutex_unlocking_addr;
 	/* similar for userspace */
-	int user_blocked_on_addr;
-	int user_mutex_initing_addr;
-	int user_mutex_locking_addr;
-	int user_mutex_unlocking_addr;
-	int user_rwlock_locking_addr;
+	unsigned int user_blocked_on_addr;
+	unsigned int user_mutex_initing_addr;
+	unsigned int user_mutex_locking_addr;
+	unsigned int user_mutex_unlocking_addr;
+	unsigned int user_rwlock_locking_addr;
 	// int user_rwlock_unlocking_addr; // not needed
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
@@ -112,8 +112,8 @@ struct sched_state {
 	 * runnable anyway. (True only in some kernels.) */
 	bool current_extra_runnable;
 	/* Counters - useful for telling when tests begin and end */
-	int num_agents;
-	int most_agents_ever;
+	unsigned int num_agents;
+	unsigned int most_agents_ever;
 	/* See agent_vanish for justification */
 	struct agent *last_vanished_agent;
 	/* Did the guest finish initialising its own state */
@@ -128,7 +128,7 @@ struct sched_state {
 	/* The stack trace for the most recent voluntary reschedule. Used in
 	 * save.c, when voluntary resched decision points are too late to get
 	 * a useful stack trace. Set at context switch entry. */
-	int voluntary_resched_tid;
+	unsigned int voluntary_resched_tid;
 	struct stack_trace *voluntary_resched_stack;
 	/* TODO: have a scheduler-global schedule_landing to assert against the
 	 * per-agent flag (only violated by interrupts we don't control) */
@@ -179,14 +179,14 @@ struct sched_state {
 	}						\
 	} while (0)
 
-struct agent *agent_by_tid_or_null(struct agent_q *, int);
+struct agent *agent_by_tid_or_null(struct agent_q *, unsigned int tid);
 
 void sched_init(struct sched_state *);
 
 void print_agent(verbosity v, const struct agent *);
 void print_qs(verbosity v, const struct sched_state *);
 void print_scheduler_state(verbosity v, const struct sched_state *);
-struct agent *find_runnable_agent(struct sched_state *s, int tid);
+struct agent *find_runnable_agent(struct sched_state *s, unsigned int tid);
 
 /* called at every "interesting" point ... */
 void sched_update(struct ls_state *);

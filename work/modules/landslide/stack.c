@@ -22,7 +22,7 @@
  * printing utilities / glue
  ******************************************************************************/
 
-static bool eip_to_frame(int eip, struct stack_frame *f)
+static bool eip_to_frame(unsigned int eip, struct stack_frame *f)
 {
 	f->eip = eip;
 	f->name = NULL;
@@ -36,7 +36,7 @@ void print_stack_frame(verbosity v, struct stack_frame *f)
 	printf(v, "0x%.8x in ", f->eip);
 	if (f->name == NULL) {
 		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<unknown in %s>" COLOUR_DEFAULT,
-		       (unsigned int)f->eip < USER_MEM_START ? "kernel" : "user");
+		       KERNEL_MEMORY(f->eip) ? "kernel" : "user");
 	} else {
 		printf(v, COLOUR_BOLD COLOUR_CYAN "%s "
 		       COLOUR_DARK COLOUR_GREY, f->name);
@@ -50,7 +50,7 @@ void print_stack_frame(verbosity v, struct stack_frame *f)
 }
 
 /* Same as print_stack_frame but includes the symbol table lookup. */
-void print_eip(verbosity v, int eip)
+void print_eip(verbosity v, unsigned int eip)
 {
 	struct stack_frame f;
 	eip_to_frame(eip, &f);
@@ -78,10 +78,10 @@ void print_stack_trace(verbosity v, struct stack_trace *st)
 }
 
 /* Prints a stack trace to a multiline html table. Returns length printed. */
-int html_stack_trace(char *buf, int maxlen, struct stack_trace *st)
+unsigned int html_stack_trace(char *buf, unsigned int maxlen, struct stack_trace *st)
 {
 #define PRINT(...) do { pos += scnprintf(buf + pos, maxlen, __VA_ARGS__); } while (0)
-	int pos = 0;
+	unsigned int pos = 0;
 	bool first_frame = true;
 	struct stack_frame *f;
 
@@ -95,7 +95,7 @@ int html_stack_trace(char *buf, int maxlen, struct stack_trace *st)
 		if (f->name == NULL) {
 			PRINT(HTML_COLOUR_START(HTML_COLOUR_MAGENTA)
 			      "&lt;unknown in %s&gt;" HTML_COLOUR_END,
-			      (unsigned)f->eip < USER_MEM_START ? "kernel" : "user");
+			      KERNEL_MEMORY(f->eip) ? "kernel" : "user");
 		} else {
 			PRINT(HTML_COLOUR_START(HTML_COLOUR_CYAN) "<b>%s</b>"
 			      HTML_COLOUR_END " "
@@ -154,7 +154,7 @@ void free_stack_trace(struct stack_trace *st)
  ******************************************************************************/
 
 /* returns false if symtable lookup failed */
-static bool add_frame(struct stack_trace *st, int eip)
+static bool add_frame(struct stack_trace *st, unsigned int eip)
 {
 	struct stack_frame *f = MM_XMALLOC(1, struct stack_frame);
 	bool lookup_success = eip_to_frame(eip, f);
@@ -165,16 +165,15 @@ static bool add_frame(struct stack_trace *st, int eip)
 /* Suppress stack frames from userspace, if testing userland, unless the
  * verbosity setting is high enough. */
 #define SUPPRESS_FRAME(eip) \
-	(MAX_VERBOSITY < DEV && testing_userspace() && \
-	 (unsigned int)(eip) < USER_MEM_START)
+	(MAX_VERBOSITY < DEV && testing_userspace() && KERNEL_MEMORY(eip) )
 
 struct stack_trace *stack_trace(struct ls_state *ls)
 {
 	conf_object_t *cpu = ls->cpu0;
-	int eip = ls->eip;
-	int tid = ls->sched.cur_agent->tid;
+	unsigned int eip = ls->eip;
+	unsigned int tid = ls->sched.cur_agent->tid;
 
-	int stack_ptr = GET_CPU_ATTR(cpu, esp);
+	unsigned int stack_ptr = GET_CPU_ATTR(cpu, esp);
 
 	struct stack_trace *st = MM_XMALLOC(1, struct stack_trace);
 	st->tid = tid;
@@ -183,10 +182,10 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 	/* Add current frame, even if it's in kernel and we're in user. */
 	add_frame(st, eip);
 
-	int stop_ebp = 0;
-	int ebp = GET_CPU_ATTR(cpu, ebp);
-	int rabbit = ebp;
-	int frame_count = 0;
+	unsigned int stop_ebp = 0;
+	unsigned int ebp = GET_CPU_ATTR(cpu, ebp);
+	unsigned int rabbit = ebp;
+	unsigned int frame_count = 0;
 
 	/* Figure out if the thread is vanishing and we should expect its cr3
 	 * to have been freed (so we can't trace in userspace).
@@ -195,8 +194,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 	bool wrong_cr3 =
 		testing_userspace() && GET_CPU_ATTR(cpu, cr3) != ls->user_mem.cr3;
 
-	while (ebp != stop_ebp &&
-	       (testing_userspace() || (unsigned)ebp < USER_MEM_START)
+	while (ebp != stop_ebp && (testing_userspace() || KERNEL_MEMORY(ebp))
 	       && frame_count++ < 1024) {
 		bool extra_frame;
 
@@ -211,7 +209,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 		/* Find "extra frames" of functions that don't set up an ebp
 		 * frame or of untimely interrupts, before following ebp. */
 		do {
-			int eip_offset;
+			unsigned int eip_offset;
 			bool iret_block = false;
 
 			extra_frame = false;
@@ -231,8 +229,8 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 				/* Attempt to understand the tail end of syscall
 				 * or interrupt wrappers. Traverse pushed GPRs
 				 * if necessary to find the ret or iret. */
-				int opcode;
-				int opcode_offset = 0;
+				unsigned int opcode;
+				unsigned int opcode_offset = 0;
 				do {
 					opcode = READ_BYTE(cpu, eip + opcode_offset);
 					opcode_offset++;
@@ -269,7 +267,8 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 					/* User-to-kernel iret. Stack switch. */
 					assert(READ_MEMORY(cpu, stack_ptr + WORD_SIZE)
 					       == SEGSEL_USER_CS);
-					int esp_addr = stack_ptr + (3 * WORD_SIZE);
+					unsigned int esp_addr =
+						stack_ptr + (3 * WORD_SIZE);
 					stack_ptr = READ_MEMORY(cpu, esp_addr);
 				}
 			}
@@ -315,7 +314,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 
 /* Performs a stack trace to see if the current call stack has the given
  * function somewhere on it. */
-bool within_function(struct ls_state *ls, int func, int func_end)
+bool within_function(struct ls_state *ls, unsigned int func, unsigned int func_end)
 {
 	/* Note while it may seem wasteful to malloc a bunch of times to make
 	 * the stack trace, many (not all) of the mallocs are actually needed

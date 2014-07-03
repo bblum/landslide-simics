@@ -31,7 +31,7 @@ struct ls_state;
 	_PRINT_TREE_INFO(v, MODULE_NAME, MODULE_COLOUR, ls)
 
 void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
-				  char *reason, int reason_len);
+				  char *reason, unsigned int reason_len);
 
 #define FOUND_A_BUG(ls, ...) do { 									\
 		char __fab_buf[1024];										\

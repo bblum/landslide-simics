@@ -15,7 +15,7 @@
 #include "user_sync.h"
 #include "variable_queue.h"
 
-static bool is_child_searched(struct hax *h, int child_tid) {
+static bool is_child_searched(struct hax *h, unsigned int child_tid) {
 	struct hax *child;
 
 	Q_FOREACH(child, &h->children, sibling) {
@@ -25,7 +25,7 @@ static bool is_child_searched(struct hax *h, int child_tid) {
 	return false;
 }
 
-static bool find_unsearched_child(struct hax *h, int *new_tid) {
+static bool find_unsearched_child(struct hax *h, unsigned int *new_tid) {
 	struct agent *a;
 
 	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
@@ -66,7 +66,7 @@ static void branch_sanity(struct hax *root, struct hax *current)
  ******************************************************************************/
 
 static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
-				       int *new_tid)
+				       unsigned int *new_tid)
 {
 	assert(0 && "deprecated");
 	/* Find the most recent spot in our branch that is not all explored. */
@@ -103,7 +103,7 @@ static bool is_evil_ancestor(struct hax *h0, struct hax *h)
 
 static bool tag_good_sibling(struct hax *h0, struct hax *h)
 {
-	int tid = h0->chosen_thread;
+	unsigned int tid = h0->chosen_thread;
 
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, h->parent->oldsched,
@@ -142,7 +142,7 @@ static void tag_all_siblings(struct hax *h0, struct hax *h)
 	printf(DEV, "\n");
 }
 
-static bool any_tagged_child(struct hax *h, int *new_tid)
+static bool any_tagged_child(struct hax *h, unsigned int *new_tid)
 {
 	struct agent *a;
 
@@ -177,7 +177,7 @@ static void print_pruned_children(struct save_state *ss, struct hax *h)
 		printf(DEV, "\n");
 }
 
-static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, int *new_tid)
+static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, unsigned int *new_tid)
 {
 	struct hax *current = ss->current;
 
@@ -249,7 +249,7 @@ static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, int *new_tid)
 	return NULL;
 }
 
-struct hax *explore(struct save_state *ss, int *new_tid)
+struct hax *explore(struct save_state *ss, unsigned int *new_tid)
 {
 	branch_sanity(ss->root, ss->current);
 	return dpor(ss, new_tid);

@@ -29,14 +29,14 @@ Q_NEW_HEAD(struct mem_locksets, struct mem_lockset);
 
 /* represents an access to shared memory */
 struct mem_access {
-	int addr;      /* byte granularity */
-	bool write;    /* false == read; true == write */
+	unsigned int addr; /* byte granularity */
+	bool write;        /* false == read; true == write */
 	/* PC is recorded per-lockset, so when there's a data race, the correct
 	 * eip can be reported instead of the first one. */
-	//int eip;       /* what instruction pointer */
-	int other_tid; /* does this access another thread's stack? 0 if none */
-	int count;     /* how many times accessed? (stats) */
-	bool conflict; /* does this conflict with another transition? (stats) */
+	//int eip;         /* what instruction pointer */
+	int other_tid;     /* does this access another thread's stack? 0 if none */
+	int count;         /* how many times accessed? (stats) */
+	bool conflict;     /* does this conflict with another transition? (stats) */
 	struct mem_locksets locksets; /* distinct locksets used while accessing */
 	struct rb_node nobe;
 };
@@ -75,9 +75,9 @@ struct data_race {
 
 /* a heap-allocated block. */
 struct chunk {
-	int base;
-	int len;
-	int id; /* distinguishes chunks in same-space-different-time */
+	unsigned int base;
+	unsigned int len;
+	unsigned int id; /* distinguishes chunks in same-space-different-time */
 	struct rb_node nobe;
 	/* for use-after-free reporting */
 	struct stack_trace *malloc_trace;
@@ -87,19 +87,19 @@ struct chunk {
 struct mem_state {
 	/**** heap state tracking ****/
 	struct rb_root heap;
-	int heap_size;
-	int heap_next_id; /* generation counter for chunks */
+	unsigned int heap_size;
+	unsigned int heap_next_id; /* generation counter for chunks */
 	/* dynamic allocation request state */
 	bool guest_init_done;
 	bool in_mm_init; /* userspace only */
 	bool in_alloc;
 	bool in_free;
-	int alloc_request_size; /* valid iff in_alloc */
+	unsigned int alloc_request_size; /* valid iff in_alloc */
 
 	/**** userspace information ****/
-	int cr3; /* 0 == uninitialized or this is for kernel mem */
-	int cr3_tid; /* tid for which cr3 was registered (main tid of process) */
-	int user_mutex_size; /* 0 == uninitialized or kernel mem as above */
+	unsigned int cr3; /* 0 == uninitialized or this is for kernel mem */
+	unsigned int cr3_tid; /* tid for which cr3 was registered (main tid of process) */
+	unsigned int user_mutex_size; /* 0 == uninitialized or kernel mem as above */
 
 	/**** shared memory conflict detection ****/
 	/* set of all shared accesses that happened during this transition;
@@ -110,8 +110,8 @@ struct mem_state {
 	struct rb_root freed;
 	/* set of candidate data races, maintained cross-branch */
 	struct rb_root data_races;
-	int data_races_suspected;
-	int data_races_confirmed;
+	unsigned int data_races_suspected;
+	unsigned int data_races_confirmed;
 };
 
 /******************************************************************************
@@ -122,12 +122,12 @@ void mem_init(struct ls_state *);
 
 void mem_update(struct ls_state *);
 
-void mem_check_shared_access(struct ls_state *, int phys_addr, int virt_addr,
-							 bool write);
+void mem_check_shared_access(struct ls_state *, unsigned int phys_addr,
+							 unsigned int virt_addr, bool write);
 bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h2,
                        bool in_kernel);
 
-bool shm_contains_addr(struct mem_state *m, int addr);
+bool shm_contains_addr(struct mem_state *m, unsigned int addr);
 
 bool check_user_address_space(struct ls_state *ls);
 

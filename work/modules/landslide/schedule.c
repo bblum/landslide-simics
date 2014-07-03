@@ -23,13 +23,13 @@
 #include "x86.h"
 
 static void print_q(verbosity v, const char *start, const struct agent_q *q,
-		    const char *end, int dont_print_tid);
+		    const char *end, unsigned int dont_print_tid);
 
 /******************************************************************************
  * Agence
  ******************************************************************************/
 
-struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
+struct agent *agent_by_tid_or_null(struct agent_q *q, unsigned int tid)
 {
 	struct agent *a;
 	Q_SEARCH(a, q, nobe, a->tid == tid);
@@ -37,7 +37,7 @@ struct agent *agent_by_tid_or_null(struct agent_q *q, int tid)
 }
 
 #define agent_by_tid(q, tid) _agent_by_tid(q, tid, #q)
-static struct agent *_agent_by_tid(struct agent_q *q, int tid, const char *q_name)
+static struct agent *_agent_by_tid(struct agent_q *q, unsigned int tid, const char *q_name)
 {
 	struct agent *a = agent_by_tid_or_null(q, tid);
 	if (a == NULL) {
@@ -54,7 +54,7 @@ static struct agent *_agent_by_tid(struct agent_q *q, int tid, const char *q_nam
 
 /* Call with whether or not the thread is created with a context-switch frame
  * crafted on its stack. Most threads would be; "init" may not be. */
-static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
+static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue)
 {
 	struct agent *a = MM_XMALLOC(1, struct agent);
 
@@ -108,7 +108,7 @@ static void agent_fork(struct sched_state *s, int tid, bool on_runqueue)
 	}
 }
 
-static void agent_wake(struct sched_state *s, int tid)
+static void agent_wake(struct sched_state *s, unsigned int tid)
 {
 	struct agent *a = agent_by_tid_or_null(&s->rq, tid);
 	if (a) {
@@ -127,7 +127,7 @@ static void agent_wake(struct sched_state *s, int tid)
 	Q_INSERT_FRONT(&s->rq, a, nobe);
 }
 
-static void agent_deschedule(struct sched_state *s, int tid)
+static void agent_deschedule(struct sched_state *s, unsigned int tid)
 {
 	struct agent *a = agent_by_tid_or_null(&s->rq, tid);
 	if (a != NULL) {
@@ -200,7 +200,7 @@ static struct agent *get_blocked_on(struct sched_state *s, struct agent *src)
 	if (src->kern_blocked_on != NULL) {
 		return src->kern_blocked_on;
 	} else {
-		int tid = src->kern_blocked_on_tid;
+		unsigned int tid = src->kern_blocked_on_tid;
 		struct agent *dest     = agent_by_tid_or_null(&s->rq, tid);
 		if (dest == NULL) dest = agent_by_tid_or_null(&s->dq, tid);
 		if (dest == NULL) dest = agent_by_tid_or_null(&s->sq, tid);
@@ -228,10 +228,10 @@ static bool deadlocked(struct sched_state *s)
 	return false;
 }
 
-static int print_deadlock(char *buf, int len, struct agent *a)
+static unsigned int print_deadlock(char *buf, unsigned int len, struct agent *a)
 {
 	struct agent *start = a;
-	int pos = scnprintf(buf, len, "(%d", a->tid);
+	unsigned int pos = scnprintf(buf, len, "(%d", a->tid);
 	for (a = a->kern_blocked_on; a != start; a = a->kern_blocked_on) {
 		assert(a != NULL && "a wasn't deadlocked!");
 		pos += scnprintf(buf + pos, len - pos, " -> %d", a->tid);
@@ -240,8 +240,9 @@ static int print_deadlock(char *buf, int len, struct agent *a)
 	return pos;
 }
 
-static void kern_mutex_block_others(struct agent_q *q, int mutex_addr,
-			            struct agent *kern_blocked_on, int kern_blocked_on_tid)
+static void kern_mutex_block_others(struct agent_q *q, unsigned int mutex_addr,
+			            struct agent *kern_blocked_on,
+			            unsigned int kern_blocked_on_tid)
 {
 	struct agent *a;
 	assert(mutex_addr != -1);
@@ -257,11 +258,11 @@ static void kern_mutex_block_others(struct agent_q *q, int mutex_addr,
 	}
 }
 
-static void user_mutex_block_others(struct agent_q *q, int mutex_addr, bool mutex_held)
+static void user_mutex_block_others(struct agent_q *q, unsigned int mutex_addr, bool mutex_held)
 {
 	struct agent *a;
 	assert(mutex_addr != -1);
-	assert(mutex_addr >= USER_MEM_START);
+	assert(USER_MEMORY(mutex_addr));
 	Q_FOREACH(a, q, nobe) {
 		/* slightly different than for kernel mutexes, since we
 		 * don't have the first tid a contender gets blocked on */
@@ -327,7 +328,7 @@ void print_agent(verbosity v, const struct agent *a)
 }
 
 static void print_q(verbosity v, const char *start, const struct agent_q *q,
-		    const char *end, int dont_print_tid)
+		    const char *end, unsigned int dont_print_tid)
 {
 	struct agent *a;
 	bool first = true;
@@ -357,7 +358,7 @@ void print_qs(verbosity v, const struct sched_state *s)
 /* like print_qs, but human-friendly. */
 void print_scheduler_state(verbosity v, const struct sched_state *s)
 {
-	int dont_print_tid = -1;
+	unsigned int dont_print_tid = -1;
 	printf(v, "runnable ");
 	if (s->current_extra_runnable) {
 		print_agent(v, s->cur_agent);
@@ -373,7 +374,7 @@ void print_scheduler_state(verbosity v, const struct sched_state *s)
 	print_q(v, "; descheduled ", &s->dq, "", dont_print_tid);
 }
 
-struct agent *find_runnable_agent(struct sched_state *s, int tid)
+struct agent *find_runnable_agent(struct sched_state *s, unsigned int tid)
 {
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, s,
@@ -420,7 +421,7 @@ static void assert_no_action(struct sched_state *s, const char *new_act)
 }
 #undef CHECK_NOT_ACTION
 
-static bool handle_fork(struct sched_state *s, int target_tid, bool add_to_rq)
+static bool handle_fork(struct sched_state *s, unsigned int target_tid, bool add_to_rq)
 {
 	if (ACTION(s, forking) && !HANDLING_INTERRUPT(s) &&
 	    CURRENT(s, tid) != target_tid) {
@@ -463,7 +464,7 @@ static void handle_vanish(struct sched_state *s)
 		/* the vanishing flag stays on (TODO: is it needed?) */
 	}
 }
-static void handle_unsleep(struct sched_state *s, int tid)
+static void handle_unsleep(struct sched_state *s, unsigned int tid)
 {
 	/* If a thread-change happens to an agent on the sleep queue, that means
 	 * it has woken up but runnable() hasn't seen it yet. So put it on the
@@ -495,8 +496,8 @@ static void sched_check_lmm_remove_free(struct ls_state *ls)
 static void sched_update_kern_state_machine(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
-	int target_tid;
-	int lock_addr;
+	unsigned int target_tid;
+	unsigned int lock_addr;
 	bool succeeded;
 
 	/* Timer interrupt handling. */
@@ -531,7 +532,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 			}
 		} else {
 			lskprintf(INFO, "WARNING: exiting a non-timer interrupt "
-			          "through a path shared with the timer..? (from 0x%x, #%d)\n", (int)READ_STACK(ls->cpu0, 0), (int)READ_STACK(ls->cpu0, -2));
+			          "through a path shared with the timer..? (from 0x%x, #%d)\n", READ_STACK(ls->cpu0, 0), READ_STACK(ls->cpu0, -2));
 		}
 	/* Context switching. */
 	} else if (kern_context_switch_entering(ls->eip)) {
@@ -632,7 +633,8 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		if (CURRENT(s, kern_blocked_on_addr) == -1) {
 			if (deadlocked(s)) {
 				char buf[256];
-				int len = print_deadlock(buf, 256, s->cur_agent);
+				unsigned int len =
+					print_deadlock(buf, 256, s->cur_agent);
 				FOUND_A_BUG(ls, "KERNEL DEADLOCK! %.*s", len, buf);
 			}
 		}
@@ -705,7 +707,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	 * in every case we wish to consider to mean the user thread is *not*
 	 * stuck in a yield loop. See logic in functions above for more. */
 	struct sched_state *s = &ls->sched;
-	int lock_addr;
+	unsigned int lock_addr;
 	bool succeeded;
 	bool write_mode;
 
@@ -850,7 +852,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		assert(ACTION(s, user_rwlock_locking));
 		assert(!ACTION(s, user_rwlock_unlocking));
 		assert(CURRENT(s, user_rwlock_locking_addr) != -1);
-		int lock_addr = CURRENT(s, user_rwlock_locking_addr) & ~0x1;
+		unsigned int lock_addr = CURRENT(s, user_rwlock_locking_addr) & ~0x1;
 		bool write_mode = (CURRENT(s, user_rwlock_locking_addr) & 0x1) == 1;
 		CURRENT(s, user_rwlock_locking_addr) = -1;
 		ACTION(s, user_rwlock_locking) = false;
@@ -895,8 +897,8 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 void sched_update(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
-	int old_tid = CURRENT(s, tid);
-	int new_tid;
+	unsigned int old_tid = CURRENT(s, tid);
+	unsigned int new_tid;
 
 	/* wait until the guest is ready */
 	if (!s->guest_init_done) {
@@ -919,7 +921,7 @@ void sched_update(struct ls_state *ls)
 	} else {
 		if (kern_timer_entering(ls->eip)) {
 			lsprintf(DEV, "A timer tick that wasn't ours (0x%x).\n",
-				 (int)READ_STACK(ls->cpu0, 0));
+				 READ_STACK(ls->cpu0, 0));
 			ls->eip = avoid_timer_interrupt_immediately(ls->cpu0);
 			// Print whether it thinks anybody's alive.
 			anybody_alive(ls->cpu0, &ls->test, s, true);
@@ -1001,7 +1003,7 @@ void sched_update(struct ls_state *ls)
 
 	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
 
-	if (ls->eip < USER_MEM_START) {
+	if (KERNEL_MEMORY(ls->eip)) {
 		sched_update_kern_state_machine(ls);
 	} else {
 		sched_update_user_state_machine(ls);
@@ -1211,7 +1213,7 @@ void sched_update(struct ls_state *ls)
 void sched_recover(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
-	int tid;
+	unsigned int tid;
 
 	assert(ls->just_jumped);
 

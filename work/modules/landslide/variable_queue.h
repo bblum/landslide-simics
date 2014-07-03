@@ -32,7 +32,7 @@
 	Q_HEAD_TYPE {             \
 		Q_ELEM_TYPE *head;            \
 		Q_ELEM_TYPE *tail;            \
-		size_t count;                        \
+		unsigned int count;                        \
 	}
 
 /**

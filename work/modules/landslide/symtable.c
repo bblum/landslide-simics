@@ -59,7 +59,7 @@ void set_symtable(conf_object_t *symtable)
 
 /* New interface. Returns malloced strings through output parameters,
  * which caller must free result strings if returnval is true */
-bool symtable_lookup(int eip, char **func, char **file, int *line)
+bool symtable_lookup(unsigned int eip, char **func, char **file, int *line)
 {
 	conf_object_t *table = get_symtable();
 	if (table == NULL) {
@@ -98,7 +98,7 @@ bool symtable_lookup(int eip, char **func, char **file, int *line)
 	return true;
 }
 
-int symtable_lookup_data(char *buf, int maxlen, int addr)
+unsigned int symtable_lookup_data(char *buf, unsigned int maxlen, unsigned int addr)
 {
 	conf_object_t *table = get_symtable();
 	if (table == NULL) {
@@ -110,7 +110,7 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 	attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
 	if (!SIM_attr_is_list(result)) {
 		SIM_free_attribute(idx);
-		if ((unsigned int)addr < USER_MEM_START) {
+		if (KERNEL_MEMORY(addr)) {
 			return scnprintf(buf, maxlen, "<user global0x%x>", addr);
 		} else {
 			return scnprintf(buf, maxlen, GLOBAL_COLOUR
@@ -121,9 +121,9 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 
 	const char *globalname = SIM_attr_string(SIM_attr_list_item(result, 1));
 	const char *typename = SIM_attr_string(SIM_attr_list_item(result, 2));
-	int offset = SIM_attr_integer(SIM_attr_list_item(result, 3));
+	unsigned int offset = SIM_attr_integer(SIM_attr_list_item(result, 3));
 
-	int ret = scnprintf(buf, maxlen, GLOBAL_COLOUR "%s", globalname);
+	unsigned int ret = scnprintf(buf, maxlen, GLOBAL_COLOUR "%s", globalname);
 	if (offset != 0) {
 		ret += scnprintf(buf+ret, maxlen-ret, "+%d", offset);
 	}
@@ -137,7 +137,7 @@ int symtable_lookup_data(char *buf, int maxlen, int addr)
 
 /* Finds how many instructions away the given eip is from the start of its
  * containing function. */
-bool function_eip_offset(int eip, int *offset)
+bool function_eip_offset(unsigned int eip, unsigned int *offset)
 {
 	conf_object_t *table = get_symtable();
 	if (table == NULL) {
@@ -163,10 +163,11 @@ bool function_eip_offset(int eip, int *offset)
 
 /* Attempts to find an object of the given type in the global data region, and
  * learn its size. Writes to 'result' and returns true if successful. */
-bool find_user_global_of_type(const char *typename, int *size_result)
+bool find_user_global_of_type(const char *typename, unsigned int *size_result)
 {
 #if defined(USER_DATA_START) && defined(USER_IMG_END)
-	char *get_global_name_at(conf_object_t *table, int addr, const char *typename)
+	char *get_global_name_at(conf_object_t *table, unsigned int addr,
+				 const char *typename)
 	{
 		attr_value_t idx = SIM_make_attr_integer(addr);
 		attr_value_t result = SIM_get_attribute_idx(table, "data_at", &idx);
@@ -199,9 +200,9 @@ bool find_user_global_of_type(const char *typename, int *size_result)
 		return false;
 	}
 	// Look for a global object of type mutex_t in the symtable.
-	int start_addr = USER_DATA_START;
-	int last_addr = USER_IMG_END;
-	int addr, end_addr;
+	unsigned int start_addr = USER_DATA_START;
+	unsigned int last_addr = USER_IMG_END;
+	unsigned int addr, end_addr;
 	char *name = NULL;
 	assert(start_addr % WORD_SIZE == 0);
 	assert(last_addr % WORD_SIZE == 0);

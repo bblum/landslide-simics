@@ -95,7 +95,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 
 	if (testing_userspace()) {
 		int mutex_addr;
-		if (ls->eip < USER_MEM_START) {
+		if (KERNEL_MEMORY(ls->eip)) {
 			return false;
 		} else if (instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
 			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {

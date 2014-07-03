@@ -62,8 +62,8 @@ void mem_init(struct ls_state *ls)
  * or idle or anything like that. Figure out what that process's cr3 is. */
 static bool ignore_user_access(struct ls_state *ls)
 {
-	int current_tid = ls->sched.cur_agent->tid;
-	int cr3 = GET_CPU_ATTR(ls->cpu0, cr3);;
+	unsigned int current_tid = ls->sched.cur_agent->tid;
+	unsigned int cr3 = GET_CPU_ATTR(ls->cpu0, cr3);;
 
 	if (!testing_userspace()) {
 		/* Don't attempt to track user accesses for kernelspace tests.
@@ -127,7 +127,7 @@ bool check_user_address_space(struct ls_state *ls)
 /* Returns NULL (and sets chunk) if a chunk containing addr (i.e., base <= addr
  * && addr < base + len) already exists.
  * Does not set parent if the heap is empty. */
-static struct rb_node **find_insert_location(struct rb_root *root, int addr,
+static struct rb_node **find_insert_location(struct rb_root *root, unsigned int addr,
 					     struct chunk **chunk)
 {
 	struct rb_node **p = &root->rb_node;
@@ -152,7 +152,7 @@ static struct rb_node **find_insert_location(struct rb_root *root, int addr,
 
 /* finds the chunk with the nearest start address lower than this address.
  * if the address is lower than anything currently in the heap, returns null. */
-static struct chunk *find_containing_chunk(struct rb_root *root, int addr)
+static struct chunk *find_containing_chunk(struct rb_root *root, unsigned int addr)
 {
 	struct chunk *target = NULL;
 	struct rb_node **p = find_insert_location(root, addr, &target);
@@ -186,7 +186,7 @@ static void insert_chunk(struct rb_root *root, struct chunk *c, bool coalesce)
 	rb_insert_color(&c->nobe, root);
 }
 
-static struct chunk *remove_chunk(struct rb_root *root, int addr)
+static struct chunk *remove_chunk(struct rb_root *root, unsigned int addr)
 {
 	struct chunk *target = NULL;
 	struct rb_node **p = find_insert_location(root, addr, &target);
@@ -218,7 +218,8 @@ static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
 #define BUF_SIZE 256
 
 /* Attempt to find a freed chunk among all transitions */
-static struct chunk *find_freed_chunk(struct ls_state *ls, int addr, bool in_kernel,
+static struct chunk *find_freed_chunk(struct ls_state *ls, unsigned int addr,
+				      bool in_kernel,
 				      struct hax **before, struct hax **after)
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
@@ -281,7 +282,7 @@ static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct h
 #define K_STR(in_kernel) ((in_kernel) ? "kernel" : "userspace")
 
 /* bad place == mal loc */
-static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, int size)
+static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, unsigned int size)
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
@@ -295,7 +296,7 @@ static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, int size)
 	m->alloc_request_size = size;
 }
 
-static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
+static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, unsigned int base)
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
@@ -308,9 +309,9 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 	}
 
 	if (in_kernel) {
-		assert(base < USER_MEM_START);
+		assert(KERNEL_MEMORY(base));
 	} else {
-		assert(base == 0 || base >= USER_MEM_START);
+		assert(base == 0 || USER_MEMORY(base));
 	}
 
 	if (base == 0) {
@@ -332,7 +333,7 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, int base)
 	m->in_alloc = false;
 }
 
-static void mem_enter_free(struct ls_state *ls, bool in_kernel, int base)
+static void mem_enter_free(struct ls_state *ls, bool in_kernel, unsigned int base)
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
@@ -393,8 +394,8 @@ static void mem_exit_free(struct ls_state *ls, bool in_kernel)
 void mem_update(struct ls_state *ls)
 {
 	/* Dynamic memory allocation tracking */
-	int size;
-	int base;
+	unsigned int size;
+	unsigned int base;
 
 	/* Only start tracking allocations after kernel_main is entered - the
 	 * multiboot code that runs before kernel_main may confuse us. */
@@ -408,7 +409,7 @@ void mem_update(struct ls_state *ls)
 		return;
 	}
 
-	if (ls->eip < USER_MEM_START) {
+	if (KERNEL_MEMORY(ls->eip)) {
 		if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
 			mem_enter_bad_place(ls, true, size);
 		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
@@ -512,7 +513,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	((rb) == NULL ? NULL : rb_entry(rb, struct mem_access, nobe))
 
 static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
-		    int addr, bool write, bool in_kernel)
+		    unsigned int addr, bool write, bool in_kernel)
 {
 	struct rb_node **p = &m->shm.rb_node;
 	struct rb_node *parent = NULL;
@@ -549,7 +550,8 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	rb_insert_color(&ma->nobe, &m->shm);
 }
 
-static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_kernel)
+static void use_after_free(struct ls_state *ls, unsigned int addr,
+			   bool write, bool in_kernel)
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
@@ -574,14 +576,14 @@ static void use_after_free(struct ls_state *ls, int addr, bool write, bool in_ke
 		    (int)GET_CPU_ATTR(ls->cpu0, eip));
 }
 
-void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
-			     bool write)
+void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
+			     unsigned int virt_addr, bool write)
 {
 	struct mem_state *m;
 	bool in_kernel;
-	int addr;
+	unsigned int addr;
 
-	if (phys_addr < USER_MEM_START && virt_addr != 0) {
+	if (KERNEL_MEMORY(phys_addr) && virt_addr != 0) {
 		/* non-page-table-read access in kernel mem. */
 		assert(phys_addr == virt_addr && "kernel memory not direct-mapped??");
 	}
@@ -593,7 +595,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	/* Determine which heap - kernel or user - to reason about.
 	 * Note: Need to case on eip's value, not addr's, since the
 	 * kernel may access user memory for e.g. page tables. */
-	if (ls->eip < USER_MEM_START) {
+	if (KERNEL_MEMORY(ls->eip)) {
 		/* KERNEL SPACE */
 		in_kernel = true;
 		addr = phys_addr;
@@ -614,7 +616,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 		}
 	} else {
 		/* USER SPACE */
-		if (phys_addr < USER_MEM_START) {
+		if (KERNEL_MEMORY(phys_addr)) {
 			/* The 'int' instruction in userspace will cause a bunch
 			 * of accesses to the kernel stack. Ignore them. */
 			return;
@@ -632,8 +634,8 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 			/* Use VA, not PA, for obviously important reasons. */
 			addr = virt_addr;
 			if (write) {
-				check_user_mutex_access(ls, (unsigned int)addr);
-				check_unblock_yield_loop(ls, (unsigned int)addr);
+				check_user_mutex_access(ls, addr);
+				check_unblock_yield_loop(ls, addr);
 			}
 		}
 	}
@@ -674,7 +676,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 	    (!in_kernel && user_address_in_heap(addr))) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
-			use_after_free(ls, addr, write, addr < USER_MEM_START);
+			use_after_free(ls, addr, write, KERNEL_MEMORY(addr));
 		} else {
 			add_shm(ls, m, c, addr, write, in_kernel);
 		}
@@ -687,7 +689,7 @@ void mem_check_shared_access(struct ls_state *ls, int phys_addr, int virt_addr,
 }
 
 // XXX: Shm trees a re sorted with signed comparison. Fix that.
-bool shm_contains_addr(struct mem_state *m, int addr)
+bool shm_contains_addr(struct mem_state *m, unsigned int addr)
 {
 	struct mem_access *ma = MEM_ENTRY(m->shm.rb_node);
 
@@ -715,7 +717,7 @@ static void print_shm_conflict(verbosity v, struct mem_state *m0, struct mem_sta
 			       struct chunk *c0, struct chunk *c1)
 {
 	char buf[BUF_SIZE];
-	bool in_kernel = ma0->addr >= USER_MEM_START;
+	bool in_kernel = KERNEL_MEMORY(ma0->addr);
 
 	assert(ma0->addr == ma1->addr);
 
@@ -750,7 +752,8 @@ static void print_shm_conflict(verbosity v, struct mem_state *m0, struct mem_sta
 
 #define MAX_CONFLICTS 10
 
-static void check_stack_conflict(struct mem_access *ma, int other_tid, int *conflicts)
+static void check_stack_conflict(struct mem_access *ma, unsigned int other_tid,
+				 unsigned int *conflicts)
 {
 	/* The motivation for this function is that, as an optimisation, we
 	 * don't record shm accesses to a thread's own stack. The flip-side of
@@ -772,7 +775,7 @@ static void check_stack_conflict(struct mem_access *ma, int other_tid, int *conf
 }
 
 static void check_freed_conflict(struct mem_access *ma0, struct mem_state *m1,
-				 int other_tid, int *conflicts)
+				 unsigned int other_tid, unsigned int *conflicts)
 {
 	struct chunk *c = find_containing_chunk(&m1->freed, ma0->addr);
 
@@ -831,13 +834,10 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 #endif
 }
 
-#define DR_ENTRY(rb) \
-	((rb) == NULL ? NULL : rb_entry(rb, struct data_race, nobe))
-
 /* checks for both orderings of eips in a suspected data race, occurring across
  * multiple branches of the state space, before confirming the possibility of a
  * data race. see comment above struct data_race in memory.h for reasoning. */
-static bool check_data_race(struct mem_state *m, int eip0, int  eip1)
+static bool check_data_race(struct mem_state *m, unsigned int eip0, unsigned int eip1)
 {
 	struct rb_node **p = &m->data_races.rb_node;
 	struct rb_node *parent = NULL;
@@ -845,12 +845,12 @@ static bool check_data_race(struct mem_state *m, int eip0, int  eip1)
 
 	/* lower eip is first, regardless of order */
 	bool eip0_first = eip0 < eip1;
-	int first_eip = eip0_first ? eip0 : eip1;
-	int other_eip = eip0_first ? eip1 : eip0;
+	unsigned int first_eip = eip0_first ? eip0 : eip1;
+	unsigned int other_eip = eip0_first ? eip1 : eip0;
 
 	while (*p != NULL) {
 		parent = *p;
-		dr = DR_ENTRY(parent);
+		dr = rb_entry(parent, struct data_race, nobe);
 		assert(dr->first_before_other || dr->other_before_first);
 
 		/* lexicographic ordering of eips */
@@ -936,12 +936,12 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 {
 	struct mem_state *m0 = in_kernel ? h0->old_kern_mem : h0->old_user_mem;
 	struct mem_state *m1 = in_kernel ? h1->old_kern_mem : h1->old_user_mem;
-	int tid0 = h0->chosen_thread;
-	int tid1 = h1->chosen_thread;
+	unsigned int tid0 = h0->chosen_thread;
+	unsigned int tid1 = h1->chosen_thread;
 
 	struct mem_access *ma0 = MEM_ENTRY(rb_first(&m0->shm));
 	struct mem_access *ma1 = MEM_ENTRY(rb_first(&m1->shm));
-	int conflicts = 0;
+	unsigned int conflicts = 0;
 
 	assert(h0->depth > h1->depth);
 	assert(!h0->happens_before[h1->depth]);

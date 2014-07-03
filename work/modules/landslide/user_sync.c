@@ -37,15 +37,15 @@ void user_yield_state_init(struct user_yield_state *y)
 
 /* register a malloced chunk as belonging to a particular mutex.
  * will add mutex to the list of all mutexes if it's not already there. */
-void learn_malloced_mutex_structure(struct user_sync_state *u, int lock_addr,
-				    int chunk_addr, int chunk_size)
+void learn_malloced_mutex_structure(struct user_sync_state *u, unsigned int lock_addr,
+				    unsigned int chunk_addr, unsigned int chunk_size)
 {
 	struct mutex *mp;
 	assert(lock_addr != -1);
 	Q_SEARCH(mp, &u->mutexes, nobe, mp->addr == (unsigned int)lock_addr);
 	if (mp == NULL) {
-		lsprintf(DEV, "created user mutex 0x%x (%d others)\n",
-			 lock_addr, (int)Q_GET_SIZE(&u->mutexes));
+		lsprintf(DEV, "created user mutex 0x%x (%u others)\n",
+			 lock_addr, Q_GET_SIZE(&u->mutexes));
 		mp = MM_XMALLOC(1, struct mutex);
 		mp->addr = (unsigned int)lock_addr;
 		Q_INIT_HEAD(&mp->chunks);
@@ -64,7 +64,7 @@ void learn_malloced_mutex_structure(struct user_sync_state *u, int lock_addr,
 }
 
 /* forget about a mutex that no longer exists. */
-void mutex_destroy(struct user_sync_state *u, int lock_addr)
+void mutex_destroy(struct user_sync_state *u, unsigned int lock_addr)
 {
 	struct mutex *mp;
 	Q_SEARCH(mp, &u->mutexes, nobe, mp->addr == (unsigned int)lock_addr);
@@ -113,15 +113,15 @@ static bool lock_contains_addr(struct user_sync_state *u,
 void check_user_mutex_access(struct ls_state *ls, unsigned int addr)
 {
 	struct user_sync_state *u = &ls->user_sync;
-	assert(addr >= USER_MEM_START);
+	assert(USER_MEMORY(addr));
 	assert(ls->user_mem.cr3 != 0 && "can't check user mutex before cr3 is known");
 
 	if (u->mutex_size == 0) {
 		// Learning user mutex size relies on the user symtable being
 		// registered. Delay this until one surely has been.
-		int _lock_addr;
+		unsigned int _lock_addr;
 		if (user_mutex_init_entering(ls->cpu0, ls->eip, &_lock_addr)) {
-			int size;
+			unsigned int size;
 			if (find_user_global_of_type(MUTEX_TYPE_NAME, &size)) {
 				u->mutex_size = size;
 			} else {
@@ -204,7 +204,7 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 				 "(already did)\n", h->depth, h->chosen_thread);
 			continue;
 		}
-		int expected_count = a->user_yield.loop_count;
+		unsigned int expected_count = a->user_yield.loop_count;
 
 		lsprintf(DEV, "scanning ylc for #%d/tid%d, ylc after was %d\n",
 			 h->depth, h->chosen_thread, a->user_yield.loop_count);

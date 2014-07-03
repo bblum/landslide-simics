@@ -26,14 +26,14 @@
  * that directly invokes the timer interrupt INSTEAD of executing the pending
  * instruction; the other way just manipulates the cpu's interrupt pending
  * flags to make it do the interrupt itself. */
-int cause_timer_interrupt_immediately(conf_object_t *cpu)
+unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 {
-	int esp = GET_CPU_ATTR(cpu, esp);
-	int eip = GET_CPU_ATTR(cpu, eip);
-	int eflags = GET_CPU_ATTR(cpu, eflags);
-	int handler = kern_get_timer_wrap_begin();
+	unsigned int esp = GET_CPU_ATTR(cpu, esp);
+	unsigned int eip = GET_CPU_ATTR(cpu, eip);
+	unsigned int eflags = GET_CPU_ATTR(cpu, eflags);
+	unsigned int handler = kern_get_timer_wrap_begin();
 
-	if (eip < USER_MEM_START) {
+	if (KERNEL_MEMORY(eip)) {
 		/* Easy mode. Just make a small iret stack frame. */
 		assert(GET_SEGSEL(cpu, cs) == SEGSEL_KERNEL_CS);
 		assert(GET_SEGSEL(cpu, ss) == SEGSEL_KERNEL_DS);
@@ -41,7 +41,7 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 		lsprintf(DEV, "tock! (0x%x)\n", eip);
 
 		/* 12 is the size of an IRET frame only when already in kernel mode. */
-		int new_esp = esp - 12;
+		unsigned int new_esp = esp - 12;
 		SET_CPU_ATTR(cpu, esp, new_esp);
 		SIM_write_phys_memory(cpu, new_esp + 8, eflags, 4);
 		SIM_write_phys_memory(cpu, new_esp + 4, SEGSEL_KERNEL_CS, 4);
@@ -54,9 +54,9 @@ int cause_timer_interrupt_immediately(conf_object_t *cpu)
 
 		lsprintf(DEV, "tock! from userspace! (0x%x)\n", eip);
 
-		int esp0 = READ_MEMORY(cpu, GUEST_ESP0_ADDR);
+		unsigned int esp0 = READ_MEMORY(cpu, GUEST_ESP0_ADDR);
 		/* 20 is the size of an IRET frame coming from userland. */
-		int new_esp = esp0 - 20;
+		unsigned int new_esp = esp0 - 20;
 		SET_CPU_ATTR(cpu, esp, new_esp);
 		SIM_write_phys_memory(cpu, new_esp + 16, SEGSEL_USER_DS, 4);
 		SIM_write_phys_memory(cpu, new_esp + 12, esp, 4);
@@ -112,7 +112,7 @@ static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
 
 void cause_timer_interrupt(conf_object_t *cpu)
 {
-	lsprintf(DEV, "tick! (0x%x)\n", (int)GET_CPU_ATTR(cpu, eip));
+	lsprintf(DEV, "tick! (0x%x)\n", GET_CPU_ATTR(cpu, eip));
 
 	if (GET_CPU_ATTR(cpu, pending_vector_valid)) {
 		SET_CPU_ATTR(cpu, pending_vector,
@@ -143,9 +143,9 @@ static const char custom_assembly_codes[] = {
 	0xcf, /* iret */
 };
 
-int avoid_timer_interrupt_immediately(conf_object_t *cpu)
+unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 {
-	int buf = GET_CPU_ATTR(cpu, esp) -
+	unsigned int buf = GET_CPU_ATTR(cpu, esp) -
 		(ARRAY_SIZE(custom_assembly_codes) + CUSTOM_ASSEMBLY_CODES_STACK);
 
 	lsprintf(INFO, "Cuckoo!\n");
@@ -204,7 +204,7 @@ void cause_keypress(conf_object_t *kbd, char key)
 {
 	bool do_shift = i8042_shift_key(&key);
 
-	int keycode = i8042_key(key);
+	unsigned int keycode = i8042_key(key);
 
 	attr_value_t i = SIM_make_attr_integer(keycode);
 	attr_value_t v = SIM_make_attr_integer(0); /* see i8042 docs */
@@ -235,15 +235,13 @@ void cause_keypress(conf_object_t *kbd, char key)
 
 bool interrupts_enabled(conf_object_t *cpu)
 {
-	int eflags = GET_CPU_ATTR(cpu, eflags);
+	unsigned int eflags = GET_CPU_ATTR(cpu, eflags);
 	return (eflags & EFL_IF) != 0;
 }
 
-static bool mem_translate(conf_object_t *cpu, int addr0, int *result)
+static bool mem_translate(conf_object_t *cpu, unsigned int addr, int *result)
 {
-	unsigned int addr = (unsigned int)addr0;
-
-	if (addr < ((unsigned int)USER_MEM_START)) {
+	if (KERNEL_MEMORY(addr)) {
 		/* assume kern mem direct-mapped -- not strictly necessary */
 		*result = addr;
 		return true;
@@ -276,11 +274,11 @@ static bool mem_translate(conf_object_t *cpu, int addr0, int *result)
 	return true;
 }
 
-int read_memory(conf_object_t *cpu, int addr, int width)
+unsigned int read_memory(conf_object_t *cpu, unsigned int addr, unsigned int width)
 {
-	int phys_addr;
+	unsigned int phys_addr;
 	if (mem_translate(cpu, addr, &phys_addr)) {
-		int result = (int)SIM_read_phys_memory(cpu, phys_addr, width);
+		unsigned int result = SIM_read_phys_memory(cpu, phys_addr, width);
 		assert(SIM_get_pending_exception() == SimExc_No_Exception &&
 		       "failed memory read during VM translation -- kernel VM bug?");
 		return result;
@@ -289,9 +287,9 @@ int read_memory(conf_object_t *cpu, int addr, int width)
 	}
 }
 
-char *read_string(conf_object_t *cpu, int addr)
+char *read_string(conf_object_t *cpu, unsigned int addr)
 {
-	int length = 0;
+	unsigned int length = 0;
 
 	while (READ_BYTE(cpu, addr + length) != 0) {
 		length++;
@@ -299,15 +297,15 @@ char *read_string(conf_object_t *cpu, int addr)
 
 	char *buf = MM_XMALLOC(length + 1, char);
 
-	for (int i = 0; i <= length; i++) {
+	for (unsigned int i = 0; i <= length; i++) {
 		buf[i] = READ_BYTE(cpu, addr + i);
 	}
 
 	return buf;
 }
 
-bool instruction_is_atomic_swap(conf_object_t *cpu, int eip) {
-	int op = READ_BYTE(cpu, eip);
+bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
+	unsigned int op = READ_BYTE(cpu, eip);
 	if (op == 0xf0) {
 		/* lock prefix */
 		return instruction_is_atomic_swap(cpu, eip + 1);
@@ -315,7 +313,7 @@ bool instruction_is_atomic_swap(conf_object_t *cpu, int eip) {
 		/* xchg */
 		return true;
 	} else if (op == 0x0f) {
-		int op2 = READ_BYTE(cpu, eip + 1);
+		unsigned int op2 = READ_BYTE(cpu, eip + 1);
 		if (op2 == 0xb0 || op2 == 0xb1) {
 			/* cmpxchg */
 			return true;

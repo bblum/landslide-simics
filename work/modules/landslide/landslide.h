@@ -29,7 +29,7 @@ struct ls_state {
 	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;
 	conf_object_t *kbd0;
-	int eip;
+	unsigned int eip;
 
 	struct sched_state sched;
 	struct arbiter_state arbiter;

@@ -51,7 +51,7 @@
 
 /* FFS, it's 2014. In any civilized language this would be 0 lines of code. */
 struct table_column_map {
-	int *tids;
+	unsigned int *tids;
 	/* if this research project lives long enough to see the day when
 	 * computers routinely have 5 billion threads, i will have bigger
 	 * problems than overflow. */
@@ -64,11 +64,11 @@ struct table_column_map {
 	     __col < (m)->num_tids;			\
 	     __col++, tid_var = (m)->tids[__col])
 
-static void add_table_column_tid(struct table_column_map *m, int tid)
+static void add_table_column_tid(struct table_column_map *m, unsigned int tid)
 {
 	assert(m->num_tids <= m->capacity);
 	if (m->num_tids == m->capacity) {
-		int *old_array = m->tids;
+		unsigned int *old_array = m->tids;
 		assert(m->capacity < UINT_MAX / 2);
 		m->capacity *= 2;
 		m->tids = MM_XMALLOC(m->capacity, typeof(*m->tids));
@@ -106,7 +106,7 @@ static void init_table_column_map(struct table_column_map *m, struct save_state 
 	for (int i = 0; i < m->num_tids; i++) {
 		for (int j = i + 1; j < m->num_tids; j++) {
 			if (m->tids[j] < m->tids[i]) {
-				int tmp = m->tids[j];
+				unsigned int tmp = m->tids[j];
 				m->tids[j] = m->tids[i];
 				m->tids[i] = tmp;
 			}
@@ -118,21 +118,21 @@ static void init_table_column_map(struct table_column_map *m, struct save_state 
 
 /******************** actual logic ********************/
 
-#define html_print_buf(fd, buf, len) do {		\
-		int ret = write(fd, buf, len);		\
-		assert(ret > 0 && "failed write");	\
+#define html_print_buf(fd, buf, len) do {			\
+		unsigned int ret = write(fd, buf, len);		\
+		assert(ret > 0 && "failed write");		\
 	} while (0)
 
-#define html_printf(fd, ...) do {				\
-		const int buflen = 1024;			\
-		char buf[buflen];				\
-		int len = scnprintf(buf, buflen, __VA_ARGS__);	\
-		assert(len > 0 && "failed scnprintf");		\
-		html_print_buf(fd, buf, len);			\
+#define html_printf(fd, ...) do {					\
+		const int buflen = 1024;				\
+		char buf[buflen];					\
+		unsigned int len = scnprintf(buf, buflen, __VA_ARGS__);	\
+		assert(len > 0 && "failed scnprintf");			\
+		html_print_buf(fd, buf, len);				\
 	} while(0)
 
 /* returns an open file descriptor */
-static int begin_html_output(const char *filename, int num_columns) {
+static int begin_html_output(const char *filename, unsigned int num_columns) {
 	int fd = open(filename, O_CREAT | O_WRONLY | O_APPEND,
 		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	assert(fd != -1 && "failed open html file");
@@ -158,7 +158,7 @@ static void end_html_output(int fd) {
 static void html_print_stack_trace(int fd, struct stack_trace *st)
 {
 	char buf[MAX_TRACE_LEN];
-	int length = html_stack_trace(buf, MAX_TRACE_LEN, st);
+	unsigned int length = html_stack_trace(buf, MAX_TRACE_LEN, st);
 	html_print_buf(fd, buf, length);
 }
 
@@ -207,11 +207,13 @@ void print_stack_to_console(struct stack_trace *st, bool bug_found, const char *
 }
 
 /* html_fd and map are valid iff tabular is true */
-static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
-			   bool tabular, int html_fd, struct table_column_map *map,
-			   bool verbose)
+static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
+				    bool bug_found, bool tabular,
+				    unsigned int html_fd,
+				    struct table_column_map *map,
+				    bool verbose)
 {
-	int num;
+	unsigned int num;
 
 	if (h == NULL) {
 		assert(choose_thread == -1);
@@ -223,7 +225,7 @@ static int print_tree_from(struct hax *h, int choose_thread, bool bug_found,
 
 	if (h->chosen_thread != choose_thread || verbose) {
 		lsprintf(BUG, bug_found,
-			 COLOUR_BOLD COLOUR_YELLOW "%d:\t", num);
+			 COLOUR_BOLD COLOUR_YELLOW "%u:\t", num);
 		if (h->chosen_thread == -1) {
 			printf(BUG, "<none> ");
 		} else {
@@ -285,7 +287,7 @@ static long double compute_state_space_size(struct ls_state *ls,
 		// reverse it in that case.
 		assert(ls->save.root->proportion == 0.0L);
 		save_setjmp(&ls->save, ls, -1, true, true, false);
-		int _tid;
+		unsigned int _tid;
 		explore(&ls->save, &_tid);
 		*needed_compute = true;
 		return estimate(&ls->save.estimate, ls->save.root, ls->save.current);
@@ -304,7 +306,7 @@ static long double compute_state_space_size(struct ls_state *ls,
 
 
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
-		  char *reason, int reason_len)
+		  char *reason, unsigned int reason_len)
 {
 	bool needed_compute_estimate; /* XXX hack */
 	long double proportion = compute_state_space_size(ls, &needed_compute_estimate);
@@ -368,7 +370,7 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		assert(map.num_tids > 0);
 
 		html_printf(html_fd, "<table><tr>\n");
-		int MAYBE_UNUSED /* wtf, gcc? */ tid;
+		unsigned int MAYBE_UNUSED /* wtf, gcc? */ tid;
 		FOREACH_TABLE_COLUMN(tid, &map) {
 			html_printf(html_fd, "<td><div style=\"%s\">",
 				    "font-size:large;text-align:center");
