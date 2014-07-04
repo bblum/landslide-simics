@@ -7,7 +7,8 @@
 #ifndef __LS_LOCKSET_H
 #define __LS_LOCKSET_H
 
-#include  "common.h"
+#include "array_list.h"
+#include "common.h"
 
 struct sched_state;
 
@@ -30,9 +31,7 @@ struct lock {
 
 /* Tracks the locks held by a given thread, for data race detection. */
 struct lockset {
-	unsigned int num_locks;
-	unsigned int capacity;
-	struct lock *locks;
+	ARRAY_LIST(struct lock) list;
 };
 
 /* For efficient storage of locksets on memory accesses. */

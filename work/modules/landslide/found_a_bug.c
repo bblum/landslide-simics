@@ -49,72 +49,40 @@
 
 /******************** gross glue ********************/
 
-/* FFS, it's 2014. In any civilized language this would be 0 lines of code. */
-struct table_column_map {
-	unsigned int *tids;
-	/* if this research project lives long enough to see the day when
-	 * computers routinely have 5 billion threads, i will have bigger
-	 * problems than overflow. */
-	unsigned int num_tids;
-	unsigned int capacity;
-};
+typedef ARRAY_LIST(unsigned int) table_column_map_t;
 
-#define FOREACH_TABLE_COLUMN(tid_var, m)		\
-	for (int __col = 0, tid_var = (m)->tids[__col];	\
-	     __col < (m)->num_tids;			\
-	     __col++, tid_var = (m)->tids[__col])
-
-static void add_table_column_tid(struct table_column_map *m, unsigned int tid)
-{
-	assert(m->num_tids <= m->capacity);
-	if (m->num_tids == m->capacity) {
-		unsigned int *old_array = m->tids;
-		assert(m->capacity < UINT_MAX / 2);
-		m->capacity *= 2;
-		m->tids = MM_XMALLOC(m->capacity, typeof(*m->tids));
-		memcpy(m->tids, old_array, m->num_tids * sizeof(*m->tids));
-		MM_FREE(old_array);
-	}
-	m->tids[m->num_tids] = tid;
-	m->num_tids++;
-}
-
-static void init_table_column_map(struct table_column_map *m, struct save_state *ss,
+static void init_table_column_map(table_column_map_t *m, struct save_state *ss,
 				  int current_tid)
 {
-	m->capacity = 128; /* whatever */
-	m->num_tids = 0;
-	m->tids = MM_XMALLOC(m->capacity, typeof(*m->tids));
+	ARRAY_LIST_INIT(m, 64);
 
 	/* current tid may not show up in history. add as a special case. */
-	add_table_column_tid(m, current_tid);
+	ARRAY_LIST_APPEND(m, current_tid);
 	for (struct hax *h = ss->current; h != NULL; h = h->parent) {
 		/* add it if it's not already present */
 		bool present = false;
-		for (int i = 0; i < m->num_tids; i++) {
-			if (m->tids[i] == h->stack_trace->tid) {
+		int i;
+		unsigned int *tidp;
+		ARRAY_LIST_FOREACH(m, i, tidp) {
+			if (*tidp == h->stack_trace->tid) {
 				present = true;
 				break;
 			}
 		}
 		if (!present) {
-			add_table_column_tid(m, h->stack_trace->tid);
+			ARRAY_LIST_APPEND(m, h->stack_trace->tid);
 		}
 	}
 
 	/* sort for user friendliness */
-	for (int i = 0; i < m->num_tids; i++) {
-		for (int j = i + 1; j < m->num_tids; j++) {
-			if (m->tids[j] < m->tids[i]) {
-				unsigned int tmp = m->tids[j];
-				m->tids[j] = m->tids[i];
-				m->tids[i] = tmp;
+	for (int i = 0; i < ARRAY_LIST_SIZE(m); i++) {
+		for (int j = i + 1; j < ARRAY_LIST_SIZE(m); j++) {
+			if (*ARRAY_LIST_GET(m, j) < *ARRAY_LIST_GET(m, i)) {
+				ARRAY_LIST_SWAP(m, i, j);
 			}
 		}
 	}
 }
-
-#define clear_table_column_map(m) MM_FREE((m)->tids)
 
 /******************** actual logic ********************/
 
@@ -132,7 +100,7 @@ static void init_table_column_map(struct table_column_map *m, struct save_state 
 	} while(0)
 
 /* returns an open file descriptor */
-static int begin_html_output(const char *filename, unsigned int num_columns) {
+static int begin_html_output(const char *filename) {
 	int fd = open(filename, O_CREAT | O_WRONLY | O_APPEND,
 		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	assert(fd != -1 && "failed open html file");
@@ -162,14 +130,17 @@ static void html_print_stack_trace(int fd, struct stack_trace *st)
 	html_print_buf(fd, buf, length);
 }
 
-static void html_print_stack_trace_in_table(int fd, struct table_column_map *m,
+static void html_print_stack_trace_in_table(int fd, table_column_map_t *m,
 					    struct stack_trace *st)
 {
 	bool found = false;
 	html_printf(fd, "<tr>");
-	for (int i = 0; i < m->num_tids; i++) {
+	int i;
+	unsigned int *tidp;
+	ARRAY_LIST_FOREACH(m, i, tidp) {
 		html_printf(fd, "<td>");
-		if (m->tids[i] == st->tid) {
+		if (*tidp == st->tid) {
+			assert(!found && "duplicate tid in map");
 			html_print_stack_trace(fd, st);
 			found = true;
 		}
@@ -210,7 +181,7 @@ void print_stack_to_console(struct stack_trace *st, bool bug_found, const char *
 static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 				    bool bug_found, bool tabular,
 				    unsigned int html_fd,
-				    struct table_column_map *map,
+				    table_column_map_t *map,
 				    bool verbose)
 {
 	unsigned int num;
@@ -332,11 +303,11 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 
 	struct stack_trace *stack = stack_trace(ls);
 	int html_fd;
-	struct table_column_map map;
+	table_column_map_t map;
 
 	if (tabular) {
 		/* Also print trace to html output file. */
-		html_fd = begin_html_output(ls->html_file, map.num_tids);
+		html_fd = begin_html_output(ls->html_file);
 
 		if (bug_found) {
 			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_RED)
@@ -367,19 +338,20 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 
 		/* Figure out how many columns the table will need. */
 		init_table_column_map(&map, &ls->save, stack->tid);
-		assert(map.num_tids > 0);
+		assert(ARRAY_LIST_SIZE(&map) > 0);
 
 		html_printf(html_fd, "<table><tr>\n");
-		unsigned int MAYBE_UNUSED /* wtf, gcc? */ tid;
-		FOREACH_TABLE_COLUMN(tid, &map) {
+		int i;
+		unsigned int *tidp;
+		ARRAY_LIST_FOREACH(&map, i, tidp) {
 			html_printf(html_fd, "<td><div style=\"%s\">",
 				    "font-size:large;text-align:center");
-			html_printf(html_fd, "TID %d", tid);
-			if (tid == kern_get_init_tid()) {
+			html_printf(html_fd, "TID %d", *tidp);
+			if (*tidp == kern_get_init_tid()) {
 				html_printf(html_fd, " (init)");
-			} else if (tid == kern_get_shell_tid()) {
+			} else if (*tidp == kern_get_shell_tid()) {
 				html_printf(html_fd, " (shell)");
-			} else if (kern_has_idle() && tid == kern_get_idle_tid()) {
+			} else if (kern_has_idle() && *tidp == kern_get_idle_tid()) {
 				html_printf(html_fd, " (idle)");
 			}
 			html_printf(html_fd, "</div></td>\n");
@@ -409,7 +381,7 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			html_print_stack_trace_in_table(html_fd, &map, stack);
 		}
 		html_printf(html_fd, "</table>\n");
-		clear_table_column_map(&map);
+		ARRAY_LIST_FREE(&map);
 		end_html_output(html_fd);
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
 			 "Tabular preemption trace output to %s\n." COLOUR_DEFAULT,

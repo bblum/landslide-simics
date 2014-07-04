@@ -23,6 +23,7 @@
 #include "compiler.h"
 #include "found_a_bug.h"
 #include "landslide.h"
+#include "lockset.h"
 #include "memory.h"
 #include "save.h"
 #include "schedule.h"
@@ -109,10 +110,7 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
 
 static void copy_lockset(struct lockset *dest, struct lockset *src)
 {
-	dest->num_locks = src->num_locks;
-	dest->capacity  = src->capacity;
-	dest->locks = MM_XMALLOC(src->capacity, struct lock);
-	memcpy(dest->locks, src->locks, src->capacity * sizeof(struct lock));
+	lockset_clone(dest, src);
 }
 
 static void copy_user_yield_state(struct user_yield_state *dest,

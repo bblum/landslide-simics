@@ -30,9 +30,9 @@
 	STATIC_ASSERT(!((n) == 0 || (((n) & ((n) - 1)) != 0)))
 
 /* Type and array checking */
-#define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
-#define __must_be_array(a) STATIC_ZERO_ASSERT(!__same_type((a), &(a)[0]))
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
+#define SAME_TYPE(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#define MUST_BE_ARRAY(a) STATIC_ZERO_ASSERT(!SAME_TYPE((a), &(a)[0]))
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + MUST_BE_ARRAY(arr))
 
 /* MIN()/MAX() implementations that avoid the MAX(x++,y++) problem and provide
  * strict typechecking. */

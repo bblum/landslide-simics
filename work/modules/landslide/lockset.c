@@ -16,35 +16,32 @@
 
 void lockset_init(struct lockset *l)
 {
-	l->num_locks = 0;
-	l->capacity = 16;
-	l->locks = MM_XMALLOC(l->capacity, struct lock);
+	ARRAY_LIST_INIT(&l->list, 16);
 }
 
 void lockset_free(struct lockset *l)
 {
-	MM_FREE(l->locks);
+	ARRAY_LIST_FREE(&l->list);
 }
 
 void lockset_clone(struct lockset *dest, struct lockset *src)
 {
-	dest->num_locks = src->num_locks;
-	dest->capacity  = src->num_locks; // space optimization for long-term storage
-	dest->locks = MM_XMALLOC(src->num_locks, struct lock);
-	memcpy(dest->locks, src->locks, src->num_locks * sizeof(struct lock));
+	ARRAY_LIST_CLONE(&dest->list, &src->list);
 }
 
 void lockset_print(verbosity v, struct lockset *l)
 {
-	for (int i = 0; i < l->num_locks; i++) {
+	unsigned int i;
+	struct lock *lock;
+	ARRAY_LIST_FOREACH(&l->list, i, lock) {
 		if (i != 0) {
 			printf(v, ", ");
 		}
-		printf(v, "0x%x%s", l->locks[i].addr,
-		       l->locks[i].type == LOCK_MUTEX ? "" :
-		       l->locks[i].type == LOCK_SEM ? "(s)" :
-		       l->locks[i].type == LOCK_RWLOCK ? "(w)" :
-		       l->locks[i].type == LOCK_RWLOCK_READ ? "(r)" :
+		printf(v, "0x%x%s", lock->addr,
+		       lock->type == LOCK_MUTEX ? "" :
+		       lock->type == LOCK_SEM ? "(s)" :
+		       lock->type == LOCK_RWLOCK ? "(w)" :
+		       lock->type == LOCK_RWLOCK_READ ? "(r)" :
 		       "(unknown)");
 	}
 }
@@ -66,17 +63,6 @@ static int lock_cmp(struct lock *lock0, struct lock *lock1)
 
 void lockset_add(struct lockset *l, int lock_addr, enum lock_type type)
 {
-	/* expand array if necessary */
-	assert(l->num_locks <= l->capacity);
-	if (l->num_locks == l->capacity) {
-		struct lock *old_array = l->locks;
-		assert(l->capacity < UINT_MAX / 2);
-		l->capacity *= 2;
-		l->locks = MM_XMALLOC(l->capacity, typeof(*l->locks));
-		memcpy(l->locks, old_array, l->num_locks * sizeof(*l->locks));
-		MM_FREE(old_array);
-	}
-
 	lsprintf(INFO, "Adding 0x%x to lockset: ", lock_addr);
 	lockset_print(INFO, l);
 	printf(INFO, "\n");
@@ -84,53 +70,48 @@ void lockset_add(struct lockset *l, int lock_addr, enum lock_type type)
 	/* Check that the lock is not already held. Make an exception for
 	 * e.g. mutexes and things that can contain them having the same
 	 * address. */
-	for (int i = 0; i < l->num_locks; i++) {
-		if (SAME_LOCK_TYPE(l->locks[i].type, type)) {
-			assert(l->locks[i].addr != lock_addr &&
+	unsigned int i;
+	struct lock *lock;
+	ARRAY_LIST_FOREACH(&l->list, i, lock) {
+		if (SAME_LOCK_TYPE(lock->type, type)) {
+			assert(lock->addr != lock_addr &&
 			       "Recursive locking not supported");
 		}
 	}
 
-	l->locks[l->num_locks].addr = lock_addr;
-	l->locks[l->num_locks].type = type;
+	struct lock new_lock = { .addr = lock_addr, .type = type };
+	ARRAY_LIST_APPEND(&l->list, new_lock);
 
 	/* sort */
-	for (unsigned int i = l->num_locks; i > 0; i--) {
-		int cmp = lock_cmp(&l->locks[i].addr, &l->locks[i - 1]);
+	assert(ARRAY_LIST_SIZE(&l->list) > 0);
+	for (unsigned int i = ARRAY_LIST_SIZE(&l->list) - 1; i > 0; i--) {
+		assert(i >= 1);
+		struct lock *this_lock  = ARRAY_LIST_GET(&l->list, i);
+		struct lock *other_lock = ARRAY_LIST_GET(&l->list, i - 1);
+		int cmp = lock_cmp(this_lock, other_lock);
 		assert(cmp != 0); /* invariant maintained by check above */
 		if (cmp < 0) {
-			/* swap */
-			enum lock_type tmp_type = l->locks[i - 1].type;
-			int tmp_addr            = l->locks[i - 1].addr;
-			l->locks[i - 1].type = l->locks[i].type;
-			l->locks[i - 1].addr = l->locks[i].addr;
-			l->locks[i].type = tmp_type;
-			l->locks[i].addr = tmp_addr;
+			ARRAY_LIST_SWAP(&l->list, i, i - 1);
 		} else {
+			/* lock is now in sorted position */
 			break;
 		}
 	}
-
-	l->num_locks++;
 }
 
 static bool _lockset_remove(struct lockset *l, int lock_addr, enum lock_type type)
 {
-	assert(l->num_locks < l->capacity);
-
 	assert(type != LOCK_RWLOCK_READ && "use LOCK_RWLOCK for unlocking");
 
 	lsprintf(INFO, "Removing 0x%x from lockset: ", lock_addr);
 	lockset_print(INFO, l);
 	printf(INFO, "\n");
 
-	for (int i = 0; i < l->num_locks; i++) {
-		if (l->locks[i].addr == lock_addr &&
-		    SAME_LOCK_TYPE(l->locks[i].type, type)) {
-			l->num_locks--;
-			/* swap last lock into this lock's position */
-			l->locks[i].addr = l->locks[l->num_locks].addr;
-			l->locks[i].type = l->locks[l->num_locks].type;
+	int i;
+	struct lock *lock;
+	ARRAY_LIST_FOREACH(&l->list, i, lock) {
+		if (lock->addr == lock_addr && SAME_LOCK_TYPE(lock->type, type)) {
+			ARRAY_LIST_REMOVE(&l->list, i);
 			return true;
 		}
 	}
@@ -182,11 +163,14 @@ bool lockset_intersect(struct lockset *l0, struct lockset *l1)
 {
 	// Bad runtime. Oh well.
 	// TODO: can exploit the fact that both are sorted for O(n+m) time
-	for (int i = 0; i < l0->num_locks; i++) {
-		for (int j = 0; j < l1->num_locks; j++) {
-			if (l0->locks[i].addr == l1->locks[j].addr &&
+	struct lock *lock0;
+	struct lock *lock1;
+	int i, j;
+	ARRAY_LIST_FOREACH(&l0->list, i, lock0) {
+		ARRAY_LIST_FOREACH(&l1->list, j, lock1) {
+			if (lock0->addr == lock1->addr &&
 			    /* at least one lock is held in write mode */
-			    SAME_LOCK_TYPE(l0->locks[i].type, l1->locks[j].type)) {
+			    SAME_LOCK_TYPE(lock0->type, lock1->type)) {
 				return true;
 			}
 		}
@@ -199,16 +183,16 @@ enum lockset_cmp_result lockset_compare(struct lockset *l0, struct lockset *l1)
 	enum lockset_cmp_result result = LOCKSETS_EQ;
 	int i = 0, j = 0;
 
-	while (i < l0->num_locks || j < l1->num_locks) {
+	while (i < ARRAY_LIST_SIZE(&l0->list) || j < ARRAY_LIST_SIZE(&l1->list)) {
 		/* check termination condition */
-		if (i == l0->num_locks) {
+		if (i == ARRAY_LIST_SIZE(&l0->list)) {
 			/* j's set has extra elements */
 			if (result == LOCKSETS_SUPSET) {
 				return LOCKSETS_DIFF;
 			} else {
 				return LOCKSETS_SUBSET;
 			}
-		} else if (j == l1->num_locks) {
+		} else if (j == ARRAY_LIST_SIZE(&l1->list)) {
 			/* i's set has extra elements */
 			if (result == LOCKSETS_SUBSET) {
 				return LOCKSETS_DIFF;
@@ -218,7 +202,8 @@ enum lockset_cmp_result lockset_compare(struct lockset *l0, struct lockset *l1)
 		}
 
 		/* check elements */
-		int cmp = lock_cmp(&l0->locks[i], &l1->locks[j]);
+		int cmp = lock_cmp(ARRAY_LIST_GET(&l0->list, i),
+				   ARRAY_LIST_GET(&l1->list, j));
 		if (cmp < 0) {
 			/* this lock is missing in j's set */
 			if (result == LOCKSETS_SUBSET) {
