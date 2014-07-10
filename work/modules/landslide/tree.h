@@ -56,7 +56,6 @@ struct hax {
 	/* how many children of this are marked. this can represent an out-of-date
 	 * value, which is then used to reassess the probability of this branch. */
 	long double marked_children;
-	long double marked_children_old; /* old value, before recomputation */
 	/* how much time this transition took. value is set by the 'save' module
 	 * when the struct is generated, and used by estimation. */
 	uint64_t usecs;
