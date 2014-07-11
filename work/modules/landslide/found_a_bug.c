@@ -261,7 +261,7 @@ static long double compute_state_space_size(struct ls_state *ls,
 		unsigned int _tid;
 		explore(&ls->save, &_tid);
 		*needed_compute = true;
-		return estimate(&ls->save.estimate, ls->save.root, ls->save.current);
+		return estimate_proportion(ls->save.root, ls->save.current);
 	} else {
 		// FIXME: Is "don't estimate this branch" sustainable in the
 		// sense that if we explore more, future estimations will DTRT?

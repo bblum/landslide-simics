@@ -477,13 +477,10 @@ static bool time_travel(struct ls_state *ls)
 	/* find where we want to go in the tree, and choose what to do there */
 	unsigned int tid;
 	struct hax *h = explore(&ls->save, &tid);
-	long double proportion =
-		estimate(&ls->save.estimate, ls->save.root, ls->save.current);
 
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%d.\n"
 		 COLOUR_DEFAULT, ls->save.total_jumps + 1);
-	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "Estimate: %Lf%%\n"
-		 COLOUR_DEFAULT, proportion * 100);
+	print_estimates(ls);
 
 	if (h != NULL) {
 		assert(!h->all_explored);

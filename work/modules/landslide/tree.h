@@ -53,20 +53,23 @@ struct hax {
 
 	/* Estimation state */
 
-	/* how many children of this are marked. this can represent an out-of-date
-	 * value, which is then used to reassess the probability of this branch. */
-	long double marked_children;
-	/* how much time this transition took. value is set by the 'save' module
-	 * when the struct is generated, and used by estimation. */
-	uint64_t usecs;
-	uint64_t cum_usecs; /* cumulative version of above, from root */
+	/* how many children of this are marked (already explored or tagged for
+	 * later exploration). this represents the value as it was at the
+	 * completion of the last branch, and is updated at estimation time. */
+	unsigned long marked_children;
 	/* the estimated proportion of the tree that the branches in this node's
-	 * subtree represent (the "probability" that a random exploration will take
-	 * this branch). */
+	 * subtree represent (NOT counting tagged but unexplored children) */
 	long double proportion;
-	/* cumulative sum of the usecs/branches in this nobe's subtree */
-	uint64_t subtree_usecs;
-	unsigned long subtree_branches;
+	/* how much time this transition took to execute (from its parent) */
+	uint64_t usecs;
+	/* cumulative sum of the usecs/branches in this nobe's subtree,
+	 * including estimated time of unexplored children subtrees. because
+	 * we use reverse execution rather than record/replay, this estimate
+	 * does not double-count time for transitions with multiple children.
+	 * this value is computed as: subtree_usecs = (Sum{children} child
+	 * usecs + child subtree_usecs) * marked children / explored children,
+	 * where child subtree_usecs is the same value computed recursively. */
+	long double subtree_usecs;
 	/* was an estimate already computed with this nobe as the leaf? used to
 	 * avoid recomputing (causing double-counting) and to ensure non-leaf
 	 * nodes cannot be used as the source of an estimate. */

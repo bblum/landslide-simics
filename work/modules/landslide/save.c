@@ -108,6 +108,24 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
  * helpers
  ******************************************************************************/
 
+/* Returns number of elapsed useconds since last call to this. If there was no
+ * last call, return value is undefined. */
+static uint64_t update_time(struct timeval *tv)
+{
+	struct timeval new_time;
+	int rv = gettimeofday(&new_time, NULL);
+	assert(rv == 0 && "failed to gettimeofday");
+	assert(new_time.tv_usec < 1000000);
+
+	time_t secs = new_time.tv_sec - tv->tv_sec;
+	suseconds_t usecs = new_time.tv_usec - tv->tv_usec;
+
+	tv->tv_sec  = new_time.tv_sec;
+	tv->tv_usec = new_time.tv_usec;
+
+	return (secs * 1000000) + usecs;
+}
+
 static void copy_lockset(struct lockset *dest, struct lockset *src)
 {
 	lockset_clone(dest, src);
@@ -657,8 +675,9 @@ void save_init(struct save_state *ss)
 	ss->total_jumps = 0;
 	ss->total_triggers = 0;
 	ss->depth_total = 0;
+	ss->total_usecs = 0;
 
-	estimate_init(&ss->estimate);
+	update_time(&ss->last_save_time);
 }
 
 void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
@@ -698,6 +717,10 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->trigger_count = ls->trigger_count;
 		h->chosen_thread = ss->next_tid;
 
+		/* compute elapsed and cumulative time */
+		h->usecs = update_time(&ss->last_save_time);
+		ss->total_usecs += h->usecs;
+
 		/* Put the choice into the tree. */
 		if (ss->root == NULL) {
 			/* First/root choice. */
@@ -707,11 +730,6 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->parent = NULL;
 			h->depth  = 0;
 			ss->root  = h;
-
-			h->usecs     = 0;
-			h->cum_usecs = 0;
-
-			estimate_update_time(&ss->estimate);
 		} else {
 			/* Subsequent choice. */
 			assert(ss->current != NULL);
@@ -724,12 +742,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			h->parent = ss->current;
 			h->depth = 1 + h->parent->depth;
 
-			/* Compute elapsed time. */
-			h->usecs = estimate_update_time(&ss->estimate);
-			h->cum_usecs = h->usecs + h->parent->cum_usecs;
-
-			lsprintf(DEV, "elapsed usecs %" PRIu64 ", cum %" PRIu64 "\n",
-				 h->usecs, h->cum_usecs);
+			lsprintf(DEV, "elapsed usecs %" PRIu64 "\n", h->usecs);
 		}
 
 		Q_INIT_HEAD(&h->children);
@@ -737,6 +750,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		h->marked_children = 0;
 		h->proportion = 0.0L;
+		h->subtree_usecs = 0.0L;
 		h->estimate_computed = false;
 
 		if (voluntary) {
