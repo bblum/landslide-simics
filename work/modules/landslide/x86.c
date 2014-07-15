@@ -239,7 +239,7 @@ bool interrupts_enabled(conf_object_t *cpu)
 	return (eflags & EFL_IF) != 0;
 }
 
-static bool mem_translate(conf_object_t *cpu, unsigned int addr, int *result)
+static bool mem_translate(conf_object_t *cpu, unsigned int addr, unsigned int *result)
 {
 	if (KERNEL_MEMORY(addr)) {
 		/* assume kern mem direct-mapped -- not strictly necessary */

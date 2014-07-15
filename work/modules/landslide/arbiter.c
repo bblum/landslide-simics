@@ -25,14 +25,14 @@ void arbiter_init(struct arbiter_state *r)
 }
 
 // FIXME: do these need to be threadsafe?
-void arbiter_append_choice(struct arbiter_state *r, int tid)
+void arbiter_append_choice(struct arbiter_state *r, unsigned int tid)
 {
 	struct choice *c = MM_XMALLOC(1, struct choice);
 	c->tid = tid;
 	Q_INSERT_FRONT(&r->choices, c, nobe);
 }
 
-bool arbiter_pop_choice(struct arbiter_state *r, int *tid)
+bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
 {
 	struct choice *c = Q_GET_TAIL(&r->choices);
 	if (c) {
@@ -94,7 +94,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	}
 
 	if (testing_userspace()) {
-		int mutex_addr;
+		unsigned int mutex_addr;
 		if (KERNEL_MEMORY(ls->eip)) {
 			return false;
 		} else if (instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
@@ -138,7 +138,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		    bool *our_choice)
 {
 	struct agent *a;
-	int count = 0;
+	unsigned int count = 0;
 
 	/* We shouldn't be asked to choose if somebody else already did. */
 	assert(Q_GET_SIZE(&ls->arbiter.choices) == 0);
@@ -170,7 +170,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 #endif
 
 	/* Find the count-th thread. */
-	int i = 0;
+	unsigned int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) && ++i == count) {
 			printf(DEV, "- Figured I'd look at TID %d next.\n",
