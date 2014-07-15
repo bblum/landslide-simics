@@ -1,7 +1,7 @@
 /**
  * @file explore.c
  * @brief choice tree exploration
- * @author Ben Blum <bbum@andrew.cmu.edu>
+ * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
 #define MODULE_NAME "EXPLORE"

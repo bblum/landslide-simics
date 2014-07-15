@@ -1,7 +1,7 @@
 /**
  * @file user_sync.c
  * @brief state for modeling userspace synchronization behaviour
- * @author Ben Blum <bbum@andrew.cmu.edu>
+ * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
 #define MODULE_NAME "USER-SYNC"

@@ -1,7 +1,7 @@
 /**
  * @file estimate.h
  * @brief online state space size estimation
- * @author Ben Blum <bbum@andrew.cmu.edu>
+ * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
 #ifndef __LS_ESTIMATE_H

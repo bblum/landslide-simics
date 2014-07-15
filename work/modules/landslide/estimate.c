@@ -1,7 +1,7 @@
 /**
  * @file estimate.c
  * @brief online state space size estimation
- * @author Ben Blum <bbum@andrew.cmu.edu>
+ * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
 #define MODULE_NAME "ESTIMATE"

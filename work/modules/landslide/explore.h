@@ -1,7 +1,7 @@
 /**
  * @file explore.h
  * @brief choice tree exploration
- * @author Ben Blum <bbum@andrew.cmu.edu>
+ * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
 #ifndef __LS_EXPLORE_H

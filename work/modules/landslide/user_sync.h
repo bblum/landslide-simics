@@ -1,7 +1,7 @@
 /**
  * @file user_sync.h
  * @brief state for modeling userspace synchronization behaviour
- * @author Ben Blum <bbum@andrew.cmu.edu>
+ * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
 #ifndef __LS_USER_SYNC_H
