@@ -17,8 +17,6 @@
 #include "test.h"
 #include "user_sync.h"
 
-#define SIM_MODULE_NAME "landslide"
-
 struct ls_state {
 	/* log_object_t must be the first thing in the device struct */
 	log_object_t log;
@@ -49,5 +47,9 @@ struct ls_state {
 /* process exit codes */
 #define LS_NO_KNOWN_BUG 0
 #define LS_BUG_FOUND 1
+
+/* for simics glue */
+struct ls_state *new_landslide();
+void landslide_entrypoint(conf_object_t *obj, void /* trace_entry_t */ *entry);
 
 #endif

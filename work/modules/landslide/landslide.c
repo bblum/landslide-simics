@@ -28,8 +28,6 @@
 #include <string.h>
 
 #include <simics/api.h>
-#include <simics/alloc.h>
-#include <simics/utils.h>
 #include <simics/arch/x86.h>
 
 // XXX: this header lacks guards, so it must be after the other includes.
@@ -52,22 +50,17 @@
 #include "user_specifics.h"
 #include "x86.h"
 
-/******************************************************************************
- * simics glue
- ******************************************************************************/
-
-static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
+struct ls_state *new_landslide()
 {
-	struct ls_state *ls = MM_ZALLOC(1, struct ls_state);
-	assert(ls && "failed to allocate ls state");
-	SIM_log_constructor(&ls->log, parse_obj);
+	// TODO: have some global lock file to ensure not called twice
+	struct ls_state *ls = MM_XMALLOC(1, struct ls_state);
 	ls->trigger_count = 0;
 	ls->absolute_trigger_count = 0;
 
 	ls->cpu0 = SIM_get_object("cpu0");
-	assert(ls->cpu0 && "failed to find cpu");
+	assert(ls->cpu0 != NULL && "failed to find cpu");
 	ls->kbd0 = SIM_get_object("kbd0");
-	assert(ls->kbd0 && "failed to find keyboard");
+	assert(ls->kbd0 != NULL && "failed to find keyboard");
 
 	sched_init(&ls->sched);
 	arbiter_init(&ls->arbiter);
@@ -81,191 +74,9 @@ static conf_object_t *ls_new_instance(parse_object_t *parse_obj)
 	ls->html_file = NULL;
 	ls->just_jumped = false;
 
-	return &ls->log.obj;
-}
-
-/* type should be one of "integer", "boolean", "object", ... */
-#define LS_ATTR_SET_GET_FNS(name, type)				\
-	static set_error_t set_ls_##name##_attribute(			\
-		void *arg, conf_object_t *obj, attr_value_t *val,	\
-		attr_value_t *idx)					\
-	{								\
-		((struct ls_state *)obj)->name = SIM_attr_##type(*val);	\
-		return Sim_Set_Ok;					\
-	}								\
-	static attr_value_t get_ls_##name##_attribute(			\
-		void *arg, conf_object_t *obj, attr_value_t *idx)	\
-	{								\
-		return SIM_make_attr_##type(				\
-			((struct ls_state *)obj)->name);		\
-	}
-
-/* type should be one of "\"i\"", "\"b\"", "\"o\"", ... */
-#define LS_ATTR_REGISTER(class, name, type, desc)			\
-	SIM_register_typed_attribute(class, #name,			\
-				     get_ls_##name##_attribute, NULL,	\
-				     set_ls_##name##_attribute, NULL,	\
-				     Sim_Attr_Optional, type, NULL,	\
-				     desc);
-
-LS_ATTR_SET_GET_FNS(trigger_count, integer);
-
-static set_error_t set_ls_decision_trace_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	int value = SIM_attr_integer(*val);
-	if (value != 0x15410de0u) {
-		if (value == 0) {
-			DUMP_DECISION_INFO_QUIET((struct ls_state *)obj);
-		} else {
-			DUMP_DECISION_INFO((struct ls_state *)obj);
-		}
-	}
-	return Sim_Set_Ok;
-}
-static attr_value_t get_ls_decision_trace_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	return SIM_make_attr_integer(0x15410de0u);
-}
-// XXX: figure out how to use simics list/string attributes
-static set_error_t set_ls_arbiter_choice_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	int tid = SIM_attr_integer(*val);
-
-	/* XXX: dum hack */
-	if (tid == -42) {
-		return Sim_Set_Not_Writable;
-	} else {
-		arbiter_append_choice(&((struct ls_state *)obj)->arbiter, tid);
-		return Sim_Set_Ok;
-	}
-}
-static attr_value_t get_ls_arbiter_choice_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	return SIM_make_attr_integer(-42);
-}
-
-static set_error_t set_ls_cmd_file_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	struct ls_state *ls = (struct ls_state *)obj;
-	if (ls->cmd_file == NULL) {
-		ls->cmd_file = MM_XSTRDUP(SIM_attr_string(*val));
-		return Sim_Set_Ok;
-	} else {
-		return Sim_Set_Not_Writable;
-	}
-}
-static attr_value_t get_ls_cmd_file_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	struct ls_state *ls = (struct ls_state *)obj;
-	const char *path = ls->cmd_file != NULL ? ls->cmd_file : "/dev/null";
-	return SIM_make_attr_string(path);
-}
-
-static set_error_t set_ls_html_file_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	struct ls_state *ls = (struct ls_state *)obj;
-	if (ls->html_file == NULL) {
-		ls->html_file = MM_XSTRDUP(SIM_attr_string(*val));
-		return Sim_Set_Ok;
-	} else {
-		return Sim_Set_Not_Writable;
-	}
-}
-static attr_value_t get_ls_html_file_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	struct ls_state *ls = (struct ls_state *)obj;
-	const char *path = ls->html_file != NULL ? ls->html_file : "/dev/null";
-	return SIM_make_attr_string(path);
-}
-
-// save_path is deprecated. TODO remove
-#if 0
-static set_error_t set_ls_save_path_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	if (save_set_base_dir(&((struct ls_state *)obj)->save,
-			      SIM_attr_string(*val))) {
-		return Sim_Set_Ok;
-	} else {
-		return Sim_Set_Not_Writable;
-	}
-}
-static attr_value_t get_ls_save_path_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	const char *path = save_get_path(&((struct ls_state *)obj)->save);
-	return SIM_make_attr_string(path);
-}
-#endif
-
-static set_error_t set_ls_test_case_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	if (cause_test(((struct ls_state *)obj)->kbd0,
-		       &((struct ls_state *)obj)->test, (struct ls_state *)obj,
-		       SIM_attr_string(*val))) {
-		return Sim_Set_Ok;
-	} else {
-		return Sim_Set_Not_Writable;
-	}
-}
-static attr_value_t get_ls_test_case_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	const char *path = ((struct ls_state *)obj)->test.current_test;
-	return SIM_make_attr_string(path);
-}
-
-
-/* Forward declaration. */
-static void ls_consume(conf_object_t *obj, trace_entry_t *entry);
-
-/* init_local() is called once when the device module is loaded into Simics */
-void init_local(void)
-{
-	const class_data_t funcs = {
-		.new_instance = ls_new_instance,
-		.class_desc = "hax and sploits",
-		.description = "here we have a simix module which provides not"
-			" only hax or sploits individually but rather a great"
-			" conjunction of the two."
-	};
-
-	/* Register the empty device class. */
-	conf_class_t *conf_class = SIM_register_class(SIM_MODULE_NAME, &funcs);
-
-	/* Register the landslide class as a trace consumer. */
-	static const trace_consume_interface_t sploits = {
-		.consume = ls_consume
-	};
-	SIM_register_interface(conf_class, TRACE_CONSUME_INTERFACE, &sploits);
-
-	/* Register attributes for the class. */
-	LS_ATTR_REGISTER(conf_class, decision_trace, "i", "Get a decision trace.");
-	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
-	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
-			 "Tell the arbiter which thread to choose next "
-			 "(buffered, FIFO)");
-#if 0
-	LS_ATTR_REGISTER(conf_class, save_path, "s",
-			 "Base directory of saved choices for this test case");
-#endif
-	LS_ATTR_REGISTER(conf_class, test_case, "s",
-			 "Which test case should we run?");
-	LS_ATTR_REGISTER(conf_class, cmd_file, "s",
-			 "Filename to use for communication with the wrapper");
-	LS_ATTR_REGISTER(conf_class, html_file, "s",
-			 "Filename to use for HTML preemption trace output");
-
 	lsprintf(ALWAYS, "welcome to landslide.\n");
+
+	return ls;
 }
 
 /******************************************************************************
@@ -356,7 +167,7 @@ static void check_exception(struct ls_state *ls, int number)
 }
 
 /******************************************************************************
- * actual interesting landslide logic
+ * miscellaneous bug detection metrics
  ******************************************************************************/
 
 /* How many transitions deeper than the average branch should this branch be
@@ -472,6 +283,19 @@ static bool test_ended_safely(struct ls_state *ls)
 	return true;
 }
 
+static void found_no_bug(struct ls_state *ls)
+{
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
+		 "**** Execution tree explored; you survived! ****\n"
+		 COLOUR_DEFAULT);
+	PRINT_TREE_INFO(DEV, ls);
+	SIM_quit(LS_NO_KNOWN_BUG);
+}
+
+/******************************************************************************
+ * main entrypoint and time travel logic
+ ******************************************************************************/
+
 static bool time_travel(struct ls_state *ls)
 {
 	/* find where we want to go in the tree, and choose what to do there */
@@ -490,15 +314,6 @@ static bool time_travel(struct ls_state *ls)
 	} else {
 		return false;
 	}
-}
-
-static void found_no_bug(struct ls_state *ls)
-{
-	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_GREEN
-		 "**** Execution tree explored; you survived! ****\n"
-		 COLOUR_DEFAULT);
-	PRINT_TREE_INFO(DEV, ls);
-	SIM_quit(LS_NO_KNOWN_BUG);
 }
 
 static void check_test_state(struct ls_state *ls)
@@ -530,9 +345,10 @@ static void check_test_state(struct ls_state *ls)
 }
 
 /* Main entry point. Called every instruction, data access, and extensible. */
-static void ls_consume(conf_object_t *obj, trace_entry_t *entry)
+void landslide_entrypoint(conf_object_t *obj, void *trace_entry)
 {
 	struct ls_state *ls = (struct ls_state *)obj;
+	trace_entry_t *entry = (trace_entry_t *)trace_entry;
 
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
 
