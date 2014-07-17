@@ -135,7 +135,7 @@ bool user_address_in_heap(unsigned int addr)
 	/* Note: We also want to exclude stack addresses, but those are
 	 * typically 0xfXXXXXXX, and the signed comparison will "conveniently"
 	 * exclude those. Gross, but whatever. */
-	return (addr >= USER_IMG_END);
+	return (((signed int)addr) >= USER_IMG_END);
 #else
 	return false;
 #endif

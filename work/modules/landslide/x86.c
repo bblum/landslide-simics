@@ -54,7 +54,7 @@ unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 
 		lsprintf(DEV, "tock! from userspace! (0x%x)\n", eip);
 
-		unsigned int esp0 = READ_MEMORY(cpu, GUEST_ESP0_ADDR);
+		unsigned int esp0 = READ_MEMORY(cpu, (unsigned)GUEST_ESP0_ADDR);
 		/* 20 is the size of an IRET frame coming from userland. */
 		unsigned int new_esp = esp0 - 20;
 		SET_CPU_ATTR(cpu, esp, new_esp);
