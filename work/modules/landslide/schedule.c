@@ -287,6 +287,7 @@ void sched_init(struct sched_state *s)
 {
 	Q_INIT_HEAD(&s->rq);
 	Q_INIT_HEAD(&s->dq);
+	Q_INIT_HEAD(&s->sq);
 	s->num_agents = 0;
 	s->most_agents_ever = 0;
 	s->guest_init_done = false; /* must be before kern_init_threads */
