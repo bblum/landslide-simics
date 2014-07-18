@@ -323,7 +323,7 @@ bool within_function(struct ls_state *ls, unsigned int func, unsigned int func_e
 	struct stack_frame *f;
 	bool result = false;
 	Q_FOREACH(f, &st->frames, nobe) {
-		if (f->eip >= func && f->eip < func_end) {
+		if (f->eip >= func && f->eip <= func_end) {
 			result = true;
 			break;
 		}
