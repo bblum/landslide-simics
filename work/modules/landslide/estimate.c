@@ -228,15 +228,20 @@ long double estimate_proportion(struct hax *root, struct hax *current)
  * pretty-printing / convenience
  ******************************************************************************/
 
-struct human_friendly_time { uint64_t secs, mins, hours, days, years; };
+struct human_friendly_time { uint64_t secs, mins, hours, days, years; bool inf; };
 
 static void human_friendly_time(long double usecs, struct human_friendly_time *hft)
 {
+	long double secs = usecs / 1000000;
+	if ((hft->inf = (secs > (long double)UINT64_MAX))) {
+		return;
+	}
+
 	hft->years = 0;
 	hft->days = 0;
 	hft->hours = 0;
 	hft->mins = 0;
-	hft->secs = (uint64_t)(usecs / 1000000);
+	hft->secs = (uint64_t)secs;
 	if (hft->secs >= 60) {
 		hft->mins = hft->secs / 60;
 		hft->secs = hft->secs % 60;
@@ -257,6 +262,11 @@ static void human_friendly_time(long double usecs, struct human_friendly_time *h
 
 static void print_human_friendly_time(verbosity v, struct human_friendly_time *hft)
 {
+	if (hft->inf) {
+		printf(v, "INF");
+		return;
+	}
+
 	if (hft->years != 0)
 		printf(v, "%luy ", hft->years);
 	if (hft->days  != 0)
