@@ -298,6 +298,7 @@ void sched_init(struct sched_state *s)
 	s->last_agent = NULL;
 	s->last_vanished_agent = NULL;
 	s->schedule_in_flight = NULL;
+	s->inflight_tick_count = 0;
 	s->delayed_in_flight = false;
 	s->just_finished_reschedule = false;
 	s->entering_timer = false;
@@ -496,6 +497,38 @@ static void sched_check_lmm_remove_free(struct ls_state *ls)
 	}
 }
 
+static void sched_finish_inflight(struct sched_state *s)
+{
+	ACTION(s, schedule_target) = false;
+	s->schedule_in_flight = NULL;
+	s->inflight_tick_count = 0;
+}
+
+#define TOO_MANY_INTERRUPTS(s) ((s)->most_agents_ever * 100)
+
+static void keep_schedule_inflight(struct ls_state *ls)
+{
+	struct sched_state *s = &ls->sched;
+
+	cause_timer_interrupt(ls->cpu0);
+
+	assert(s->schedule_in_flight != NULL);
+	s->entering_timer = true;
+	s->delayed_in_flight = false;
+	s->inflight_tick_count++;
+	if (s->inflight_tick_count == TOO_MANY_INTERRUPTS(s)) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Too many interrupts "
+			 "while trying to force thread %d to run,\n",
+			 s->schedule_in_flight->tid);
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "without successfully "
+			 "rescheduling to it. Something is wrong...\n");
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Scheduler state: ");
+		print_qs(ALWAYS, s);
+		printf(ALWAYS, COLOUR_DEFAULT "\n");
+		LS_ABORT();
+	}
+}
+
 static void sched_update_kern_state_machine(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
@@ -530,8 +563,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 			 * finishes landing. (otherwise, see below)
 			 * FIXME: should this be inside the above if statement? */
 			if (ACTION(s, schedule_target)) {
-				ACTION(s, schedule_target) = false;
-				s->schedule_in_flight = NULL;
+				sched_finish_inflight(s);
 			}
 		} else {
 			lskprintf(INFO, "WARNING: exiting a non-timer interrupt "
@@ -574,8 +606,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 				s->just_finished_reschedule = true;
 			}
 			if (ACTION(s, schedule_target)) { /* as above */
-				ACTION(s, schedule_target) = false;
-				s->schedule_in_flight = NULL;
+				sched_finish_inflight(s);
 			}
 			/* But, it's also a hurdle violation... */
 			HURDLE_VIOLATION("The context switch return path "
@@ -585,8 +616,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
                         lskprintf(DEV, "JFR site #2\n");
 			s->just_finished_reschedule = true;
 			if (ACTION(s, schedule_target)) {
-				ACTION(s, schedule_target) = false;
-				s->schedule_in_flight = NULL;
+				sched_finish_inflight(s);
 			}
 		}
 	/* Lifecycle. */
@@ -1037,10 +1067,9 @@ void sched_update(struct ls_state *ls)
 				 * just_finished_reschedule is persistent. */
 				lskprintf(DEV, "Finished flying to %d.\n",
 				          CURRENT(s, tid));
-				ACTION(s, schedule_target) = false;
 				ACTION(s, just_forked) = false;
-				s->schedule_in_flight = NULL;
 				s->just_finished_reschedule = true;
+				sched_finish_inflight(s);
 			} else {
 				assert(ACTION(s, cs_free_pass) ||
 				       ACTION(s, context_switch) ||
@@ -1073,9 +1102,7 @@ void sched_update(struct ls_state *ls)
 				    kern_ready_for_timer_interrupt(ls->cpu0)) {
 					lskprintf(INFO, "keeping schedule in-"
 					          "flight at 0x%x\n", ls->eip);
-					cause_timer_interrupt(ls->cpu0);
-					s->entering_timer = true;
-					s->delayed_in_flight = false;
+					keep_schedule_inflight(ls);
 				} else {
 					lskprintf(INFO, "Want to keep schedule "
 					          "in-flight at 0x%x; have to "
@@ -1093,9 +1120,7 @@ void sched_update(struct ls_state *ls)
 				   kern_ready_for_timer_interrupt(ls->cpu0)) {
 				lskprintf(INFO, "Delayed in-flight timer tick "
 				          "at 0x%x\n", ls->eip);
-				cause_timer_interrupt(ls->cpu0);
-				s->entering_timer = true;
-				s->delayed_in_flight = false;
+				keep_schedule_inflight(ls);
 			} else {
 				/* they'd better not have "escaped" */
 				assert(ACTION(s, cs_free_pass) ||

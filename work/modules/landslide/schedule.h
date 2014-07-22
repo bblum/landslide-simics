@@ -121,6 +121,7 @@ struct sched_state {
 	/* It does take many instructions for us to switch, after all. This is
 	 * NULL if we're not trying to schedule anybody. */
 	struct agent *schedule_in_flight;
+	unsigned int inflight_tick_count;
 	bool delayed_in_flight;
 	bool just_finished_reschedule;
 	/* Whether we think we ought to be entering the timer handler or not. */

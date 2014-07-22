@@ -245,6 +245,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	assert((src->last_agent == NULL || dest->last_agent != NULL) &&
 	       "copy_sched couldn't set last_agent!");
 
+	dest->inflight_tick_count    = src->inflight_tick_count;
 	dest->delayed_in_flight      = src->delayed_in_flight;
 	dest->just_finished_reschedule = src->just_finished_reschedule;
 	dest->current_extra_runnable = src->current_extra_runnable;
