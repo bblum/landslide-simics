@@ -152,7 +152,9 @@ struct sched_state {
 /* Can't be used with 'break' or 'continue', though 'return' is fine. */
 #define FOR_EACH_RUNNABLE_AGENT(a, s, code) do {	\
 	bool __idle_is_runnable = true;			\
-	if ((s)->current_extra_runnable) {		\
+	if ((s)->current_extra_runnable &&		\
+	    /* skip cur_agent if it's idle (see #74) */	\
+	    !(kern_has_idle() && (s)->cur_agent->tid == kern_get_idle_tid())) {	\
 		a = (s)->cur_agent;			\
 		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
