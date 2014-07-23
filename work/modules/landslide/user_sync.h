@@ -90,6 +90,7 @@ bool is_user_yield_blocked(struct hax *h);
 void check_user_yield_activity(struct user_sync_state *u, struct agent *a);
 bool check_user_xchg(struct user_sync_state *u, struct agent *a);
 void record_user_yield_activity(struct user_sync_state *u);
+void record_user_mutex_activity(struct user_sync_state *u);
 void record_user_yield(struct user_sync_state *u);
 /* memory-related */
 void check_unblock_yield_loop(struct ls_state *ls, unsigned int addr);

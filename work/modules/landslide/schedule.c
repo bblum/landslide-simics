@@ -784,7 +784,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
 		lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
-		record_user_yield_activity(&ls->user_sync);
+		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_yielding(ls->cpu0, ls->eip)) {
 		if (ACTION(s, user_mutex_locking)) {
 			/* "Probably" blocked on the mutex. */
@@ -795,7 +795,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			ACTION(s, user_mutex_yielding) = true;
 			CURRENT(s, user_blocked_on_addr) =
 				CURRENT(s, user_mutex_locking_addr);
-			record_user_yield_activity(&ls->user_sync);
+			record_user_mutex_activity(&ls->user_sync);
 		} else {
 			/* User yield outside of a mutex access. */
 			record_user_yield(&ls->user_sync);
@@ -810,7 +810,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			 CURRENT(s, user_mutex_locking_addr));
 		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_locking_addr), true);
 		CURRENT(s, user_mutex_locking_addr) = -1;
-		record_user_yield_activity(&ls->user_sync);
+		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_trylock_exiting(ls->cpu0, ls->eip, &succeeded)) {
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
@@ -828,7 +828,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 				       LOCK_MUTEX, false);
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
-		record_user_yield_activity(&ls->user_sync);
+		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
@@ -836,7 +836,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_mutex_unlocking) = true;
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
-		record_user_yield_activity(&ls->user_sync);
+		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
@@ -849,7 +849,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			 CURRENT(s, user_mutex_unlocking_addr));
 		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_unlocking_addr), false);
 		CURRENT(s, user_mutex_unlocking_addr) = -1;
-		record_user_yield_activity(&ls->user_sync);
+		record_user_mutex_activity(&ls->user_sync);
 	/* cvars */
 	} else if (user_cond_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		record_user_yield_activity(&ls->user_sync);

@@ -239,17 +239,21 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 				find_runnable_agent(h2->parent->oldsched, a->tid);
 			assert(a3 != NULL && "yielding thread vanished in the past");
 			if (h2->chosen_thread == a->tid) {
-				/* Thread ran. Count must have incremented. */
+				/* Thread ran. Did count increment?. */
 				if (a2->user_yield.loop_count == TOO_MANY_XCHGS) {
 					/* No telling what count was before
 					 * this transition. Stop checking. */
 					break;
-				} else {
-					assert(a2->user_yield.loop_count ==
-					       a3->user_yield.loop_count + 1);
-					/* Update expected "future" count
-					 * from the past. */
+				} else if (a2->user_yield.loop_count ==
+					   a3->user_yield.loop_count + 1) {
+					/* Yield occurred during transition.
+					 * Update expected "past" count. */
 					expected_count--;
+				} else {
+					/* Thread did "nothing interesting";
+					 * yield count was unchanged. */
+					assert(a2->user_yield.loop_count ==
+					       a3->user_yield.loop_count);
 				}
 			} else {
 				/* Thread did not run; count should not have changed. */
@@ -294,18 +298,19 @@ void check_user_yield_activity(struct user_sync_state *u, struct agent *a)
 				 "be stuck in a yield loop (%d spins)\n",
 				 a->tid, y->loop_count);
 		}
-	} else {
-		assert(u->yield_progress == NOTHING_INTERESTING ||
-		       u->yield_progress == ACTIVITY);
+	} else if (u->yield_progress == ACTIVITY) {
 		if (y->loop_count > 0) {
 			/* User thread was yielding but stopped. */
 			lsprintf(DEV, COLOUR_BOLD COLOUR_CYAN "TID %d yielded "
 				 "%d times, but stopped.\n",
 				 a->tid, y->loop_count);
 			y->loop_count = 0;
-		} else {
-			/* Normal activity, nothing to see here. */
 		}
+	} else {
+		assert(u->yield_progress == NOTHING_INTERESTING);
+		/* Normal activity, nothing to see here.  Note that even if the
+		 * loop_count is nonzero, we don't reset the counter here, so
+		 * we can detect cvar-like loops with mutex accesses inside. */
 	}
 
 	/* reset state for the next thread/transition to run. */
@@ -350,6 +355,21 @@ void record_user_yield_activity(struct user_sync_state *u)
 	 * thread yields during this transition, we'll wait for it to actually
 	 * start doing nothing but yielding before counting it as blocked. */
 	u->yield_progress = ACTIVITY;
+	u->xchg_count = 0;
+}
+
+/* Should user mutex lock/unlock be considered "interesting" for the purpose of
+ * identifying when a thread is blocked in a yield-loop doing "nothing
+ * interesting"? Not setting this allows us to spot yield loop blocking in
+ * ad-hoc cvar-like waiting (such as is used in the paraguay test). */
+//#define USER_MUTEX_YIELD_ACTIVITY
+
+/* For "slightly less interesting" events than the above function. */
+void record_user_mutex_activity(struct user_sync_state *u)
+{
+#ifdef USER_MUTEX_YIELD_ACTIVITY
+	u->yield_progress = ACTIVITY;
+#endif
 	u->xchg_count = 0;
 }
 
