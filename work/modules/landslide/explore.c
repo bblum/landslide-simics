@@ -25,19 +25,6 @@ static bool is_child_searched(struct hax *h, unsigned int child_tid) {
 	return false;
 }
 
-static bool find_unsearched_child(struct hax *h, unsigned int *new_tid) {
-	struct agent *a;
-
-	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
-		if (!is_child_searched(h, a->tid)) {
-			*new_tid = a->tid;
-			return true;
-		}
-	);
-
-	return false;
-}
-
 static void branch_sanity(struct hax *root, struct hax *current)
 {
 	struct hax *our_branch = NULL;
@@ -64,6 +51,20 @@ static void branch_sanity(struct hax *root, struct hax *current)
 /******************************************************************************
  * Simple, comprehensive, depth-first exploration strategy.
  ******************************************************************************/
+
+static MAYBE_UNUSED bool find_unsearched_child(struct hax *h,
+					       unsigned int *new_tid) {
+	struct agent *a;
+
+	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
+		if (!is_child_searched(h, a->tid)) {
+			*new_tid = a->tid;
+			return true;
+		}
+	);
+
+	return false;
+}
 
 static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
 				       unsigned int *new_tid)
@@ -220,7 +221,8 @@ static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, unsigned int *new_ti
 				 * is fine; the others would be handled "by
 				 * induction". But that relies on choice points
 				 * being comprehensive enough, which we almost
-				 * always do not satisfy. So continue. */
+				 * always do not satisfy. So continue. (See MS
+				 * thesis section 5.4.3 / figure 5.4.) */
 				/* break; */
 			}
 		}
