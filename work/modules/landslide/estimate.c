@@ -63,6 +63,23 @@ static int update_marked_children(struct hax *h)
 		assert(__val >= 0.0L && __val <= 1.0L);	\
 	} while (0)
 
+/* Propagate changed proportion to descendants, including the nobe itself. */
+static void adjust_subtree_proportions(struct hax *ancestor, struct hax *leaf,
+				       unsigned int old_marked_children,
+				       unsigned int new_marked_children)
+{
+	struct hax *h = leaf;
+	do {
+		h = h->parent;
+		assert(h != NULL);
+		/* It's ok if some descendants are new (i.e. never estimated
+		 * before) as their proportion will just be 0. */
+		h->proportion *= old_marked_children;
+		h->proportion /= new_marked_children;
+		ASSERT_FRACTIONAL(h->proportion);
+	} while (h != ancestor);
+}
+
 static void _estimate(struct hax *root, struct hax *current)
 {
 	/* The estimated proportion of this branch, which we will accumulate. */
@@ -123,14 +140,8 @@ static void _estimate(struct hax *root, struct hax *current)
 		if (old_marked_children != h->marked_children &&
 		    old_marked_children != 0) {
 			assert(h->marked_children > old_marked_children);
-			struct hax *h2 = current;
-			do {
-				h2 = h2->parent;
-				assert(h2 != NULL);
-				h2->proportion *= old_marked_children;
-				h2->proportion /= h->marked_children;
-				ASSERT_FRACTIONAL(h2->proportion);
-			} while (h2 != h);
+			adjust_subtree_proportions(h, current, old_marked_children,
+						   h->marked_children);
 		}
 
 		/* Save our delta for the next loop iteration on our parent. */
@@ -145,7 +156,7 @@ static void _estimate(struct hax *root, struct hax *current)
 			child_was_new_subtree = true;
 		}
 
-		uint64_t old_usecs = h->subtree_usecs;
+		long double old_usecs = h->subtree_usecs;
 		if (new_subtree) {
 			/* This nobe is part of a completely new subtree. */
 			assert(h->subtree_usecs == 0.0L);
@@ -203,6 +214,59 @@ static void _estimate(struct hax *root, struct hax *current)
 	for (struct hax *h = current; h != NULL; h = h->parent) {
 		h->proportion += this_nobe_proportion;
 
+	}
+}
+
+void untag_blocked_branch(struct hax *ancestor, struct hax *leaf, struct agent *a,
+			  bool was_ancestor)
+{
+	assert(a->do_explore);
+
+	if (was_ancestor) {
+		// TODO: "We shouldn't be in this subtree at all."
+		// TODO: Scan descendants and recursively untag children there,
+		// also setting "don't tag children in the future" flag.
+	} else if (ancestor->all_explored) {
+		/* The subtree should not have existed, but we already
+		 * finished exploring it, so we can't adjust estimates. */
+		return;
+	} else {
+		/* The subtree was not explored yet, so we need to readjust the
+		 * ancestor node's estimate downwards. */
+		a->do_explore = false;
+		assert(ancestor->marked_children > 1);
+		ancestor->marked_children--;
+
+		/* recompute proportions for ancestor and its children along the
+		 * branch we came from */
+		long double old_proportion = ancestor->proportion;
+		adjust_subtree_proportions(ancestor, leaf,
+					   ancestor->marked_children + 1,
+					   ancestor->marked_children);
+		/* recompute subtree time for ancestor alone (not propagated
+		 * down). note that num explored children (the denominator)
+		 * does not change. while for proportion, marked children is
+		 * the denominator, here it is part of the numerator. */
+		long double old_usecs = ancestor->subtree_usecs;
+		ancestor->subtree_usecs /= ancestor->marked_children + 1;
+		ancestor->subtree_usecs *= ancestor->marked_children;
+
+		/* find how much proportion and subtree time changed */
+		long double proportion_delta = ancestor->proportion - old_proportion;
+		long double subtree_delta = ancestor->subtree_usecs - old_usecs;
+		assert(proportion_delta >= 0);
+		assert(subtree_delta <= 0);
+
+		/* propagate proportion and subtree time to older ancestors */
+		for (struct hax *h = ancestor->parent; h != NULL; h = h->parent) {
+			/* proportion is simply added/subtracted from parents */
+			h->proportion += proportion_delta;
+			/* subtree delta gets factored into the parent's average.
+			 * unlike proportion, subtree delta changes at each level. */
+			subtree_delta *= h->marked_children;
+			subtree_delta /= Q_GET_SIZE(&h->children);
+			h->subtree_usecs += subtree_delta;
+		}
 	}
 }
 

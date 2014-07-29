@@ -205,6 +205,7 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 			continue;
 		}
 		unsigned int expected_count = a->user_yield.loop_count;
+		struct hax *previous_h2 = NULL;
 
 		lsprintf(DEV, "scanning ylc for #%d/tid%d, ylc after was %d\n",
 			 h->depth, h->chosen_thread, a->user_yield.loop_count);
@@ -231,6 +232,18 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 					 a2->user_yield.loop_count,
 					 h->depth, h->chosen_thread);
 				a2->user_yield.blocked = true;
+				/* In past branches, before we knew this thread
+				 * was yield-blocked, we might have tagged it
+				 * during DPOR. Undo that. */
+				if (a2->do_explore) {
+					assert(previous_h2 != NULL);
+					/* are we currently inside that thread
+					 * transition's subtree? */
+					bool was_ancestor = (a2->tid ==
+						previous_h2->chosen_thread);
+					untag_blocked_branch(h2, h0, a2,
+							     was_ancestor);
+				}
 			}
 
 			/* Also, if that thread actually ran during this (old)
@@ -260,6 +273,8 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 				assert(a2->user_yield.loop_count ==
 				       a3->user_yield.loop_count);
 			}
+
+			previous_h2 = h2;
 		}
 	}
 }
@@ -321,6 +336,7 @@ void check_user_yield_activity(struct user_sync_state *u, struct agent *a)
 bool check_user_xchg(struct user_sync_state *u, struct agent *a)
 {
 	struct user_yield_state *y = &a->user_yield;
+	assert(!y->blocked);
 	assert(u->xchg_count >= 0);
 	assert(u->xchg_count < TOO_MANY_XCHGS);
 	/* We use TOO_MANY_XCHGS as a special value for the yield counter so
