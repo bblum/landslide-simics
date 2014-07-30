@@ -1179,7 +1179,8 @@ void sched_update(struct ls_state *ls)
 	/* TODO: arbiter may also want to see the trace_entry_t */
 	if (arbiter_interested(ls, just_finished_reschedule, &voluntary,
 			       &need_handle_sleep)) {
-		struct agent *a;
+		struct agent *current = voluntary ? s->last_agent : s->cur_agent;
+		struct agent *chosen;
 		bool our_choice;
 
 		/* Some kernels that don't have separate idle threads (POBBLES)
@@ -1195,17 +1196,16 @@ void sched_update(struct ls_state *ls)
 		 * Must also happen before the arbiter's choice (in case this
 		 * check causes us to consider the thread blocked, the arbiter
 		 * must not choose it). */
-		check_user_yield_activity(&ls->user_sync,
-					  voluntary ? s->last_agent : s->cur_agent);
+		check_user_yield_activity(&ls->user_sync, current);
 
 		/* TODO: as an optimisation (in serialisation state / etc), the
 		 * arbiter may return NULL if there was only one possible
 		 * choice. */
-		if (arbiter_choose(ls, &a, &our_choice)) {
+		if (arbiter_choose(ls, current, &chosen, &our_choice)) {
 			/* Effect the choice that was made... */
-			if (a != s->cur_agent ||
+			if (chosen != s->cur_agent ||
 			    agent_by_tid_or_null(&s->sq, CURRENT(s, tid)) != NULL) {
-				if (a == s->cur_agent) {
+				if (chosen == s->cur_agent) {
 					/* The arbiter picked to wake a thread
 					 * off the sleep queue. Prevent it from
 					 * getting confused about who "last" ran
@@ -1214,17 +1214,17 @@ void sched_update(struct ls_state *ls)
 				}
 				lsprintf(DEV, "from agent %d, arbiter chose "
 					 "%d at 0x%x (called at 0x%x)\n",
-					 CURRENT(s, tid), a->tid, ls->eip,
+					 CURRENT(s, tid), chosen->tid, ls->eip,
 					 (unsigned int)READ_STACK(ls->cpu0, 0));
-				set_schedule_target(s, a);
+				set_schedule_target(s, chosen);
 				cause_timer_interrupt(ls->cpu0);
 				s->entering_timer = true;
 			}
 			/* Record the choice that was just made. */
 			if (ls->test.test_ever_caused &&
 			    ls->test.start_population != s->most_agents_ever) {
-				save_setjmp(&ls->save, ls, a->tid, our_choice,
-					    false, voluntary);
+				save_setjmp(&ls->save, ls, chosen->tid,
+					    our_choice, false, voluntary);
 			}
 		} else {
 			lsprintf(DEV, "no agent was chosen at eip 0x%x\n",

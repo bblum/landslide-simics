@@ -217,6 +217,7 @@ static void _estimate(struct hax *root, struct hax *current)
 	}
 }
 
+/* FIXME: With KEEP_RUNNING_YIELDING_THREADS, this might be dead functionality. */
 void untag_blocked_branch(struct hax *ancestor, struct hax *leaf, struct agent *a,
 			  bool was_ancestor)
 {

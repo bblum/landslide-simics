@@ -71,6 +71,11 @@ struct user_yield_state {
 	    (y)->loop_count == TOO_MANY_YIELDS || \
 	    (y)->loop_count == TOO_MANY_XCHGS || (y)->blocked; })
 
+#define agent_has_yielded(y) \
+	 ({ assert((y)->loop_count <= TOO_MANY_YIELDS || \
+	           (y)->loop_count == TOO_MANY_XCHGS); \
+	    (y)->loop_count > 0 || (y)->blocked; })
+
 void user_sync_init(struct user_sync_state *u);
 void user_yield_state_init(struct user_yield_state *y);
 

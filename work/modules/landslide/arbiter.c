@@ -17,6 +17,7 @@
 #include "rand.h"
 #include "schedule.h"
 #include "user_specifics.h"
+#include "user_sync.h"
 #include "x86.h"
 
 void arbiter_init(struct arbiter_state *r)
@@ -134,8 +135,8 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	(kern_has_idle() && (a)->tid == kern_get_idle_tid() &&		\
 	 BUG_ON_THREADS_WEDGED != 0 && (ls)->test.test_ever_caused &&	\
 	 (ls)->test.start_population != (ls)->sched.most_agents_ever)
-bool arbiter_choose(struct ls_state *ls, struct agent **target,
-		    bool *our_choice)
+bool arbiter_choose(struct ls_state *ls, struct agent *current,
+		    struct agent **result, bool *our_choice)
 {
 	struct agent *a;
 	unsigned int count = 0;
@@ -155,17 +156,26 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 	);
 
 //#define CHOOSE_RANDOMLY
+#define KEEP_RUNNING_YIELDING_THREADS
 
-#ifndef CHOOSE_RANDOMLY
-	if (EXPLORE_BACKWARDS == 0) {
-		count = 1;
-	}
-#else
+#ifdef CHOOSE_RANDOMLY
 	// with given odds, will make the "forwards" choice.
 	const int numerator   = 19;
 	const int denominator = 20;
 	if (rand64(&ls->rand) % denominator < numerator) {
 		count = 1;
+	}
+#else
+	if (EXPLORE_BACKWARDS == 0) {
+		count = 1;
+	}
+#endif
+
+#ifdef KEEP_RUNNING_YIELDING_THREADS
+	if (agent_has_yielded(&current->user_yield) && !BLOCKED(current)) {
+		*result = current;
+		*our_choice = true;
+		return true;
 	}
 #endif
 
@@ -175,7 +185,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent **target,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) && ++i == count) {
 			printf(DEV, "- Figured I'd look at TID %d next.\n",
 			       a->tid);
-			*target = a;
+			*result = a;
 			*our_choice = true;
 			return true;
 		}
