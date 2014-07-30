@@ -223,9 +223,20 @@ void untag_blocked_branch(struct hax *ancestor, struct hax *leaf, struct agent *
 	assert(a->do_explore);
 
 	if (was_ancestor) {
-		// TODO: "We shouldn't be in this subtree at all."
-		// TODO: Scan descendants and recursively untag children there,
-		// also setting "don't tag children in the future" flag.
+		/* We shouldn't be in this subtree at all. We can't untag this
+		 * edge, as we've already gone down it, but we can untag any
+		 * other not-yet-explored tagged edges within the subtree. */
+		unsigned int last_chosen_thread = leaf->chosen_thread;
+		for (struct hax *h = leaf->parent; h != ancestor; h = h->parent) {
+			struct agent *a;
+			FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
+				a->user_yield.blocked = true;
+				if (a->do_explore && a->tid != last_chosen_thread) {
+					untag_blocked_branch(h, leaf, a, false);
+				}
+			);
+			last_chosen_thread = h->chosen_thread;
+		}
 	} else if (ancestor->all_explored) {
 		/* The subtree should not have existed, but we already
 		 * finished exploring it, so we can't adjust estimates. */
