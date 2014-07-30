@@ -164,6 +164,8 @@ static void _estimate(struct hax *root, struct hax *current)
 			assert(num_explored_children == 1);
 			/* Estimate subtree time from scratch. */
 			h->subtree_usecs = child_usecs + child_subtree_usecs_delta;
+			lsprintf(INFO, "est #%d/tid%d new subtree",
+				 h->depth, h->chosen_thread);
 		} else {
 			/* This nobe existed before this branch, and a subtree
 			 * time estimate was already computed for it. */
@@ -171,6 +173,7 @@ static void _estimate(struct hax *root, struct hax *current)
 			assert(old_marked_children != 0);
 
 			/* undo the averaging operation previously done */
+			long double old_subtree_usecs = h->subtree_usecs;
 			h->subtree_usecs /= old_marked_children;
 
 			if (child_was_new_subtree) {
@@ -186,6 +189,9 @@ static void _estimate(struct hax *root, struct hax *current)
 			}
 
 			h->subtree_usecs += child_subtree_usecs_delta;
+			lsprintf(INFO, "est #%d/tid%d notnew, old usecs %Lf, "
+				 "OMC %lu", h->depth, h->chosen_thread,
+				 old_subtree_usecs, old_marked_children);
 		}
 
 		/* Note that at this point subtree_usecs represents neither the
@@ -206,6 +212,10 @@ static void _estimate(struct hax *root, struct hax *current)
 		/* Save exploration time of this subtree for next iteration. */
 		child_usecs = (long double)h->usecs;
 		child_subtree_usecs_delta = h->subtree_usecs - old_usecs;
+
+		printf(INFO, ", MC %lu, numexplored %u, usecs %Lf\n",
+		       h->marked_children, num_explored_children,
+		       h->subtree_usecs);
 	}
 
 	ASSERT_FRACTIONAL(this_nobe_proportion);
