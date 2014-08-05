@@ -159,6 +159,7 @@ EXEC=
 TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
 PAGE_FAULT_WRAPPER=
+VM_USER_COPY=
 PRINT_DATA_RACES=0
 VERBOSE=0
 EXTRA_VERBOSE=0
@@ -298,6 +299,11 @@ echo "#define GUEST_START 0x`get_func _start`"
 
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"
+fi
+
+if [ ! -z "$VM_USER_COPY" ];  then
+	echo "#define GUEST_VM_USER_COPY_ENTER 0x`get_func $VM_USER_COPY`"
+	echo "#define GUEST_VM_USER_COPY_EXIT  0x`get_func_end $VM_USER_COPY`"
 fi
 
 echo

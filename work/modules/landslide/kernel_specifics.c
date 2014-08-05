@@ -443,3 +443,24 @@ bool kern_wants_us_to_dump_stack(unsigned int eip)
 	return false;
 #endif
 }
+
+bool kern_vm_user_copy_enter(unsigned int eip)
+{
+#ifdef GUEST_VM_USER_COPY_ENTER
+	return eip == GUEST_VM_USER_COPY_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool kern_vm_user_copy_exit(unsigned int eip)
+{
+#ifdef GUEST_VM_USER_COPY_EXIT
+#ifndef GUEST_VM_USER_COPY_ENTER
+	STATIC_ASSERT(false);
+#endif
+	return eip == GUEST_VM_USER_COPY_EXIT;
+#else
+	return false;
+#endif
+}

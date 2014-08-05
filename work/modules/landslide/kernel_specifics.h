@@ -73,5 +73,7 @@ void kern_init_threads(struct sched_state *,
 		       void (*)(struct sched_state *, unsigned int, bool));
 bool kern_current_extra_runnable(conf_object_t *cpu);
 bool kern_wants_us_to_dump_stack(unsigned int eip);
+bool kern_vm_user_copy_enter(unsigned int eip);
+bool kern_vm_user_copy_exit(unsigned int eip);
 
 #endif

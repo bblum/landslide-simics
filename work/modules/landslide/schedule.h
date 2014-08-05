@@ -52,6 +52,8 @@ struct agent {
 		bool just_forked;
 		/* special action flag for ignoring heap accesses */
 		bool lmm_remove_free;
+		/* special action flag for being in vm_do_user_copy in pathos */
+		bool vm_user_copy;
 		/* are they taking or releasing a mutex? */
 		bool kern_mutex_locking;
 		bool kern_mutex_unlocking;

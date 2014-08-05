@@ -71,6 +71,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.readlining = false;
 	a->action.just_forked = true;
 	a->action.lmm_remove_free = false;
+	a->action.vm_user_copy = false;
 	a->action.kern_mutex_locking = false;
 	a->action.kern_mutex_unlocking = false;
 	a->action.kern_mutex_trylocking = false;
@@ -728,6 +729,12 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	/* Etc. */
 	} else if (kern_wants_us_to_dump_stack(ls->eip)) {
 		dump_stack();
+	} else if (kern_vm_user_copy_enter(ls->eip)) {
+		assert(!ACTION(s, vm_user_copy));
+		ACTION(s, vm_user_copy) = true;
+	} else if (kern_vm_user_copy_exit(ls->eip)) {
+		assert(ACTION(s, vm_user_copy));
+		ACTION(s, vm_user_copy) = false;
 	} else {
 		sched_check_lmm_remove_free(ls);
 	}
