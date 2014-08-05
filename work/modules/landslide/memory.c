@@ -590,10 +590,14 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		return;
 	}
 
+	bool is_vm_user_copy = testing_userspace() &&
+		ls->sched.cur_agent->action.vm_user_copy &&
+		check_user_address_space(ls);
+
 	/* Determine which heap - kernel or user - to reason about.
 	 * Note: Need to case on eip's value, not addr's, since the
 	 * kernel may access user memory for e.g. page tables. */
-	if (KERNEL_MEMORY(ls->eip)) {
+	if (KERNEL_MEMORY(ls->eip) && !is_vm_user_copy) {
 		/* KERNEL SPACE */
 		in_kernel = true;
 		addr = phys_addr;
