@@ -37,10 +37,10 @@ static bool is_child_marked(struct hax *h, struct agent *a)
 }
 
 /* returns old value */
-static int update_marked_children(struct hax *h)
+static unsigned int update_marked_children(struct hax *h)
 {
 	/* save the value that was computed last time */
-	int old_marked_children = h->marked_children;
+	unsigned int old_marked_children = h->marked_children;
 
 	h->marked_children = 0;
 	struct agent *a;
@@ -113,7 +113,7 @@ static void _estimate(struct hax *root, struct hax *current)
 		/* Step 1-1 -- Accumulate this nobe's total proportion, which
 		 * is the product of all its ancestors' proportions; i.e.:
 		 * p = Product_{vi <- all ancestors} 1/Marked(vi) */
-		int old_marked_children = update_marked_children(h);
+		unsigned int old_marked_children = update_marked_children(h);
 		this_nobe_proportion /= h->marked_children;
 		ASSERT_FRACTIONAL(this_nobe_proportion);
 
@@ -190,7 +190,7 @@ static void _estimate(struct hax *root, struct hax *current)
 
 			h->subtree_usecs += child_subtree_usecs_delta;
 			lsprintf(INFO, "est #%d/tid%d notnew, old usecs %Lf, "
-				 "OMC %lu", h->depth, h->chosen_thread,
+				 "OMC %u", h->depth, h->chosen_thread,
 				 old_subtree_usecs, old_marked_children);
 		}
 
