@@ -690,7 +690,8 @@ void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
  *  - Store the new_tid for some subsequent choice point
  */
 void save_setjmp(struct save_state *ss, struct ls_state *ls,
-		 int new_tid, bool our_choice, bool end_of_test, bool voluntary)
+		 int new_tid, bool our_choice, bool end_of_test,
+		 bool is_preemption_point, bool voluntary)
 {
 	struct hax *h;
 
@@ -738,6 +739,8 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
+		h->is_preemption_point = is_preemption_point;
+		if (end_of_test) { assert(!is_preemption_point); }
 
 		h->marked_children = 0;
 		h->proportion = 0.0L;

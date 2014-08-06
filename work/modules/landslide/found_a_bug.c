@@ -194,7 +194,8 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 	num = 1 + print_tree_from(h->parent, h->chosen_thread, bug_found,
 				  tabular, html_fd, map, verbose);
 
-	if (h->chosen_thread != choose_thread || verbose) {
+	if (h->is_preemption_point &&
+	    (h->chosen_thread != choose_thread || verbose)) {
 		lsprintf(BUG, bug_found,
 			 COLOUR_BOLD COLOUR_YELLOW "%u:\t", num);
 		if (h->chosen_thread == -1) {
@@ -257,7 +258,7 @@ static long double compute_state_space_size(struct ls_state *ls,
 		// shouldn't instead just output "estimate unknown" or somehow
 		// reverse it in that case.
 		assert(ls->save.root->proportion == 0.0L);
-		save_setjmp(&ls->save, ls, -1, true, true, false);
+		save_setjmp(&ls->save, ls, -1, true, true, false, false);
 		unsigned int _tid;
 		explore(&ls->save, &_tid);
 		*needed_compute = true;

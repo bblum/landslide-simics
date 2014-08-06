@@ -21,12 +21,16 @@ struct test_state;
  * The data here stored actually reflects the state upon the *completion* of
  * that transition; i.e., when the next preemption has to be made. */
 struct hax {
+	/**** Basic info ****/
+
 	unsigned int eip; /* The eip for the *next* preemption point. */
 	unsigned long trigger_count; /* from ls_state */
 	int chosen_thread; /* TID that was chosen to get here. -1 if root. */
+	struct stack_trace *stack_trace;
 
-	/* Saved state from the past. The state struct pointers are non-NULL if
-	 * it's a point directly backwards from where we are. */
+	/***** Saved state from the past. The state struct pointers are
+	 * non-NULL if it's a point directly backwards from where we are. *****/
+
 	struct sched_state *oldsched;
 	struct test_state *oldtest;
 	struct mem_state *old_kern_mem;
@@ -40,18 +44,31 @@ struct hax {
 	 *  - data_races
 	 */
 
-	/* Tree link data. */
+	/**** Tree link data. ****/
+
 	struct hax *parent;
 	int depth; /* starts at 0 */
 	Q_NEW_LINK(struct hax) sibling;
 	Q_NEW_HEAD(struct, struct hax) children;
+
+	/**** DPOR state ****/
 
 	/* Other transitions (ancestors) that conflict with or happen-before
 	 * this one. The length of each array is given by 'depth'. */
 	bool *conflicts;      /* if true, then they aren't independent. */
 	bool *happens_before; /* "happens_after", really. */
 
-	/* Estimation state */
+	/* All branches of the subtree rooted here executed already? */
+	bool all_explored;
+	/* Despite setting a bookmark here, we may intend this not to be a real
+	 * preemption point. It may be speculative, looking for a data race. */
+	bool is_preemption_point;
+
+	/* Note: a list of available tids to run next is implicit in the copied
+	 * sched! Also, the "tags" that POR uses to denote to-be-explored
+	 * siblings are in the agent structs on the scheduler queues. */
+
+	/**** Estimation state ****/
 
 	/* how many children of this are marked (already explored or tagged for
 	 * later exploration). this represents the value as it was at the
@@ -74,14 +91,6 @@ struct hax {
 	 * avoid recomputing (causing double-counting) and to ensure non-leaf
 	 * nodes cannot be used as the source of an estimate. */
 	bool estimate_computed;
-
-	/* Note: a list of available tids to run next is implicit in the copied
-	 * sched! Also, the "tags" that POR uses to denote to-be-explored
-	 * siblings are in the agent structs on the scheduler queues. */
-
-	bool all_explored;
-
-	struct stack_trace *stack_trace;
 };
 
 #endif

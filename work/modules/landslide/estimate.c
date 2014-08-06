@@ -117,6 +117,8 @@ static void _estimate(struct hax *root, struct hax *current)
 		this_nobe_proportion /= h->marked_children;
 		ASSERT_FRACTIONAL(this_nobe_proportion);
 
+		if (h->marked_children > 1) { assert(h->is_preemption_point); }
+
 		/* Step 1-2 -- Retroactively fix-up past branch proportions. */
 
 		/* Save old proportion of this nobe for computing the delta. */

@@ -44,7 +44,7 @@ void save_recover(struct save_state *, struct ls_state *, int new_tid);
  * choice. */
 void save_setjmp(struct save_state *, struct ls_state *,
 		 int next_tid, bool our_choice, bool end_of_test,
-		 bool voluntary);
+		 bool is_preemption_point, bool voluntary);
 
 /* If hax is NULL, then longjmps to the root. Otherwise, hax must be between
  * the current choice point and the root (inclusive). */

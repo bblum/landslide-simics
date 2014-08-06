@@ -1226,8 +1226,9 @@ void sched_update(struct ls_state *ls)
 			/* Record the choice that was just made. */
 			if (ls->test.test_ever_caused &&
 			    ls->test.start_population != s->most_agents_ever) {
+				// TODO change true to !is_data_race
 				save_setjmp(&ls->save, ls, chosen->tid,
-					    our_choice, false, voluntary);
+					    our_choice, false, true, voluntary);
 			}
 		} else {
 			lsprintf(DEV, "no agent was chosen at eip 0x%x\n",

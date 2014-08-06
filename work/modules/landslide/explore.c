@@ -53,20 +53,33 @@ static bool is_evil_ancestor(struct hax *h0, struct hax *h)
 	return !h0->happens_before[h->depth] && h0->conflicts[h->depth];
 }
 
-static bool tag_good_sibling(struct hax *h0, struct hax *h)
+/* Finds the nearest parent save point that's actually a preemption point.
+ * This is how we skip over speculative data race save points when identifying
+ * which "good sibling" transitions to tag (when to preempt to get to them?) */
+static struct hax *pp_parent(struct hax *h)
+{
+	do {
+		h = h->parent;
+		assert(h != NULL);
+	} while (!h->is_preemption_point);
+	return h;
+}
+
+static bool tag_good_sibling(struct hax *h0, struct hax *ancestor)
 {
 	unsigned int tid = h0->chosen_thread;
+	struct hax *grandparent = pp_parent(ancestor);
 
 	struct agent *a;
-	FOR_EACH_RUNNABLE_AGENT(a, h->parent->oldsched,
+	FOR_EACH_RUNNABLE_AGENT(a, grandparent->oldsched,
 		if (a->tid == tid) {
 			if (!BLOCKED(a) &&
-			    !is_child_searched(h->parent, a->tid)) {
+			    !is_child_searched(grandparent, a->tid)) {
 				a->do_explore = true;
 				lsprintf(DEV, "from #%d/tid%d, tagged TID %d, "
 					 "sibling of #%d/tid%d\n", h0->depth,
-					 h0->chosen_thread, a->tid, h->depth,
-					 h->chosen_thread);
+					 h0->chosen_thread, a->tid,
+					 ancestor->depth, ancestor->chosen_thread);
 				return true;
 			} else {
 				return false;
@@ -77,14 +90,17 @@ static bool tag_good_sibling(struct hax *h0, struct hax *h)
 	return false;
 }
 
-static void tag_all_siblings(struct hax *h0, struct hax *h)
+static void tag_all_siblings(struct hax *h0, struct hax *ancestor)
 {
-	struct agent *a;
-	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d: ",
-		 h0->depth, h0->chosen_thread, h->depth, h->chosen_thread);
+	struct hax *grandparent = pp_parent(ancestor);
 
-	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
-		if (!BLOCKED(a) && !is_child_searched(h->parent, a->tid)) {
+	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d: ",
+		 h0->depth, h0->chosen_thread, ancestor->depth,
+		 ancestor->chosen_thread);
+
+	struct agent *a;
+	FOR_EACH_RUNNABLE_AGENT(a, grandparent->oldsched,
+		if (!BLOCKED(a) && !is_child_searched(grandparent, a->tid)) {
 			a->do_explore = true;
 			print_agent(DEV, a);
 			printf(DEV, " ");
@@ -186,15 +202,21 @@ struct hax *explore(struct save_state *ss, unsigned int *new_tid)
 	 * flags gets left behind. */
 	for (struct hax *h = current->parent; h != NULL; h = h->parent) {
 		if (any_tagged_child(h, new_tid)) {
+			assert(h->is_preemption_point);
 			lsprintf(BRANCH, "from #%d/tid%d, chose tid %d, "
 				 "child of #%d/tid%d\n",
 				 current->depth, current->chosen_thread,
 				 *new_tid, h->depth, h->chosen_thread);
 			return h;
 		} else {
-			lsprintf(DEV, "#%d/tid%d all_explored\n",
-				 h->depth, h->chosen_thread);
-			print_pruned_children(ss, h);
+			if (h->is_preemption_point) {
+				lsprintf(DEV, "#%d/tid%d all_explored\n",
+					 h->depth, h->chosen_thread);
+				print_pruned_children(ss, h);
+			} else {
+				lsprintf(INFO, "#%d/tid%d not a PP\n",
+					 h->depth, h->chosen_thread);
+			}
 			h->all_explored = true;
 		}
 	}
