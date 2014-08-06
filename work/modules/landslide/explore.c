@@ -1,6 +1,6 @@
 /**
  * @file explore.c
- * @brief choice tree exploration
+ * @brief DPOR
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
@@ -47,55 +47,6 @@ static void branch_sanity(struct hax *root, struct hax *current)
 		assert(rabbit != current && "tree has cycle??");
 	}
 }
-
-/******************************************************************************
- * Simple, comprehensive, depth-first exploration strategy.
- ******************************************************************************/
-
-static MAYBE_UNUSED bool find_unsearched_child(struct hax *h,
-					       unsigned int *new_tid) {
-	struct agent *a;
-
-	FOR_EACH_RUNNABLE_AGENT(a, h->oldsched,
-		if (!is_child_searched(h, a->tid)) {
-			*new_tid = a->tid;
-			return true;
-		}
-	);
-
-	return false;
-}
-
-static MAYBE_UNUSED struct hax *simple(struct hax *root, struct hax *current,
-				       unsigned int *new_tid)
-{
-	assert(0 && "deprecated");
-	/* Find the most recent spot in our branch that is not all explored. */
-	while (1) {
-		/* Examine children */
-		if (!current->all_explored) {
-			if (find_unsearched_child(current, new_tid)) {
-				lsprintf(BRANCH, "chose tid %d from tid %d\n",
-					 *new_tid, current->chosen_thread);
-				return current;
-			} else {
-				lsprintf(BRANCH, "tid %d all_explored\n",
-					 current->chosen_thread);
-				current->all_explored = true;
-			}
-		}
-
-		/* 'current' finds the most recent unexplored */
-		if ((current = current->parent) == NULL) {
-			lsprintf(ALWAYS, "root of tree all_explored!\n");
-			return NULL;
-		}
-	}
-}
-
-/******************************************************************************
- * Dynamic partial-order reduction
- ******************************************************************************/
 
 static bool is_evil_ancestor(struct hax *h0, struct hax *h)
 {
@@ -178,11 +129,12 @@ static void print_pruned_children(struct save_state *ss, struct hax *h)
 		printf(DEV, "\n");
 }
 
-static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, unsigned int *new_tid)
+struct hax *explore(struct save_state *ss, unsigned int *new_tid)
 {
 	struct hax *current = ss->current;
 
 	current->all_explored = true;
+	branch_sanity(ss->root, ss->current);
 
 	/* this cannot happen in-line with walking the branch, below, since it
 	 * needs to be computed for all ancestors and be ready for checking
@@ -249,10 +201,4 @@ static MAYBE_UNUSED struct hax *dpor(struct save_state *ss, unsigned int *new_ti
 
 	lsprintf(ALWAYS, "found no tagged siblings on current branch!\n");
 	return NULL;
-}
-
-struct hax *explore(struct save_state *ss, unsigned int *new_tid)
-{
-	branch_sanity(ss->root, ss->current);
-	return dpor(ss, new_tid);
 }
