@@ -56,8 +56,10 @@ struct mem_access {
  * analysis, because we compute HB only by runqueues, and can't see how shm
  * communication might affect flow control. fortunately, unlike single-branch
  * detectors (eraser, tsan, go test -race), we can remember data race reports
- * cross-branch and suppress false positives by confirming the absence of such
- * implicit HB relations. it should be clear that this reduction is sound. */
+ * cross-branch and establish two tiers of "likelihood" by confirming whether
+ * the race can be reordered. however, it is still possible for a non-
+ * reorderable data race to indicate a bug (flow control in the same transition
+ * may suppress the later access if reordered). */
 struct data_race {
 	int first_eip;
 	int other_eip;
