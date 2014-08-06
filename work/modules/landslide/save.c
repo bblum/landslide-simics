@@ -460,20 +460,10 @@ static unsigned int free_user_sync(struct user_sync_state *u)
 
 static void free_arbiter_choices(struct arbiter_state *a)
 {
-// TODO: deprecate one of these
-#if 0
-	while (Q_GET_SIZE(&a->choices) > 0) {
-		struct choice *c = Q_GET_HEAD(&a->choices);
-		Q_REMOVE(&a->choices, c, nobe);
-		lsprintf(INFO, "discarding buffered arbiter choice %d\n", c->tid);
-		MM_FREE(c);
-	}
-#else
 	struct choice *c;
 	Q_FOREACH(c, &a->choices, nobe) {
 		lsprintf(INFO, "Preserving buffered arbiter choice %d\n", c->tid);
 	}
-#endif
 }
 
 static void free_hax(struct hax *h)
@@ -739,7 +729,6 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			assert(!ss->current->estimate_computed &&
 			       "last nobe was estimate()d; cannot give it a child");
 
-			// XXX: Q_INSERT_TAIL causes a sigsegv
 			Q_INSERT_HEAD(&ss->current->children, h, sibling);
 			h->parent = ss->current;
 			h->depth = 1 + h->parent->depth;

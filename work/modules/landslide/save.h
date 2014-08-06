@@ -14,8 +14,6 @@
 struct ls_state;
 struct hax;
 
-// TODO: examine the attributes!
-
 struct save_state {
 	/* The root of the decision tree, or NULL if save_setjmp() was never
 	 * called. */

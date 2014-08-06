@@ -1150,7 +1150,7 @@ void sched_update(struct ls_state *ls)
 		return;
 	}
 
-	/* XXX TODO: This will "leak" an undesirable thread to execute an
+	/* XXX: This will "leak" an undesirable thread to execute an
 	 * instruction if the timer/kbd handler is an interrupt gate, so check
 	 * also if we're about to iret and then examine the eflags on the
 	 * stack. Also, "sti" and "popf" are interesting, so check for those.
@@ -1168,8 +1168,8 @@ void sched_update(struct ls_state *ls)
 		return;
 	}
 
-	/* TODO: have an extra mode which will allow us to preempt the timer
-	 * handler. */
+	/* In the far future we may want an extra mode which will allow us to
+	 * preempt the timer handler. */
 	if (HANDLING_INTERRUPT(s) || !kern_ready_for_timer_interrupt(ls->cpu0)) {
 		return;
 	}
@@ -1183,7 +1183,6 @@ void sched_update(struct ls_state *ls)
 	bool voluntary, need_handle_sleep;
 	bool just_finished_reschedule = s->just_finished_reschedule;
 	s->just_finished_reschedule = false;
-	/* TODO: arbiter may also want to see the trace_entry_t */
 	if (arbiter_interested(ls, just_finished_reschedule, &voluntary,
 			       &need_handle_sleep)) {
 		struct agent *current = voluntary ? s->last_agent : s->cur_agent;
@@ -1205,9 +1204,6 @@ void sched_update(struct ls_state *ls)
 		 * must not choose it). */
 		check_user_yield_activity(&ls->user_sync, current);
 
-		/* TODO: as an optimisation (in serialisation state / etc), the
-		 * arbiter may return NULL if there was only one possible
-		 * choice. */
 		if (arbiter_choose(ls, current, &chosen, &our_choice)) {
 			/* Effect the choice that was made... */
 			if (chosen != s->cur_agent ||

@@ -603,10 +603,10 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		addr = phys_addr;
 
 		/* Certain components of the kernel have a free pass, such as
-		 * the scheduler - TODO: make this configurable */
+		 * the scheduler */
 		if (kern_in_scheduler(ls->cpu0, ls->eip) ||
 		    kern_access_in_scheduler(addr) ||
-		    ls->sched.cur_agent->action.handling_timer || /* XXX: a hack */
+		    ls->sched.cur_agent->action.handling_timer || /* a hack */
 		    ls->sched.cur_agent->action.context_switch) {
 			return;
 		}
@@ -690,7 +690,6 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 	}
 }
 
-// XXX: Shm trees a re sorted with signed comparison. Fix that.
 bool shm_contains_addr(struct mem_state *m, unsigned int addr)
 {
 	struct mem_access *ma = MEM_ENTRY(m->shm.rb_node);
