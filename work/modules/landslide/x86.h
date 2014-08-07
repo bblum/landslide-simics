@@ -96,6 +96,7 @@ bool interrupts_enabled(conf_object_t *cpu);
 unsigned int read_memory(conf_object_t *cpu, unsigned int addr, unsigned int width);
 char *read_string(conf_object_t *cpu, unsigned int eip);
 bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip);
+unsigned int delay_instruction(conf_object_t *cpu);
 
 #define ASSERT_UNSIGNED(addr) do {					\
 		typeof(addr) __must_not_be_signed = (typeof(addr))(-1);	\

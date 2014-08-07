@@ -324,3 +324,30 @@ bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
 		return false;
 	}
 }
+
+/* a similar trick to avoid timer interrupt, but delays by just 1 instruction. */
+unsigned int delay_instruction(conf_object_t *cpu)
+{
+	/* Insert a relative jump, "e9 XXXXXXXX"; 5 bytes, just below stack. */
+	unsigned int buf = GET_CPU_ATTR(cpu, esp) - 8;
+
+	/* Translate buf's virtual location to physical address. */
+	if (buf % PAGE_SIZE > PAGE_SIZE - 8) {
+		buf -= 8;
+	}
+	unsigned int phys_buf;
+	bool mapping_present = mem_translate(cpu, buf, &phys_buf);
+	assert(mapping_present && "cannot delay instruction - stack not mapped!");
+
+	/* Compute relative offset. Note "e9 00000000 would jump to buf+5. */
+	unsigned int offset = GET_CPU_ATTR(cpu, eip) - (buf + 5);
+
+	lsprintf(INFO, "Be back in a jiffy...\n");
+
+	SIM_write_phys_memory(cpu, phys_buf, 0xe9, 1);
+	SIM_write_phys_memory(cpu, phys_buf + 1, offset, 4);
+
+	SET_CPU_ATTR(cpu, eip, buf);
+
+	return buf;
+}
