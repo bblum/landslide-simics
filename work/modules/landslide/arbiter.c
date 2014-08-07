@@ -48,9 +48,11 @@ bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
 }
 
 bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
-			bool *voluntary, bool *need_handle_sleep)
+			bool *voluntary, bool *need_handle_sleep, bool *data_race)
 {
 	*voluntary = false;
+	*need_handle_sleep = false;
+	*data_race = false;
 
 	// TODO: more interesting choice points
 

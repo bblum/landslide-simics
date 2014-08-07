@@ -91,6 +91,8 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->user_mutex_locking_addr = -1;
 	a->user_mutex_unlocking_addr = -1;
 	a->user_rwlock_locking_addr = -1;
+	a->just_delayed_for_data_race = false;
+	a->delayed_data_race_eip = -1;
 
 	lockset_init(&a->kern_locks_held);
 	lockset_init(&a->user_locks_held);
@@ -1180,14 +1182,30 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* Okay, are we at a choice point? */
-	bool voluntary, need_handle_sleep;
+	bool voluntary, need_handle_sleep, data_race;
 	bool just_finished_reschedule = s->just_finished_reschedule;
 	s->just_finished_reschedule = false;
 	if (arbiter_interested(ls, just_finished_reschedule, &voluntary,
-			       &need_handle_sleep)) {
+			       &need_handle_sleep, &data_race)) {
 		struct agent *current = voluntary ? s->last_agent : s->cur_agent;
 		struct agent *chosen;
 		bool our_choice;
+
+		assert(!(data_race && voluntary));
+
+		/* Avoid infinite stuckness if we just inserted a DR PP. */
+		if (data_race && CURRENT(s, just_delayed_for_data_race)) {
+			lsprintf(ALWAYS, "just delayed @ %x\n", ls->eip);
+			assert(CURRENT(s, delayed_data_race_eip) != -1);
+			if (ls->eip == CURRENT(s, delayed_data_race_eip)) {
+				lsprintf(ALWAYS, "just delayed ends\n");
+				/* Delayed data race instruction was reached.
+				 * Allow arbiter to insert new PPs again. */
+				CURRENT(s, just_delayed_for_data_race) = false;
+				CURRENT(s, delayed_data_race_eip) = -1;
+			}
+			return;
+		}
 
 		/* Some kernels that don't have separate idle threads (POBBLES)
 		 * may sleep() a thread and go into hlt state without ever
@@ -1205,6 +1223,22 @@ void sched_update(struct ls_state *ls)
 		check_user_yield_activity(&ls->user_sync, current);
 
 		if (arbiter_choose(ls, current, &chosen, &our_choice)) {
+			if (data_race) {
+				/* Is this a "fake" preemption point? If so we
+				 * are not to forcibly preempt, only to record
+				 * a save point. */
+				lsprintf(DEV, "data race PP; overriding arbiter"
+					 " choice %d with current %d\n",
+					 chosen->tid, current->tid);
+				dump_stack();
+				chosen = current;
+				/* Insert a dummy instruction before creating
+				 * the save point, so the racing instruction
+				 * occurs in the transition *after* that PP. */
+				CURRENT(s, just_delayed_for_data_race) = true;
+				CURRENT(s, delayed_data_race_eip) = ls->eip;
+				ls->eip = delay_instruction(ls->cpu0);
+			}
 			/* Effect the choice that was made... */
 			if (chosen != s->cur_agent ||
 			    agent_by_tid_or_null(&s->sq, CURRENT(s, tid)) != NULL) {
@@ -1226,9 +1260,9 @@ void sched_update(struct ls_state *ls)
 			/* Record the choice that was just made. */
 			if (ls->test.test_ever_caused &&
 			    ls->test.start_population != s->most_agents_ever) {
-				// TODO change true to !is_data_race
 				save_setjmp(&ls->save, ls, chosen->tid,
-					    our_choice, false, true, voluntary);
+					    our_choice, false, !data_race,
+					    voluntary);
 			}
 		} else {
 			lsprintf(DEV, "no agent was chosen at eip 0x%x\n",
@@ -1237,6 +1271,10 @@ void sched_update(struct ls_state *ls)
 			print_qs(DEV, s);
 			printf(DEV, "\n");
 		}
+	} else if (CURRENT(s, just_delayed_for_data_race)) {
+		/* ensure arbiter is consistently interested in data race
+		 * locations (otherwise just-delayed won't be properly unset) */
+		assert(ls->eip != CURRENT(s, delayed_data_race_eip));
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
 	 * switch, so we should watch out if a handler doesn't enter the c-s. */

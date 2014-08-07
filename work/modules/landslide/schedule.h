@@ -83,6 +83,10 @@ struct agent {
 	unsigned int user_mutex_unlocking_addr;
 	unsigned int user_rwlock_locking_addr;
 	// int user_rwlock_unlocking_addr; // not needed
+	/* Whether we just inserted a dummy instruction before a suspected data
+	 * race instruction (to delay its access until after the save point). */
+	bool just_delayed_for_data_race;
+	unsigned int delayed_data_race_eip; /* ...and if so, where was it */
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;

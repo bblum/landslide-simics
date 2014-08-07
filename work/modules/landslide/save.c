@@ -178,6 +178,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(user_mutex_locking_addr);
 	COPY_FIELD(user_mutex_unlocking_addr);
 	COPY_FIELD(user_rwlock_locking_addr);
+	COPY_FIELD(just_delayed_for_data_race);
+	COPY_FIELD(delayed_data_race_eip);
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);
@@ -719,6 +721,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			/* First/root choice. */
 			assert(ss->current == NULL);
 			assert(end_of_test || ss->next_tid == -1);
+			assert(is_preemption_point);
 
 			h->parent = NULL;
 			h->depth  = 0;
