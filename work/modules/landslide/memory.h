@@ -11,6 +11,7 @@
 
 #include "lockset.h"
 #include "rbtree.h"
+#include "variable_queue.h"
 
 struct hax;
 struct stack_trace;
