@@ -87,6 +87,8 @@ struct agent {
 	 * race instruction (to delay its access until after the save point). */
 	bool just_delayed_for_data_race;
 	unsigned int delayed_data_race_eip; /* ...and if so, where was it */
+	/* used to narrow down data race candidates based on eip */
+	unsigned int most_recent_syscall;
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;

@@ -93,6 +93,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->user_rwlock_locking_addr = -1;
 	a->just_delayed_for_data_race = false;
 	a->delayed_data_race_eip = -1;
+	a->most_recent_syscall = 0;
 
 	lockset_init(&a->kern_locks_held);
 	lockset_init(&a->user_locks_held);

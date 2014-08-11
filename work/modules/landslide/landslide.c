@@ -88,8 +88,10 @@ struct ls_state *new_landslide()
 
 static void check_user_syscall(struct ls_state *ls)
 {
-	if (READ_BYTE(ls->cpu0, ls->eip) != OPCODE_INT)
+	if (READ_BYTE(ls->cpu0, ls->eip) != OPCODE_INT) {
+		ls->sched.cur_agent->most_recent_syscall = 0;
 		return;
+	}
 
 	lsprintf(CHOICE, "TID %d makes syscall ", ls->sched.cur_agent->tid);
 
@@ -125,6 +127,8 @@ static void check_user_syscall(struct ls_state *ls)
 			printf(CHOICE, "((unknown 0x%x))\n", number);
 			break;
 	}
+
+	ls->sched.cur_agent->most_recent_syscall = number;
 }
 #undef CASE_SYSCALL
 
@@ -153,6 +157,7 @@ static const char *exception_names[] = {
 static void check_exception(struct ls_state *ls, int number)
 {
 	if (number < ARRAY_SIZE(exception_names)) {
+		ls->sched.cur_agent->most_recent_syscall = number;
 		lsprintf(CHOICE, "Exception #%d (%s) taken at ",
 			 number, exception_names[number]);
 		print_eip(CHOICE, ls->eip);

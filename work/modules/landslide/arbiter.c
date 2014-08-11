@@ -14,6 +14,7 @@
 #include "found_a_bug.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
+#include "memory.h"
 #include "rand.h"
 #include "schedule.h"
 #include "user_specifics.h"
@@ -47,6 +48,41 @@ bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
 	}
 }
 
+// TODO: move this to a data_race.c when that factor is done
+static bool suspected_data_race(struct ls_state *ls)
+{
+	/* [i][0] is instruction pointer of the data race, and [i][1] is the
+	 * most_recent_syscall value recorded when the race was observed. */
+	static const unsigned int data_race_info[][2] = DATA_RACE_INFO;
+
+	if (!check_user_address_space(ls)) {
+		return false;
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(data_race_info); i++) {
+		if (KERNEL_MEMORY(data_race_info[i][0])) {
+			assert(data_race_info[i][1] != 0);
+		} else {
+			assert(data_race_info[i][1] == 0);
+		}
+
+		if (ls->eip == data_race_info[i][0] &&
+		    ls->sched.cur_agent->most_recent_syscall ==
+		    data_race_info[i][1]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+#define ASSERT_ONE_THREAD_PER_PP(ls) do {					\
+		assert((/* root pp not created yet */				\
+		        (ls)->save.next_tid == -1 ||				\
+		        /* thread that was chosen is still running */		\
+		        (ls)->save.next_tid == (ls)->sched.cur_agent->tid) &&	\
+		       "One thread per preemption point invariant violated!");	\
+	} while (0)
+
 bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			bool *voluntary, bool *need_handle_sleep, bool *data_race)
 {
@@ -61,42 +97,37 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	 * Also make sure to ignore null switches (timer-driven or not). */
 	if (ls->sched.last_agent != NULL &&
 	    !ls->sched.last_agent->action.handling_timer &&
-	    ls->sched.last_agent != ls->sched.cur_agent) {
-		/* And the current thread is just resuming execution? Either
-		 * exiting the timer handler, */
-		if (just_finished_reschedule) {
-			lsprintf(DEV, "a voluntary reschedule: ");
-			print_agent(DEV, ls->sched.last_agent);
-			printf(DEV, " to ");
-			print_agent(DEV, ls->sched.cur_agent);
-			printf(DEV, "\n");
-			assert((ls->save.next_tid == -1 ||
-			        ls->save.next_tid == ls->sched.cur_agent->tid ||
-			        ls->save.next_tid == ls->sched.last_agent->tid)
-			       && "Two threads in one transition?");
-			assert(ls->sched.voluntary_resched_tid != -1);
-			*voluntary = true;
-			return true;
+	    ls->sched.last_agent != ls->sched.cur_agent &&
+	    just_finished_reschedule) {
+		lsprintf(DEV, "a voluntary reschedule: ");
+		print_agent(DEV, ls->sched.last_agent);
+		printf(DEV, " to ");
+		print_agent(DEV, ls->sched.cur_agent);
+		printf(DEV, "\n");
+		if (ls->save.next_tid != ls->sched.last_agent->tid) {
+			ASSERT_ONE_THREAD_PER_PP(ls);
 		}
-	}
-
-	if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_HLT) {
-		lskprintf(INFO, "What are you waiting for? (HLT state)\n");
-		assert((ls->save.next_tid == -1 ||
-		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
-		       "Two threads in one transition?");
-		*need_handle_sleep = true;
+		assert(ls->sched.voluntary_resched_tid != -1);
+		*voluntary = true;
 		return true;
-	}
-
+	/* is the kernel idling, e.g. waiting for keyboard input? */
+	} else if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_HLT) {
+		lskprintf(INFO, "What are you waiting for? (HLT state)\n");
+		*need_handle_sleep = true;
+		ASSERT_ONE_THREAD_PER_PP(ls);
+		return true;
 	/* Skip the instructions before the test case itself gets started. In
 	 * many kernels' cases this will be redundant, but just in case. */
-	if (!ls->test.test_ever_caused ||
-	    ls->test.start_population == ls->sched.most_agents_ever) {
+	} else if (!ls->test.test_ever_caused ||
+		   ls->test.start_population == ls->sched.most_agents_ever) {
 		return false;
-	}
-
-	if (testing_userspace()) {
+	/* check for data races */
+	} else if (suspected_data_race(ls)) {
+		*data_race = true;
+		ASSERT_ONE_THREAD_PER_PP(ls);
+		return true;
+	/* user-mode-only preemption points */
+	} else if (testing_userspace()) {
 		unsigned int mutex_addr;
 		if (KERNEL_MEMORY(ls->eip)) {
 			return false;
@@ -104,26 +135,21 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {
 			/* User thread is blocked on an "xchg-continue" mutex.
 			 * Analogous to HLT state -- need to preempt it. */
-			assert((ls->save.next_tid == -1 ||
-			       ls->save.next_tid == ls->sched.cur_agent->tid) &&
-			       "Two threads in one transition?");
+			ASSERT_ONE_THREAD_PER_PP(ls);
 			return true;
 		// TODO
 		} else if ((user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
 			    user_mutex_unlock_exiting(ls->eip)) &&
 			   user_within_functions(ls)) {
-			assert((ls->save.next_tid == -1 ||
-			       ls->save.next_tid == ls->sched.cur_agent->tid) &&
-			       "Two threads in one transition?");
+			ASSERT_ONE_THREAD_PER_PP(ls);
 			return true;
 		} else {
 			return false;
 		}
+	/* kernel-mode-only preemption points */
 	} else if (kern_decision_point(ls->eip) &&
 		   kern_within_functions(ls)) {
-		assert((ls->save.next_tid == -1 ||
-		       ls->save.next_tid == ls->sched.cur_agent->tid) &&
-		       "Two threads in one transition?");
+		ASSERT_ONE_THREAD_PER_PP(ls);
 		return true;
 	} else {
 		return false;

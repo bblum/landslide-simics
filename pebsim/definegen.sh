@@ -132,6 +132,14 @@ function without_user_function {
 	WITHIN_USER_FUNCTIONS="${WITHIN_USER_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 0 },"
 }
 
+DATA_RACE_INFO=
+function data_race {
+	if [ -z "$1" -o -z "$2" ]; then
+		die "data_race needs two args: got \"$1\" and \"$2\""
+	fi
+	DATA_RACE_INFO="${DATA_RACE_INFO} { $1, $2 },"
+}
+
 STARTING_THREADS=
 function starting_threads {
 	if [ -z "$1" -o -z "$2" ]; then
@@ -445,6 +453,8 @@ echo -e "$EXTRA_SYMS"
 
 echo -e "#define KERN_WITHIN_FUNCTIONS { $WITHIN_KERN_FUNCTIONS }"
 echo -e "#define USER_WITHIN_FUNCTIONS { $WITHIN_USER_FUNCTIONS }"
+
+echo "#define DATA_RACE_INFO { $DATA_RACE_INFO }"
 
 echo "#define BUG_ON_THREADS_WEDGED $BUG_ON_THREADS_WEDGED"
 echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"

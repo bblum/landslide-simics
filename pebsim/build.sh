@@ -36,6 +36,9 @@ function within_user_function {
 function without_user_function {
 	echo -n
 }
+function data_race {
+	echo -n
+}
 function extra_sym {
 	echo -n
 }
