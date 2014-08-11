@@ -693,7 +693,8 @@ void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
  */
 void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		 int new_tid, bool our_choice, bool end_of_test,
-		 bool is_preemption_point, bool voluntary)
+		 bool is_preemption_point, unsigned int data_race_eip,
+		 bool voluntary)
 {
 	struct hax *h;
 
@@ -742,8 +743,11 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
+
 		h->is_preemption_point = is_preemption_point;
+		h->data_race_eip = data_race_eip;
 		if (end_of_test) { assert(!is_preemption_point); }
+		if (is_preemption_point) { assert(data_race_eip == -1); }
 
 		h->marked_children = 0;
 		h->proportion = 0.0L;

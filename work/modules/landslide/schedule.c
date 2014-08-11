@@ -1223,6 +1223,7 @@ void sched_update(struct ls_state *ls)
 		check_user_yield_activity(&ls->user_sync, current);
 
 		if (arbiter_choose(ls, current, &chosen, &our_choice)) {
+			int data_race_eip = -1;
 			if (data_race) {
 				/* Is this a "fake" preemption point? If so we
 				 * are not to forcibly preempt, only to record
@@ -1232,6 +1233,7 @@ void sched_update(struct ls_state *ls)
 					 chosen->tid, current->tid);
 				dump_stack();
 				chosen = current;
+				data_race_eip = ls->eip;
 				/* Insert a dummy instruction before creating
 				 * the save point, so the racing instruction
 				 * occurs in the transition *after* that PP. */
@@ -1262,7 +1264,7 @@ void sched_update(struct ls_state *ls)
 			    ls->test.start_population != s->most_agents_ever) {
 				save_setjmp(&ls->save, ls, chosen->tid,
 					    our_choice, false, !data_race,
-					    voluntary);
+					    data_race_eip, voluntary);
 			}
 		} else {
 			lsprintf(DEV, "no agent was chosen at eip 0x%x\n",

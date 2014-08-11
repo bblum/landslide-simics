@@ -899,6 +899,20 @@ static bool check_data_race(struct mem_state *m, unsigned int eip0, unsigned int
 	return false;
 }
 
+static void check_enable_speculative_pp(struct hax *h, unsigned int eip)
+{
+	if (h != NULL && h->data_race_eip != -1 && h->data_race_eip == eip) {
+		if (h->is_preemption_point) {
+			lsprintf(DEV, "data race PP #%d/tid%d was already "
+				 "enabled\n", h->depth, h->chosen_thread);
+		} else {
+			lsprintf(DEV, "data race enables PP #%d/tid%d\n",
+				 h->depth, h->chosen_thread);
+			h->is_preemption_point = true;
+		}
+	}
+}
+
 static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			   struct mem_access *ma0, struct mem_access *ma1,
 			   struct chunk *c0, struct chunk *c1, bool in_kernel)
@@ -923,9 +937,13 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			/* Are there any 2 locksets without a lock in common? */
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
+				/* Data race. Have we seen it reordered? */
 				bool confirmed = check_data_race(m, l0->eip, l1->eip);
 				print_data_race(ls, h0, h1, ma0, ma1, c0, c1,
 						l0, l1, in_kernel, confirmed);
+				/* Whether or not we saw it reordered, check if
+				 * it enables a speculative DR save point. */
+				check_enable_speculative_pp(h1->parent, l1->eip);
 			}
 		}
 	}
