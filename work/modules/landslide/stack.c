@@ -22,7 +22,8 @@
  * printing utilities / glue
  ******************************************************************************/
 
-static bool eip_to_frame(unsigned int eip, struct stack_frame *f)
+/* guaranteed not to clobber nobe. */
+bool eip_to_frame(unsigned int eip, struct stack_frame *f)
 {
 	f->eip = eip;
 	f->name = NULL;

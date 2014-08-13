@@ -31,6 +31,7 @@ struct stack_trace {
 /* interface */
 
 /* utilities / glue */
+bool eip_to_frame(unsigned int eip, struct stack_frame *f);
 void print_stack_frame(verbosity v, struct stack_frame *f);
 void print_eip(verbosity v, unsigned int eip);
 void print_stack_trace(verbosity v, struct stack_trace *st);

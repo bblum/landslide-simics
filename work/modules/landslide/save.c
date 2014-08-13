@@ -759,10 +759,21 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			assert(h->chosen_thread == -1 || h->chosen_thread ==
 			       ls->sched.voluntary_resched_tid);
 			assert(ls->sched.voluntary_resched_stack != NULL);
+			assert(data_race_eip == -1);
 			h->stack_trace = ls->sched.voluntary_resched_stack;
 			ls->sched.voluntary_resched_stack = NULL;
 		} else {
 			h->stack_trace = stack_trace(ls);
+
+			if (data_race_eip != -1) {
+				/* first frame of stack will be bogus, due to
+				 * the technique for delaying the access (in
+				 * x86.c). fix it up with the proper eip. */
+				struct stack_frame *first_frame =
+					Q_GET_HEAD(&h->stack_trace->frames);
+				assert(first_frame != NULL);
+				eip_to_frame(data_race_eip, first_frame);
+			}
 		}
 
 		ss->total_choice_poince++;
