@@ -574,6 +574,14 @@ static void use_after_free(struct ls_state *ls, unsigned int addr,
 		    (int)GET_CPU_ATTR(ls->cpu0, eip));
 }
 
+/* some system calls, despite making no accesses to user memory, can still
+ * affect another user thread's behaviour. essentially they allow user code to
+ * use kernel memory as a communication backchannel. hence, if we are doing a
+ * user-mode test, we still need to record those kernel memory accesses. */
+#define SYSCALL_IS_USER_BACKCHANNEL(num)				\
+	((num) == DESCHEDULE_INT || (num) == MAKE_RUNNABLE_INT ||	\
+	 (num) == SET_STATUS_INT)
+
 void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 			     unsigned int virt_addr, bool write)
 {
@@ -614,7 +622,18 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		/* maintain invariant required in save.c (shimsham shm) that the
 		 * shm heap for the space we're not testing stays empty. */
 		if (testing_userspace()) {
-			return;
+			int syscall = ls->sched.cur_agent->most_recent_syscall;
+			if (SYSCALL_IS_USER_BACKCHANNEL(syscall) &&
+			    check_user_address_space(ls)) {
+				/* record this access in the user's mem state
+				 * XXX HACK: while this causes it to show up in
+				 * conflicts as desired, it will also show up in
+				 * DRs, which we must filter out later. */
+				in_kernel = false;
+			} else {
+				/* ignore access altogether. */
+				return;
+			}
 		}
 	} else {
 		/* USER SPACE */
@@ -920,6 +939,15 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 	struct mem_lockset *l0;
 	struct mem_lockset *l1;
+
+	assert(ma0->addr == ma1->addr);
+
+	if (testing_userspace() && KERNEL_MEMORY(ma0->addr)) {
+		/* Kernel memory access was recorded because it came from a
+		 * "user thread communication backchannel" syscall. Since we
+		 * aren't tracking kernel mutexes, suppress false positives. */
+		return;
+	}
 
 	if (c0 != NULL && c1 != NULL && c0->id != c1->id) {
 		/* The apparent data race was actually in a part of the heap
