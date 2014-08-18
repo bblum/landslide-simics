@@ -8,6 +8,10 @@
 #define __ID_COMMON_H
 
 #include <stdlib.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
 
 #define COLOUR_BOLD "\033[01m"
 #define COLOUR_DARK "\033[00m"
@@ -22,6 +26,8 @@
 #define COLOUR_DEFAULT "\033[00m"
 
 #define BUF_SIZE 256 /* default length for internal print buffers */
+
+#define typeof __typeof__
 
 /* you couldn't make this shit up if you tried */
 #define scnprintf(buf, maxlen, ...) ({					\
@@ -38,6 +44,8 @@
 	char *__xstrdup_ptr = strndup(s, strlen(s));		\
 	assert(__xstrdup_ptr != NULL && "strdup failed");	\
 	__xstrdup_ptr; })
+
+#define FREE(x) free(x)
 
 #define ERR(...) do {							\
 		fprintf(stderr, COLOUR_BOLD COLOUR_RED __VA_ARGS__);	\

@@ -4,6 +4,7 @@
  * @author Ben Blum
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -12,10 +13,51 @@
 
 #define MINTIME ((long)600) /* 10 mins */
 
+#define DEFAULT_TEST_CASE "thread_exit_join"
+
 void usage(char *execname)
 {
 	ERR("Usage: %s [maxtime]\n", execname);
 	ERR("maxtime in positive seconds, or can be suffixed with m/h/d/y\n");
+}
+
+bool parse_time(char *str, unsigned long *result)
+{
+	char *endp;
+	long time = strtol(str, &endp, 0);
+	if (errno != 0) {
+		ERR("Time must be a number '%s'\n", str);
+		return false;
+	}
+	if (time < 0) {
+		ERR("Cannot time travel\n");
+		return -1;
+	}
+	*result = (unsigned long)time;
+	switch (*endp) {
+		case 'y':
+			WARN("%ld year%s, are you sure?\n", *result,
+			     *result == 1 ? "" : "s");
+			*result *= 365;
+		case 'd':
+			*result *= 24;
+		case 'h':
+			*result *= 60;
+		case 'm':
+			*result *= 60;
+		case '\0':
+		case 's':
+			break;
+		default:
+			ERR("Unrecognized time format '%s'\n", str);
+			return false;
+	}
+	if (*result < MINTIME) {
+		WARN("%ld (%s) not enough time; defaulting to %ld\n",
+		     *result, str, MINTIME);
+		*result = MINTIME;
+	}
+	return true;
 }
 
 int main(int argc, char **argv)
@@ -25,41 +67,13 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	/* Interpret maxtime argument. */
-	char *endp;
-	long time = strtol(argv[1], &endp, 0);
-	if (errno != 0) {
-		ERR("Time must be a number '%s'\n", argv[1]);
+	// TODO: default arguments (60min?)
+	// TODO: argument for test case name
+
+	unsigned long time;
+	if (!parse_time(argv[1], &time)) {
 		usage(argv[0]);
 		return -1;
-	}
-	if (time < 0) {
-		ERR("Cannot time travel\n");
-		usage(argv[0]);
-		return -1;
-	}
-	switch (*endp) {
-		case 'y':
-			WARN("%ld years, are you sure?\n", time);
-			time *= 365;
-		case 'd':
-			time *= 24;
-		case 'h':
-			time *= 60;
-		case 'm':
-			time *= 60;
-		case '\0':
-		case 's':
-			break;
-		default:
-			ERR("Unrecognized time format '%s'\n", argv[1]);
-			usage(argv[0]);
-			return -1;
-	}
-	if (time < MINTIME) {
-		WARN("%ld (%s) not enough time; defaulting to %ld\n",
-		     time, argv[1], MINTIME);
-		time = MINTIME;
 	}
 
 	printf("run for %ld seconds\n", time);

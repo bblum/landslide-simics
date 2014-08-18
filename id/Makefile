@@ -1,8 +1,9 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -Werror -std=c99
+LDFLAGS=-lpthread
 
-DEPS = common.h
-OBJ = main.o
+DEPS = common.h io.h pp.h job.h
+OBJ = main.o io.o pp.o job.o
 
 all: landslide-id
 
@@ -10,7 +11,7 @@ all: landslide-id
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 landslide-id: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS)
+	gcc -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 .PHONY: clean
 
