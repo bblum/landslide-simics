@@ -2,5 +2,5 @@
 # Select compiler by changing CC.
 
 ifeq (default,$(origin CC))
-  CC=gcc
+  CC=/usr/bin/gcc
 endif
