@@ -11,9 +11,10 @@
 
 #include "common.h"
 #include "pp.h"
+#include "sync.h"
 
 /* global state */
-pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t pp_registry_lock = PTHREAD_RWLOCK_INITIALIZER;
 static unsigned int next_id; /* also represents 1 + max legal index */
 static unsigned int max_generation = 0;
 static unsigned int capacity;
@@ -21,20 +22,9 @@ static struct pp **registry = NULL; /* NULL means not yet initialized */
 
 #define INITIAL_CAPACITY 16
 
-#define READ_LOCK() do {					\
-		int __ret = pthread_rwlock_rdlock(&lock);	\
-		assert(__ret == 0 && "failed rdlock");		\
-	} while (0)
-
-#define WRITE_LOCK() do {					\
-		int __ret = pthread_rwlock_wrlock(&lock);	\
-		assert(__ret == 0 && "failed wrlock");		\
-	} while (0)
-
-#define UNLOCK() do {						\
-		int __ret = pthread_rwlock_unlock(&lock);	\
-		assert(__ret == 0 && "failed unlock");		\
-	} while (0)
+/******************************************************************************
+ * PP registry
+ ******************************************************************************/
 
 static struct pp *pp_append(char *config_str, unsigned int priority,
 			    unsigned int generation)
@@ -65,11 +55,11 @@ static struct pp *pp_append(char *config_str, unsigned int priority,
 }
 
 static void check_init() {
-	READ_LOCK();
+	READ_LOCK(&pp_registry_lock);
 	bool need_init = registry == NULL;
-	UNLOCK();
+	RW_UNLOCK(&pp_registry_lock);
 	if (need_init) {
-		WRITE_LOCK();
+		WRITE_LOCK(&pp_registry_lock);
 		if (registry == NULL) { /* DCL */
 			capacity = INITIAL_CAPACITY;
 			next_id = 0;
@@ -84,27 +74,75 @@ static void check_init() {
 			assert(pp->id == 1);
 			assert(next_id == 2);
 		}
-		UNLOCK();
+		RW_UNLOCK(&pp_registry_lock);
 	}
 }
 
 struct pp *pp_new(char *config_str, unsigned int priority, unsigned int generation)
 {
 	check_init();
-	WRITE_LOCK();
+	WRITE_LOCK(&pp_registry_lock);
 	struct pp *result = pp_append(config_str, priority, generation);
-	UNLOCK();
+	RW_UNLOCK(&pp_registry_lock);
 	return result;
 }
 
 struct pp *pp_get(unsigned int id)
 {
 	check_init();
-	READ_LOCK();
+	READ_LOCK(&pp_registry_lock);
 	assert(id < next_id && "nonexistent pp of that id");
 	struct pp *result = registry[id];
-	UNLOCK();
+	RW_UNLOCK(&pp_registry_lock);
+	assert(result->id == id && "inconsistent PP id in PP registry");
 	return result;
 }
 
-// TODO: write_pp_set_to_config_fd
+/******************************************************************************
+ * PP sets
+ ******************************************************************************/
+
+struct pp_set *create_pp_set(unsigned int pp_mask)
+{
+	check_init();
+	READ_LOCK(&pp_registry_lock);
+	unsigned int size = sizeof(struct pp_set) + (sizeof(bool) * next_id);
+	struct pp_set *set = (struct pp_set *)XMALLOC(size, char /* c.c */);
+	set->len = next_id;
+	for (unsigned int i = 0; i < next_id; i++) {
+		set->array[i] = ((pp_mask & pp_get(i)->priority) != 0);
+	}
+	RW_UNLOCK(&pp_registry_lock);
+	return set;
+}
+
+void free_pp_set(struct pp_set *set)
+{
+	FREE(set);
+}
+
+struct pp *pp_next(struct pp_set *set, struct pp *current)
+{
+	unsigned int next_index = current == NULL ? 0 : current->id + 1;
+	assert(next_index < set->len);
+
+	while (!set->array[next_index]) {
+		next_index++;
+		if (next_index == set->len) {
+			return NULL;
+		}
+	}
+	return pp_get(next_index);
+}
+
+unsigned int compute_generation(struct pp_set *set)
+{
+	struct pp *pp;
+	unsigned int max_generation = 0;
+	FOR_EACH_PP(pp, set) {
+		if (pp->generation >= max_generation) {
+			max_generation = pp->generation + 1;
+		}
+	}
+	return max_generation;
+}

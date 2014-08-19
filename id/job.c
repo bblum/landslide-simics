@@ -5,58 +5,39 @@
  */
 
 #define _XOPEN_SOURCE 700
+
 #include <pthread.h>
 
 #include "common.h"
 #include "job.h"
 #include "io.h"
+#include "pp.h"
+#include "sync.h"
 
-unsigned int job_id = 0;
+static unsigned int job_id = 0;
 
-#define LOCK(lock) do {						\
-		int __ret = pthread_mutex_lock(lock);		\
-		assert(__ret == 0 && "failed mx lock");		\
-	} while (0)
-
-#define UNLOCK(lock) do {					\
-		int __ret = pthread_mutex_unlock(lock);		\
-		assert(__ret == 0 && "failed mx unlock");	\
-	} while (0)
-
-#define WAIT(cond, mx) do {					\
-		int __ret = pthread_cond_wait((cond), (mx));	\
-		assert(__ret == 0 && "failed wait");		\
-	} while (0)
-
-#define SIGNAL(cond) do {					\
-		int __ret = pthread_cond_signal(cond);		\
-		assert(__ret == 0 && "failed signal");		\
-	} while (0)
-
-#define BROADCAST(cond) do {					\
-		int __ret = pthread_cond_broadcast(cond);	\
-		assert(__ret == 0 && "failed broadcast");	\
-	} while (0)
+#define CONFIG_FILE_TEMPLATE "config-id.landslide.XXXXXX"
+#define RESULTS_FILE_TEMPLATE "results-id.landslide.XXXXXX"
+#define LOG_FILE_TEMPLATE "landslide-id.log.XXXXXX"
 
 struct job *new_job(struct pp_set *config)
 {
 	struct job *j = XMALLOC(1, struct job);
 	j->config = config;
-	bool result = create_config_file(&j->config_file);
+
+	bool result = create_file(&j->config_file, CONFIG_FILE_TEMPLATE);
 	assert(result && "could not create config file for job");
-	result = create_results_file(&j->config_file);
+	result = create_file(&j->results_file, RESULTS_FILE_TEMPLATE);
 	assert(result && "could not create results file for job");
+	result = create_file(&j->log_file, LOG_FILE_TEMPLATE);
+	assert(result && "could not create log file for job");
 
 	j->id = __sync_fetch_and_add(&job_id, 1);
-
-	/* compute generation */
-	// TODO
-
+	j->generation = compute_generation(config);
 	j->done = false;
-	int ret = pthread_cond_init(&j->done_cvar, NULL);
-	assert(ret == 0 && "could not initialize job cvar");
-	ret = pthread_mutex_init(&j->lock, NULL);
-	assert(ret == 0 && "could not initialize job lock");
+
+	COND_INIT(&j->done_cvar);
+	MUTEX_INIT(&j->lock);
 
 	return j;
 }
@@ -65,16 +46,34 @@ struct job *new_job(struct pp_set *config)
 static void *run_job(void *arg)
 {
 	struct job *j = (struct job *)arg;
+
+	// TODO: allocate socket
+
 	LOCK(&j->lock);
-	// TODO: read config and write config file
+
+	/* write config file */
+	struct pp *pp;
+	FOR_EACH_PP(pp, j->config) {
+		WRITE(&j->config_file, "%s\n", pp->config_str);
+	}
+
+	// TODO: write socket no to config
+
 	UNLOCK(&j->lock);
 
-	// TODO: spawn process
+	pid_t landslide_pid = fork();
+	if (landslide_pid == 0) {
+		/* child */
+		// TODO: dup2 log files to stderr and stdout;
+		// make sure cloexec doesn't close
+	}
+
+	/* parent */
 	// TODO: wait on result socket
 	// TODO: add reported DRs to PP registry
 
 	LOCK(&j->lock);
-	// TODO: write some results?
+	// TODO: interpret results
 	j->done = true;
 	BROADCAST(&j->done_cvar);
 	UNLOCK(&j->lock);

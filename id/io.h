@@ -7,20 +7,21 @@
 #ifndef __ID_IO_H
 #define __ID_IO_H
 
+#include <unistd.h>
+
 struct file {
 	int fd;
 	char *filename;
 };
 
-bool create_config_file(struct file *f);
-bool create_results_file(struct file *f);
+bool create_file(struct file *f, const char *template);
 void delete_file(struct file *f);
 
 // FIXME: deal with short writes
-#define WRITE(fd, ...) do {						\
+#define WRITE(file, ...) do {						\
 		char __buf[BUF_SIZE];					\
 		int __len = scnprintf(__buf, BUF_SIZE, __VA_ARGS__);	\
-		int __ret = write(fd, __buf, __len);			\
+		int __ret = write((file)->fd, __buf, __len);		\
 		assert(__ret == __len && "failed write");		\
 	} while (0)
 

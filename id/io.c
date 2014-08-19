@@ -14,11 +14,8 @@
 #include "common.h"
 #include "io.h"
 
-#define CONFIG_FILE_TEMPLATE "config-extra-XXXXXXXXXXXXXXXX.landslide"
-#define RESULTS_FILE_TEMPLATE "results-XXXXXXXXXXXXXXXX.landslide"
-
 /* returns a malloced string */
-bool create_file(const char *template, struct file *f)
+bool create_file(struct file *f, const char *template)
 {
 	f->filename = XMALLOC(strlen(template) + 1, char);
 	strcpy(f->filename, template);
@@ -28,7 +25,7 @@ bool create_file(const char *template, struct file *f)
 		return false;
 	}
 
-	f->fd = open(f->filename, O_APPEND);
+	f->fd = open(f->filename, O_APPEND | O_CLOEXEC);
 	if (f->fd <= 0) {
 		ret = remove(f->filename);
 		assert(ret == 0 && "couldn't remove file");
@@ -36,16 +33,6 @@ bool create_file(const char *template, struct file *f)
 	}
 
 	return true;
-}
-
-bool create_config_file(struct file *f)
-{
-	return create_file(CONFIG_FILE_TEMPLATE, f);
-}
-
-bool create_results_file(struct file *f)
-{
-	return create_file(RESULTS_FILE_TEMPLATE, f);
 }
 
 /* closes fd, removes file from filesystem, frees filename string */
