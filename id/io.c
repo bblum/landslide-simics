@@ -15,37 +15,47 @@
 #include "io.h"
 
 #define CONFIG_FILE_TEMPLATE "config-extra-XXXXXXXXXXXXXXXX.landslide"
+#define RESULTS_FILE_TEMPLATE "results-XXXXXXXXXXXXXXXX.landslide"
 
 /* returns a malloced string */
-bool create_config_file(int *fd, char **filename)
+bool create_file(const char *template, struct file *f)
 {
-	*filename = XMALLOC(strlen(CONFIG_FILE_TEMPLATE) + 1, char);
-	strcpy(*filename, CONFIG_FILE_TEMPLATE);
+	f->filename = XMALLOC(strlen(template) + 1, char);
+	strcpy(f->filename, template);
 
-	int ret = mkstemp(*filename);
+	int ret = mkstemp(f->filename);
 	if (ret != 0) {
 		return false;
 	}
 
-	*fd = open(*filename, O_APPEND);
-	if (*fd <= 0) {
-		ret = remove(*filename);
+	f->fd = open(f->filename, O_APPEND);
+	if (f->fd <= 0) {
+		ret = remove(f->filename);
 		assert(ret == 0 && "couldn't remove file");
 		return false;
 	}
 
-	// TODO
-	//WRITE(*fd, "%s\n", pp_lock.config_str);
-	//WRITE(*fd, "%s\n", pp_unlock.config_str);
 	return true;
 }
 
-/* closes fd, removes file from filesystem, frees filename string */
-void delete_config_file(int fd, char *filename)
+bool create_config_file(struct file *f)
 {
-	int ret = close(fd);
+	return create_file(CONFIG_FILE_TEMPLATE, f);
+}
+
+bool create_results_file(struct file *f)
+{
+	return create_file(RESULTS_FILE_TEMPLATE, f);
+}
+
+/* closes fd, removes file from filesystem, frees filename string */
+void delete_file(struct file *f)
+{
+	assert(f->filename != NULL);
+	int ret = close(f->fd);
 	assert(ret == 0 && "couldn't close fd");
-	ret = remove(filename);
+	ret = remove(f->filename);
 	assert(ret == 0 && "couldn't remove file");
-	FREE(filename);
+	FREE(f->filename);
+	f->filename = NULL;
 }

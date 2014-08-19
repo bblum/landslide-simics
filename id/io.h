@@ -7,8 +7,14 @@
 #ifndef __ID_IO_H
 #define __ID_IO_H
 
-bool create_config_file(int *fd, char **filename);
-void delete_config_file(int fd, char *filename);
+struct file {
+	int fd;
+	char *filename;
+};
+
+bool create_config_file(struct file *f);
+bool create_results_file(struct file *f);
+void delete_file(struct file *f);
 
 // FIXME: deal with short writes
 #define WRITE(fd, ...) do {						\
