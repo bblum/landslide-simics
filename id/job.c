@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "common.h"
 #include "job.h"
@@ -69,6 +71,12 @@ static void *run_job(void *arg)
 	XWRITE(&j->config_file, "estimate_pipe %d\n", estimate_pipefd[1]);
 	XWRITE(&j->config_file, "continue_pipe %d\n", continue_pipefd[0]);
 
+	// XXX: Need to do this here so the parent can have the path into pebsim
+	// to properly delete the file, but it brittle-ly causes the child's
+	// exec args to have "../pebsim/"s in them that only "happen to work".
+	move_file_to(&j->config_file, LANDSLIDE_PATH);
+	move_file_to(&j->results_file, LANDSLIDE_PATH);
+
 	UNLOCK(&j->config_lock);
 
 	pid_t landslide_pid = fork();
@@ -81,9 +89,6 @@ static void *run_job(void *arg)
 		// TODO: dup2 log files to stderr and stdout;
 		// make sure cloexec doesn't close them
 
-		/* relocate to pebsim */
-		move_file_to(&j->config_file, LANDSLIDE_PATH);
-		move_file_to(&j->results_file, LANDSLIDE_PATH);
 		XCHDIR(LANDSLIDE_PATH);
 
 		char *execname = "./" LANDSLIDE_PROGNAME;
@@ -111,7 +116,16 @@ static void *run_job(void *arg)
 	// TODO: wait on result socket
 	// TODO: add reported DRs to PP registry
 
-	// TODO: handle sigchld
+	/* clean up after child */
+	int status;
+	do {
+		pid_t result_pid = waitpid(landslide_pid, &status, 0);
+		assert(result_pid == landslide_pid && "wait failed");
+	} while (WIFSTOPPED(status) || WIFCONTINUED(status));
+	printf("Landslide pid %d exited with status %d\n", landslide_pid,
+	       WEXITSTATUS(status));
+
+	// TODO: remove config files
 
 	LOCK(&j->done_lock);
 	// TODO: interpret results
@@ -143,5 +157,9 @@ void wait_on_job(struct job *j)
 void finish_job(struct job *j)
 {
 	wait_on_job(j);
+	free_pp_set(j->config);
+	delete_file(&j->config_file);
+	delete_file(&j->results_file);
+	delete_file(&j->log_file);
 	FREE(j);
 }

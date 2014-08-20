@@ -10,6 +10,8 @@
 #include <errno.h>
 
 #include "common.h"
+#include "pp.h"
+#include "job.h"
 
 #define MINTIME ((long)600) /* 10 mins */
 
@@ -77,4 +79,11 @@ int main(int argc, char **argv)
 	}
 
 	printf("run for %ld seconds\n", time);
+
+	struct job *j = new_job(create_pp_set(PRIORITY_ALL));
+	start_job(j);
+	finish_job(j);
+
+	// TODO: return something better
+	return 0;
 }

@@ -5,10 +5,12 @@
  */
 
 #define _XOPEN_SOURCE 700
+#define _GNU_SOURCE
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -20,18 +22,12 @@ bool create_file(struct file *f, const char *template)
 	f->filename = XMALLOC(strlen(template) + 1, char);
 	strcpy(f->filename, template);
 
-	int ret = mkstemp(f->filename);
-	if (ret != 0) {
+	int ret = mkostemp(f->filename, O_APPEND | O_CLOEXEC);
+	if (ret < 0) {
 		return false;
 	}
 
-	f->fd = open(f->filename, O_APPEND | O_CLOEXEC);
-	if (f->fd <= 0) {
-		ret = remove(f->filename);
-		assert(ret == 0 && "couldn't remove file");
-		return false;
-	}
-
+	f->fd = ret;
 	return true;
 }
 
@@ -57,8 +53,10 @@ void unset_cloexec(int fd)
 
 void move_file_to(struct file *f, const char *dirpath)
 {
-	char buf[BUF_SIZE];
-	assert(BUF_SIZE > strlen(f->filename) + strlen(dirpath) + 2);
-	scnprintf(buf, BUF_SIZE, "%s/%s", dirpath, f->filename);
-	XRENAME(f->filename, buf);
+	unsigned int length = strlen(f->filename) + strlen(dirpath) + 2;
+	char *new_filename = XMALLOC(length, char);
+	scnprintf(new_filename, length, "%s/%s", dirpath, f->filename);
+	XRENAME(f->filename, new_filename);
+	FREE(f->filename);
+	f->filename = new_filename;
 }

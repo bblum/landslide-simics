@@ -124,7 +124,9 @@ void free_pp_set(struct pp_set *set)
 struct pp *pp_next(struct pp_set *set, struct pp *current)
 {
 	unsigned int next_index = current == NULL ? 0 : current->id + 1;
-	assert(next_index < set->len);
+	if (next_index == set->len) {
+		return NULL;
+	}
 
 	while (!set->array[next_index]) {
 		next_index++;

@@ -16,9 +16,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
+
 // FIXME make more flexible
 #define LANDSLIDE_PROGNAME "landslide"
-#define LANDSLIDE_PATH "../pebsim/"
+#define LANDSLIDE_PATH "../pebsim"
 
 struct file {
 	int fd;
@@ -28,11 +30,9 @@ struct file {
 #define EXPECT(cond, ...) do {						\
 		if (!(cond)) {						\
 			int errno0 = errno;				\
-			fprintf(stderr, "Assertion failed: '%s'\n",	\
-				#cond);					\
-			fprintf(stderr, __VA_ARGS__);			\
-			fprintf(stderr, "Error: %s\n",			\
-				strerror(errno0));			\
+			ERR("Assertion failed: '%s'\n", #cond);		\
+			ERR(__VA_ARGS__);				\
+			ERR("Error: %s\n", strerror(errno0));		\
 		}							\
 	} while (0)
 

@@ -32,7 +32,9 @@
 /* you couldn't make this shit up if you tried */
 #define scnprintf(buf, maxlen, ...) ({					\
 	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\
-	if (__snprintf_ret > (maxlen)) { __snprintf_ret = (maxlen); }	\
+	if (__snprintf_ret > (int)(maxlen)) {				\
+		__snprintf_ret = (maxlen);				\
+	}								\
 	__snprintf_ret; })
 
 #define XMALLOC(x,t) ({						\
