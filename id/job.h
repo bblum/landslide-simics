@@ -21,8 +21,8 @@ struct job {
 	unsigned int generation; /* max among generations of pps + 1 */
 	bool done;
 	pthread_cond_t done_cvar;
-	pthread_mutex_t lock;
-	// TODO: socket for communication
+	pthread_mutex_t done_lock;
+	pthread_mutex_t config_lock; /* protects everything but 'done' */
 };
 
 struct job *new_job(struct pp_set *config);
