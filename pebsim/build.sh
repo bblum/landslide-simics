@@ -83,6 +83,7 @@ PRINT_DATA_RACES=0
 VERBOSE=0
 EXTRA_VERBOSE=0
 TABULAR_TRACE=0
+OBFUSCATED_KERNEL=0
 source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
@@ -151,6 +152,12 @@ fi
 
 #### Check kernel image ####
 
+if [ ! "$OBFUSCATED_KERNEL" = 0 ]; then
+	if [ ! "$OBFUSCATED_KERNEL" = 1 ]; then
+		die "Invalid value for OBFUSCATED_KERNEL; have '$OBFUSCATED_KERNEL'; need 0/1"
+	fi
+fi
+
 if ! grep "${TEST_CASE}_exec2obj_userapp_code_ptr" $KERNEL_IMG 2>&1 >/dev/null; then
 	die "Missing test program: $KERNEL_IMG isn't built with '$TEST_CASE'!"
 fi
@@ -163,18 +170,21 @@ function verify_tell {
 	fi
 }
 
-# verify_tell BdSfWtYekHgZIrgRvhjOBJZcaBOk
-# verify_tell VctEddYWBoOmsvViAMLrBhgMClYkIA
-# verify_tell WWCzWNfwDhCMmyOoMjkzqM
-# verify_tell jEqsDtPugyVZgFYfNdUbBdjp
-# verify_tell HiOxsIEPkyrBRLrxkQWOWZtnjkZ
-# verify_tell qoICNoouqOWYvWrzwcMofmqGdPxa
-verify_tell tell_landslide_thread_switch
-verify_tell tell_landslide_sched_init_done
-verify_tell tell_landslide_forking
-verify_tell tell_landslide_vanishing
-verify_tell tell_landslide_thread_on_rq
-verify_tell tell_landslide_thread_off_rq
+if [ "$OBFUSCATED_KERNEL" = 1 ]; then
+	verify_tell BdSfWtYekHgZIrgRvhjOBJZcaBOk
+	verify_tell HiOxsIEPkyrBRLrxkQWOWZtnjkZ
+	verify_tell jEqsDtPugyVZgFYfNdUbBdjp
+	verify_tell qoICNoouqOWYvWrzwcMofmqGdPxa
+	verify_tell VctEddYWBoOmsvViAMLrBhgMClYkIA
+	verify_tell WWCzWNfwDhCMmyOoMjkzqM
+else
+	verify_tell tell_landslide_forking
+	verify_tell tell_landslide_thread_off_rq
+	verify_tell tell_landslide_thread_on_rq
+	verify_tell tell_landslide_thread_switch
+	verify_tell tell_landslide_sched_init_done
+	verify_tell tell_landslide_vanishing
+fi
 
 if [ ! -z "$MISSING_ANNOTATIONS" ]; then
 	die "Please fix the missing annotations."
@@ -215,8 +225,11 @@ msg "Generating simics config..."
 ./configgen.sh > landslide-config.py || die "configgen.sh failed."
 if [ -z "$SKIP_HEADER" ]; then
 	msg "Generating header file..."
-	./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
-	#./definegen-obfuscated.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
+	if [ "$OBFUSCATED_KERNEL" = 0 ]; then
+		./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
+	else
+		./definegen-obfuscated.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
+	fi
 else
 	msg "Header already generated; skipping."
 fi
