@@ -65,11 +65,11 @@ static void check_init() {
 			next_id = 0;
 			registry = XMALLOC(capacity, struct pp *);
 			struct pp *pp = pp_append(
-				XSTRDUP("within_function mutex_lock"),
+				XSTRDUP("within_user_function mutex_lock"),
 				PRIORITY_MUTEX_LOCK, max_generation);
 			assert(pp->id == 0);
 			pp = pp_append(
-				XSTRDUP("within_function mutex_unlock"),
+				XSTRDUP("within_user_function mutex_unlock"),
 				PRIORITY_MUTEX_UNLOCK, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
