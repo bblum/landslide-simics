@@ -36,6 +36,8 @@ struct file {
 		}							\
 	} while (0)
 
+// FIXME: convert to eval-argument-once form ("int __arg = (arg);")
+
 // FIXME: deal with short writes
 #define XWRITE(file, ...) do {						\
 		char __buf[BUF_SIZE];					\
@@ -71,8 +73,15 @@ struct file {
 		       (oldpath), (newpath));				\
 	} while (0)
 
-bool create_file(struct file *f, const char *template);
-void delete_file(struct file *f);
+#define XDUP2(oldfd, newfd) do {					\
+		int __newfd = (newfd);					\
+		int __ret = dup2((oldfd), __newfd);			\
+		EXPECT(__ret == __newfd, "failed dup2 %d <- %d\n",	\
+		       (oldfd), __newfd);				\
+	} while (0)
+
+void create_file(struct file *f, const char *template);
+void delete_file(struct file *f, bool do_remove);
 void move_file_to(struct file *f, const char *dirpath);
 
 void unset_cloexec(int fd);

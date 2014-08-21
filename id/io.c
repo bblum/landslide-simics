@@ -17,26 +17,23 @@
 #include "io.h"
 
 /* returns a malloced string */
-bool create_file(struct file *f, const char *template)
+void create_file(struct file *f, const char *template)
 {
 	f->filename = XMALLOC(strlen(template) + 1, char);
 	strcpy(f->filename, template);
 
-	int ret = mkostemp(f->filename, O_APPEND | O_CLOEXEC);
-	if (ret < 0) {
-		return false;
-	}
-
-	f->fd = ret;
-	return true;
+	f->fd = mkostemp(f->filename, O_APPEND | O_CLOEXEC);
+	assert(f->fd >= 0 && "failed create file");
 }
 
 /* closes fd, removes file from filesystem, frees filename string */
-void delete_file(struct file *f)
+void delete_file(struct file *f, bool do_remove)
 {
 	assert(f->filename != NULL);
 	XCLOSE(f->fd);
-	XREMOVE(f->filename);
+	if (do_remove) {
+		XREMOVE(f->filename);
+	}
 	FREE(f->filename);
 	f->filename = NULL;
 }

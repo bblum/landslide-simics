@@ -16,7 +16,8 @@ struct job {
 	struct pp_set *config;
 	struct file config_file;
 	struct file results_file;
-	struct file log_file;
+	struct file log_stdout;
+	struct file log_stderr;
 	unsigned int id;
 	unsigned int generation; /* max among generations of pps + 1 */
 	bool done;

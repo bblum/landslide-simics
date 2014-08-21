@@ -22,21 +22,24 @@
 
 static unsigned int job_id = 0;
 
+static pthread_mutex_t compile_landslide_lock = PTHREAD_MUTEX_INITIALIZER;
+
+// TODO-FIXME: Insert timestamps so log files are sorted chronologically.
 #define CONFIG_FILE_TEMPLATE "config-id.landslide.XXXXXX"
 #define RESULTS_FILE_TEMPLATE "results-id.landslide.XXXXXX"
-#define LOG_FILE_TEMPLATE "landslide-id.log.XXXXXX"
+#define LOG_FILE_TEMPLATE(x) "landslide-id-" x ".log.XXXXXX"
 
 struct job *new_job(struct pp_set *config)
 {
 	struct job *j = XMALLOC(1, struct job);
 	j->config = config;
 
-	bool result = create_file(&j->config_file, CONFIG_FILE_TEMPLATE);
-	assert(result && "could not create config file for job");
-	result = create_file(&j->results_file, RESULTS_FILE_TEMPLATE);
-	assert(result && "could not create results file for job");
-	result = create_file(&j->log_file, LOG_FILE_TEMPLATE);
-	assert(result && "could not create log file for job");
+	// TODO: decide if results file is needed
+
+	create_file(&j->config_file, CONFIG_FILE_TEMPLATE);
+	create_file(&j->results_file, RESULTS_FILE_TEMPLATE);
+	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("stdout"));
+	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("stderr"));
 
 	j->id = __sync_fetch_and_add(&job_id, 1);
 	j->generation = compute_generation(config);
@@ -55,10 +58,10 @@ static void *run_job(void *arg)
 	struct job *j = (struct job *)arg;
 
 	/* 2-way communication with landslide. pipefd[0] is the read end. */
-	int estimate_pipefd[2];
-	int continue_pipefd[2];
-	XPIPE(estimate_pipefd);
-	XPIPE(continue_pipefd);
+	int input_pipefds[2];
+	int output_pipefds[2];
+	XPIPE(input_pipefds);
+	XPIPE(output_pipefds);
 
 	LOCK(&j->config_lock);
 
@@ -68,8 +71,9 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_file, "%s\n", pp->config_str);
 	}
 
-	XWRITE(&j->config_file, "estimate_pipe %d\n", estimate_pipefd[1]);
-	XWRITE(&j->config_file, "continue_pipe %d\n", continue_pipefd[0]);
+	/* our output is the child's input and V. V. */
+	XWRITE(&j->config_file, "output_pipe %d\n", input_pipefds[1]);
+	XWRITE(&j->config_file, "input_pipe %d\n", output_pipefds[0]);
 
 	// XXX: Need to do this here so the parent can have the path into pebsim
 	// to properly delete the file, but it brittle-ly causes the child's
@@ -79,18 +83,16 @@ static void *run_job(void *arg)
 
 	UNLOCK(&j->config_lock);
 
+	/* while multiple landslides can run at once, compiling each one from a
+	 * different config is mutually exclusive. we'll release this as soon as
+	 * we get a message from the child that it's up and running. */
+	LOCK(&compile_landslide_lock);
+
 	pid_t landslide_pid = fork();
 	if (landslide_pid == 0) {
 		/* child process; landslide-to-be */
 
-		unset_cloexec(estimate_pipefd[1]);
-		unset_cloexec(continue_pipefd[0]);
-
-		// TODO: dup2 log files to stderr and stdout;
-		// make sure cloexec doesn't close them
-
-		XCHDIR(LANDSLIDE_PATH);
-
+		/* assemble commandline arguments */
 		char *execname = "./" LANDSLIDE_PROGNAME;
 		char *const argv[4] = {
 			[0] = execname,
@@ -100,8 +102,20 @@ static void *run_job(void *arg)
 		};
 		char *const envp[1] = { [0] = NULL, };
 
-		printf("Executing command: '%s %s %s'\n", execname,
-		       j->config_file.filename, j->results_file.filename);
+		printf("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
+		       j->config_file.filename, j->results_file.filename,
+		       j->log_stdout.filename, j->log_stderr.filename);
+
+		/* fixup file descriptors */
+		unset_cloexec(input_pipefds[1]);
+		unset_cloexec(output_pipefds[0]);
+
+		XDUP2(j->log_stdout.fd, STDOUT_FILENO);
+		XDUP2(j->log_stderr.fd, STDERR_FILENO);
+		unset_cloexec(STDOUT_FILENO);
+		unset_cloexec(STDERR_FILENO);
+
+		XCHDIR(LANDSLIDE_PATH);
 
 		execve(execname, argv, envp);
 
@@ -110,20 +124,27 @@ static void *run_job(void *arg)
 	}
 
 	/* parent */
-	XCLOSE(estimate_pipefd[1]);
-	XCLOSE(continue_pipefd[0]);
+	// FIXME: rename these pipefds
+	XCLOSE(input_pipefds[1]);
+	XCLOSE(output_pipefds[0]);
+	int input_fd  = input_pipefds[0];
+	//int output_fd = output_pipefds[0];
 
-	// TODO: wait on result socket
-	// TODO: add reported DRs to PP registry
-
-	/* clean up after child */
-	int status;
+	int child_status;
 	do {
-		pid_t result_pid = waitpid(landslide_pid, &status, 0);
+		char msg_buf[256];
+		int ret = read(input_fd, msg_buf, BUF_SIZE);
+		printf("ret %d; err %s", ret, strerror(errno));
+		// TODO: wait on result socket
+		// while ...
+		// TODO: add reported DRs to PP registry
+
+		/* clean up after child */
+		pid_t result_pid = waitpid(landslide_pid, &child_status, 0);
 		assert(result_pid == landslide_pid && "wait failed");
-	} while (WIFSTOPPED(status) || WIFCONTINUED(status));
+	} while (WIFSTOPPED(child_status) || WIFCONTINUED(child_status));
 	printf("Landslide pid %d exited with status %d\n", landslide_pid,
-	       WEXITSTATUS(status));
+	       WEXITSTATUS(child_status));
 
 	// TODO: remove config files
 
@@ -158,8 +179,9 @@ void finish_job(struct job *j)
 {
 	wait_on_job(j);
 	free_pp_set(j->config);
-	delete_file(&j->config_file);
-	delete_file(&j->results_file);
-	delete_file(&j->log_file);
+	delete_file(&j->config_file, true);
+	delete_file(&j->results_file, true);
+	delete_file(&j->log_stdout, false);
+	delete_file(&j->log_stderr, false);
 	FREE(j);
 }
