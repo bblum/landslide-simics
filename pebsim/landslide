@@ -5,6 +5,12 @@ if [ "`pwd | sed 's/.*\///'`" != "pebsim" ]; then
 	exit 1
 fi
 
+if [ ! -z "$1" ]; then
+	export LANDSLIDE_ID_CONFIG="$1"
+else
+	export LANDSLIDE_ID_CONFIG=
+fi
+
 export LANDSLIDE_CONFIG=config.landslide
 
 export VTECH_LICENSE_FILE=/afs/cs.cmu.edu/academic/class/15410-f13/simics-4.0.60/simics-4.0.60/licenses/1license.lic

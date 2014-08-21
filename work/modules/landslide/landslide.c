@@ -43,6 +43,7 @@
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "memory.h"
+#include "messaging.h"
 #include "rand.h"
 #include "save.h"
 #include "test.h"
@@ -69,6 +70,7 @@ struct ls_state *new_landslide()
 	mem_init(ls);
 	user_sync_init(&ls->user_sync);
 	rand_init(&ls->rand);
+	messaging_init(&ls->mess);
 
 	ls->cmd_file = NULL;
 	ls->html_file = NULL;

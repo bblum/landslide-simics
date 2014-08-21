@@ -50,6 +50,11 @@ function starting_threads {
 if [ ! -f "./$LANDSLIDE_CONFIG" ]; then
 	die "Where's $LANDSLIDE_CONFIG?"
 fi
+if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+	if [ ! -f "./$LANDSLIDE_ID_CONFIG" ]; then
+		die "Where's ID config $LANDSLIDE_ID_CONFIG?"
+	fi
+fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 TESTING_USERSPACE=0

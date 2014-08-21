@@ -174,6 +174,51 @@ EXTRA_VERBOSE=0
 TABULAR_TRACE=0
 source $CONFIG
 
+########################################
+#### Reading config from ID wrapper ####
+########################################
+
+INPUT_PIPE=
+function input_pipe {
+	if [ ! -z "$INPUT_PIPE" ]; then
+		die "input_pipe called more than once; oldval $INPUT_PIPE, newval $1"
+	fi
+	INPUT_PIPE=$1
+}
+
+OUTPUT_PIPE=
+function output_pipe {
+	if [ ! -z "$OUTPUT_PIPE" ]; then
+		die "output_pipe called more than once; oldval $OUTPUT_PIPE, newval $1"
+	fi
+	OUTPUT_PIPE=$1
+}
+
+ID_WRAPPER_MAGIC=
+function id_magic {
+	if [ ! -z "$ID_WRAPPER_MAGIC" ]; then
+		die "id_magic called more than once; oldval $ID_WRAPPER_MAGIC, newval $1"
+	fi
+	ID_WRAPPER_MAGIC=$1
+}
+
+if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+	if [ ! -f "$LANDSLIDE_ID_CONFIG" ]; then
+		die "Where's $LANDSLIDE_ID_CONFIG?"
+	fi
+
+	# expect to generate input/output pipes, and some add'l within-function
+	# and data-race commands that will be automatically processed already
+	source "$LANDSLIDE_ID_CONFIG"
+
+	if [ -z "INPUT_PIPE" ]; then
+		die "ID config was given but input_pipe not specified"
+	fi
+	if [ -z "OUTPUT_PIPE" ]; then
+		die "ID config was given but output_pipe not specified"
+	fi
+fi
+
 #####################################
 #### User config sanity checking ####
 #####################################
@@ -465,6 +510,16 @@ echo "#define PRINT_DATA_RACES $PRINT_DATA_RACES"
 echo "#define VERBOSE $VERBOSE"
 echo "#define EXTRA_VERBOSE $EXTRA_VERBOSE"
 echo "#define TABULAR_TRACE $TABULAR_TRACE"
+
+if [ ! -z "$INPUT_PIPE" ]; then
+	echo "#define INPUT_PIPE \"$INPUT_PIPE\""
+fi
+if [ ! -z "$OUTPUT_PIPE" ]; then
+	echo "#define OUTPUT_PIPE \"$OUTPUT_PIPE\""
+fi
+if [ ! -z "$ID_WRAPPER_MAGIC" ]; then
+	echo "#define ID_WRAPPER_MAGIC $ID_WRAPPER_MAGIC"
+fi
 
 echo
 
