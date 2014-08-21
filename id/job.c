@@ -24,6 +24,8 @@ static unsigned int job_id = 0;
 
 static pthread_mutex_t compile_landslide_lock = PTHREAD_MUTEX_INITIALIZER;
 
+extern char **environ;
+
 // TODO-FIXME: Insert timestamps so log files are sorted chronologically.
 #define CONFIG_FILE_TEMPLATE "config-id.landslide.XXXXXX"
 #define RESULTS_FILE_TEMPLATE "results-id.landslide.XXXXXX"
@@ -75,6 +77,8 @@ static void *run_job(void *arg)
 	XWRITE(&j->config_file, "output_pipe %d\n", input_pipefds[1]);
 	XWRITE(&j->config_file, "input_pipe %d\n", output_pipefds[0]);
 
+	XWRITE(&j->config_file, "id_magic %u\n", 0x15410de0u);
+
 	// XXX: Need to do this here so the parent can have the path into pebsim
 	// to properly delete the file, but it brittle-ly causes the child's
 	// exec args to have "../pebsim/"s in them that only "happen to work".
@@ -100,7 +104,6 @@ static void *run_job(void *arg)
 			[2] = j->results_file.filename,
 			[3] = NULL,
 		};
-		char *const envp[1] = { [0] = NULL, };
 
 		printf("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
 		       j->config_file.filename, j->results_file.filename,
@@ -117,7 +120,7 @@ static void *run_job(void *arg)
 
 		XCHDIR(LANDSLIDE_PATH);
 
-		execve(execname, argv, envp);
+		execve(execname, argv, environ);
 
 		EXPECT(false, "execve() failed\n");
 		exit(EXIT_FAILURE);
