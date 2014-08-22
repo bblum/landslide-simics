@@ -13,6 +13,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#define NORETURN __attribute__((noreturn))
+
 #define COLOUR_BOLD "\033[01m"
 #define COLOUR_DARK "\033[00m"
 #define COLOUR_RED "\033[31m"

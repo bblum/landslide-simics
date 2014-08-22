@@ -17,6 +17,7 @@
 #include "common.h"
 #include "job.h"
 #include "io.h"
+#include "messaging.h"
 #include "pp.h"
 #include "sync.h"
 
@@ -54,16 +55,41 @@ struct job *new_job(struct pp_set *config)
 	return j;
 }
 
+static NORETURN void spawn_landslide(struct job *j)
+{
+	/* assemble commandline arguments */
+	char *execname = "./" LANDSLIDE_PROGNAME;
+	char *const argv[4] = {
+		[0] = execname,
+		[1] = j->config_file.filename,
+		[2] = j->results_file.filename,
+		[3] = NULL,
+	};
+
+	printf("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
+	       j->config_file.filename, j->results_file.filename,
+	       j->log_stdout.filename, j->log_stderr.filename);
+
+	/* unsetting cloexec not necessary for these */
+	XDUP2(j->log_stdout.fd, STDOUT_FILENO);
+	XDUP2(j->log_stderr.fd, STDERR_FILENO);
+
+	XCHDIR(LANDSLIDE_PATH);
+
+	execve(execname, argv, environ);
+
+	EXPECT(false, "execve() failed\n");
+	exit(EXIT_FAILURE);
+}
+
 /* job thread main */
 static void *run_job(void *arg)
 {
 	struct job *j = (struct job *)arg;
 
-	/* 2-way communication with landslide. pipefd[0] is the read end. */
-	int input_pipefds[2];
-	int output_pipefds[2];
-	XPIPE(input_pipefds);
-	XPIPE(output_pipefds);
+	/* 2-way communication with landslide. open()ing them will block. */
+	char *input_pipe_name = create_fifo("id-input-pipe", j->id);
+	char *output_pipe_name = create_fifo("id-output-pipe", j->id);
 
 	LOCK(&j->config_lock);
 
@@ -74,10 +100,9 @@ static void *run_job(void *arg)
 	}
 
 	/* our output is the child's input and V. V. */
-	XWRITE(&j->config_file, "output_pipe %d\n", input_pipefds[1]);
-	XWRITE(&j->config_file, "input_pipe %d\n", output_pipefds[0]);
-
-	XWRITE(&j->config_file, "id_magic %u\n", 0x15410de0u);
+	XWRITE(&j->config_file, "output_pipe %s\n", input_pipe_name);
+	XWRITE(&j->config_file, "input_pipe %s\n", output_pipe_name);
+	XWRITE(&j->config_file, "id_magic %u\n", MESSAGING_MAGIC);
 
 	// XXX: Need to do this here so the parent can have the path into pebsim
 	// to properly delete the file, but it brittle-ly causes the child's
@@ -95,61 +120,39 @@ static void *run_job(void *arg)
 	pid_t landslide_pid = fork();
 	if (landslide_pid == 0) {
 		/* child process; landslide-to-be */
-
-		/* assemble commandline arguments */
-		char *execname = "./" LANDSLIDE_PROGNAME;
-		char *const argv[4] = {
-			[0] = execname,
-			[1] = j->config_file.filename,
-			[2] = j->results_file.filename,
-			[3] = NULL,
-		};
-
-		printf("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
-		       j->config_file.filename, j->results_file.filename,
-		       j->log_stdout.filename, j->log_stderr.filename);
-
-		/* fixup file descriptors */
-		unset_cloexec(input_pipefds[1]);
-		unset_cloexec(output_pipefds[0]);
-
-		XDUP2(j->log_stdout.fd, STDOUT_FILENO);
-		XDUP2(j->log_stderr.fd, STDERR_FILENO);
-		unset_cloexec(STDOUT_FILENO);
-		unset_cloexec(STDERR_FILENO);
-
-		XCHDIR(LANDSLIDE_PATH);
-
-		execve(execname, argv, environ);
-
-		EXPECT(false, "execve() failed\n");
-		exit(EXIT_FAILURE);
+		spawn_landslide(j);
 	}
 
 	/* parent */
-	// FIXME: rename these pipefds
-	XCLOSE(input_pipefds[1]);
-	XCLOSE(output_pipefds[0]);
-	int input_fd  = input_pipefds[0];
-	//int output_fd = output_pipefds[0];
+	struct file input_pipe;
+	struct file output_pipe;
 
+	// TODO: use ansi escape codes for 'invisible' messages
+	// XXX: using fifos instead of anonymous pipes, impossible to tell
+	// whether e.g. the build failed. maybe use a timed wait?
+	open_fifo(&input_pipe, input_pipe_name, O_RDONLY);
+	/* should take ~6 seconds for child to come alive */
+	bool child_alive = wait_for_child(input_pipe.fd);
+	open_fifo(&output_pipe, output_pipe_name, O_WRONLY);
+
+	UNLOCK(&compile_landslide_lock);
+
+	if (child_alive) {
+		/* may take as long as the state space is large */
+		talk_to_child(input_pipe.fd, output_pipe.fd);
+	}
+
+	/* clean up after child */
 	int child_status;
-	do {
-		char msg_buf[256];
-		int ret = read(input_fd, msg_buf, BUF_SIZE);
-		printf("ret %d; err %s", ret, strerror(errno));
-		// TODO: wait on result socket
-		// while ...
-		// TODO: add reported DRs to PP registry
-
-		/* clean up after child */
-		pid_t result_pid = waitpid(landslide_pid, &child_status, 0);
-		assert(result_pid == landslide_pid && "wait failed");
-	} while (WIFSTOPPED(child_status) || WIFCONTINUED(child_status));
+	pid_t result_pid = waitpid(landslide_pid, &child_status, 0);
+	assert(result_pid == landslide_pid && "wait failed");
+	assert(WIFEXITED(child_status) && "wait returned before child exit");
 	printf("Landslide pid %d exited with status %d\n", landslide_pid,
 	       WEXITSTATUS(child_status));
 
 	// TODO: remove config files
+	delete_file(&input_pipe, true);
+	delete_file(&output_pipe, true);
 
 	LOCK(&j->done_lock);
 	// TODO: interpret results
