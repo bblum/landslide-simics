@@ -15,6 +15,7 @@
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "memory.h"
+#include "messaging.h"
 #include "rbtree.h"
 #include "stack.h"
 #include "symtable.h"
@@ -468,6 +469,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
 	                                 &ls->sched.cur_agent->user_locks_held;
 	struct mem_lockset *l;
+	unsigned int current_syscall = ls->sched.cur_agent->most_recent_syscall;
 
 	bool need_add = true;
 	bool remove_prev = false;
@@ -478,6 +480,11 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			Q_REMOVE(&ma->locksets, l_old, nobe);
 			lockset_free(&l_old->locks_held);
 			MM_FREE(l_old);
+			remove_prev = false;
+		}
+
+		if (l->most_recent_syscall != current_syscall) {
+			continue;
 		}
 
 		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
@@ -502,6 +509,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	if (need_add) {
 		l = MM_XMALLOC(1, struct mem_lockset);
 		l->eip = ls->eip;
+		l->most_recent_syscall = current_syscall;
 		lockset_clone(&l->locks_held, l0);
 		Q_INSERT_FRONT(&ma->locksets, l, nobe);
 	}
@@ -972,6 +980,13 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 				/* Whether or not we saw it reordered, check if
 				 * it enables a speculative DR save point. */
 				check_enable_speculative_pp(h1->parent, l1->eip);
+				/* Let master process know, if present. */
+				message_data_race(&ls->mess, l0->eip,
+						  l0->most_recent_syscall,
+						  confirmed);
+				message_data_race(&ls->mess, l1->eip,
+						  l1->most_recent_syscall,
+						  confirmed);
 			}
 		}
 	}
