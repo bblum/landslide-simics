@@ -10,6 +10,46 @@
 
 #include "messaging.h"
 
+#define MESSAGING_MAGIC 0x15410de0u
+
+#define MESSAGE_BUF_SIZE 128
+
+struct input_message {
+	unsigned int magic;
+
+	enum {
+		THUNDERBIRDS_ARE_GO = 0,
+		DATA_RACE = 1,
+		ESTIMATE = 2,
+		FOUND_A_BUG = 3,
+		SHOULD_CONTINUE = 4,
+	} tag;
+
+	union {
+		struct {
+			unsigned int eip;
+			unsigned int most_recent_syscall;
+			bool confirmed;
+		} dr;
+
+		struct {
+			long double proportion;
+			unsigned int estimated_branches;
+			long double total_usecs;
+			long double elapsed_usecs;
+		} estimate;
+
+		struct {
+			char trace_filename[MESSAGE_BUF_SIZE];
+		} bug;
+	} content;
+};
+
+struct output_message {
+	unsigned int magic;
+	bool do_abort;
+};
+
 /* glue */
 
 static void send(int output_fd, struct output_message *m)
@@ -35,24 +75,52 @@ static bool recv(int input_fd, struct input_message *m)
 
 /* logic */
 
-bool wait_for_child(int input_fd)
+/* creates the fifo files on the filesystem, but does not block on them yet. */
+void messaging_init(struct messaging_state *state, struct file *config_file,
+		    unsigned int job_id)
 {
+	state->input_pipe_name  = create_fifo("id-input-pipe",  job_id);
+	state->output_pipe_name = create_fifo("id-output-pipe", job_id);
+	state->ready = false;
+
+	/* our output is the child's input and V. V. */
+	XWRITE(config_file, "output_pipe %s\n", state->input_pipe_name);
+	XWRITE(config_file, "input_pipe %s\n", state->output_pipe_name);
+	XWRITE(config_file, "id_magic %u\n", MESSAGING_MAGIC);
+}
+
+bool wait_for_child(struct messaging_state *state)
+{
+	assert(state->input_pipe_name  != NULL);
+	assert(state->output_pipe_name != NULL);
+	assert(!state->ready);
+
+	// TODO: use ansi escape codes for 'invisible' messages to help debug
+	// XXX: using fifos instead of anonymous pipes, impossible to tell
+	// whether e.g. the build failed. maybe use a timed wait?
+	open_fifo(&state->input_pipe, state->input_pipe_name, O_RDONLY);
+	state->input_pipe_name = NULL;
+
 	struct input_message m;
-	if (recv(input_fd, &m)) {
+	if (recv(state->input_pipe.fd, &m)) {
 		assert(m.tag == THUNDERBIRDS_ARE_GO && "wrong 1st message type");
-		printf("recvd thunderbirds\n");
+		/* child is alive. finalize the 2-way fifo setup. */
+		open_fifo(&state->output_pipe, state->output_pipe_name, O_WRONLY);
+		state->output_pipe_name = NULL;
+		state->ready = true;
 		return true;
 	} else {
 		/* child died before could send first message :( */
-		printf("no thunderbirds\n");
 		return false;
 	}
 }
 
-void talk_to_child(int input_fd, int output_fd)
+void talk_to_child(struct messaging_state *state)
 {
+	assert(state->ready);
+
 	struct input_message m;
-	while (recv(input_fd, &m)) {
+	while (recv(state->input_pipe.fd, &m)) {
 		if (m.tag == THUNDERBIRDS_ARE_GO) {
 		} else if (m.tag == DATA_RACE) {
 			printf("message DR @ 0x%x, MRS %x, %s\n",
@@ -70,10 +138,16 @@ void talk_to_child(int input_fd, int output_fd)
 			// TODO
 			struct output_message reply;
 			reply.do_abort = false;
-			send(output_fd, &reply);
+			send(state->output_pipe.fd, &reply);
 			printf("should continue? replied yes\n");
 		} else {
 			assert(false && "unknown message type");
 		}
 	}
+}
+
+void finish_messaging(struct messaging_state *state)
+{
+	delete_file(&state->input_pipe, true);
+	delete_file(&state->output_pipe, true);
 }
