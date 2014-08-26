@@ -20,6 +20,7 @@
 #include "messaging.h"
 #include "pp.h"
 #include "sync.h"
+#include "xcalls.h"
 
 static unsigned int job_id = 0;
 

@@ -16,6 +16,7 @@
 
 #include "common.h"
 #include "io.h"
+#include "xcalls.h"
 
 /* returns a malloced string */
 void create_file(struct file *f, const char *template)

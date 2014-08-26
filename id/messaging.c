@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "messaging.h"
+#include "xcalls.h"
 
 #define MESSAGING_MAGIC 0x15410de0u
 

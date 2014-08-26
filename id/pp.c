@@ -12,6 +12,7 @@
 #include "common.h"
 #include "pp.h"
 #include "sync.h"
+#include "xcalls.h"
 
 /* global state */
 static pthread_rwlock_t pp_registry_lock = PTHREAD_RWLOCK_INITIALIZER;

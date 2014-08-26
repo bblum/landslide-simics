@@ -31,26 +31,6 @@
 
 #define typeof __typeof__
 
-/* you couldn't make this shit up if you tried */
-#define scnprintf(buf, maxlen, ...) ({					\
-	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\
-	if (__snprintf_ret > (int)(maxlen)) {				\
-		__snprintf_ret = (maxlen);				\
-	}								\
-	__snprintf_ret; })
-
-#define XMALLOC(x,t) ({						\
-	typeof(t) *__xmalloc_ptr = malloc((x) * sizeof(t));	\
-	assert(__xmalloc_ptr != NULL && "malloc failed");	\
-	__xmalloc_ptr; })
-
-#define XSTRDUP(s) ({						\
-	char *__xstrdup_ptr = strndup(s, strlen(s));		\
-	assert(__xstrdup_ptr != NULL && "strdup failed");	\
-	__xstrdup_ptr; })
-
-#define FREE(x) free(x)
-
 #define ERR(...) do {							\
 		fprintf(stderr, COLOUR_BOLD COLOUR_RED __VA_ARGS__);	\
 		fprintf(stderr, COLOUR_DEFAULT);			\
