@@ -21,6 +21,7 @@
 #include "html.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
+#include "messaging.h"
 #include "schedule.h"
 #include "stack.h"
 #include "tree.h"
@@ -387,6 +388,9 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
 			 "Tabular preemption trace output to %s\n." COLOUR_DEFAULT,
 			 ls->html_file);
+		if (bug_found) {
+			message_found_a_bug(&ls->mess, ls->html_file);
+		}
 	}
 	MM_FREE(stack);
 

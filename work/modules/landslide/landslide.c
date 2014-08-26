@@ -299,6 +299,17 @@ static void found_no_bug(struct ls_state *ls)
 	SIM_quit(LS_NO_KNOWN_BUG);
 }
 
+static void check_should_abort(struct ls_state *ls)
+{
+	if (should_abort(&ls->mess)) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW
+			 "**** Abort requested by master process. ****\n"
+			 COLOUR_DEFAULT);
+		PRINT_TREE_INFO(DEV, ls);
+		SIM_quit(LS_NO_KNOWN_BUG);
+	}
+}
+
 /******************************************************************************
  * main entrypoint and time travel logic
  ******************************************************************************/
@@ -312,6 +323,7 @@ static bool time_travel(struct ls_state *ls)
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%d.\n"
 		 COLOUR_DEFAULT, ls->save.total_jumps + 1);
 	print_estimates(ls);
+	check_should_abort(ls);
 
 	if (h != NULL) {
 		assert(!h->all_explored);
