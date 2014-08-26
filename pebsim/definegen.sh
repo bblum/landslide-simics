@@ -242,6 +242,11 @@ echo " * @file kernel_specifics_$KERNEL_NAME_LOWER.h"
 echo " * @brief #defines for the $KERNEL_NAME guest kernel (automatically generated)"
 echo " * Built for image md5sum `md5sum $KERNEL_IMG`"
 echo " * Using config md5sum `md5sum $CONFIG`"
+if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+	echo " * Iterative deepening md5sum `md5sum $LANDSLIDE_ID_CONFIG`"
+else
+	echo " * Iterative deepening md5sum NONE"
+fi
 echo " * @author Ben Blum <bblum@andrew.cmu.edu>"
 echo " */"
 echo

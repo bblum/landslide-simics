@@ -171,9 +171,15 @@ elif [ -f $HEADER ]; then
 	if grep 'automatically generated' $HEADER 2>&1 >/dev/null; then
 		MD5SUM=`grep 'image md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
 		MD5SUM_C=`grep 'config md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
+		MD5SUM_ID=`grep 'deepening md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
 		MY_MD5SUM=`md5sum $KERNEL_IMG | cut -d' ' -f1`
 		MY_MD5SUM_C=`md5sum ./$LANDSLIDE_CONFIG | cut -d' ' -f1`
-		if [ "$MD5SUM" == "$MY_MD5SUM" -a "$MD5SUM_C" == "$MY_MD5SUM_C" ]; then
+		if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+			MY_MD5SUM_ID=`md5sum ./$LANDSLIDE_ID_CONFIG | cut -d' ' -f1`
+		else
+			MY_MD5SUM_ID="NONE"
+		fi
+		if [ "$MD5SUM" == "$MY_MD5SUM" -a "$MD5SUM_C" == "$MY_MD5SUM_C" -a "$MD5SUM_ID" == "$MY_MD5SUM_ID" ]; then
 			SKIP_HEADER=yes
 		else
 			rm $HEADER
