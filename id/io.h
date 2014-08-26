@@ -82,8 +82,11 @@ struct file {
 
 void create_file(struct file *f, const char *template);
 void delete_file(struct file *f, bool do_remove);
-void move_file_to(struct file *f, const char *dirpath);
 
+char *create_fifo(const char *prefix, unsigned int id);
+void open_fifo(struct file *f, char *name, int flags);
+
+void move_file_to(struct file *f, const char *dirpath);
 void unset_cloexec(int fd);
 
 #endif

@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -36,6 +37,42 @@ void delete_file(struct file *f, bool do_remove)
 	}
 	FREE(f->filename);
 	f->filename = NULL;
+}
+
+static unsigned long timestamp()
+{
+	struct timeval tv;
+	int rv = gettimeofday(&tv, NULL);
+	assert(rv == 0 && "failed gettimeofday");
+	return (unsigned long)((tv.tv_sec * 1000000) + tv.tv_usec);
+}
+
+/* can't create fifos in AFS; use ramdisk instead */
+#define FIFO_DIR "/dev/shm/"
+
+/* returns a malloced string */
+char *create_fifo(const char *prefix, unsigned int id)
+{
+	/* assemble filename */
+	char buf[BUF_SIZE];
+	scnprintf(buf, BUF_SIZE, FIFO_DIR "%s-%u-%lu.fifo",
+		  prefix, id, timestamp());
+
+	/* create file */
+	int ret = mkfifo(buf, 0700);
+	assert(ret == 0 && "failed create fifo file");
+
+	return XSTRDUP(buf);
+}
+
+/* name: a malloced string returned by create_fifo */
+void open_fifo(struct file *f, char *name, int flags)
+{
+	f->filename = name;
+
+	/* obtain file descriptor in appropriate mode */
+	f->fd = open(f->filename, flags | O_CLOEXEC);
+	assert(f->fd >= 0 && "failed open fifo file");
 }
 
 void unset_cloexec(int fd)
