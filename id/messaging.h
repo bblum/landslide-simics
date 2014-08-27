@@ -22,7 +22,7 @@ struct messaging_state {
 void messaging_init(struct messaging_state *state, struct file *config_file,
 		    unsigned int job_id);
 bool wait_for_child(struct messaging_state *state);
-void talk_to_child(struct messaging_state *state);
+void talk_to_child(struct messaging_state *state, unsigned int generation);
 void finish_messaging(struct messaging_state *state);
 
 #endif

@@ -79,11 +79,37 @@ static void check_init() {
 	}
 }
 
-struct pp *pp_new(char *config_str, unsigned int priority, unsigned int generation)
+struct pp *pp_new(char *config_str, unsigned int priority,
+		  unsigned int generation, bool *duplicate)
 {
+	struct pp *result;
+	bool already_present = false;
+	*duplicate = false;
+
 	check_init();
 	WRITE_LOCK(&pp_registry_lock);
-	struct pp *result = pp_append(config_str, priority, generation);
+	/* try to find existing one */
+	for (unsigned int i = 0; i < next_id; i++) {
+		result = registry[i];
+		if (0 == strcmp(config_str, result->config_str)) {
+			already_present = true;
+			if (priority < result->priority) {
+				DBG("updating priority of '%s' from %d to %d\n",
+				    config_str, result->priority, priority);
+				result->priority = priority;
+				result->generation = generation;
+			} else {
+				DBG("duplicate pp '%s'\n", config_str);
+				*duplicate = true;
+			}
+			break;
+		}
+	}
+
+	if (!already_present) {
+		DBG("adding new pp '%s' priority %d\n", config_str, priority);
+		result = pp_append(XSTRDUP(config_str), priority, generation);
+	}
 	RW_UNLOCK(&pp_registry_lock);
 	return result;
 }

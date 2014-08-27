@@ -41,4 +41,24 @@
 		fprintf(stderr, COLOUR_DEFAULT);			\
 	} while (0)
 
+/* Debug flag, controls info printouts not useful for ze studence */
+#define DEBUG
+
+#ifdef DEBUG
+#define DBG(...) do {							\
+		fprintf(stderr, COLOUR_DARK COLOUR_CYAN __VA_ARGS__);	\
+		fprintf(stderr, COLOUR_DEFAULT);			\
+	} while (0)
+#else
+#define DBG(...)
+#endif
+
+/* you couldn't make this shit up if you tried */
+#define scnprintf(buf, maxlen, ...) ({					\
+	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\
+	if (__snprintf_ret > (int)(maxlen)) {				\
+		__snprintf_ret = (maxlen);				\
+	}								\
+	__snprintf_ret; })
+
 #endif

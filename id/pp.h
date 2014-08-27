@@ -9,6 +9,8 @@
 
 #include <stdbool.h>
 
+#include "common.h"
+
 #define PRIORITY_NONE         ((unsigned int)0x00)
 #define PRIORITY_DR_CONFIRMED ((unsigned int)0x01)
 #define PRIORITY_DR_SUSPECTED ((unsigned int)0x02)
@@ -32,7 +34,7 @@ struct pp_set {
 
 /* pp registry functions */
 struct pp *pp_new(char *config_str, unsigned int priority,
-		    unsigned int generation);
+		    unsigned int generation, bool *duplicate);
 struct pp *pp_get(unsigned int id);
 
 /* pp set manipulation functions */
@@ -44,5 +46,8 @@ unsigned int compute_generation(struct pp_set *set);
 #define FOR_EACH_PP(pp, set)				\
 	for (pp = pp_next((set), NULL); pp != NULL;	\
 	     pp = pp_next((set), (pp)))
+
+#define MAKE_DR_PP_STR(buf, maxlen, eip, mrs)	\
+	scnprintf((buf), (maxlen), "data_race 0x%x 0x%x", (eip), (mrs))
 
 #endif

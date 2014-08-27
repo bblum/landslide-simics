@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "messaging.h"
+#include "pp.h"
 #include "time.h"
 #include "xcalls.h"
 
@@ -117,32 +118,41 @@ bool wait_for_child(struct messaging_state *state)
 	}
 }
 
-void talk_to_child(struct messaging_state *state)
+void talk_to_child(struct messaging_state *state, unsigned int generation)
 {
 	assert(state->ready);
 
 	struct input_message m;
 	while (recv(state->input_pipe.fd, &m)) {
 		if (m.tag == THUNDERBIRDS_ARE_GO) {
+			WARN("recvd duplicate thunderbirds message\n");
 		} else if (m.tag == DATA_RACE) {
-			printf("message DR @ 0x%x, MRS 0x%x, %s\n",
-			       m.content.dr.eip, m.content.dr.most_recent_syscall,
-			       m.content.dr.confirmed ? "confirmed" : "suspected");
+			/* register a (possibly) new PP based on the data race */
+			bool duplicate;
+			char config_str[BUF_SIZE];
+			MAKE_DR_PP_STR(config_str, BUF_SIZE, m.content.dr.eip,
+				       m.content.dr.most_recent_syscall);
+			pp_new(config_str, m.content.dr.confirmed ?
+			       PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED,
+			       generation, &duplicate);
+			if (!duplicate) {
+				// TODO: generate new jobs
+			}
 		} else if (m.tag == ESTIMATE) {
-			printf("message est: %Lf%% of %u brs, %Lf elapsed / %Lf total\n",
-			       m.content.estimate.proportion * 100,
-			       m.content.estimate.estimated_branches,
-			       m.content.estimate.elapsed_usecs,
-			       m.content.estimate.total_usecs);
+			DBG("message est: %Lf%% of %u brs, %Lf elapsed / %Lf total\n",
+			    m.content.estimate.proportion * 100,
+			    m.content.estimate.estimated_branches,
+			    m.content.estimate.elapsed_usecs,
+			    m.content.estimate.total_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
-			printf("message FAB, fname %s\n", m.content.bug.trace_filename);
+			DBG("message FAB, fname %s\n", m.content.bug.trace_filename);
 		} else if (m.tag == SHOULD_CONTINUE) {
 			// TODO
 			struct output_message reply;
 			reply.do_abort = false;
 			send(state->output_pipe.fd, &reply);
-			printf("should continue? replied yes; time left %lu\n",
-			       time_remaining());
+			DBG("should continue? replied yes; time left %lu\n",
+			    time_remaining());
 		} else {
 			assert(false && "unknown message type");
 		}

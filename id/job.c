@@ -120,7 +120,7 @@ static void *run_job(void *arg)
 
 	if (child_alive) {
 		/* may take as long as the state space is large */
-		talk_to_child(&mess);
+		talk_to_child(&mess, j->generation);
 	}
 
 	int child_status;
