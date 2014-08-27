@@ -10,12 +10,12 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "common.h"
 #include "io.h"
+#include "time.h"
 #include "xcalls.h"
 
 /* returns a malloced string */
@@ -38,14 +38,6 @@ void delete_file(struct file *f, bool do_remove)
 	}
 	FREE(f->filename);
 	f->filename = NULL;
-}
-
-static unsigned long timestamp()
-{
-	struct timeval tv;
-	int rv = gettimeofday(&tv, NULL);
-	assert(rv == 0 && "failed gettimeofday");
-	return (unsigned long)((tv.tv_sec * 1000000) + tv.tv_usec);
 }
 
 /* can't create fifos in AFS; use ramdisk instead */

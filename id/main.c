@@ -4,16 +4,19 @@
  * @author Ben Blum
  */
 
+#include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 
 #include "common.h"
-#include "pp.h"
 #include "job.h"
+#include "pp.h"
+#include "time.h"
 
-#define MINTIME ((long)600) /* 10 mins */
+#define MINTIME ((unsigned long)600) /* 10 mins */
+#define DEFAULT_TIME ((unsigned long)3600) /* 1hr */
 
 #define DEFAULT_TEST_CASE "thread_exit_join"
 
@@ -33,7 +36,7 @@ bool parse_time(char *str, unsigned long *result)
 	}
 	if (time < 0) {
 		ERR("Cannot time travel\n");
-		return -1;
+		return false;
 	}
 	*result = (unsigned long)time;
 	switch (*endp) {
@@ -64,21 +67,30 @@ bool parse_time(char *str, unsigned long *result)
 
 int main(int argc, char **argv)
 {
-	if (argc < 2) {
-		usage(argv[0]);
-		return -1;
-	}
-
-	// TODO: default arguments (60min?)
-	// TODO: argument for test case name
-
 	unsigned long time;
-	if (!parse_time(argv[1], &time)) {
-		usage(argv[0]);
-		return -1;
+
+	// TODO: argument for test case name
+	if (argc < 2) {
+		time = DEFAULT_TIME;
+		assert(time < ULONG_MAX / 1000000);
+		WARN("maxtime not specified; defaulting to %lu seconds\n", time);
+	} else {
+		if (!parse_time(argv[1], &time)) {
+			usage(argv[0]);
+			return -1;
+		}
+
+		if (time >= ULONG_MAX / 1000000) {
+			ERR("%ld seconds is too much time for unsigned long\n",
+			    time);
+			usage(argv[0]);
+			return -1;
+		}
+
+		printf("will run for at most %lu seconds\n", time);
 	}
 
-	printf("run for %ld seconds\n", time);
+	start_time(time * 1000000);
 
 	struct job *j = new_job(create_pp_set(PRIORITY_ALL));
 	start_job(j);

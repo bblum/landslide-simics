@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "messaging.h"
+#include "time.h"
 #include "xcalls.h"
 
 #define MESSAGING_MAGIC 0x15410de0u
@@ -124,7 +125,7 @@ void talk_to_child(struct messaging_state *state)
 	while (recv(state->input_pipe.fd, &m)) {
 		if (m.tag == THUNDERBIRDS_ARE_GO) {
 		} else if (m.tag == DATA_RACE) {
-			printf("message DR @ 0x%x, MRS %x, %s\n",
+			printf("message DR @ 0x%x, MRS 0x%x, %s\n",
 			       m.content.dr.eip, m.content.dr.most_recent_syscall,
 			       m.content.dr.confirmed ? "confirmed" : "suspected");
 		} else if (m.tag == ESTIMATE) {
@@ -140,7 +141,8 @@ void talk_to_child(struct messaging_state *state)
 			struct output_message reply;
 			reply.do_abort = false;
 			send(state->output_pipe.fd, &reply);
-			printf("should continue? replied yes\n");
+			printf("should continue? replied yes; time left %lu\n",
+			       time_remaining());
 		} else {
 			assert(false && "unknown message type");
 		}
