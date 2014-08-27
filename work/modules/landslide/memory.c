@@ -860,6 +860,14 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		 m->data_races_suspected, m->data_races_confirmed);
 #endif
 #endif
+	/* Report to master process. If unconfirmed, it only helps to set a PP
+	 * on the earlier one, so we don't send the later of suspected pairs. */
+	if (confirmed) {
+		message_data_race(&ls->mess, l0->eip,
+				  l0->most_recent_syscall, confirmed);
+	}
+	message_data_race(&ls->mess, l1->eip,
+			  l1->most_recent_syscall, confirmed);
 }
 
 /* checks for both orderings of eips in a suspected data race, occurring across
@@ -980,13 +988,6 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 				/* Whether or not we saw it reordered, check if
 				 * it enables a speculative DR save point. */
 				check_enable_speculative_pp(h1->parent, l1->eip);
-				/* Let master process know, if present. */
-				message_data_race(&ls->mess, l0->eip,
-						  l0->most_recent_syscall,
-						  confirmed);
-				message_data_race(&ls->mess, l1->eip,
-						  l1->most_recent_syscall,
-						  confirmed);
 			}
 		}
 	}
