@@ -149,10 +149,8 @@ void talk_to_child(struct messaging_state *state, unsigned int generation)
 		} else if (m.tag == SHOULD_CONTINUE) {
 			// TODO
 			struct output_message reply;
-			reply.do_abort = false;
+			reply.do_abort = TIME_UP(); // TODO
 			send(state->output_pipe.fd, &reply);
-			DBG("should continue? replied yes; time left %lu\n",
-			    time_remaining());
 		} else {
 			assert(false && "unknown message type");
 		}

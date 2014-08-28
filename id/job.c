@@ -95,7 +95,7 @@ static void *run_job(void *arg)
 			[3] = NULL,
 		};
 
-		printf("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
+		DBG("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
 		       config_file.filename, results_file.filename,
 		       log_stdout.filename, log_stderr.filename);
 
@@ -127,8 +127,8 @@ static void *run_job(void *arg)
 	pid_t result_pid = waitpid(landslide_pid, &child_status, 0);
 	assert(result_pid == landslide_pid && "wait failed");
 	assert(WIFEXITED(child_status) && "wait returned before child exit");
-	printf("Landslide pid %d exited with status %d\n", landslide_pid,
-	       WEXITSTATUS(child_status));
+	DBG("Landslide pid %d exited with status %d\n", landslide_pid,
+	    WEXITSTATUS(child_status));
 
 	finish_messaging(&mess);
 

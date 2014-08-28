@@ -12,4 +12,6 @@ unsigned long timestamp();
 void start_time(unsigned long usecs);
 unsigned long time_remaining();
 
+#define TIME_UP() (time_remaining() == 0)
+
 #endif
