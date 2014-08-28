@@ -135,9 +135,13 @@ struct pp_set *create_pp_set(unsigned int pp_mask)
 	READ_LOCK(&pp_registry_lock);
 	unsigned int size = sizeof(struct pp_set) + (sizeof(bool) * next_id);
 	struct pp_set *set = (struct pp_set *)XMALLOC(size, char /* c.c */);
-	set->len = next_id;
+	set->size = 0;
+	set->capacity = next_id;
 	for (unsigned int i = 0; i < next_id; i++) {
 		set->array[i] = ((pp_mask & pp_get(i)->priority) != 0);
+		if (set->array[i]) {
+			set->size++;
+		}
 	}
 	RW_UNLOCK(&pp_registry_lock);
 	return set;
@@ -151,13 +155,13 @@ void free_pp_set(struct pp_set *set)
 struct pp *pp_next(struct pp_set *set, struct pp *current)
 {
 	unsigned int next_index = current == NULL ? 0 : current->id + 1;
-	if (next_index == set->len) {
+	if (next_index == set->capacity) {
 		return NULL;
 	}
 
 	while (!set->array[next_index]) {
 		next_index++;
-		if (next_index == set->len) {
+		if (next_index == set->capacity) {
 			return NULL;
 		}
 	}

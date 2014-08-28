@@ -28,7 +28,8 @@ struct pp {
 };
 
 struct pp_set {
-	unsigned int len;
+	unsigned int size;
+	unsigned int capacity;
 	bool array[0];
 };
 
