@@ -82,4 +82,22 @@
 	}								\
 	__snprintf_ret; })
 
+/* MIN()/MAX() implementations that avoid the MAX(x++,y++) problem and provide
+ * strict typechecking. */
+#define MIN(x, y) ({			\
+	typeof(x) _min1 = (x);		\
+	typeof(y) _min2 = (y);		\
+	(void) (&_min1 == &_min2);	\
+	_min1 < _min2 ? _min1 : _min2; })
+
+#define MAX(x, y) ({			\
+	typeof(x) _max1 = (x);		\
+	typeof(y) _max2 = (y);		\
+	(void) (&_max1 == &_max2);	\
+	_max1 > _max2 ? _max1 : _max2; })
+
+#define container_of(ptr, type, member) ({          \
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
 #endif

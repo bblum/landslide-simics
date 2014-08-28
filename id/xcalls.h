@@ -8,6 +8,7 @@
 #define __ID_SYSCALL_H
 
 #include <errno.h>
+#include <string.h>
 
 #define EXPECT(cond, ...) do {						\
 		int __last_errno = errno;				\
