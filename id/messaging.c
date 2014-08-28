@@ -37,7 +37,7 @@ struct input_message {
 
 		struct {
 			long double proportion;
-			unsigned int estimated_branches;
+			unsigned int elapsed_branches;
 			long double total_usecs;
 			long double elapsed_usecs;
 		} estimate;
@@ -139,9 +139,10 @@ void talk_to_child(struct messaging_state *state, unsigned int generation)
 				// TODO: generate new jobs
 			}
 		} else if (m.tag == ESTIMATE) {
-			DBG("message est: %Lf%% of %u brs, %Lf elapsed / %Lf total\n",
+			DBG("message est: %u/%u brs (%Lf%%), %Lf elapsed / %Lf total\n",
+			    m.content.estimate.elapsed_branches,
+			    (unsigned int)((long double)m.content.estimate.elapsed_branches / m.content.estimate.proportion),
 			    m.content.estimate.proportion * 100,
-			    m.content.estimate.estimated_branches,
 			    m.content.estimate.elapsed_usecs,
 			    m.content.estimate.total_usecs);
 		} else if (m.tag == FOUND_A_BUG) {

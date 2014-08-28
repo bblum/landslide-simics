@@ -372,11 +372,11 @@ void print_estimates(struct ls_state *ls)
 {
 	long double proportion = estimate_proportion(ls->save.root, ls->save.current);
 	long double usecs = estimate_time(ls->save.root, ls->save.current);
-	long double branches = (ls->save.total_jumps + 1) / proportion;
+	unsigned int branches = ls->save.total_jumps + 1;
 
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN
 		 "Estimate: %Lf%% (%Lf total branches)\n" COLOUR_DEFAULT,
-		 proportion * 100, branches);
+		 proportion * 100, (long double)branches / proportion);
 
 	struct human_friendly_time total_time, elapsed_time, remaining_time;
 	human_friendly_time(usecs, &total_time);
@@ -397,5 +397,6 @@ void print_estimates(struct ls_state *ls)
 		 usecs / 1000000, (long double)ls->save.total_usecs / 1000000,
 		 (usecs - (long double)ls->save.total_usecs) / 1000000);
 
-	message_estimate(&ls->mess, proportion, branches, usecs, ls->save.total_usecs);
+	message_estimate(&ls->mess, proportion, branches,
+			 usecs, ls->save.total_usecs);
 }

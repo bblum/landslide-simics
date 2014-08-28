@@ -40,7 +40,7 @@ struct output_message {
 
 		struct {
 			long double proportion;
-			unsigned int estimated_branches;
+			unsigned int elapsed_branches;
 			long double total_usecs;
 			long double elapsed_usecs;
 		} estimate;
@@ -138,13 +138,13 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 }
 
 void message_estimate(struct messaging_state *state, long double proportion,
-		      unsigned int estimated_branches, long double total_usecs,
+		      unsigned int elapsed_branches, long double total_usecs,
 		      unsigned long elapsed_usecs)
 {
 	struct output_message m;
 	m.tag = ESTIMATE;
 	m.content.estimate.proportion = proportion;
-	m.content.estimate.estimated_branches = estimated_branches;
+	m.content.estimate.elapsed_branches = elapsed_branches;
 	m.content.estimate.total_usecs = total_usecs;
 	m.content.estimate.elapsed_usecs = elapsed_usecs;
 	send(state, &m);
