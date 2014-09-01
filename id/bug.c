@@ -84,5 +84,10 @@ bool found_any_bugs()
 	}
 	UNLOCK(&fab_lock);
 
+	if (!any) {
+		printf(COLOUR_BOLD COLOUR_GREEN
+		       "No bugs were found -- you survived!\n");
+	}
+
 	return any;
 }

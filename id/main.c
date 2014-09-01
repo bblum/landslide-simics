@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "bug.h"
 #include "common.h"
-#include "found_a_bug.h"
 #include "job.h"
 #include "option.h"
 #include "pp.h"

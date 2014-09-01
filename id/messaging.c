@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "found_a_bug.h"
+#include "bug.h"
 #include "job.h"
 #include "messaging.h"
 #include "pp.h"
