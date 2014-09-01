@@ -33,6 +33,13 @@ extern char **environ;
 #define RESULTS_FILE_TEMPLATE "results-id.landslide.XXXXXX"
 #define LOG_FILE_TEMPLATE(x) "landslide-id-" x ".log.XXXXXX"
 
+char *test_name = NULL;
+
+void set_test_name(char *name)
+{
+	test_name = XSTRDUP(name);
+}
+
 struct job *new_job(struct pp_set *config)
 {
 	struct job *j = XMALLOC(1, struct job);
@@ -69,6 +76,8 @@ static void *run_job(void *arg)
 	FOR_EACH_PP(pp, j->config) {
 		XWRITE(&config_file, "%s\n", pp->config_str);
 	}
+	assert(test_name != NULL);
+	XWRITE(&config_file, "TEST_CASE=%s\n", test_name);
 
 	messaging_init(&mess, &config_file, j->id);
 

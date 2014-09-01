@@ -28,8 +28,9 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	printf("will run for at most %lu seconds\n", max_time);
+	DBG("will run for at most %lu seconds\n", max_time);
 
+	set_test_name(test_name);
 	start_time(max_time * 1000000);
 
 	unsigned int hardcoded_configs[] = {

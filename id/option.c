@@ -21,7 +21,7 @@
 #define MINTIME ((unsigned long)600) /* 10 mins */
 #define DEFAULT_TIME "1h"
 
-#define DEFAULT_TEST_CASE "thread_exit_join"
+#define DEFAULT_TEST_CASE "thr_exit_join"
 
 struct cmdline_option {
 	char flag;
