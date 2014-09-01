@@ -30,6 +30,15 @@ function extra_sym {
 function starting_threads {
 	echo -n
 }
+function output_pipe {
+	echo -n
+}
+function input_pipe {
+	echo -n
+}
+function id_magic {
+	echo -n
+}
 
 
 function die {
@@ -45,6 +54,14 @@ fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
 source $CONFIG
+
+if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+	# Get master-wrapper-supplied test case from supplemental config.
+	if [ ! -f "$LANDSLIDE_ID_CONFIG" ]; then
+		die "Where's $LANDSLIDE_ID_CONFIG?"
+	fi
+	source $LANDSLIDE_ID_CONFIG
+fi
 
 # Check sanity
 
