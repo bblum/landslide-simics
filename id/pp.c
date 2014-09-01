@@ -6,8 +6,9 @@
 
 #define _XOPEN_SOURCE 700
 
-#include <pthread.h>
 #include <limits.h>
+#include <pthread.h>
+#include <string.h>
 
 #include "common.h"
 #include "pp.h"
@@ -133,8 +134,9 @@ struct pp_set *create_pp_set(unsigned int pp_mask)
 {
 	check_init();
 	READ_LOCK(&pp_registry_lock);
-	unsigned int size = sizeof(struct pp_set) + (sizeof(bool) * next_id);
-	struct pp_set *set = (struct pp_set *)XMALLOC(size, char /* c.c */);
+	unsigned int struct_size =
+		sizeof(struct pp_set) + (sizeof(bool) * next_id);
+	struct pp_set *set = (struct pp_set *)XMALLOC(struct_size, char /* c.c */);
 	set->size = 0;
 	set->capacity = next_id;
 	for (unsigned int i = 0; i < next_id; i++) {
@@ -147,9 +149,28 @@ struct pp_set *create_pp_set(unsigned int pp_mask)
 	return set;
 }
 
+struct pp_set *clone_pp_set(struct pp_set *set)
+{
+	unsigned int struct_size =
+		sizeof(struct pp_set) + (sizeof(bool) * set->capacity);
+	struct pp_set *new_set = (struct pp_set *)XMALLOC(capacity, char);
+	memcpy(new_set, set, struct_size);
+	return new_set;
+}
+
 void free_pp_set(struct pp_set *set)
 {
 	FREE(set);
+}
+
+void print_pp_set(struct pp_set *set)
+{
+	struct pp *pp;
+	printf("{ ");
+	FOR_EACH_PP(pp, set) {
+		printf("'%s' ", pp->config_str);
+	}
+	printf("}");
 }
 
 struct pp *pp_next(struct pp_set *set, struct pp *current)

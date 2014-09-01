@@ -50,12 +50,9 @@ int main(int argc, char **argv)
 		while (true) {
 			struct job *j = new_job(config);
 			unsigned int last_generation = j->generation;
-			struct pp *pp;
-			printf("Starting job with PP set { ");
-			FOR_EACH_PP(pp, config) {
-				printf("'%s' ", pp->config_str);
-			}
-			printf("}\n");
+			printf("Starting job with PP set ");
+			print_pp_set(config);
+			printf("\n");
 			start_job(j);
 			finish_job(j);
 			// TODO: check bug found?

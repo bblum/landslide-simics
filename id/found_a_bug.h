@@ -9,7 +9,9 @@
 
 #include <stdbool.h>
 
-void found_a_bug(char *trace_filename);
+struct pp_set;
+
+void found_a_bug(char *trace_filename, struct pp_set *config);
 
 bool found_any_bugs();
 

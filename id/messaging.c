@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "found_a_bug.h"
+#include "job.h"
 #include "messaging.h"
 #include "pp.h"
 #include "time.h"
@@ -119,7 +120,7 @@ bool wait_for_child(struct messaging_state *state)
 	}
 }
 
-void talk_to_child(struct messaging_state *state, unsigned int generation)
+void talk_to_child(struct messaging_state *state, struct job *j)
 {
 	assert(state->ready);
 
@@ -135,7 +136,7 @@ void talk_to_child(struct messaging_state *state, unsigned int generation)
 				       m.content.dr.most_recent_syscall);
 			pp_new(config_str, m.content.dr.confirmed ?
 			       PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED,
-			       generation, &duplicate);
+			       j->generation, &duplicate);
 			if (!duplicate) {
 				// TODO: generate new jobs
 			}
@@ -148,7 +149,7 @@ void talk_to_child(struct messaging_state *state, unsigned int generation)
 			    m.content.estimate.total_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
 			DBG("message FAB, fname %s\n", m.content.bug.trace_filename);
-			found_a_bug(m.content.bug.trace_filename);
+			found_a_bug(m.content.bug.trace_filename, j->config);
 		} else if (m.tag == SHOULD_CONTINUE) {
 			// TODO
 			struct output_message reply;

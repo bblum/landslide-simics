@@ -40,7 +40,9 @@ struct pp *pp_get(unsigned int id);
 
 /* pp set manipulation functions */
 struct pp_set *create_pp_set(unsigned int pp_mask);
+struct pp_set *clone_pp_set(struct pp_set *set);
 void free_pp_set(struct pp_set *set);
+void print_pp_set(struct pp_set *set);
 struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
 unsigned int compute_generation(struct pp_set *set);
 

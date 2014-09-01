@@ -12,8 +12,13 @@
 #include "sync.h"
 #include "xcalls.h"
 
+struct bug_info {
+	char *filename;
+	struct pp_set *config;
+};
+
 static bool fab_inited = false;
-static ARRAY_LIST(char *) fab_list;
+static ARRAY_LIST(struct bug_info) fab_list;
 static pthread_mutex_t fab_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void check_init()
@@ -28,25 +33,32 @@ static void check_init()
 	}
 }
 
-void found_a_bug(char *trace_filename)
+void found_a_bug(char *trace_filename, struct pp_set *config)
 {
+	struct bug_info b;
+	b.filename = XSTRDUP(trace_filename);
+	b.config = clone_pp_set(config);
+
 	check_init();
 
 	LOCK(&fab_lock);
-	ARRAY_LIST_APPEND(&fab_list, XSTRDUP(trace_filename));
+	ARRAY_LIST_APPEND(&fab_list, b);
 	UNLOCK(&fab_lock);
 }
 
 bool found_any_bugs()
 {
 	unsigned int i;
-	char **trace_filename;
+	struct bug_info *b;
 	bool any = false;
 	check_init();
 
 	LOCK(&fab_lock);
-	ARRAY_LIST_FOREACH(&fab_list, i, trace_filename) {
-		ERR("Found a bug: %s\n", *trace_filename);
+	ARRAY_LIST_FOREACH(&fab_list, i, b) {
+		printf(COLOUR_BOLD COLOUR_RED
+		       "Found a bug - %s - with PPs: ", b->filename);
+		print_pp_set(b->config);
+		printf("\n" COLOUR_DEFAULT);
 		any = true;
 	}
 	UNLOCK(&fab_lock);

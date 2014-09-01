@@ -11,6 +11,8 @@
 
 #include "io.h"
 
+struct job;
+
 struct messaging_state {
 	char *input_pipe_name;
 	char *output_pipe_name;
@@ -22,7 +24,7 @@ struct messaging_state {
 void messaging_init(struct messaging_state *state, struct file *config_file,
 		    unsigned int job_id);
 bool wait_for_child(struct messaging_state *state);
-void talk_to_child(struct messaging_state *state, unsigned int generation);
+void talk_to_child(struct messaging_state *state, struct job *j);
 void finish_messaging(struct messaging_state *state);
 
 bool found_any_bugs();
