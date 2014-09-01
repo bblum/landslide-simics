@@ -173,6 +173,25 @@ void print_pp_set(struct pp_set *set)
 	printf("}");
 }
 
+bool pp_subset(struct pp_set *sub, struct pp_set *super)
+{
+	/* Does 'sub' have any PPs in it that 'super' doesn't? */
+	for (unsigned int i = 0; i < sub->capacity; i++) {
+		if (i >= super->capacity) {
+			/* 'sub' was created later... */
+			if (sub->array[i]) {
+				/* ...and also had a later such pp enabled. */
+				return false;
+			}
+		} else {
+			if (sub->array[i] && !super->array[i]) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 struct pp *pp_next(struct pp_set *set, struct pp *current)
 {
 	unsigned int next_index = current == NULL ? 0 : current->id + 1;

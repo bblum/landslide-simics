@@ -46,6 +46,27 @@ void found_a_bug(char *trace_filename, struct pp_set *config)
 	UNLOCK(&fab_lock);
 }
 
+/* Did a prior job with a subset of the given PPs already find a bug? */
+bool bug_already_found(struct pp_set *config)
+{
+	unsigned int i;
+	struct bug_info *b;
+	bool result = false;
+
+	check_init();
+
+	LOCK(&fab_lock);
+	ARRAY_LIST_FOREACH(&fab_list, i, b) {
+		if (pp_subset(b->config, config)) {
+			result = true;
+			break;
+		}
+	}
+	UNLOCK(&fab_lock);
+
+	return result;
+}
+
 bool found_any_bugs()
 {
 	unsigned int i;

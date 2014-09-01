@@ -48,6 +48,11 @@ int main(int argc, char **argv)
 		struct pp_set *config = create_pp_set(mask);
 
 		while (true) {
+			/* Can we safely skip this redundant PP set? */
+			if (bug_already_found(config)) {
+				break;
+			}
+
 			struct job *j = new_job(config);
 			unsigned int last_generation = j->generation;
 			printf("Starting job with PP set ");
