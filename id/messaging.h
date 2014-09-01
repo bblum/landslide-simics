@@ -25,4 +25,6 @@ bool wait_for_child(struct messaging_state *state);
 void talk_to_child(struct messaging_state *state, unsigned int generation);
 void finish_messaging(struct messaging_state *state);
 
+bool found_any_bugs();
+
 #endif

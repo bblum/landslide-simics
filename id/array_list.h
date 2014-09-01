@@ -7,6 +7,8 @@
 #ifndef __ID_ARRAY_LIST_H
 #define __ID_ARRAY_LIST_H
 
+#include <limits.h>
+
 #include "common.h"
 #include "xcalls.h"
 

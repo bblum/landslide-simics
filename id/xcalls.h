@@ -21,15 +21,27 @@
 
 // FIXME: convert to eval-argument-once form ("int __arg = (arg);")
 
+/* you couldn't make this shit up if you tried */
+#define scnprintf(buf, maxlen, ...) ({					\
+	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\
+	if (__snprintf_ret > (int)(maxlen)) {				\
+		__snprintf_ret = (maxlen);				\
+	}								\
+	__snprintf_ret; })
+
+
 #define XMALLOC(x,t) ({							\
 	typeof(t) *__xmalloc_ptr = malloc((x) * sizeof(t));		\
 	EXPECT(__xmalloc_ptr != NULL, "malloc failed");			\
 	__xmalloc_ptr; })
 
 #define XSTRDUP(s) ({							\
-	char *__xstrdup_ptr = strndup(s, strlen(s));			\
-	EXPECT(__xstrdup_ptr != NULL, "strdup failed");			\
-	__xstrdup_ptr; })
+	char *__s = (s);						\
+	int __len = strlen(__s);					\
+	char *__buf = XMALLOC(__len + 1, char);				\
+	int __ret = scnprintf(__buf, __len + 1, "%s", __s);		\
+	EXPECT(__ret == __len, "scprintf failed");			\
+	__buf; })
 
 #define FREE(x) free(x)
 

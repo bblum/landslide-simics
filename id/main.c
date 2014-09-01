@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "found_a_bug.h"
 #include "job.h"
 #include "option.h"
 #include "pp.h"
@@ -75,6 +76,5 @@ int main(int argc, char **argv)
 		if (TIME_UP()) { WARN("timeup\n"); break; }
 	}
 
-	// TODO: return something better
-	return 0;
+	return found_any_bugs() ? -1 : 0;
 }

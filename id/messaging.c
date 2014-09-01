@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "found_a_bug.h"
 #include "messaging.h"
 #include "pp.h"
 #include "time.h"
@@ -147,6 +148,7 @@ void talk_to_child(struct messaging_state *state, unsigned int generation)
 			    m.content.estimate.total_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
 			DBG("message FAB, fname %s\n", m.content.bug.trace_filename);
+			found_a_bug(m.content.bug.trace_filename);
 		} else if (m.tag == SHOULD_CONTINUE) {
 			// TODO
 			struct output_message reply;

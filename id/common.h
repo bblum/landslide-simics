@@ -74,14 +74,6 @@
 #define DBG(...)
 #endif
 
-/* you couldn't make this shit up if you tried */
-#define scnprintf(buf, maxlen, ...) ({					\
-	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\
-	if (__snprintf_ret > (int)(maxlen)) {				\
-		__snprintf_ret = (maxlen);				\
-	}								\
-	__snprintf_ret; })
-
 /* MIN()/MAX() implementations that avoid the MAX(x++,y++) problem and provide
  * strict typechecking. */
 #define MIN(x, y) ({			\
