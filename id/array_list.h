@@ -99,11 +99,12 @@
 
 /* O(1) but doesn't preserve order */
 #define ARRAY_LIST_REMOVE_SWAP(a, i) do { \
-		unsigned int __i = (i);						\
-		typeof(a) __a = (a);						\
-		assert(__a->size != 0);						\
-		ARRAY_LIST_SWAP(__a, __i, __a->size - 1);			\
-		__a->size--;							\
+		/* __i0 and __a0 because wtf, gcc, regarding shadowing. */ 	\
+		unsigned int __i0 = (i);					\
+		typeof(a) __a0 = (a);						\
+		assert(__a0->size != 0);						\
+		ARRAY_LIST_SWAP(__a0, __i0, __a0->size - 1);			\
+		__a0->size--;							\
 	} while (0)
 
 #endif
