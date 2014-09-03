@@ -16,7 +16,7 @@ struct pp_set;
 
 struct job {
 	/* local state */
-	struct pp_set *config;
+	struct pp_set *config; /* shared but read-only after init */
 	unsigned int id;
 	unsigned int generation; /* max among generations of pps + 1 */
 

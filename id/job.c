@@ -164,6 +164,10 @@ void start_job(struct job *j)
 	assert(ret == 0 && "failed detach");
 }
 
+// TODO: allow for job to block until later
+
+// TODO: add block_job
+
 void wait_on_job(struct job *j)
 {
 	LOCK(&j->done_lock);
