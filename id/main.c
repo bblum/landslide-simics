@@ -14,6 +14,7 @@
 #include "option.h"
 #include "pp.h"
 #include "time.h"
+#include "work.h"
 
 int main(int argc, char **argv)
 {
@@ -33,6 +34,14 @@ int main(int argc, char **argv)
 	set_test_name(test_name);
 	start_time(max_time * 1000000);
 
+	add_work(new_job(create_pp_set(PRIORITY_NONE)));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK)));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_UNLOCK)));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK)));
+	start_work(num_cpus);
+	wait_to_finish_work();
+
+#if 0
 	unsigned int hardcoded_configs[] = {
 		PRIORITY_NONE,
 		PRIORITY_MUTEX_LOCK,
@@ -78,6 +87,7 @@ int main(int argc, char **argv)
 		// TODO: check bug found
 		if (TIME_UP()) { WARN("timeup\n"); break; }
 	}
+#endif
 
 	return found_any_bugs() ? -1 : 0;
 }
