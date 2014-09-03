@@ -11,6 +11,7 @@
 
 #include "common.h"
 
+/* numerically-lower priorities are more urgent */
 #define PRIORITY_NONE         ((unsigned int)0x00)
 #define PRIORITY_DR_CONFIRMED ((unsigned int)0x01)
 #define PRIORITY_DR_SUSPECTED ((unsigned int)0x02)
@@ -25,6 +26,8 @@ struct pp {
 	unsigned int priority;
 	unsigned int id; /* global unique identifier among PPs */
 	unsigned int generation;
+	/* write-able, protected by global registry lock */
+	bool explored; /* was a state space including this pp completed? */
 };
 
 struct pp_set {
@@ -45,7 +48,11 @@ void free_pp_set(struct pp_set *set);
 void print_pp_set(struct pp_set *set);
 bool pp_subset(struct pp_set *sub, struct pp_set *super);
 struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
+
 unsigned int compute_generation(struct pp_set *set);
+void record_explored_pps(struct pp_set *set);
+struct pp_set *filter_unexplored_pps(struct pp_set *set);
+unsigned int unexplored_priority(struct pp_set *set);
 
 #define FOR_EACH_PP(pp, set)				\
 	for (pp = pp_next((set), NULL); pp != NULL;	\

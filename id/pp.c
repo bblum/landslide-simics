@@ -36,6 +36,9 @@ static struct pp *pp_append(char *config_str, unsigned int priority,
 	pp->priority   = priority;
 	pp->id         = next_id;
 	pp->generation = generation;
+	pp->explored   = false;
+
+	assert(pp->priority != 0);
 
 	if (generation > max_generation) {
 		// TODO: have a printing framework
@@ -218,4 +221,65 @@ unsigned int compute_generation(struct pp_set *set)
 		}
 	}
 	return max_generation;
+}
+
+void record_explored_pps(struct pp_set *set)
+{
+	struct pp *pp;
+	/* nb. iteration takes the read lock */
+	FOR_EACH_PP(pp, set) {
+		/* strictly speaking the lock is not needed to protect the
+		 * explored flag, as it's write-once. */
+		WRITE_LOCK(&pp_registry_lock);
+		pp->explored = true;
+		RW_UNLOCK(&pp_registry_lock);
+	}
+}
+
+/* output may change across subsequent calls because of other threads.
+ * returns NULL, *not* an empty set, if there were no unexplored PPs. */
+struct pp_set *filter_unexplored_pps(struct pp_set *set)
+{
+	struct pp_set *new_set = clone_pp_set(set);
+	struct pp *pp;
+	bool any = false;
+	/* filter (lambda pp. !pp->explored) set */
+	FOR_EACH_PP(pp, new_set) {
+		READ_LOCK(&pp_registry_lock);
+		if (pp->explored) {
+			new_set->array[pp->id] = false;
+		} else {
+			any = true;
+		}
+		RW_UNLOCK(&pp_registry_lock);
+	}
+
+	if (!any) {
+		free_pp_set(new_set);
+		return NULL;
+	} else {
+		return new_set;
+	}
+}
+
+/* returns PRIORITY_ALL if no pps are unexplored in a nonempty set. */
+unsigned int unexplored_priority(struct pp_set *set)
+{
+	struct pp *pp;
+	unsigned int min = PRIORITY_ALL;
+	bool emptyset = true;
+	/* min $ map (lambda pp. pp->priority) $ filter_unexplored_pps set */
+	FOR_EACH_PP(pp, set) {
+		emptyset = false;
+		READ_LOCK(&pp_registry_lock);
+		if (!pp->explored && pp->priority < min) {
+			min = pp->priority;
+		}
+		RW_UNLOCK(&pp_registry_lock);
+	}
+	if (emptyset) {
+		return PRIORITY_NONE;
+	} else {
+		return min;
+	}
 }
