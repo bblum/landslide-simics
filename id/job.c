@@ -130,6 +130,12 @@ static void *run_job(void *arg)
 	if (child_alive) {
 		/* may take as long as the state space is large */
 		talk_to_child(&mess, j);
+	} else {
+		// TODO: record job in "failed to run" list or some such
+		ERR("[JOB %d] There was a problem setting up Landslide.\n", j->id);
+		// TODO: err_pp_set or some such
+		ERR("[JOB %d] For details see %s and %s\n", j->id,
+		    log_stdout.filename, log_stderr.filename);
 	}
 
 	int child_status;

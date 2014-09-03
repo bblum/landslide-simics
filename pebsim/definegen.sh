@@ -10,8 +10,13 @@
 function err {
 	echo -e "\033[01;31m$1\033[00m" >&2
 }
+OUTPUT_PIPE=
 function die {
 	err "$1"
+	# See corresponding comment in build.sh
+	if [ ! -z "$OUTPUT_PIPE" ]; then
+		echo -n > $OUTPUT_PIPE
+	fi
 	kill $$ # may be called in backticks; exit won't work
 }
 

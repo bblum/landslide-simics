@@ -30,19 +30,22 @@ function extra_sym {
 function starting_threads {
 	echo -n
 }
-function output_pipe {
+function id_magic {
 	echo -n
 }
 function input_pipe {
 	echo -n
 }
-function id_magic {
-	echo -n
+OUTPUT_PIPE=
+function output_pipe {
+	OUTPUT_PIPE=$1
 }
-
 
 function die {
 	echo -e "\033[01;31m$1\033[00m" >&2
+	if [ ! -z "$OUTPUT_PIPE" ]; then
+		echo -n > $OUTPUT_PIPE
+	fi
 	exit 1
 }
 

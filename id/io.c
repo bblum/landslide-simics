@@ -68,6 +68,13 @@ void open_fifo(struct file *f, char *name, int flags)
 	assert(f->fd >= 0 && "failed open fifo file");
 }
 
+/* for cleaning up a create_fifo() result that was never open()ed */
+void delete_unused_fifo(char *name)
+{
+	XREMOVE(name);
+	FREE(name);
+}
+
 void unset_cloexec(int fd)
 {
 	/* communication pipes were opened with CLOEXEC set so as not to race

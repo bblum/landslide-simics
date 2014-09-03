@@ -100,9 +100,6 @@ bool wait_for_child(struct messaging_state *state)
 	assert(state->output_pipe_name != NULL);
 	assert(!state->ready);
 
-	// TODO: use ansi escape codes for 'invisible' messages to help debug
-	// XXX: using fifos instead of anonymous pipes, impossible to tell
-	// whether e.g. the build failed. maybe use a timed wait?
 	open_fifo(&state->input_pipe, state->input_pipe_name, O_RDONLY);
 	state->input_pipe_name = NULL;
 
@@ -163,6 +160,11 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 
 void finish_messaging(struct messaging_state *state)
 {
+	assert(state->input_pipe_name == NULL);
 	delete_file(&state->input_pipe, true);
-	delete_file(&state->output_pipe, true);
+	if (state->output_pipe_name == NULL) {
+		delete_file(&state->output_pipe, true);
+	} else {
+		delete_unused_fifo(state->output_pipe_name);
+	}
 }

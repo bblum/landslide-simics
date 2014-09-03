@@ -13,8 +13,15 @@ function msg {
 function err {
 	echo -e "\033[01;31m$1\033[00m" >&2
 }
+
+# If some part of the setup process fails before landslide can send the
+# thunderbirds message, we need to not leave the master hanging (literally).
+OUTPUT_PIPE=
 function die {
 	err "$1"
+	if [ ! -z "$OUTPUT_PIPE" ]; then
+		echo -n > $OUTPUT_PIPE
+	fi
 	kill $$ # may be called in backticks; exit won't work
 }
 
@@ -45,15 +52,28 @@ function extra_sym {
 function starting_threads {
 	echo -n
 }
+function id_magic {
+	echo -n
+}
+INPUT_PIPE=
+function input_pipe {
+	INPUT_PIPE=$1
+}
+
+OUTPUT_PIPE=
+function output_pipe {
+	OUTPUT_PIPE=$1
+}
 
 # Doesn't work without the "./". Everything is awful forever.
-if [ ! -f "./$LANDSLIDE_CONFIG" ]; then
-	die "Where's $LANDSLIDE_CONFIG?"
-fi
 if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
 	if [ ! -f "./$LANDSLIDE_ID_CONFIG" ]; then
 		die "Where's ID config $LANDSLIDE_ID_CONFIG?"
 	fi
+	source "$LANDSLIDE_ID_CONFIG"
+fi
+if [ ! -f "./$LANDSLIDE_CONFIG" ]; then
+	die "Where's $LANDSLIDE_CONFIG?"
 fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
