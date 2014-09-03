@@ -19,7 +19,7 @@
 static pthread_rwlock_t pp_registry_lock = PTHREAD_RWLOCK_INITIALIZER;
 static unsigned int next_id; /* also represents 1 + max legal index */
 static unsigned int max_generation = 0;
-static unsigned int capacity;
+static unsigned int registry_capacity;
 static struct pp **registry = NULL; /* NULL means not yet initialized */
 
 #define INITIAL_CAPACITY 16
@@ -46,13 +46,13 @@ static struct pp *pp_append(char *config_str, unsigned int priority,
 	}
 
 	// TODO: convert to use array-list macross
-	if (next_id == capacity) {
-		assert(capacity < UINT_MAX / 2);
-		struct pp **resized = XMALLOC(capacity * 2, struct pp *);
+	if (next_id == registry_capacity) {
+		assert(registry_capacity < UINT_MAX / 2);
+		struct pp **resized = XMALLOC(registry_capacity * 2, struct pp *);
 		memcpy(resized, registry, next_id * sizeof(struct pp *));
 		FREE(registry);
 		registry = resized;
-		capacity *= 2;
+		registry_capacity *= 2;
 	}
 	registry[next_id] = pp;
 	next_id++;
@@ -66,9 +66,9 @@ static void check_init() {
 	if (need_init) {
 		WRITE_LOCK(&pp_registry_lock);
 		if (registry == NULL) { /* DCL */
-			capacity = INITIAL_CAPACITY;
+			registry_capacity = INITIAL_CAPACITY;
 			next_id = 0;
-			registry = XMALLOC(capacity, struct pp *);
+			registry = XMALLOC(registry_capacity, struct pp *);
 			struct pp *pp = pp_append(
 				XSTRDUP("within_user_function mutex_lock"),
 				PRIORITY_MUTEX_LOCK, max_generation);
@@ -103,7 +103,7 @@ struct pp *pp_new(char *config_str, unsigned int priority,
 				result->priority = priority;
 				result->generation = generation;
 			} else {
-				DBG("duplicate pp '%s'\n", config_str);
+				// DBG("duplicate pp '%s'\n", config_str);
 				*duplicate = true;
 			}
 			break;
@@ -133,13 +133,18 @@ struct pp *pp_get(unsigned int id)
  * PP sets
  ******************************************************************************/
 
+static struct pp_set *alloc_pp_set(unsigned int capacity)
+{
+	unsigned int struct_size =
+		sizeof(struct pp_set) + (capacity * sizeof(bool));
+	return (struct pp_set *)XMALLOC(struct_size, char /* c.c */);
+}
+
 struct pp_set *create_pp_set(unsigned int pp_mask)
 {
 	check_init();
 	READ_LOCK(&pp_registry_lock);
-	unsigned int struct_size =
-		sizeof(struct pp_set) + (sizeof(bool) * next_id);
-	struct pp_set *set = (struct pp_set *)XMALLOC(struct_size, char /* c.c */);
+	struct pp_set *set = alloc_pp_set(next_id);
 	set->size = 0;
 	set->capacity = next_id;
 	for (unsigned int i = 0; i < next_id; i++) {
@@ -154,10 +159,28 @@ struct pp_set *create_pp_set(unsigned int pp_mask)
 
 struct pp_set *clone_pp_set(struct pp_set *set)
 {
-	unsigned int struct_size =
-		sizeof(struct pp_set) + (sizeof(bool) * set->capacity);
-	struct pp_set *new_set = (struct pp_set *)XMALLOC(capacity, char);
-	memcpy(new_set, set, struct_size);
+	struct pp_set *new_set = alloc_pp_set(set->capacity);
+	new_set->size = set->size;
+	new_set->capacity = set->capacity;
+	for (unsigned int i = 0; i < new_set->capacity; i++) {
+		new_set->array[i] = set->array[i];
+	}
+	return new_set;
+}
+
+struct pp_set *add_pp_to_set(struct pp_set *set, struct pp *pp)
+{
+	unsigned int new_capacity = MAX(set->capacity, pp->id + 1);
+	struct pp_set *new_set = alloc_pp_set(new_capacity);
+	new_set->size = set->size;
+	new_set->capacity = new_capacity;
+	for (unsigned int i = 0; i < new_set->capacity; i++) {
+		new_set->array[i] = i < set->capacity && set->array[i];
+	}
+	if (!new_set->array[pp->id]) {
+		new_set->array[pp->id] = true;
+		new_set->size++;
+	}
 	return new_set;
 }
 
@@ -174,6 +197,11 @@ void print_pp_set(struct pp_set *set)
 		printf("'%s' ", pp->config_str);
 	}
 	printf("}");
+}
+
+bool pp_set_contains(struct pp_set *set, struct pp *pp)
+{
+	return pp->id < set->capacity && set->array[pp->id];
 }
 
 bool pp_subset(struct pp_set *sub, struct pp_set *super)

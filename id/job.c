@@ -183,10 +183,15 @@ void wait_on_job(struct job *j)
 	UNLOCK(&j->done_lock);
 }
 
+void cancel_job(struct job *j)
+{
+	free_pp_set(j->config);
+	FREE(j);
+}
+
 void finish_job(struct job *j)
 {
 	wait_on_job(j);
 	record_explored_pps(j->config);
-	free_pp_set(j->config);
-	FREE(j);
+	cancel_job(j);
 }

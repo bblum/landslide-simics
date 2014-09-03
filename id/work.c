@@ -7,6 +7,7 @@
 #include <pthread.h>
 
 #include "array_list.h"
+#include "bug.h"
 #include "job.h"
 #include "pp.h"
 #include "sync.h"
@@ -72,13 +73,19 @@ static struct job *get_work()
 
 static void process_work(struct job *j)
 {
-	// TODO: upgrade to allow for blocked jobs
-	// TODO: when running e.g. mx lock+unlock job, periodically check for lower
-	// priority jobs.
-	// TODO: periodically check for foundabugs from subset jobs
-	start_job(j);
-	wait_on_job(j);
-	finish_job(j);
+	if (bug_already_found(j->config)) {
+		/* Optimization for subset-foundabug jobs where the bug was not
+		 * found until after the work was added, but before we start the
+		 * job. Don't waste time compiling landslide before checking. */
+		cancel_job(j);
+	} else {
+		// TODO: upgrade to allow for blocked jobs
+		// TODO: when running e.g. mx lock+unlock job, periodically
+		// check for lower priority jobs.
+		start_job(j);
+		wait_on_job(j);
+		finish_job(j);
+	}
 }
 
 static void *workqueue_thread(void *arg)

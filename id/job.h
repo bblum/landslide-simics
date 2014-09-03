@@ -30,6 +30,7 @@ void set_test_name(char *name);
 struct job *new_job(struct pp_set *config);
 void start_job(struct job *j);
 void wait_on_job(struct job *j);
+void cancel_job(struct job *j);
 void finish_job(struct job *j);
 
 #endif

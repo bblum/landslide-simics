@@ -44,10 +44,12 @@ struct pp *pp_get(unsigned int id);
 /* pp set manipulation functions */
 struct pp_set *create_pp_set(unsigned int pp_mask);
 struct pp_set *clone_pp_set(struct pp_set *set);
+struct pp_set *add_pp_to_set(struct pp_set *set, struct pp *pp);
 void free_pp_set(struct pp_set *set);
 void print_pp_set(struct pp_set *set);
 bool pp_subset(struct pp_set *sub, struct pp_set *super);
 struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
+bool pp_set_contains(struct pp_set *set, struct pp *pp);
 
 unsigned int compute_generation(struct pp_set *set);
 void record_explored_pps(struct pp_set *set);

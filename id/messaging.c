@@ -78,7 +78,69 @@ static bool recv(int input_fd, struct input_message *m)
 	}
 }
 
-/* logic */
+/* event handling logic */
+
+static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
+			     unsigned int eip, bool confirmed,
+			     unsigned int most_recent_syscall)
+{
+	/* register a (possibly) new PP based on the data race */
+	bool duplicate;
+	char config_str[BUF_SIZE];
+	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, most_recent_syscall);
+
+	unsigned int priority = confirmed ?
+		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
+	struct pp *pp = pp_new(config_str, priority, j->generation, &duplicate);
+
+	/* If the data race PP is not already enabled in this job's config,
+	 * create a new job based on this one. */
+	if (!pp_set_contains(j->config, pp) &&
+	    !pp_set_contains(*discovered_pps, pp)) {
+		DBG("Adding job with new PP '%s'\n", pp->config_str);
+		struct pp_set *new_set = add_pp_to_set(j->config, pp);
+		if (bug_already_found(new_set)) {
+			free_pp_set(new_set);
+		} else {
+			add_work(new_job(new_set));
+		}
+	}
+
+	/* Record this in the set of PPs that were "discovered" by this job
+	 * (ignoring discoveries by other threads). This allows us to decide
+	 * when to create a new job -- the data race was not part of this job's
+	 * initial config, nor did we already create the same job already. */
+	struct pp_set *old_discovered = *discovered_pps;
+	*discovered_pps = add_pp_to_set(old_discovered, pp);
+	free_pp_set(old_discovered);
+}
+
+static void handle_estimate(struct job *j, long double proportion,
+			    unsigned int elapsed_branches,
+			    long double total_usecs, long double elapsed_usecs)
+{
+	unsigned int total_branches =
+	    (unsigned int)((long double)elapsed_branches / proportion);
+	DBG("message est: %u/%u brs (%Lf%%), %Lf elapsed / %Lf total\n",
+	    elapsed_branches, total_branches, proportion * 100,
+	    elapsed_usecs, total_usecs);
+	// TODO: update job state
+}
+
+static bool handle_should_continue(struct job *j)
+{
+	if (bug_already_found(j->config)) {
+		DBG("Aborting -- a subset of our PPs already found a bug.\n");
+		return false;
+	} else if (TIME_UP()) {
+		DBG("Aborting -- time up!\n");
+		return false;
+	} else {
+		return true;
+	}
+}
+
+/* messaging logic */
 
 /* creates the fifo files on the filesystem, but does not block on them yet. */
 void messaging_init(struct messaging_state *state, struct file *config_file,
@@ -120,42 +182,33 @@ bool wait_for_child(struct messaging_state *state)
 void talk_to_child(struct messaging_state *state, struct job *j)
 {
 	assert(state->ready);
+	struct pp_set *discovered_pps = create_pp_set(PRIORITY_NONE);
 
 	struct input_message m;
 	while (recv(state->input_pipe.fd, &m)) {
 		if (m.tag == THUNDERBIRDS_ARE_GO) {
-			WARN("recvd duplicate thunderbirds message\n");
+			assert(false && "recvd duplicate thunderbirds message");
 		} else if (m.tag == DATA_RACE) {
-			/* register a (possibly) new PP based on the data race */
-			bool duplicate;
-			char config_str[BUF_SIZE];
-			MAKE_DR_PP_STR(config_str, BUF_SIZE, m.content.dr.eip,
-				       m.content.dr.most_recent_syscall);
-			pp_new(config_str, m.content.dr.confirmed ?
-			       PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED,
-			       j->generation, &duplicate);
-			if (!duplicate) {
-				// TODO: generate new jobs
-			}
+			handle_data_race(j, &discovered_pps, m.content.dr.eip,
+					 m.content.dr.confirmed,
+					 m.content.dr.most_recent_syscall);
 		} else if (m.tag == ESTIMATE) {
-			DBG("message est: %u/%u brs (%Lf%%), %Lf elapsed / %Lf total\n",
-			    m.content.estimate.elapsed_branches,
-			    (unsigned int)((long double)m.content.estimate.elapsed_branches / m.content.estimate.proportion),
-			    m.content.estimate.proportion * 100,
-			    m.content.estimate.elapsed_usecs,
-			    m.content.estimate.total_usecs);
+			handle_estimate(j, m.content.estimate.proportion,
+					m.content.estimate.elapsed_branches,
+					m.content.estimate.total_usecs,
+					m.content.estimate.elapsed_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
-			DBG("message FAB, fname %s\n", m.content.bug.trace_filename);
 			found_a_bug(m.content.bug.trace_filename, j->config);
 		} else if (m.tag == SHOULD_CONTINUE) {
-			// TODO
 			struct output_message reply;
-			reply.do_abort = TIME_UP(); // TODO
+			reply.do_abort = !handle_should_continue(j);
 			send(state->output_pipe.fd, &reply);
 		} else {
 			assert(false && "unknown message type");
 		}
 	}
+
+	free_pp_set(discovered_pps);
 }
 
 void finish_messaging(struct messaging_state *state)
