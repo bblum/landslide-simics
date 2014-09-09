@@ -277,6 +277,20 @@ static long double compute_state_space_size(struct ls_state *ls,
 	}
 }
 
+static unsigned int count_distinct_user_threads(table_column_map_t *map)
+{
+	int i;
+	unsigned int count = 0;
+	unsigned int *tidp;
+	ARRAY_LIST_FOREACH(map, i, tidp) {
+		if (*tidp != kern_get_init_tid() &&
+		    *tidp != kern_get_shell_tid() &&
+		    !(kern_has_idle() && *tidp == kern_get_idle_tid())) {
+			count++;
+		}
+	}
+	return count;
+}
 
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		  char *reason, unsigned int reason_len)
@@ -342,6 +356,18 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		init_table_column_map(&map, &ls->save, stack->tid);
 		assert(ARRAY_LIST_SIZE(&map) > 0);
 
+		if (testing_userspace() && count_distinct_user_threads(&map) < 2) {
+			html_printf(html_fd, "<table><tr><td>\n");
+			html_printf(html_fd, "%s<b>NOTE</b>:%s This bug was detected "
+				    "before multiple user threads were created.<br />"
+				    "This is NOT A RACE, but more likely a problem "
+				    "with your setup/initialization code.",
+				    HTML_COLOUR_START(HTML_COLOUR_RED),
+				    HTML_COLOUR_END);
+			html_printf(html_fd, "</td></tr></table><br /><br />\n");
+		}
+
+		/* Print the tabular trace. */
 		html_printf(html_fd, "<table><tr>\n");
 		int i;
 		unsigned int *tidp;

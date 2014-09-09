@@ -570,15 +570,18 @@ static void use_after_free(struct ls_state *ls, unsigned int addr,
 	struct hax *before;
 	struct hax *after;
 	struct chunk *c = find_freed_chunk(ls, addr, in_kernel, &before, &after);
+	const char *message;
 
 	if (c == NULL) {
 		lsprintf(BUG, "0x%x was never allocated...\n", addr);
+		message = "INVALID HEAP ACCESS (never allocated)";
 	} else {
 		print_freed_chunk_info(c, before, after);
+		message = "USE AFTER FREE";
 	}
 
-	FOUND_A_BUG(ls, "USE AFTER FREE - %s 0x%.8x at eip"
-		    " 0x%.8x", write ? "write to" : "read from", addr,
+	FOUND_A_BUG(ls, "%s - %s 0x%.8x at eip 0x%.8x", message,
+		    write ? "write to" : "read from", addr,
 		    (int)GET_CPU_ATTR(ls->cpu0, eip));
 }
 
