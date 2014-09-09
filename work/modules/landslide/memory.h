@@ -23,6 +23,8 @@ struct stack_trace;
 struct mem_lockset {
 	unsigned int eip;
 	unsigned int most_recent_syscall;
+	bool during_init;
+	bool during_destroy;
 	struct lockset locks_held;
 	Q_NEW_LINK(struct mem_lockset) nobe;
 };

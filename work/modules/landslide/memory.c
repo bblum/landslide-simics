@@ -474,6 +474,10 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	bool need_add = true;
 	bool remove_prev = false;
 
+	bool during_init    = INITING_SOMETHING(ls->sched.cur_agent);
+	bool during_destroy = DESTROYING_SOMETHING(ls->sched.cur_agent);
+	assert(!(during_init && during_destroy));
+
 	Q_FOREACH(l, &ma->locksets, nobe) {
 		if (remove_prev) {
 			struct mem_lockset *l_old = l->nobe.prev;
@@ -483,6 +487,15 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			remove_prev = false;
 		}
 
+		/* ensure init/destroy status matches */
+		if (l->during_init != during_init ||
+		    l->during_destroy != during_destroy) {
+			/* it may be possible to establish a subset type of
+			 * relation between these, and mush them together. */
+			continue;
+		}
+
+		/* ensure most recent syscall matches */
 		if (l->most_recent_syscall != current_syscall) {
 			continue;
 		}
@@ -509,6 +522,8 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	if (need_add) {
 		l = MM_XMALLOC(1, struct mem_lockset);
 		l->eip = ls->eip;
+		l->during_init = during_init;
+		l->during_destroy = during_destroy;
 		l->most_recent_syscall = current_syscall;
 		lockset_clone(&l->locks_held, l0);
 		Q_INSERT_FRONT(&ma->locksets, l, nobe);
@@ -831,6 +846,19 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			    struct mem_lockset *l0, struct mem_lockset *l1,
 			    bool in_kernel, bool confirmed)
 {
+	/* a heuristic for distinguishing, among 'suspected' data races, those
+	 * that are extra-suspicious by virtue of (a) the later access happening
+	 * during a specified foo_destroy() function or (b) the earlier access
+	 * happening during a specified foo_init() function.
+	 *
+	 * while normally 'suspected' data races are still possible to reorder
+	 * (see issue #61 for explanation), this pattern allows us to suppress
+	 * a lot of false positives that always-looking-at-suspecteds otherwise
+	 * would identify.
+	 *
+	 * nb. l0 is the lockset for the later access; l1 for the earlier. */
+	bool too_suspicious = l0->during_destroy || l1->during_init;
+
 #ifdef PRINT_DATA_RACES
 #if PRINT_DATA_RACES != 0
 	struct mem_state *m  = in_kernel ? &ls->kern_mem    : &ls->user_mem;
@@ -861,6 +889,16 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 
 	lsprintf(DEV, "Num data races suspected: %d; confirmed: %d\n",
 		 m->data_races_suspected, m->data_races_confirmed);
+	if (!confirmed && too_suspicious) {
+		if (l0->during_destroy) {
+			lsprintf(DEV, "Note: Suspected false positive due to "
+				 "later access during a destroy().\n");
+		}
+		if (l1->during_init) {
+			lsprintf(DEV, "Note: Suspected false positive due to "
+				 "earlier access during a init().\n");
+		}
+	}
 #endif
 #endif
 	/* Report to master process. If unconfirmed, it only helps to set a PP
@@ -872,10 +910,12 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 					  l0->most_recent_syscall, confirmed);
 		}
 	}
-	// FIXME: #88
-	if (!instruction_is_atomic_swap(ls->cpu0, l0->eip)) {
-		message_data_race(&ls->mess, l1->eip,
-				  l1->most_recent_syscall, confirmed);
+	if (confirmed || !too_suspicious) {
+		// FIXME: #88
+		if (!instruction_is_atomic_swap(ls->cpu0, l0->eip)) {
+			message_data_race(&ls->mess, l1->eip,
+					  l1->most_recent_syscall, confirmed);
+		}
 	}
 }
 

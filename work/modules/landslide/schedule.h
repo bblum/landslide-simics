@@ -105,6 +105,9 @@ Q_NEW_HEAD(struct agent_q, struct agent);
 	((a)->kern_blocked_on_tid != -1 || (a)->user_blocked_on_addr != -1 || \
 	 agent_is_user_yield_blocked(&(a)->user_yield))
 
+#define INITING_SOMETHING(a) ((a)->action.user_mutex_initing)
+#define DESTROYING_SOMETHING(a) ((a)->action.user_mutex_destroying)
+
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */
 struct sched_state {
