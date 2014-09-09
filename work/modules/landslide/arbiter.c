@@ -123,6 +123,10 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		return false;
 	/* check for data races */
 	} else if (suspected_data_race(ls)) {
+		// FIXME: #88
+		assert(!instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
+		       "Data races on xchg/atomic instructions is unsupported "
+		       "-- see issue #88. Sorry!");
 		*data_race = true;
 		ASSERT_ONE_THREAD_PER_PP(ls);
 		return true;
