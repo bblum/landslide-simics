@@ -79,6 +79,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.user_mutex_locking = false;
 	a->action.user_mutex_unlocking = false;
 	a->action.user_mutex_yielding = false;
+	a->action.user_mutex_destroying = false;
 	a->action.user_rwlock_locking = false;
 	a->action.user_rwlock_unlocking = false;
 	a->action.schedule_target = false;
@@ -766,6 +767,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	/* mutexes (and yielding) */
 	if (user_mutex_init_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_initing));
+		assert(!ACTION(s, user_mutex_destroying));
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
 		assert(CURRENT(s, user_mutex_initing_addr) == -1);
@@ -774,6 +776,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_mutex_init_exiting(ls->eip)) {
 		assert(ACTION(s, user_mutex_initing));
+		assert(!ACTION(s, user_mutex_destroying));
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
 		assert(CURRENT(s, user_mutex_initing_addr) != -1);
@@ -781,8 +784,20 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_mutex_initing) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_mutex_destroy_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		/* nb. lock/unlock allowed during destroy */
+		assert(!ACTION(s, user_mutex_initing));
+		assert(!ACTION(s, user_mutex_locking));
+		assert(!ACTION(s, user_mutex_unlocking));
+		assert(!ACTION(s, user_mutex_destroying));
+		ACTION(s, user_mutex_destroying) = true;
 		mutex_destroy(&ls->user_sync, lock_addr);
 		record_user_yield_activity(&ls->user_sync);
+	} else if (user_mutex_destroy_exiting(ls->eip)) {
+		assert(!ACTION(s, user_mutex_initing));
+		assert(!ACTION(s, user_mutex_locking));
+		assert(!ACTION(s, user_mutex_unlocking));
+		assert(ACTION(s, user_mutex_destroying));
+		ACTION(s, user_mutex_destroying) = false;
 	} else if (user_mutex_lock_entering(ls->cpu0, ls->eip, &lock_addr) ||
 	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		/* note: we don't assert on mutex_initing because mutex_init may

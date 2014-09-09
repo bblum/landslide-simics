@@ -63,6 +63,7 @@ struct agent {
 		bool user_mutex_locking;
 		bool user_mutex_unlocking;
 		bool user_mutex_yielding; /* if true, locking addr shall also be set */
+		bool user_mutex_destroying;
 		bool user_rwlock_locking;
 		bool user_rwlock_unlocking;
 		/* are we trying to schedule this agent? */
