@@ -27,6 +27,10 @@ bool user_within_functions(struct ls_state *ls)
 	return _within_functions(ls, within_functions, length);
 }
 
+/******************************************************************************
+ * Syscall wrappers
+ ******************************************************************************/
+
 bool user_yielding(conf_object_t *cpu, unsigned int eip)
 {
 #ifdef USER_YIELD_ENTER
@@ -38,6 +42,22 @@ bool user_yielding(conf_object_t *cpu, unsigned int eip)
 	return USER_MEMORY(eip) && READ_BYTE(cpu, eip) == OPCODE_INT &&
 		OPCODE_INT_ARG(cpu, eip) == YIELD_INT;
 #endif
+#else
+	return false;
+#endif
+}
+
+bool user_make_runnable_entering(unsigned int eip) {
+#ifdef USER_MAKE_RUNNABLE_ENTER
+	return eip == USER_MAKE_RUNNABLE_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool user_sleep_entering(unsigned int eip) {
+#ifdef USER_SLEEP_ENTER
+	return eip == USER_SLEEP_ENTER;
 #else
 	return false;
 #endif

@@ -15,17 +15,22 @@
 
 bool testing_userspace();
 bool user_within_functions(struct ls_state *ls);
+/* syscalls */
 bool user_yielding(conf_object_t *cpu, unsigned int eip);
-
+bool user_make_runnable_entering(unsigned int eip);
+bool user_sleep_entering(unsigned int eip);
+/* malloc */
 bool user_mm_init_entering(unsigned int eip);
 bool user_mm_init_exiting(unsigned int eip);
 bool user_mm_malloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size);
 bool user_mm_malloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_mm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_mm_free_exiting(unsigned int eip);
+/* elf regions */
 bool user_address_in_heap(unsigned int addr);
 bool user_address_global(unsigned int addr);
 bool user_panicked(conf_object_t *cpu, unsigned int addr, char **buf);
+/* thread lifecycle */
 bool user_thr_init_entering(unsigned int eip);
 bool user_thr_init_exiting(unsigned int eip);
 bool user_thr_create_entering(unsigned int eip);
@@ -33,6 +38,7 @@ bool user_thr_create_exiting(unsigned int eip);
 bool user_thr_join_entering(unsigned int eip);
 bool user_thr_join_exiting(unsigned int eip);
 bool user_thr_exit_entering(unsigned int eip);
+/* mutexes */
 bool user_mutex_init_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_mutex_init_exiting(unsigned int eip);
 bool user_mutex_lock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
@@ -43,16 +49,19 @@ bool user_mutex_unlock_entering(conf_object_t *cpu, unsigned int eip, unsigned i
 bool user_mutex_unlock_exiting(unsigned int eip);
 bool user_mutex_destroy_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_mutex_destroy_exiting(unsigned int eip);
+/* cvars */
 bool user_cond_wait_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_cond_wait_exiting(unsigned int eip);
 bool user_cond_signal_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_cond_signal_exiting(unsigned int eip);
 bool user_cond_broadcast_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_cond_broadcast_exiting(unsigned int eip);
+/* sems */
 bool user_sem_wait_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_sem_wait_exiting(unsigned int eip);
 bool user_sem_signal_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_sem_signal_exiting(unsigned int eip);
+/* rwlox */
 bool user_rwlock_lock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr, bool *write);
 bool user_rwlock_lock_exiting(unsigned int eip);
 bool user_rwlock_unlock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
