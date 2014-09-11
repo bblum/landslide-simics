@@ -949,6 +949,13 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_thr_exit_entering(ls->eip)) {
 		record_user_yield_activity(&ls->user_sync);
+	/* misc */
+	} else if (user_make_runnable_entering(ls->eip)) {
+		/* Catch "while (make_runnable(tid) < 0)" loops. */
+		record_user_yield(&ls->user_sync);
+	} else if (user_sleep_entering(ls->eip)) {
+		/* Catch "while (!ready) sleep()" loops. */
+		record_user_yield(&ls->user_sync);
 	}
 }
 

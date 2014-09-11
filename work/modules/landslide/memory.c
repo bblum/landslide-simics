@@ -656,6 +656,9 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 				 * conflicts as desired, it will also show up in
 				 * DRs, which we must filter out later. */
 				in_kernel = false;
+				if (write) {
+					check_unblock_yield_loop(ls, addr);
+				}
 			} else {
 				/* ignore access altogether. */
 				return;
