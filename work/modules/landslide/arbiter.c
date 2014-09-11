@@ -141,6 +141,17 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			 * Analogous to HLT state -- need to preempt it. */
 			ASSERT_ONE_THREAD_PER_PP(ls);
 			return true;
+		// FIXME Non-atomic busy loops should be handled more generally,
+		// with the infinite loop detector, as detailed in #96.
+		// This is a hack to make make_runnable work as a special case.
+		} else if (user_make_runnable_entering(ls->eip) &&
+			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {
+			/* treat busy make-runnable loop same as xchg loop, in
+			 * case of a misbehave mode that makes make-runnable NOT
+			 * yield. if it does yield, NBD - the pp that arises
+			 * will cause this spurious increment to get cleared. */
+			ASSERT_ONE_THREAD_PER_PP(ls);
+			return true;
 		// TODO
 		} else if ((user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
 			    user_mutex_unlock_exiting(ls->eip)) &&
