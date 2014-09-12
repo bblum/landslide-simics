@@ -183,6 +183,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 {
 	struct agent *a;
 	unsigned int count = 0;
+	bool current_is_legal_choice = false;
 
 	/* We shouldn't be asked to choose if somebody else already did. */
 	assert(Q_GET_SIZE(&ls->arbiter.choices) == 0);
@@ -195,6 +196,9 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 			print_agent(DEV, a);
 			printf(DEV, " ");
 			count++;
+			if (a == current) {
+				current_is_legal_choice = true;
+			}
 		}
 	);
 
@@ -215,7 +219,8 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 #endif
 
 #ifdef KEEP_RUNNING_YIELDING_THREADS
-	if (agent_has_yielded(&current->user_yield) && !BLOCKED(current)) {
+	if (current_is_legal_choice && agent_has_yielded(&current->user_yield)) {
+		printf(DEV, "- Must run yielding thread %d\n", current->tid);
 		*result = current;
 		*our_choice = true;
 		return true;
