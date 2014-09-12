@@ -82,6 +82,10 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.user_mutex_destroying = false;
 	a->action.user_rwlock_locking = false;
 	a->action.user_rwlock_unlocking = false;
+	a->action.user_locked_mallocing = false;
+	a->action.user_locked_callocing = false;
+	a->action.user_locked_reallocing = false;
+	a->action.user_locked_freeing = false;
 	a->action.schedule_target = false;
 	a->kern_blocked_on = NULL;
 	a->kern_blocked_on_tid = -1;
@@ -949,6 +953,31 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_thr_exit_entering(ls->eip)) {
 		record_user_yield_activity(&ls->user_sync);
+	/* locking malloc wrappers */
+	} else if (user_locked_malloc_entering(ls->eip)) {
+		assert(!ACTION(s, user_locked_mallocing));
+		ACTION(s, user_locked_mallocing) = true;
+	} else if (user_locked_malloc_exiting(ls->eip)) {
+		assert(ACTION(s, user_locked_mallocing));
+		ACTION(s, user_locked_mallocing) = false;
+	} else if (user_locked_free_entering(ls->eip)) {
+		assert(!ACTION(s, user_locked_freeing));
+		ACTION(s, user_locked_freeing) = true;
+	} else if (user_locked_free_exiting(ls->eip)) {
+		assert(ACTION(s, user_locked_freeing));
+		ACTION(s, user_locked_freeing) = false;
+	} else if (user_locked_calloc_entering(ls->eip)) {
+		assert(!ACTION(s, user_locked_callocing));
+		ACTION(s, user_locked_callocing) = true;
+	} else if (user_locked_calloc_exiting(ls->eip)) {
+		assert(ACTION(s, user_locked_callocing));
+		ACTION(s, user_locked_callocing) = false;
+	} else if (user_locked_realloc_entering(ls->eip)) {
+		assert(!ACTION(s, user_locked_reallocing));
+		ACTION(s, user_locked_reallocing) = true;
+	} else if (user_locked_realloc_exiting(ls->eip)) {
+		assert(ACTION(s, user_locked_reallocing));
+		ACTION(s, user_locked_reallocing) = false;
 	/* misc */
 	} else if (user_make_runnable_entering(ls->eip)) {
 		/* Catch "while (make_runnable(tid) < 0)" loops. */

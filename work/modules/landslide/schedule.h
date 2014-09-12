@@ -66,6 +66,10 @@ struct agent {
 		bool user_mutex_destroying;
 		bool user_rwlock_locking;
 		bool user_rwlock_unlocking;
+		bool user_locked_mallocing;
+		bool user_locked_callocing;
+		bool user_locked_reallocing;
+		bool user_locked_freeing;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
@@ -107,6 +111,12 @@ Q_NEW_HEAD(struct agent_q, struct agent);
 
 #define INITING_SOMETHING(a) ((a)->action.user_mutex_initing)
 #define DESTROYING_SOMETHING(a) ((a)->action.user_mutex_destroying)
+
+#define IN_USER_MALLOC_WRAPPERS(a)		\
+	((a)->action.user_locked_mallocing ||	\
+	 (a)->action.user_locked_callocing ||	\
+	 (a)->action.user_locked_reallocing ||	\
+	 (a)->action.user_locked_freeing)
 
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */

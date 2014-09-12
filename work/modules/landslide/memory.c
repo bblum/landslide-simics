@@ -722,16 +722,21 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		return;
 	}
 
+	/* userspace malloc wrappers have a free pass in terms of DPOR
+	 * conflicts, but we still want to check them for use-after-free. */
+	bool do_add_shm = !IN_USER_MALLOC_WRAPPERS(ls->sched.cur_agent);
+
 	if ((in_kernel && kern_address_in_heap(addr)) ||
 	    (!in_kernel && user_address_in_heap(addr))) {
 		struct chunk *c = find_containing_chunk(&m->heap, addr);
 		if (c == NULL) {
 			use_after_free(ls, addr, write, KERNEL_MEMORY(addr));
-		} else {
+		} else if (do_add_shm) {
 			add_shm(ls, m, c, addr, write, in_kernel);
 		}
 	} else if ((in_kernel && kern_address_global(addr)) ||
-		   (!in_kernel /* && user_address_global(addr) */)) {
+		   (!in_kernel /* && user_address_global(addr) */
+		    && do_add_shm)) {
 		/* Record shm accesses for user threads even on their own
 		 * stacks, to deal with potential WISE IDEA yield loops. */
 		add_shm(ls, m, NULL, addr, write, in_kernel);

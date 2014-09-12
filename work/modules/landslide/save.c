@@ -166,6 +166,10 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(action.user_mutex_destroying);
 	COPY_FIELD(action.user_rwlock_locking);
 	COPY_FIELD(action.user_rwlock_unlocking);
+	COPY_FIELD(action.user_locked_mallocing);
+	COPY_FIELD(action.user_locked_callocing);
+	COPY_FIELD(action.user_locked_reallocing);
+	COPY_FIELD(action.user_locked_freeing);
 	COPY_FIELD(action.schedule_target);
 	assert(memcmp(&a_dest->action, &a_src->action, sizeof(a_dest->action)) == 0 &&
 	       "Did you update agent->action without updating save.c?");
