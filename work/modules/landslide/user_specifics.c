@@ -145,6 +145,90 @@ bool user_mm_free_exiting(unsigned int eip)
 #endif
 }
 
+bool user_locked_malloc_entering(unsigned int eip)
+{
+#ifdef USER_LOCKED_MALLOC_ENTER
+	return eip == USER_LOCKED_MALLOC_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool user_locked_malloc_exiting(unsigned int eip)
+{
+#ifdef USER_LOCKED_MALLOC_EXIT
+	return eip == USER_LOCKED_MALLOC_EXIT;
+#else
+#ifdef USER_LOCKED_MALLOC_ENTER
+	STATIC_ASSERT(false && "user locked malloc enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
+bool user_locked_free_entering(unsigned int eip)
+{
+#ifdef USER_LOCKED_FREE_ENTER
+	return eip == USER_LOCKED_FREE_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool user_locked_free_exiting(unsigned int eip)
+{
+#ifdef USER_LOCKED_FREE_EXIT
+	return eip == USER_LOCKED_FREE_EXIT;
+#else
+#ifdef USER_LOCKED_FREE_ENTER
+	STATIC_ASSERT(false && "user locked free enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
+bool user_locked_calloc_entering(unsigned int eip)
+{
+#ifdef USER_LOCKED_CALLOC_ENTER
+	return eip == USER_LOCKED_CALLOC_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool user_locked_calloc_exiting(unsigned int eip)
+{
+#ifdef USER_LOCKED_CALLOC_EXIT
+	return eip == USER_LOCKED_CALLOC_EXIT;
+#else
+#ifdef USER_LOCKED_CALLOC_ENTER
+	STATIC_ASSERT(false && "user locked calloc enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
+bool user_locked_realloc_entering(unsigned int eip)
+{
+#ifdef USER_LOCKED_REALLOC_ENTER
+	return eip == USER_LOCKED_REALLOC_ENTER;
+#else
+	return false;
+#endif
+}
+
+bool user_locked_realloc_exiting(unsigned int eip)
+{
+#ifdef USER_LOCKED_REALLOC_EXIT
+	return eip == USER_LOCKED_REALLOC_EXIT;
+#else
+#ifdef USER_LOCKED_REALLOC_ENTER
+	STATIC_ASSERT(false && "user locked realloc enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
 /******************************************************************************
  * ELF regions
  ******************************************************************************/

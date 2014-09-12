@@ -26,6 +26,14 @@ bool user_mm_malloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int 
 bool user_mm_malloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_mm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_mm_free_exiting(unsigned int eip);
+bool user_locked_malloc_entering(unsigned int eip);
+bool user_locked_malloc_exiting(unsigned int eip);
+bool user_locked_free_entering(unsigned int eip);
+bool user_locked_free_exiting(unsigned int eip);
+bool user_locked_calloc_entering(unsigned int eip);
+bool user_locked_calloc_exiting(unsigned int eip);
+bool user_locked_realloc_entering(unsigned int eip);
+bool user_locked_realloc_exiting(unsigned int eip);
 /* elf regions */
 bool user_address_in_heap(unsigned int addr);
 bool user_address_global(unsigned int addr);
