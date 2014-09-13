@@ -22,16 +22,17 @@ int main(int argc, char **argv)
 	unsigned long max_time;
 	unsigned long num_cpus;
 	bool verbose;
+	bool leave_logs;
 
 	if (!get_options(argc, argv, test_name, BUF_SIZE,
-			 &max_time, &num_cpus, &verbose)) {
+			 &max_time, &num_cpus, &verbose, &leave_logs)) {
 		usage(argv[0]);
 		exit(-1);
 	}
 
 	DBG("will run for at most %lu seconds\n", max_time);
 
-	set_test_name(test_name);
+	set_job_options(test_name, verbose, leave_logs);
 	start_time(max_time * 1000000);
 
 	add_work(new_job(create_pp_set(PRIORITY_NONE)));

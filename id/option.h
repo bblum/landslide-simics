@@ -10,6 +10,7 @@
 void usage(char *execname);
 
 bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_len,
-		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose);
+		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
+		 bool *leave_logs);
 
 #endif

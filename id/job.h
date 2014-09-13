@@ -26,7 +26,7 @@ struct job {
 	pthread_mutex_t done_lock;
 };
 
-void set_test_name(char *name);
+void set_job_options(char *test_name, bool verbose, bool leave_logs);
 struct job *new_job(struct pp_set *config);
 void start_job(struct job *j);
 void wait_on_job(struct job *j);

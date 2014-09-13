@@ -53,8 +53,8 @@ void usage(char *execname)
 
 	ARRAY_LIST_FOREACH(&cmdline_options, i, optp) {
 		if (optp->requires_arg) {
-			printf("\t%s:\t%s (default %s)\n", optp->name,
-			     optp->description, optp->default_value);
+			printf("\t-%c %s:\t%s (default %s)\n", optp->flag,
+			       optp->name, optp->description, optp->default_value);
 		} else {
 			printf("\t-%c:\t\t%s\n", optp->flag, optp->description);
 		}
@@ -97,7 +97,8 @@ static bool parse_time(char *str, unsigned long *result)
 }
 
 bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_len,
-		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose)
+		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
+		 bool *leave_logs)
 {
 	/* Set up cmdline options & their default values */
 	unsigned int system_cpus = get_nprocs();
@@ -131,6 +132,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 
 	DEF_CMDLINE_FLAG('v', verbose, "Verbose output");
 	DEF_CMDLINE_FLAG('h', help, "Print this help text and exit");
+	DEF_CMDLINE_FLAG('l', leave_logs, "Don't delete log files from bug-free state spaces");
 #undef DEF_CMDLINE_FLAG
 
 #define DEF_CMDLINE_OPTION(flagname, varname, descr, value)		\
@@ -230,6 +232,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	scnprintf(test_name, test_name_len, "%s", arg_test_name);
 
 	*verbose = arg_verbose;
+	*leave_logs = arg_leave_logs;
 
 	return options_valid;
 }

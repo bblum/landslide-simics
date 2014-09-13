@@ -34,10 +34,14 @@ extern char **environ;
 #define LOG_FILE_TEMPLATE(x) "landslide-id-" x ".log.XXXXXX"
 
 char *test_name = NULL;
+bool verbose = false;
+bool leave_logs = false;
 
-void set_test_name(char *name)
+void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs)
 {
-	test_name = XSTRDUP(name);
+	test_name = XSTRDUP(arg_test_name);
+	verbose = arg_verbose;
+	leave_logs = arg_leave_logs;
 }
 
 struct job *new_job(struct pp_set *config)
@@ -78,6 +82,7 @@ static void *run_job(void *arg)
 	}
 	assert(test_name != NULL);
 	XWRITE(&config_file, "TEST_CASE=%s\n", test_name);
+	XWRITE(&config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
 
 	messaging_init(&mess, &config_file, j->id);
 
@@ -149,8 +154,9 @@ static void *run_job(void *arg)
 
 	delete_file(&config_file, true);
 	delete_file(&results_file, true);
-	delete_file(&log_stdout, false);
-	delete_file(&log_stderr, false);
+	bool should_delete = !leave_logs && WEXITSTATUS(child_status) == 0;
+	delete_file(&log_stdout, should_delete);
+	delete_file(&log_stderr, should_delete);
 
 	// TODO: interpret results
 	LOCK(&j->done_lock);
