@@ -1,0 +1,4 @@
+default=0
+timeout=0
+title Pebbles
+	kernel (fd0)/boot/kernel.gz
