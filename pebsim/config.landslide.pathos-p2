@@ -19,7 +19,7 @@
 KERNEL_IMG=kernel
 
 # Relative to the pebsim/ directory.
-KERNEL_SOURCE_DIR=p2-s14g35
+KERNEL_SOURCE_DIR=p2-basecode
 
 # What program should landslide run? vanish_vanish, double_thread_fork, ...
 TEST_CASE=thr_exit_join
