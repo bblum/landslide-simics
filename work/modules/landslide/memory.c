@@ -4,7 +4,6 @@
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
-#include <assert.h>
 #include <simics/api.h>
 
 #define MODULE_NAME "MEMORY"

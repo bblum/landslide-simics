@@ -22,7 +22,6 @@
 
 */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -311,6 +310,22 @@ static void check_should_abort(struct ls_state *ls)
 		PRINT_TREE_INFO(DEV, ls);
 		SIM_quit(LS_NO_KNOWN_BUG);
 	}
+}
+
+void landslide_assert_fail(const char *message, const char *file,
+			   unsigned int line, const char *function)
+{
+	struct ls_state *ls = (struct ls_state *)SIM_get_object("landslide0");
+	message_assert_fail(&ls->mess, message, file, line, function);
+#ifdef ID_WRAPPER_MAGIC
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "%s:%u: %s: "
+		 "Assertion '%s' failed.\n", file, line, function, message);
+	SIM_quit(LS_ASSERTION_FAILED);
+#else
+	/* Don't send SIGABRT to simics if running under the iterative deepening
+	 * wrapper -- simics should quit, not drop into a prompt. */
+	__assert_fail(message, file, line, function);
+#endif
 }
 
 /******************************************************************************

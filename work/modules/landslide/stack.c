@@ -4,8 +4,6 @@
  * @author Ben Blum
  */
 
-#include <assert.h>
-
 #define MODULE_NAME "STACK"
 #define MODULE_COLOUR COLOUR_DARK COLOUR_BLUE
 

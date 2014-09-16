@@ -79,6 +79,18 @@ bool testing_userspace();
 #define kprintf(...) \
 	do { if (!testing_userspace()) {   printf(__VA_ARGS__); } } while (0)
 
+/* Custom assert */
+#ifdef assert
+#undef assert
+#endif
+
+extern void landslide_assert_fail(const char *message, const char *file,
+				  unsigned int line, const char *function);
+#define assert(expr) do { if (!(expr)) {				\
+		landslide_assert_fail(__STRING(expr), __FILE__,		\
+				      __LINE__, __ASSERT_FUNCTION);	\
+	} } while (0)
+
 /* you couldn't make this shit up if you tried */
 #define scnprintf(buf, maxlen, ...) ({								\
 	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\

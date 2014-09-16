@@ -4,7 +4,6 @@
  * @author Ben Blum
  */
 
-#include <assert.h>
 #include <inttypes.h>
 #include <string.h> /* for memcmp, strlen */
 #include <sys/types.h>

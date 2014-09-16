@@ -6,10 +6,13 @@
  * @author Mike Sullivan (mjsulliv)
  **/
 
+#ifndef __LS_VQ_H
+#define __LS_VQ_H
+
 #include <stddef.h>
 #include <stdlib.h>
-#include <assert.h>
 
+#include "common.h"
 #include "compiler.h"
 
 /**
@@ -415,3 +418,5 @@
 			}                                       \
 		}                                           \
 	} while (0)
+
+#endif

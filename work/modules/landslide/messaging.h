@@ -25,4 +25,7 @@ void message_found_a_bug(struct messaging_state *m, const char *trace_filename);
 
 bool should_abort(struct messaging_state *m);
 
+void message_assert_fail(struct messaging_state *state, const char *message,
+			 const char *file, unsigned int line, const char *function);
+
 #endif

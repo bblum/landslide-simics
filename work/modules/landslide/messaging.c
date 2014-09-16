@@ -18,7 +18,7 @@
 
 /* Spec. */
 
-#define MESSAGE_BUF_SIZE 128
+#define MESSAGE_BUF_SIZE 256
 
 struct output_message {
 	unsigned int magic;
@@ -29,6 +29,7 @@ struct output_message {
 		ESTIMATE = 2,
 		FOUND_A_BUG = 3,
 		SHOULD_CONTINUE = 4,
+		ASSERT_FAILED = 5,
 	} tag;
 
 	union {
@@ -48,6 +49,10 @@ struct output_message {
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
 		} bug;
+
+		struct {
+			char assert_message[MESSAGE_BUF_SIZE];
+		} crash_report;
 	} content;
 };
 
@@ -168,4 +173,14 @@ bool should_abort(struct messaging_state *state)
 	struct input_message result;
 	recv(state, &result);
 	return result.do_abort;
+}
+
+void message_assert_fail(struct messaging_state *state, const char *message,
+			 const char *file, unsigned int line, const char *function)
+{
+	struct output_message m;
+	m.tag = ASSERT_FAILED;
+	scnprintf(m.content.crash_report.assert_message, MESSAGE_BUF_SIZE,
+		  "%s:%u: %s(): %s", file, line, function, message);
+	send(state, &m);
 }

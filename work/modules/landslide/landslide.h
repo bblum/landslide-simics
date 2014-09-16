@@ -49,6 +49,7 @@ struct ls_state {
 /* process exit codes */
 #define LS_NO_KNOWN_BUG 0
 #define LS_BUG_FOUND 1
+#define LS_ASSERTION_FAILED 2
 
 /* for simics glue */
 struct ls_state *new_landslide();

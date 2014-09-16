@@ -6,7 +6,6 @@
  * @author Ben Blum, and you, the student :)
  */
 
-#include <assert.h>
 #include <simics/api.h>
 
 #define MODULE_NAME "student_glue"

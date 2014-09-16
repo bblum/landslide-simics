@@ -4,8 +4,6 @@
  * @author Ben Blum
  */
 
-#include <assert.h>
-
 #include <simics/api.h>
 
 #define MODULE_NAME "X86"

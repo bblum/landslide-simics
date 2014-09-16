@@ -18,7 +18,7 @@
 
 #define MESSAGING_MAGIC 0x15410de0u
 
-#define MESSAGE_BUF_SIZE 128
+#define MESSAGE_BUF_SIZE 256
 
 struct input_message {
 	unsigned int magic;
@@ -29,6 +29,7 @@ struct input_message {
 		ESTIMATE = 2,
 		FOUND_A_BUG = 3,
 		SHOULD_CONTINUE = 4,
+		ASSERT_FAILED = 5,
 	} tag;
 
 	union {
@@ -48,6 +49,10 @@ struct input_message {
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
 		} bug;
+
+		struct {
+			char assert_message[MESSAGE_BUF_SIZE];
+		} crash_report;
 	} content;
 };
 
@@ -205,6 +210,14 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 			struct output_message reply;
 			reply.do_abort = !handle_should_continue(j);
 			send(state->output_pipe.fd, &reply);
+		} else if (m.tag == ASSERT_FAILED) {
+			ERR("[JOB %d] Landslide crashed. "
+			    "The assert message was: %s\n",
+			    j->id, m.content.crash_report.assert_message);
+			ERR("[JOB %d] For more detail see stderr log file.\n",
+			    j->id);
+			// TODO: print name of stderr log file.
+			break;
 		} else {
 			assert(false && "unknown message type");
 		}
