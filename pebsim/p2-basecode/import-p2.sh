@@ -37,6 +37,7 @@ if [ "`basename $PWD`" != "$DESTDIR" ]; then
 fi
 
 function sync_subdir() {
+	mkdir -p "./$1"
 	rsync -av "$DIR/$1/" "./$1/" || die "rsync failed."
 }
 
