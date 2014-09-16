@@ -15,7 +15,7 @@
 #include <simics/alloc.h>
 #include <simics/api.h>
 
-#define MODULE_NAME "SAVE"
+#define MODULE_NAME "PP"
 #define MODULE_COLOUR COLOUR_MAGENTA
 
 #include "arbiter.h"

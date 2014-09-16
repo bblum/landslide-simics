@@ -330,7 +330,8 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_RED)
 				    "<h2>A bug was found!</h2>\n"
 				    HTML_COLOUR_END);
-			html_printf(html_fd, "Current stack:<br />\n");
+			html_printf(html_fd, "Current stack (TID %u):<br />\n",
+				    stack->tid);
 			html_print_stack_trace(html_fd, stack);
 		} else {
 			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_BLUE)
