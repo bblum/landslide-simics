@@ -1,0 +1,10 @@
+Landslide for P2s
+
+Testing P2s with Landslide is significantly easier than testing P3s.
+
+Steps:
+
+1. run "./p2-setup.sh ABSOLUTE_PATH_TO_YOUR_P2_PROJECT_DIRECTORY"
+2. run "./landslide -h" to learn command line options
+3. run ./landslide with various config options, or none to use defaults
+4. repeat step 3 until satisfied

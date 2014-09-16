@@ -1,0 +1,161 @@
+################################################################################
+# @file config.landslide
+# @brief A place to specify names/etc of important functions/etc.
+# @author Ben Blum <bblum@andrew.cmu.edu>, and you, the student :)
+#
+# This is part of a shell script, so write in shell. Available helper functions
+# for use in writing this config file:
+#
+# get_sym        Gets the address of a global symbol in the kernel image.
+# get_func       Gets the address of the (first instruction of) a function in
+#                the kernel image.
+# get_func_end   Gets the address of the LAST instruction in a given function
+#                (not including trailing nops) (the instruction is always 'ret')
+# ignore_func, ignore_sym - See below.
+################################################################################
+
+# The path to your kernel image; the file called "kernel" that gets built.
+# (It's ok if you renamed it something other than "kernel".)
+KERNEL_IMG=kernel
+
+# Relative to the pebsim/ directory.
+KERNEL_SOURCE_DIR=p2-s14g35
+
+# What program should landslide run? vanish_vanish, double_thread_fork, ...
+TEST_CASE=thr_exit_join
+
+######################
+#### Simple stuff ####
+######################
+
+# The function registered in the IDT to handle timer interrupts.
+TIMER_WRAPPER=FumOFjZvqszYA
+
+# The function that all context switches go through. Preferably the outermost
+# one - e.g. if a C function calls an assembly function, and both meet this
+# criterion, use the name of the former.
+CONTEXT_SWITCH=HiiqHXcSGFIN
+
+# The name of the function in which threads go to sleep on readline.
+READLINE=uiPgsvmRjJrp
+
+EXEC=Qsfwdtar
+
+# The TIDs of important threads - init, shell, idle. Comment IDLE_TID out
+# entirely if your kernel does not have an explicit idle thread.
+INIT_TID=2
+SHELL_TID=3
+IDLE_TID=1
+
+# After tell_landslide_sched_init_done(), which thread is the first one to run?
+FIRST_TID=$IDLE_TID
+
+# Call this for each thread that exists in your kernel when it
+# tells_landslide_sched_init_done(). The first argument is the TID; the second
+# is "1" if the thread is on the runqueue, and "0" if the thread is not (for
+# example, if it starts descheduled, or if it's the current thread and
+# kern_current_extra_runnable would return true, etc).
+starting_threads $INIT_TID 0
+starting_threads $IDLE_TID 1
+starting_threads 0 1 # thunderbirds
+
+CURRENT_THREAD_LIVES_ON_RQ=0
+
+PREEMPT_ENABLE_FLAG=aoeDqkukLMXG
+PREEMPT_ENABLE_VALUE=0
+
+PAGE_FAULT_WRAPPER=fjCdxZqbauNh
+
+# a kernel-space function which makes userspace memory accesses that might
+# conflict (wrt DPOR) with other accesses from userspace. IOW, some system
+# calls could be "covert communication channels" that we don't want to miss
+# for the purpose of memory independence (e.g. deschedule's reject pointer).
+VM_USER_COPY=HCTWCvVmVNDgt # vm_dousercopy
+
+#######################################
+#### Scheduler/globals information ####
+#######################################
+
+ignore_sym aoeDqkukLMXG 4
+ignore_sym CgNuwKsf 12
+sched_func FumOFjZvqszYA
+sched_func yCTqBALBhO
+sched_func aVSEtHaildT
+sched_func EBKTZNjQT
+sched_func VDfmekakeGSz
+sched_func LOXQLrWDzbweh
+sched_func YKqnyCwUn
+sched_func yeviiyNBUFRhKXGUWERDS
+sched_func uJIXIwQsXRi
+sched_func fBYDCGjvvsjGzxSOGg
+sched_func kPMBARnqSSXXVqEG
+sched_func nsnxlNJpxI
+sched_func RWulmzJfNoivZWCGbbrRX
+sched_func uRVYBqvunPxG
+sched_func BUybDCeymXg
+sched_func lRqBrKtHKH
+sched_func DDoWLNLGxmInH
+sched_func sjPEBhHGdg
+sched_func sGxboVWUUhaSAOGKdFD
+sched_func yeBESdIiIRzEcedhJs
+sched_func dCkUIDzquMTWWvzJw
+sched_func dWLTqcrSfHt
+sched_func QtQyNWMmRQmpO
+sched_func HiiqHXcSGFIN
+sched_func YZSxBJpwjerBLxxhXuBOjYp
+sched_func erzncnmPzIwTKSPmXX
+sched_func olxyEaoGPJNphyNUb
+
+####################################################
+#### Decision-point / Exploration configuration ####
+####################################################
+
+# by default off - they can be re-enabled by id script with subsequent 'within's
+without_user_function mutex_unlock
+without_user_function mutex_lock
+
+# FIXME: malloc free
+
+##########################
+#### Advanced options ####
+##########################
+
+# If you need to know any other global variables when implementing the
+# in-landslide hooks, write them here. First argument is the symbol name in your
+# kernel; second argument is the name of the define for its address that you'll
+# be able to use.
+
+# Landslide has detection for "all threads are wedged", but it's imperfect, so
+# by default we let the kernel keep running. If you see an "all threads wedged?"
+# message and your kernel doesn't seem to be making progress, change this to 1.
+BUG_ON_THREADS_WEDGED=1
+
+# Exploring "backwards" means starting with a forced preemption at every
+# decision point. Exploring "forwards" means letting threads continue running by
+# default and adding extra preemptions as exploration progresses.
+# Backwards is likely to find bugs much more quickly, but will produce a
+# longer, more difficult to understand debug trace.
+# !!!   Backwards is the recommended default! Only change this if you've   !!!
+# !!!     already found a bug and are trying to understand it better!      !!!
+EXPLORE_BACKWARDS=0
+
+# Set this to 1 if you want Landslide not to explore the tree, but to stop after
+# the first branch and print out the set of decision points that it found using
+# your current configuration. This is useful for fine-tuning your set of custom
+# decision points.
+DONT_EXPLORE=0
+
+# When Landslide finds a bug, should it make simics quit (0) or drop into the
+# command line (1)? (Quitting will make the correct elapsed time print out.)
+BREAK_ON_BUG=0
+
+TESTING_USERSPACE=1
+
+PRINT_DATA_RACES=1
+TABULAR_TRACE=1
+
+OBFUSCATED_KERNEL=1
+
+VERBOSE=1
+
+# vim: ft=sh

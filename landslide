@@ -1,0 +1,12 @@
+#!/bin/bash
+
+IDDIR=id
+IDEXE=landslide-id
+
+if [ ! -f "$IDDIR/$IDEXE" ]; then
+	echo "p2-setup.sh was not run or did not succeed."
+	exit 1
+fi
+
+cd $IDDIR
+exec ./$IDEXE "$@"
