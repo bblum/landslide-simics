@@ -13,6 +13,7 @@
 #include "messaging.h"
 #include "pp.h"
 #include "time.h"
+#include "work.h"
 #include "xcalls.h"
 
 #define MESSAGING_MAGIC 0x15410de0u
@@ -125,6 +126,7 @@ static void handle_estimate(struct job *j, long double proportion,
 	    elapsed_branches, total_branches, proportion * 100,
 	    elapsed_usecs, total_usecs);
 	// TODO: update job state
+	(void)j;
 }
 
 static bool handle_should_continue(struct job *j)
