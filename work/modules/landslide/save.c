@@ -501,7 +501,7 @@ static void free_hax(struct hax *h)
 static void restore_ls(struct ls_state *ls, struct hax *h)
 {
 	lsprintf(DEV, "88 MPH: eip 0x%x -> 0x%x; "
-		 "triggers %lu -> %lu (absolute %lu); last choice %d\n",
+		 "triggers %lu -> %lu (absolute %" PRIu64 "); last choice %d\n",
 		 ls->eip, h->eip, ls->trigger_count, h->trigger_count,
 		 ls->absolute_trigger_count, h->chosen_thread);
 

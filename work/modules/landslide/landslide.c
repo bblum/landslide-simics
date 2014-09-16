@@ -246,11 +246,13 @@ static bool ensure_progress(struct ls_state *ls)
 		return true;
 
 	/* Have we been spinning since the last choice point? */
-	int most_recent = ls->trigger_count - ls->save.current->trigger_count;
-	int average_triggers = ls->save.total_triggers / ls->save.total_choices;
+	unsigned long most_recent =
+		ls->trigger_count - ls->save.current->trigger_count;
+	unsigned long average_triggers =
+		ls->save.total_triggers / ls->save.total_choices;
 	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "%d instructions since last decision; average %d\n",
+			 "%lu instructions since last decision; average %lu\n",
 			 most_recent, average_triggers);
 		FOUND_A_BUG(ls, "NO PROGRESS (infinite loop?)");
 		return false;
@@ -258,7 +260,8 @@ static bool ensure_progress(struct ls_state *ls)
 
 	/* Have we been spinning around a choice point (so this branch would
 	 * end up being infinitely deep)? */
-	int average_depth = ls->save.depth_total / (1 + ls->save.total_jumps);
+	unsigned int average_depth =
+		ls->save.depth_total / (1 + ls->save.total_jumps);
 	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
 			 "Current branch depth %d; average depth %d\n",
@@ -320,8 +323,8 @@ static bool time_travel(struct ls_state *ls)
 	unsigned int tid;
 	struct hax *h = explore(&ls->save, &tid);
 
-	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%d.\n"
-		 COLOUR_DEFAULT, ls->save.total_jumps + 1);
+	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%" PRIu64
+		 ".\n" COLOUR_DEFAULT, ls->save.total_jumps + 1);
 	print_estimates(ls);
 	check_should_abort(ls);
 

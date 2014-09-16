@@ -47,7 +47,7 @@ struct hax {
 	/**** Tree link data. ****/
 
 	struct hax *parent;
-	int depth; /* starts at 0 */
+	unsigned int depth; /* starts at 0 */
 	Q_NEW_LINK(struct hax) sibling;
 	Q_NEW_HEAD(struct, struct hax) children;
 

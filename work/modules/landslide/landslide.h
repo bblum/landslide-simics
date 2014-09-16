@@ -22,8 +22,8 @@ struct ls_state {
 	/* log_object_t must be the first thing in the device struct */
 	log_object_t log;
 
-	unsigned long trigger_count; /* in this branch of the tree */
-	unsigned long absolute_trigger_count; /* in the whole execution */
+	uint64_t trigger_count; /* in this branch of the tree */
+	uint64_t absolute_trigger_count; /* in the whole execution */
 
 	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;

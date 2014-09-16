@@ -11,18 +11,22 @@
 #error "must include common.h before found_a_bug.h"
 #endif
 
+#include <inttypes.h>
+
 #include "landslide.h"
 
 struct ls_state;
 
 #define _PRINT_TREE_INFO(v, mn, mc, ls) do {				\
-	_lsprintf(v, mn, mc,						\
-		  "Current instruction count %lu, total instructions %lu\n", \
+	_lsprintf(v, mn, mc, "Current instruction count %" PRIu64 ", "	\
+		  "total instructions %" PRIu64 "\n", 			\
 		  ls->trigger_count, ls->absolute_trigger_count);	\
-	_lsprintf(v, mn, mc, "Total preemption-points %d, total backtracks %d\n", \
+	_lsprintf(v, mn, mc, "Total preemption-points %" PRIu64 ", "	\
+		  "total backtracks %" PRIu64 "\n", 			\
 		  ls->save.total_choices, ls->save.total_jumps);	\
 	_lsprintf(v, mn, mc,						\
-		  "Average instrs/preemption-point %d, average branch depth %d\n", \
+		  "Average instrs/preemption-point %lu, "		\
+		  "average branch depth %lu\n",				\
 		  ls->save.total_triggers / (1+ls->save.total_choices),	\
 		  ls->save.depth_total / (1+ls->save.total_jumps));	\
 	} while (0)

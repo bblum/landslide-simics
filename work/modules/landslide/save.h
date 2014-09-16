@@ -22,11 +22,11 @@ struct save_state {
 	struct hax *current;
 	int next_tid;
 	/* Statistics */
-	int total_choice_poince;
-	int total_choices;
-	int total_jumps;
-	int total_triggers;
-	int depth_total;
+	uint64_t total_choice_poince;
+	uint64_t total_choices;
+	uint64_t total_jumps;
+	uint64_t total_triggers;
+	uint64_t depth_total;
 
 	/* Records the timestamp last time we arrived at a node in the tree.
 	 * This is updated only during save_setjmp -- it doesn't need to be during
