@@ -3,7 +3,9 @@
 DIR=$1
 
 function die() {
+	echo -ne '\033[01;31m'
 	echo "$1"
+	echo -ne '\033[00m'
 	exit 1
 }
 
@@ -35,7 +37,7 @@ if [ "`basename $PWD`" != "$DESTDIR" ]; then
 fi
 
 function sync_subdir() {
-	rsync -av "$DIR/$1/" "./$1/"
+	rsync -av "$DIR/$1/" "./$1/" || die "rsync failed."
 }
 
 sync_subdir vq_challenge
