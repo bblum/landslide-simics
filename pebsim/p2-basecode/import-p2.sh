@@ -38,7 +38,7 @@ fi
 
 function sync_subdir() {
 	mkdir -p "./$1"
-	rsync -av "$DIR/$1/" "./$1/" || die "rsync failed."
+	rsync -av --delete "$DIR/$1/" "./$1/" || die "rsync failed."
 }
 
 sync_subdir vq_challenge
