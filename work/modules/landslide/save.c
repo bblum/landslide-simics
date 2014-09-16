@@ -752,7 +752,6 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 
 		h->is_preemption_point = is_preemption_point;
 		h->data_race_eip = data_race_eip;
-		if (end_of_test) { assert(!is_preemption_point); }
 		if (is_preemption_point) { assert(data_race_eip == -1); }
 
 		h->marked_children = 0;

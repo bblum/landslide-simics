@@ -260,7 +260,9 @@ static long double compute_state_space_size(struct ls_state *ls,
 		// reverse it in that case.
 		assert(ls->save.root->proportion == 0.0L);
 		check_user_yield_activity(&ls->user_sync, ls->sched.cur_agent);
-		save_setjmp(&ls->save, ls, -1, true, true, false, -1, false);
+		bool voluntary = ls->sched.last_agent != NULL &&
+		                 ls->sched.last_agent != ls->sched.cur_agent;
+		save_setjmp(&ls->save, ls, -1, true, true, true, -1, voluntary);
 		unsigned int _tid;
 		explore(&ls->save, &_tid);
 		*needed_compute = true;
@@ -346,8 +348,8 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 				              : HTML_COLOUR_START(HTML_COLOUR_BLUE),
 				    reason_len, reason);
 		}
-		html_printf(html_fd, "Distinct interleavings tested: %" PRIu64
-			    "<br />\n", ls->save.total_jumps + 1);
+		html_printf(html_fd, "Total backtracks: %" PRIu64 "<br />\n",
+			    ls->save.total_jumps);
 		html_printf(html_fd, "Estimated state space size: %Lf<br />\n",
 			    (ls->save.total_jumps + 1) / proportion);
 		html_printf(html_fd, "Estimated state space coverage: %Lf%%<br />\n",
