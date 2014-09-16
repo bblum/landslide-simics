@@ -40,6 +40,7 @@ static bool unexpected_idle()
 		FOUND_A_BUG(ls, "Kernel is unexpectedly idling.");
 	}
 	assert(0);
+	return false;
 }
 
 // TODO: some way of telling when actually ... use readline to know
