@@ -127,9 +127,16 @@ static void handle_estimate(struct job *j, long double proportion,
 {
 	unsigned int total_branches =
 	    (unsigned int)((long double)elapsed_branches / proportion);
-	DBG("message est: %u/%u brs (%Lf%%), %Lf elapsed / %Lf total\n",
-	    elapsed_branches, total_branches, proportion * 100,
-	    elapsed_usecs, total_usecs);
+	struct human_friendly_time hft_elapsed;
+	struct human_friendly_time hft_eta;
+	human_friendly_time(elapsed_usecs, &hft_elapsed);
+	human_friendly_time(total_usecs - elapsed_usecs, &hft_eta);
+	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ETA ", j->id,
+	    elapsed_branches, total_branches, proportion * 100);
+	print_human_friendly_time(&hft_eta);
+	DBG(" (elapsed ");
+	print_human_friendly_time(&hft_elapsed);
+	DBG(")\n");
 	// TODO: update job state
 	(void)j;
 }

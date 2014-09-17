@@ -36,3 +36,52 @@ unsigned long time_remaining()
 	unsigned long end_time = start_timestamp + budget;
 	return end_time < now ? 0 : end_time - now;
 }
+
+void human_friendly_time(long double usecs, struct human_friendly_time *hft)
+{
+	long double secs = usecs / 1000000;
+	if ((hft->inf = (secs > (long double)UINT64_MAX))) {
+		return;
+	}
+
+	hft->years = 0;
+	hft->days = 0;
+	hft->hours = 0;
+	hft->mins = 0;
+	hft->secs = (uint64_t)secs;
+	if (hft->secs >= 60) {
+		hft->mins = hft->secs / 60;
+		hft->secs = hft->secs % 60;
+	}
+	if (hft->mins >= 60) {
+		hft->hours = hft->mins / 60;
+		hft->mins  = hft->mins % 60;
+	}
+	if (hft->hours >= 24) {
+		hft->days  = hft->hours / 24;
+		hft->hours = hft->hours % 24;
+	}
+	if (hft->days >= 365) {
+		hft->years = hft->days / 365;
+		hft->days  = hft->days % 365;
+	}
+}
+
+void print_human_friendly_time(struct human_friendly_time *hft)
+{
+	if (hft->inf) {
+		DBG("INF");
+		return;
+	}
+
+	if (hft->years != 0)
+		DBG("%luy ", hft->years);
+	if (hft->days  != 0)
+		DBG("%lud ", hft->days);
+	if (hft->hours != 0)
+		DBG("%luh ", hft->hours);
+	if (hft->mins  != 0)
+		DBG("%lum ", hft->mins);
+
+	DBG("%lus", hft->secs);
+}
