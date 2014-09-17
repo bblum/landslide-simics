@@ -461,6 +461,8 @@ define_user_addr USER_RWLOCK_UNLOCK rwlock_unlock
 
 # user other
 
+echo "#define USER_REPORT_END_FAIL_VAL 1"
+define_user_addr USER_REPORT_END report_end
 define_user_addr USER_YIELD yield
 define_user_addr USER_MAKE_RUNNABLE make_runnable
 define_user_addr USER_SLEEP sleep

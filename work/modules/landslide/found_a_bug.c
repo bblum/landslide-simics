@@ -348,8 +348,8 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 				              : HTML_COLOUR_START(HTML_COLOUR_BLUE),
 				    reason_len, reason);
 		}
-		html_printf(html_fd, "Total backtracks: %" PRIu64 "<br />\n",
-			    ls->save.total_jumps);
+		html_printf(html_fd, "Distinct interleavings tested: %" PRIu64
+			    "<br />\n", ls->save.total_jumps + 1);
 		html_printf(html_fd, "Estimated state space size: %Lf<br />\n",
 			    (ls->save.total_jumps + 1) / proportion);
 		html_printf(html_fd, "Estimated state space coverage: %Lf%%<br />\n",

@@ -27,8 +27,18 @@ bool user_within_functions(struct ls_state *ls)
 }
 
 /******************************************************************************
- * Syscall wrappers
+ * Syscall wrappers / misc
  ******************************************************************************/
+
+bool user_report_end_fail(conf_object_t *cpu, unsigned int eip)
+{
+#ifdef USER_REPORT_END
+	return eip == USER_REPORT_END &&
+		READ_STACK(cpu, 1) == USER_REPORT_END_FAIL_VAL;
+#else
+	return false;
+#endif
+}
 
 bool user_yielding(conf_object_t *cpu, unsigned int eip)
 {

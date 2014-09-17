@@ -224,6 +224,8 @@ static bool ensure_progress(struct ls_state *ls)
 		}
 		MM_FREE(buf);
 		return false;
+	} else if (user_report_end_fail(ls->cpu0, ls->eip)) {
+		FOUND_A_BUG(ls, "User test program reported failure!");
 #ifdef GUEST_PF_HANDLER
 	} else if (ls->eip == GUEST_PF_HANDLER) {
 		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
