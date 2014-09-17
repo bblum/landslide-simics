@@ -32,8 +32,8 @@ bool user_within_functions(struct ls_state *ls)
 
 bool user_report_end_fail(conf_object_t *cpu, unsigned int eip)
 {
-#ifdef USER_REPORT_END
-	return eip == USER_REPORT_END &&
+#ifdef USER_REPORT_END_ENTER
+	return eip == USER_REPORT_END_ENTER &&
 		READ_STACK(cpu, 1) == USER_REPORT_END_FAIL_VAL;
 #else
 	return false;
