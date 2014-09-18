@@ -10,6 +10,7 @@
 struct job;
 
 void add_work(struct job *j);
+void signal_work();
 void start_work(unsigned long num_cpus);
 void wait_to_finish_work();
 

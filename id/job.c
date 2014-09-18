@@ -84,6 +84,12 @@ static void *run_job(void *arg)
 	XWRITE(&config_file, "TEST_CASE=%s\n", test_name);
 	XWRITE(&config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
 
+	// FIXME: Make this principled instead of a gross hack
+	XWRITE(&config_file, "without_user_function malloc\n");
+	XWRITE(&config_file, "without_user_function realloc\n");
+	XWRITE(&config_file, "without_user_function calloc\n");
+	XWRITE(&config_file, "without_user_function free\n");
+
 	messaging_init(&mess, &config_file, j->id);
 
 	// XXX: Need to do this here so the parent can have the path into pebsim

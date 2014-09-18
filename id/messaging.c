@@ -104,11 +104,26 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	if (!pp_set_contains(j->config, pp) &&
 	    !pp_set_contains(*discovered_pps, pp)) {
 		DBG("Adding job with new PP '%s'\n", pp->config_str);
-		struct pp_set *new_set = add_pp_to_set(j->config, pp);
+		struct pp_set *new_set;
+		bool added = false;
+		/* Add a little job. */
+		if (!duplicate) {
+			struct pp_set *empty = create_pp_set(PRIORITY_NONE);
+			new_set = add_pp_to_set(empty, pp);
+			free_pp_set(empty);
+			add_work(new_job(new_set));
+			added = true;
+		}
+		/* Add a big job. */
+		new_set = add_pp_to_set(j->config, pp);
 		if (bug_already_found(new_set)) {
 			free_pp_set(new_set);
 		} else {
 			add_work(new_job(new_set));
+			added = true;
+		}
+		if (added) {
+			signal_work();
 		}
 	}
 

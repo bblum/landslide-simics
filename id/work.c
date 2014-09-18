@@ -40,8 +40,12 @@ void add_work(struct job *j)
 	check_init();
 	LOCK(&workqueue_lock);
 	ARRAY_LIST_APPEND(&workqueue, j);
-	BROADCAST(&workqueue_cond);
 	UNLOCK(&workqueue_lock);
+}
+
+void signal_work()
+{
+	BROADCAST(&workqueue_cond);
 }
 
 /* returns NULL if no work is available */
@@ -50,6 +54,7 @@ static struct job *get_work()
 	struct job *best_job = NULL;
 	unsigned int best_index;
 	unsigned int best_priority;
+	unsigned int best_size;
 
 	struct job **j;
 	unsigned int i;
@@ -60,10 +65,13 @@ static struct job *get_work()
 
 	ARRAY_LIST_FOREACH(&workqueue, i, j) {
 		unsigned int priority = unexplored_priority((*j)->config);
-		if (best_job == NULL || priority < best_priority) {
+		unsigned int size = (*j)->config->size;
+		if (best_job == NULL || priority < best_priority ||
+		    (priority == best_priority && size < best_size)) {
 			best_job = *j;
 			best_index = i;
 			best_priority = priority;
+			best_size = size;
 		}
 	}
 	if (best_job != NULL) {

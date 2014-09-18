@@ -97,14 +97,12 @@ struct pp *pp_new(char *config_str, unsigned int priority,
 		result = registry[i];
 		if (0 == strcmp(config_str, result->config_str)) {
 			already_present = true;
+			*duplicate = true;
 			if (priority < result->priority) {
 				DBG("updating priority of '%s' from %d to %d\n",
 				    config_str, result->priority, priority);
 				result->priority = priority;
 				result->generation = generation;
-			} else {
-				// DBG("duplicate pp '%s'\n", config_str);
-				*duplicate = true;
 			}
 			break;
 		}
