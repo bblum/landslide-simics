@@ -40,6 +40,7 @@ void add_work(struct job *j)
 	check_init();
 	LOCK(&workqueue_lock);
 	ARRAY_LIST_APPEND(&workqueue, j);
+	BROADCAST(&workqueue_cond);
 	UNLOCK(&workqueue_lock);
 }
 
