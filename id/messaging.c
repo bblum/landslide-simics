@@ -101,17 +101,17 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 
 	/* If the data race PP is not already enabled in this job's config,
 	 * create a new job based on this one. */
-	if (!pp_set_contains(j->config, pp) &&
+	if (j->should_reproduce && !pp_set_contains(j->config, pp) &&
 	    !pp_set_contains(*discovered_pps, pp)) {
 		DBG("Adding job with new PP '%s'\n", pp->config_str);
 		struct pp_set *new_set;
 		bool added = false;
 		/* Add a little job. */
-		if (!duplicate) {
+		if (!duplicate && j->config->size > 0) {
 			struct pp_set *empty = create_pp_set(PRIORITY_NONE);
 			new_set = add_pp_to_set(empty, pp);
 			free_pp_set(empty);
-			add_work(new_job(new_set));
+			add_work(new_job(new_set, false));
 			added = true;
 		}
 		/* Add a big job. */
@@ -119,7 +119,7 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 		if (bug_already_found(new_set)) {
 			free_pp_set(new_set);
 		} else {
-			add_work(new_job(new_set));
+			add_work(new_job(new_set, true));
 			added = true;
 		}
 		if (added) {

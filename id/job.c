@@ -44,7 +44,7 @@ void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs)
 	leave_logs = arg_leave_logs;
 }
 
-struct job *new_job(struct pp_set *config)
+struct job *new_job(struct pp_set *config, bool should_reproduce)
 {
 	struct job *j = XMALLOC(1, struct job);
 	j->config = config;
@@ -52,6 +52,7 @@ struct job *new_job(struct pp_set *config)
 	j->id = __sync_fetch_and_add(&job_id, 1);
 	j->generation = compute_generation(config);
 	j->done = false;
+	j->should_reproduce = should_reproduce;
 
 	COND_INIT(&j->done_cvar);
 	MUTEX_INIT(&j->done_lock);

@@ -35,10 +35,10 @@ int main(int argc, char **argv)
 	set_job_options(test_name, verbose, leave_logs);
 	start_time(max_time * 1000000);
 
-	add_work(new_job(create_pp_set(PRIORITY_NONE)));
-	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK)));
-	add_work(new_job(create_pp_set(PRIORITY_MUTEX_UNLOCK)));
-	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK)));
+	add_work(new_job(create_pp_set(PRIORITY_NONE), true));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK), true));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_UNLOCK), true));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK), true));
 	start_work(num_cpus);
 	wait_to_finish_work();
 

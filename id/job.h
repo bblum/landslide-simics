@@ -19,6 +19,7 @@ struct job {
 	struct pp_set *config; /* shared but read-only after init */
 	unsigned int id;
 	unsigned int generation; /* max among generations of pps + 1 */
+	bool should_reproduce;
 
 	/* shared state */
 	bool done;
@@ -27,7 +28,7 @@ struct job {
 };
 
 void set_job_options(char *test_name, bool verbose, bool leave_logs);
-struct job *new_job(struct pp_set *config);
+struct job *new_job(struct pp_set *config, bool should_reproduce);
 void start_job(struct job *j);
 void wait_on_job(struct job *j);
 void cancel_job(struct job *j);
