@@ -77,15 +77,20 @@ static void *run_job(void *arg)
 	create_file(&log_stderr, LOG_FILE_TEMPLATE("stderr"));
 
 	/* write config file */
+
+	// XXX(#120): TEST_CASE must be defined before PPs are specified.
+	XWRITE(&config_file, "TEST_CASE=%s\n", test_name);
+	XWRITE(&config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
+	// FIXME: Make this more principled instead of a gross hack
+	XWRITE(&config_file, "without_user_function mutex_lock\n");
+	XWRITE(&config_file, "without_user_function mutex_unlock\n");
+
 	struct pp *pp;
 	FOR_EACH_PP(pp, j->config) {
 		XWRITE(&config_file, "%s\n", pp->config_str);
 	}
 	assert(test_name != NULL);
-	XWRITE(&config_file, "TEST_CASE=%s\n", test_name);
-	XWRITE(&config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
-
-	// FIXME: Make this principled instead of a gross hack
+	// FIXME: Make this principled, as above
 	XWRITE(&config_file, "without_user_function malloc\n");
 	XWRITE(&config_file, "without_user_function realloc\n");
 	XWRITE(&config_file, "without_user_function calloc\n");

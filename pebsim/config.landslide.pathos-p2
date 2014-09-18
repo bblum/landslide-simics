@@ -110,11 +110,10 @@ sched_func olxyEaoGPJNphyNUb
 #### Decision-point / Exploration configuration ####
 ####################################################
 
-# by default off - they can be re-enabled by id script with subsequent 'within's
-without_user_function mutex_unlock
-without_user_function mutex_lock
+# XXX (issue #120): Cannot have any userspace directives here to be
+# compatible with additional iterative deepening config.
 
-# FIXME: malloc free
+# All PPs are specified in supplemental ID config file.
 
 ##########################
 #### Advanced options ####
