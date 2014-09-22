@@ -240,10 +240,10 @@ static bool ensure_progress(struct ls_state *ls)
 #endif
 	}
 
-	/* FIXME: find a less false-negative way to tell when we have enough
-	 * data */
-	STATIC_ASSERT(PROGRESS_MIN_BRANCHES > 0); /* prevent div-by-zero */
-	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
+	/* Can't check for tight loops 0th branch. If one transition has an
+	 * expensive operation like vm_free_pagedir() we don't want to trip on
+	 * it; we want to incorporate it into the average. */
+	if (ls->save.total_jumps == 0)
 		return true;
 
 	/* Have we been spinning since the last choice point? */
@@ -258,6 +258,12 @@ static bool ensure_progress(struct ls_state *ls)
 		FOUND_A_BUG(ls, "NO PROGRESS (infinite loop?)");
 		return false;
 	}
+
+	/* FIXME: find a less false-negative way to tell when we have enough
+	 * data */
+	STATIC_ASSERT(PROGRESS_MIN_BRANCHES > 0); /* prevent div-by-zero */
+	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
+		return true;
 
 	/* Have we been spinning around a choice point (so this branch would
 	 * end up being infinitely deep)? */
