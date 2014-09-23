@@ -5,7 +5,6 @@
  */
 
 #include <fcntl.h> /* for open */
-#include <unistd.h> /* for write */
 
 #include <simics/api.h>
 
@@ -87,67 +86,45 @@ static void init_table_column_map(table_column_map_t *m, struct save_state *ss,
 
 /******************** actual logic ********************/
 
-#define html_print_buf(fd, buf, len) do {			\
-		unsigned int ret = write(fd, buf, len);		\
-		assert(ret > 0 && "failed write");		\
-	} while (0)
-
-#define html_printf(fd, ...) do {					\
-		const int buflen = 1024;				\
-		char buf[buflen];					\
-		unsigned int len = scnprintf(buf, buflen, __VA_ARGS__);	\
-		assert(len > 0 && "failed scnprintf");			\
-		html_print_buf(fd, buf, len);				\
-	} while(0)
-
 /* returns an open file descriptor */
-static int begin_html_output(const char *filename) {
-	int fd = open(filename, O_CREAT | O_WRONLY | O_APPEND,
-		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	assert(fd != -1 && "failed open html file");
+static void begin_html_output(const char *filename, struct fab_html_env *env) {
+	env->html_fd = open(filename, O_CREAT | O_WRONLY | O_APPEND,
+			    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	assert(env->html_fd != -1 && "failed open html file");
 
-	html_printf(fd, "<html><head><title>\n");
-	html_printf(fd, "landslide preemption trace output\n");
-	html_printf(fd, "</title><style>\n");
-	html_printf(fd, "table,th,td { border:1px solid black; }\n");
-	html_printf(fd, "</style></head><body>\n");
-	html_printf(fd, "<marquee>&iexcl;CUIDADO! &iexcl;LAS LLAMAS SON MUY PELIGROSAS!</marquee>\n");
-	return fd;
+	HTML_PRINTF(env, "<html><head><title>\n");
+	HTML_PRINTF(env, "landslide preemption trace output\n");
+	HTML_PRINTF(env, "</title><style>\n");
+	HTML_PRINTF(env, "table,th,td { border:1px solid black; }\n");
+	HTML_PRINTF(env, "</style></head><body>\n");
+	HTML_PRINTF(env, "<marquee>&iexcl;CUIDADO! &iexcl;LAS LLAMAS SON MUY PELIGROSAS!</marquee>\n");
 }
 
-static void end_html_output(int fd) {
-	html_printf(fd, "</body>\n");
-	html_printf(fd, "</html>\n");
-	int ret = close(fd);
+static void end_html_output(struct fab_html_env *env) {
+	HTML_PRINTF(env, "</body>\n");
+	HTML_PRINTF(env, "</html>\n");
+	int ret = close(env->html_fd);
 	assert(ret == 0 && "failed close");
 }
 
-#define MAX_TRACE_LEN 2048
-
-static void html_print_stack_trace(int fd, struct stack_trace *st)
-{
-	char buf[MAX_TRACE_LEN];
-	unsigned int length = html_stack_trace(buf, MAX_TRACE_LEN, st);
-	html_print_buf(fd, buf, length);
-}
-
-static void html_print_stack_trace_in_table(int fd, table_column_map_t *m,
+static void html_print_stack_trace_in_table(struct fab_html_env *env,
+					    table_column_map_t *m,
 					    struct stack_trace *st)
 {
 	bool found = false;
-	html_printf(fd, "<tr>");
+	HTML_PRINTF(env, "<tr>");
 	int i;
 	unsigned int *tidp;
 	ARRAY_LIST_FOREACH(m, i, tidp) {
-		html_printf(fd, "<td>");
+		HTML_PRINTF(env, "<td>");
 		if (*tidp == st->tid) {
 			assert(!found && "duplicate tid in map");
-			html_print_stack_trace(fd, st);
+			HTML_PRINT_STACK_TRACE(env, st);
 			found = true;
 		}
-		html_printf(fd, "</td>");
+		HTML_PRINTF(env, "</td>");
 	}
-	html_printf(fd, "</tr>\n");
+	HTML_PRINTF(env, "</tr>\n");
 	assert(found && "tid missing in table column map");
 }
 
@@ -178,10 +155,10 @@ void print_stack_to_console(struct stack_trace *st, bool bug_found, const char *
 	printf(BUG, "\n");
 }
 
-/* html_fd and map are valid iff tabular is true */
+/* env and map are valid iff tabular is true */
 static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 				    bool bug_found, bool tabular,
-				    unsigned int html_fd,
+				    struct fab_html_env *env,
 				    table_column_map_t *map,
 				    bool verbose)
 {
@@ -193,7 +170,7 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 	}
 
 	num = 1 + print_tree_from(h->parent, h->chosen_thread, bug_found,
-				  tabular, html_fd, map, verbose);
+				  tabular, env, map, verbose);
 
 	if (h->is_preemption_point &&
 	    (h->chosen_thread != choose_thread || verbose)) {
@@ -218,7 +195,7 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 		/* print stack trace, either in html or console format */
 		print_stack_to_console(h->stack_trace, bug_found, "\t");
 		if (tabular) {
-			html_print_stack_trace_in_table(html_fd, map, h->stack_trace);
+			html_print_stack_trace_in_table(env, map, h->stack_trace);
 		}
 	}
 
@@ -296,7 +273,7 @@ static unsigned int count_distinct_user_threads(table_column_map_t *map)
 }
 
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
-		  char *reason, unsigned int reason_len)
+		  char *reason, unsigned int reason_len, fab_cb_t callback)
 {
 	bool needed_compute_estimate; /* XXX hack */
 	long double proportion = compute_state_space_size(ls, &needed_compute_estimate);
@@ -321,79 +298,82 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 	}
 
 	struct stack_trace *stack = stack_trace(ls);
-	int html_fd;
+	struct fab_html_env env;
 	table_column_map_t map;
 
 	if (tabular) {
 		/* Also print trace to html output file. */
-		html_fd = begin_html_output(ls->html_file);
+		begin_html_output(ls->html_file, &env);
 
 		if (bug_found) {
-			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_RED)
+			HTML_PRINTF(&env, HTML_COLOUR_START(HTML_COLOUR_RED)
 				    "<h2>A bug was found!</h2>\n"
 				    HTML_COLOUR_END);
-			html_printf(html_fd, "Current stack (TID %u):<br />\n",
+			HTML_PRINTF(&env, "Current stack (TID %u):<br />\n",
 				    stack->tid);
-			html_print_stack_trace(html_fd, stack);
+			HTML_PRINT_STACK_TRACE(&env, stack);
 		} else {
-			html_printf(html_fd, HTML_COLOUR_START(HTML_COLOUR_BLUE)
+			HTML_PRINTF(&env, HTML_COLOUR_START(HTML_COLOUR_BLUE)
 				    "<h2>Preemption point info follows. "
 				    "No bug was found.</h2><br />\n" HTML_COLOUR_END);
 		}
 		if (reason) {
 			// FIXME: Sanitize reason; e.g. for deadlocks the message
 			// will contain "->" which may not render properly.
-			html_printf(html_fd, "%s<h3>%.*s</h3>\n" HTML_COLOUR_END,
+			HTML_PRINTF(&env, "%s<h3>%.*s</h3>\n" HTML_COLOUR_END,
 				    bug_found ? HTML_COLOUR_START(HTML_COLOUR_RED)
 				              : HTML_COLOUR_START(HTML_COLOUR_BLUE),
 				    reason_len, reason);
 		}
-		html_printf(html_fd, "Distinct interleavings tested: %" PRIu64
+		if (callback) {
+			callback(&env);
+		}
+		HTML_PRINTF(&env, "Distinct interleavings tested: %" PRIu64
 			    "<br />\n", ls->save.total_jumps + 1);
-		html_printf(html_fd, "Estimated state space size: %Lf<br />\n",
+		HTML_PRINTF(&env, "Estimated state space size: %Lf<br />\n",
 			    (ls->save.total_jumps + 1) / proportion);
-		html_printf(html_fd, "Estimated state space coverage: %Lf%%<br />\n",
+		HTML_PRINTF(&env, "Estimated state space coverage: %Lf%%<br />\n",
 			    proportion * 100);
-		html_printf(html_fd, "<br />\n");
+		HTML_PRINTF(&env, "<br />\n");
 
 		/* Figure out how many columns the table will need. */
 		init_table_column_map(&map, &ls->save, stack->tid);
 		assert(ARRAY_LIST_SIZE(&map) > 0);
 
 		if (testing_userspace() && count_distinct_user_threads(&map) < 2) {
-			html_printf(html_fd, "<table><tr><td>\n");
-			html_printf(html_fd, "%s<b>NOTE</b>:%s This bug was detected "
+			HTML_PRINTF(&env, "<table><tr><td>\n");
+			HTML_PRINTF(&env, "%s<b>NOTE</b>:%s This bug was detected "
 				    "before multiple user threads were created.<br />"
 				    "This is NOT A RACE, but more likely a problem "
 				    "with your setup/initialization code.",
 				    HTML_COLOUR_START(HTML_COLOUR_RED),
 				    HTML_COLOUR_END);
-			html_printf(html_fd, "</td></tr></table><br /><br />\n");
+			HTML_PRINTF(&env, "</td></tr></table><br /><br />\n");
 		}
 
 		/* Print the tabular trace. */
-		html_printf(html_fd, "<table><tr>\n");
+		HTML_PRINTF(&env, "<table><tr>\n");
 		int i;
 		unsigned int *tidp;
 		ARRAY_LIST_FOREACH(&map, i, tidp) {
-			html_printf(html_fd, "<td><div style=\"%s\">",
+			HTML_PRINTF(&env, "<td><div style=\"%s\">",
 				    "font-size:large;text-align:center");
-			html_printf(html_fd, "TID %d", *tidp);
+			HTML_PRINTF(&env, "TID %d", *tidp);
 			if (*tidp == kern_get_init_tid()) {
-				html_printf(html_fd, " (init)");
+				HTML_PRINTF(&env, " (init)");
 			} else if (*tidp == kern_get_shell_tid()) {
-				html_printf(html_fd, " (shell)");
+				HTML_PRINTF(&env, " (shell)");
 			} else if (kern_has_idle() && *tidp == kern_get_idle_tid()) {
-				html_printf(html_fd, " (idle)");
+				HTML_PRINTF(&env, " (idle)");
 			}
-			html_printf(html_fd, "</div></td>\n");
+			HTML_PRINTF(&env, "</div></td>\n");
 		}
-		html_printf(html_fd, "</tr>\n");
+		HTML_PRINTF(&env, "</tr>\n");
 	}
 
 	/* Walk current branch from root. */
 	print_tree_from(ls->save.current, ls->save.next_tid, bug_found,
-			tabular, html_fd, &map, verbose);
+			tabular, &env, &map, verbose);
 
 	lsprintf(BUG, bug_found, COLOUR_BOLD "%sCurrent stack:\n"
 		 COLOUR_DEFAULT, bug_found ? COLOUR_RED : COLOUR_GREEN);
@@ -410,11 +390,11 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			/* XXX hack -- suppress printing duplicate preemption
 			 * point if a dummy preemption point was added for
 			 * the purpose of computing a state space estimate. */
-			html_print_stack_trace_in_table(html_fd, &map, stack);
+			html_print_stack_trace_in_table(&env, &map, stack);
 		}
-		html_printf(html_fd, "</table>\n");
+		HTML_PRINTF(&env, "</table>\n");
 		ARRAY_LIST_FREE(&map);
-		end_html_output(html_fd);
+		end_html_output(&env);
 		lsprintf(BUG, bug_found, COLOUR_BOLD COLOUR_GREEN
 			 "Tabular preemption trace output to %s\n." COLOUR_DEFAULT,
 			 ls->html_file);
