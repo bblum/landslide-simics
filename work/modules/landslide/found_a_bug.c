@@ -273,7 +273,7 @@ static unsigned int count_distinct_user_threads(table_column_map_t *map)
 }
 
 void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
-		  char *reason, unsigned int reason_len, fab_cb_t callback)
+		  const char *reason, unsigned int reason_len, fab_cb_t callback)
 {
 	bool needed_compute_estimate; /* XXX hack */
 	long double proportion = compute_state_space_size(ls, &needed_compute_estimate);
@@ -309,13 +309,14 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			HTML_PRINTF(&env, HTML_COLOUR_START(HTML_COLOUR_RED)
 				    "<h2>A bug was found!</h2>\n"
 				    HTML_COLOUR_END);
-			HTML_PRINTF(&env, "Current stack (TID %u):<br />\n",
+			HTML_PRINTF(&env, "Current stack (TID %u):" HTML_NEWLINE,
 				    stack->tid);
 			HTML_PRINT_STACK_TRACE(&env, stack);
 		} else {
 			HTML_PRINTF(&env, HTML_COLOUR_START(HTML_COLOUR_BLUE)
 				    "<h2>Preemption point info follows. "
-				    "No bug was found.</h2><br />\n" HTML_COLOUR_END);
+				    "No bug was found.</h2>"
+				    HTML_NEWLINE HTML_COLOUR_END);
 		}
 		if (reason) {
 			// FIXME: Sanitize reason; e.g. for deadlocks the message
@@ -327,14 +328,15 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		}
 		if (callback) {
 			callback(&env);
+			HTML_PRINTF(&env, HTML_NEWLINE);
 		}
 		HTML_PRINTF(&env, "Distinct interleavings tested: %" PRIu64
-			    "<br />\n", ls->save.total_jumps + 1);
-		HTML_PRINTF(&env, "Estimated state space size: %Lf<br />\n",
+			    HTML_NEWLINE, ls->save.total_jumps + 1);
+		HTML_PRINTF(&env, "Estimated state space size: %Lf" HTML_NEWLINE,
 			    (ls->save.total_jumps + 1) / proportion);
-		HTML_PRINTF(&env, "Estimated state space coverage: %Lf%%<br />\n",
-			    proportion * 100);
-		HTML_PRINTF(&env, "<br />\n");
+		HTML_PRINTF(&env, "Estimated state space coverage: %Lf%%"
+			    HTML_NEWLINE, proportion * 100);
+		HTML_PRINTF(&env, HTML_NEWLINE);
 
 		/* Figure out how many columns the table will need. */
 		init_table_column_map(&map, &ls->save, stack->tid);
@@ -343,12 +345,14 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		if (testing_userspace() && count_distinct_user_threads(&map) < 2) {
 			HTML_PRINTF(&env, "<table><tr><td>\n");
 			HTML_PRINTF(&env, "%s<b>NOTE</b>:%s This bug was detected "
-				    "before multiple user threads were created.<br />"
+				    "before multiple user threads were created."
+				    HTML_NEWLINE
 				    "This is NOT A RACE, but more likely a problem "
 				    "with your setup/initialization code.",
 				    HTML_COLOUR_START(HTML_COLOUR_RED),
 				    HTML_COLOUR_END);
-			HTML_PRINTF(&env, "</td></tr></table><br /><br />\n");
+			HTML_PRINTF(&env, "</td></tr></table>"
+				    HTML_NEWLINE HTML_NEWLINE);
 		}
 
 		/* Print the tabular trace. */

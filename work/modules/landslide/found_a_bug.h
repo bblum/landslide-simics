@@ -43,7 +43,7 @@ struct fab_html_env {
 typedef void (*fab_cb_t)(struct fab_html_env *env);
 
 void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
-		  char *reason, unsigned int reason_len, fab_cb_t callback);
+		  const char *reason, unsigned int reason_len, fab_cb_t callback);
 
 #define DUMP_DECISION_INFO(ls) \
 	_found_a_bug(ls, false, true,  NULL, 0, NULL) // Verbose
@@ -57,6 +57,7 @@ void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
 		_found_a_bug(ls, true, false, __fab_buf, __fab_len, NULL);	\
 	} while (0)
 
+// FIXME: Find a clean way to move this stuff to html.h
 #define HTML_BUF_LEN 2048
 #define HTML_PRINTF(env, ...) do {						\
 		char __html_buf[HTML_BUF_LEN];					\
@@ -78,7 +79,7 @@ void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
  * Binds 'env_var_name' as the opaque environment packet. */
 #define FOUND_A_BUG_HTML_INFO(ls, reason, reason_len, env_var_name, code)	\
 	do {									\
-		static void __cb(struct fab_html_env *env_var_name) { code }	\
+		void __cb(struct fab_html_env *env_var_name) { code }		\
 		_found_a_bug(ls, true, false, reason, reason_len, __cb);	\
 	} while (0)
 

@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "found_a_bug.h"
+#include "html.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "memory.h"
@@ -245,32 +246,50 @@ static struct chunk *find_freed_chunk(struct ls_state *ls, unsigned int addr,
 	return NULL;
 }
 
-static void print_freed_chunk_info(struct chunk *c, struct hax *before, struct hax *after)
+/* html env may be null */
+static void print_freed_chunk_info(struct chunk *c,
+				   struct hax *before, struct hax *after,
+				   struct fab_html_env *html_env)
 {
-	char before_buf[BUF_SIZE];
-	char after_buf[BUF_SIZE];
+	char allocated_msg[BUF_SIZE];
+	char freed_msg[BUF_SIZE];
+	unsigned int pos = 0;
 
+	scnprintf(allocated_msg, BUF_SIZE, "Heap block [0x%x | %d] "
+		  "was allocated at:", c->base, c->len);
+
+	pos += scnprintf(freed_msg + pos, BUF_SIZE - pos,
+			 "...and, between preemptions ");
 	if (after == NULL) {
-		scnprintf(after_buf, BUF_SIZE, "<root>");
+		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "<root>");
 	} else {
-		scnprintf(after_buf, BUF_SIZE, "#%d/tid%d", after->depth,
-			  after->chosen_thread);
+		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "#%d/tid%d",
+				 after->depth, after->chosen_thread);
 	}
+	pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, " and ");
 	if (before == NULL) {
-		scnprintf(before_buf, BUF_SIZE, "<current>");
+		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "<latest>");
 	} else {
-		scnprintf(before_buf, BUF_SIZE, "#%d/tid%d", before->depth,
-			  before->chosen_thread);
+		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "#%d/tid%d",
+				 before->depth, before->chosen_thread);
 	}
+	pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, ", freed at:");
 
-	// TODO: when print stack trace can be made to use printf instead of lsprintf
-	lsprintf(BUG, "[0x%x | %d] was allocated by ", c->base, c->len);
-	print_stack_trace(BUG, c->malloc_trace);
-	printf(BUG, "\n");
-	lsprintf(BUG, "...and, between preemptions %s and %s, freed by ",
-		 after_buf, before_buf);
-	print_stack_trace(BUG, c->free_trace);
-	printf(BUG, "\n");
+	if (html_env == NULL) {
+		lsprintf(BUG, "%s", allocated_msg);
+		print_stack_trace(BUG, c->malloc_trace);
+		printf(BUG, "\n");
+		lsprintf(BUG, "%s", freed_msg);
+		print_stack_trace(BUG, c->free_trace);
+		printf(BUG, "\n");
+	} else {
+		HTML_PRINTF(html_env, "%s" HTML_NEWLINE, allocated_msg);
+		HTML_PRINT_STACK_TRACE(html_env, c->malloc_trace);
+		HTML_PRINTF(html_env, HTML_NEWLINE HTML_NEWLINE);
+		HTML_PRINTF(html_env, "%s" HTML_NEWLINE, freed_msg);
+		HTML_PRINT_STACK_TRACE(html_env, c->free_trace);
+		HTML_PRINTF(html_env, HTML_NEWLINE);
+	}
 }
 
 /******************************************************************************
@@ -354,9 +373,14 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, unsigned int bas
 		struct hax *after;
 		chunk = find_freed_chunk(ls, base, in_kernel, &before, &after);
 		if (chunk != NULL) {
-			print_freed_chunk_info(chunk, before, after);
-			FOUND_A_BUG(ls, "DOUBLE FREE (in %s) of 0x%x!",
-				    K_STR(in_kernel), base);
+			print_freed_chunk_info(chunk, before, after, NULL);
+			char buf[BUF_SIZE];
+			int len = scnprintf(buf, BUF_SIZE, "DOUBLE FREE (in %s)"
+					    " of 0x%x!", K_STR(in_kernel), base);
+			FOUND_A_BUG_HTML_INFO(ls, buf, len, html_env,
+				print_freed_chunk_info(chunk, before,
+						       after, html_env);
+			);
 		} else {
 			FOUND_A_BUG(ls, "Attempted to free (in %s) 0x%x, which was "
 				    "never malloced!", K_STR(in_kernel), base);
@@ -586,19 +610,24 @@ static void use_after_free(struct ls_state *ls, unsigned int addr,
 	struct hax *before;
 	struct hax *after;
 	struct chunk *c = find_freed_chunk(ls, addr, in_kernel, &before, &after);
-	const char *message;
 
 	if (c == NULL) {
 		lsprintf(BUG, "0x%x was never allocated...\n", addr);
-		message = "INVALID HEAP ACCESS (never allocated)";
+		FOUND_A_BUG(ls, "INVALID HEAP ACCESS (never allocated) - "
+			    "%s 0x%.8x at eip 0x%.8x",
+			    write ? "write to" : "read from", addr,
+			    (int)GET_CPU_ATTR(ls->cpu0, eip));
 	} else {
-		print_freed_chunk_info(c, before, after);
-		message = "USE AFTER FREE";
+		print_freed_chunk_info(c, before, after, NULL);
+		char buf[BUF_SIZE];
+		int len = scnprintf(buf, BUF_SIZE, "USE AFTER FREE - "
+				    "%s 0x%.8x at eip 0x%.8x",
+				    write ? "write to" : "read from", addr,
+				    (unsigned int)GET_CPU_ATTR(ls->cpu0, eip));
+		FOUND_A_BUG_HTML_INFO(ls, buf, len, html_env,
+			print_freed_chunk_info(c, before, after, html_env);
+		);
 	}
-
-	FOUND_A_BUG(ls, "%s - %s 0x%.8x at eip 0x%.8x", message,
-		    write ? "write to" : "read from", addr,
-		    (int)GET_CPU_ATTR(ls->cpu0, eip));
 }
 
 /* some system calls, despite making no accesses to user memory, can still

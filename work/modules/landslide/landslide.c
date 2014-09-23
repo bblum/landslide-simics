@@ -39,6 +39,7 @@
 #include "explore.h"
 #include "estimate.h"
 #include "found_a_bug.h"
+#include "html.h"
 #include "kernel_specifics.h"
 #include "landslide.h"
 #include "memory.h"
@@ -197,7 +198,16 @@ static void wrong_panic(struct ls_state *ls, const char *panicked, const char *e
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW
 		 "or a reference kernel bug, than a bug in your code.\n");
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "********************************\n");
-	FOUND_A_BUG(ls, "Unexpected %s panic during %sspace test", panicked, expected);
+	char buf[BUF_SIZE];
+	int len = scnprintf(buf, BUF_SIZE,
+			    "Unexpected %s panic during %sspace test",
+			    panicked, expected);
+	FOUND_A_BUG_HTML_INFO(ls, buf, len, html_env,
+		HTML_PRINTF(html_env, "This shouldn't happen. This is more "
+			    "likely a problem with the test configuration, "
+			    "or a reference kernel bug, than a bug in your "
+			    "own code." HTML_NEWLINE);
+	);
 	assert(0 && "wrong panic");
 }
 
@@ -234,7 +244,12 @@ static bool ensure_progress(struct ls_state *ls)
 		printf(DEV, "\n");
 		/* did it come from kernel-space? */
 		if (KERNEL_MEMORY(from_eip)) {
-			// TODO: say "note to configure, unset PF_HANDLER
+			if (!testing_userspace()) {
+				lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "Note: "
+					 "If kernel page faults are expected "
+					 "behaviour, unset PAGE_FAULT_WRAPPER "
+					 "in config.landslide.\n");
+			}
 			FOUND_A_BUG(ls, "Kernel page faulted!");
 			return false;
 		}
@@ -252,11 +267,17 @@ static bool ensure_progress(struct ls_state *ls)
 		ls->trigger_count - ls->save.current->trigger_count;
 	unsigned long average_triggers =
 		ls->save.total_triggers / ls->save.total_choices;
+	const char *headline = "NO PROGRESS (infinite loop?)";
 	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "%lu instructions since last decision; average %lu\n",
-			 most_recent, average_triggers);
-		FOUND_A_BUG(ls, "NO PROGRESS (infinite loop?)");
+		char message[BUF_SIZE];
+		scnprintf(message, BUF_SIZE, "It's been %lu instructions since "
+			  "the last preemption point; but the past average is "
+			  "%lu -- I think you're stuck in an infinite loop.",
+			  most_recent, average_triggers);
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "%s\n", message);
+		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
+			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
+		);
 		return false;
 	}
 
@@ -271,10 +292,15 @@ static bool ensure_progress(struct ls_state *ls)
 	unsigned int average_depth =
 		ls->save.depth_total / (1 + ls->save.total_jumps);
 	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED
-			 "Current branch depth %d; average depth %d\n",
-			 ls->save.current->depth, average_depth);
-		FOUND_A_BUG(ls, "NO PROGRESS (stuck thread(s)?)");
+		char message[BUF_SIZE];
+		scnprintf(message, BUF_SIZE, "This interleaving has at least %d "
+			  "preemption-points; but past branches on average were "
+			  "only %d deep -- I think you're stuck in an infinite "
+			  "loop.", ls->save.current->depth, average_depth);
+		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "%s\n", message);
+		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
+			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
+		);
 		return false;
 	}
 
