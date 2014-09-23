@@ -58,7 +58,7 @@ void _found_a_bug(struct ls_state *, bool bug_found, bool verbose,
 	} while (0)
 
 // FIXME: Find a clean way to move this stuff to html.h
-#define HTML_BUF_LEN 2048
+#define HTML_BUF_LEN 4096
 #define HTML_PRINTF(env, ...) do {						\
 		char __html_buf[HTML_BUF_LEN];					\
 		unsigned int __len =						\
