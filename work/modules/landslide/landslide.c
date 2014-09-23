@@ -234,7 +234,8 @@ static bool ensure_progress(struct ls_state *ls)
 		printf(DEV, "\n");
 		/* did it come from kernel-space? */
 		if (KERNEL_MEMORY(from_eip)) {
-			FOUND_A_BUG(ls, "KERNEL PAGE FAULT");
+			// TODO: say "note to configure, unset PF_HANDLER
+			FOUND_A_BUG(ls, "Kernel page faulted!");
 			return false;
 		}
 #endif

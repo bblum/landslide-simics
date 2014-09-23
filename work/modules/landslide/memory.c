@@ -347,7 +347,8 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, unsigned int bas
 
 	if (base == 0) {
 		assert(chunk == NULL);
-		lsprintf(INFO, "Free() NULL (in %s); ok, I guess...\n", K_STR(in_kernel));
+		lsprintf(INFO, "Free() NULL (in %s); ok, I guess...\n",
+			 K_STR(in_kernel));
 	} else if (chunk == NULL) {
 		struct hax *before;
 		struct hax *after;
@@ -358,11 +359,12 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, unsigned int bas
 				    K_STR(in_kernel), base);
 		} else {
 			FOUND_A_BUG(ls, "Attempted to free (in %s) 0x%x, which was "
-				    "never alloc'ed!", K_STR(in_kernel), base);
+				    "never malloced!", K_STR(in_kernel), base);
 		}
 	} else if (chunk->base != base) {
-		FOUND_A_BUG(ls, "Attempted to free 0x%x (in %s), "
-			    "contained within [0x%x | %d]", base,
+		FOUND_A_BUG(ls, "Attempted to free 0x%x (in %s), which was not "
+			    "malloced, but contained within another malloced "
+			    "block: [0x%x | %d]", base,
 			    K_STR(in_kernel), chunk->base, chunk->len);
 	} else if (in_kernel != testing_userspace()) {
 		lsprintf(DEV, "Free() chunk 0x%x, in %s\n", base, K_STR(in_kernel));
