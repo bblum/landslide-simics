@@ -310,6 +310,22 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			 * "junk values". Sometimes these are very small values.
 			 * We can avoid emitting simics errors in these cases. */
 			ebp = 0;
+		} else if (KERNEL_MEMORY(stack_ptr) && USER_MEMORY(ebp)) {
+			/* Base pointer chain crossed over into userspace,
+			 * leaving stack pointer behind. This happens in pathos,
+			 * whose syscall wrappers craft fake frames to help
+			 * simics's tracer continue into userspace. */
+#ifdef PATHOS_SYSCALL_IRET_DISTANCE
+			/* Find iret frame. */
+			stack_ptr += PATHOS_SYSCALL_IRET_DISTANCE;
+			assert(USER_MEMORY(READ_MEMORY(cpu, stack_ptr)));
+			assert(READ_MEMORY(cpu, stack_ptr + WORD_SIZE)
+			       == SEGSEL_USER_CS);
+			stack_ptr = READ_MEMORY(cpu, stack_ptr + (3 * WORD_SIZE));
+			ASSERT(USER_MEMORY(stack_ptr));
+			// TODO: Decide what to do if pathos annotation missing?
+			// Most likely, set some "skip_extra_frame" flag.
+#endif
 		}
 	}
 

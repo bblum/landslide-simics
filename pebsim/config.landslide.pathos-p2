@@ -19,7 +19,7 @@
 KERNEL_IMG=kernel
 
 # Relative to the pebsim/ directory.
-KERNEL_SOURCE_DIR=p2-basecode
+KERNEL_SOURCE_DIR=p2-s14g35
 
 # What program should landslide run? vanish_vanish, double_thread_fork, ...
 TEST_CASE=thr_exit_join
@@ -71,6 +71,10 @@ PAGE_FAULT_WRAPPER=fjCdxZqbauNh
 # calls could be "covert communication channels" that we don't want to miss
 # for the purpose of memory independence (e.g. deschedule's reject pointer).
 VM_USER_COPY=HCTWCvVmVNDgt # vm_dousercopy
+
+# obscure annotation for pathos syscall wrappers.
+# this == sizeof(ureg_t) - sizeof(<iret frame>). see issue #117.
+PATHOS_SYSCALL_IRET_DISTANCE=60
 
 #######################################
 #### Scheduler/globals information ####
