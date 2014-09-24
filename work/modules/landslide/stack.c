@@ -34,8 +34,13 @@ void print_stack_frame(verbosity v, struct stack_frame *f)
 {
 	printf(v, "0x%.8x in ", f->eip);
 	if (f->name == NULL) {
-		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<unknown in %s>" COLOUR_DEFAULT,
-		       KERNEL_MEMORY(f->eip) ? "kernel" : "user");
+		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<unknown");
+		if (USER_MEMORY(f->eip)) {
+			printf(v, " in userspace");
+		} else if (f->eip > GUEST_DATA_START) {
+			printf(v, " in kernel");
+		}
+		printf(v, ">" COLOUR_DEFAULT);
 	} else {
 		printf(v, COLOUR_BOLD COLOUR_CYAN "%s "
 		       COLOUR_DARK COLOUR_GREY, f->name);
