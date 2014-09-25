@@ -30,7 +30,6 @@ extern char **environ;
 
 // TODO-FIXME: Insert timestamps so log files are sorted chronologically.
 #define CONFIG_FILE_TEMPLATE "config-id.landslide.XXXXXX"
-#define RESULTS_FILE_TEMPLATE "results-id.landslide.XXXXXX"
 #define LOG_FILE_TEMPLATE(x) "landslide-id-" x ".log.XXXXXX"
 
 char *test_name = NULL;
@@ -65,14 +64,11 @@ static void *run_job(void *arg)
 {
 	struct job *j = (struct job *)arg;
 	struct file config_file;
-	struct file results_file; 
 	struct file log_stdout;
 	struct file log_stderr;
 	struct messaging_state mess;
 
-	// TODO: decide if results file is needed
 	create_file(&config_file, CONFIG_FILE_TEMPLATE);
-	create_file(&results_file, RESULTS_FILE_TEMPLATE);
 	create_file(&log_stdout, LOG_FILE_TEMPLATE("stdout"));
 	create_file(&log_stderr, LOG_FILE_TEMPLATE("stderr"));
 
@@ -102,7 +98,6 @@ static void *run_job(void *arg)
 	// to properly delete the file, but it brittle-ly causes the child's
 	// exec args to have "../pebsim/"s in them that only "happen to work".
 	move_file_to(&config_file, LANDSLIDE_PATH);
-	move_file_to(&results_file, LANDSLIDE_PATH);
 
 	/* while multiple landslides can run at once, compiling each one from a
 	 * different config is mutually exclusive. we'll release this as soon as
@@ -117,13 +112,11 @@ static void *run_job(void *arg)
 		char *const argv[4] = {
 			[0] = execname,
 			[1] = config_file.filename,
-			[2] = results_file.filename,
-			[3] = NULL,
+			[2] = NULL,
 		};
 
-		DBG("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
-		       config_file.filename, results_file.filename,
-		       log_stdout.filename, log_stderr.filename);
+		DBG("[JOB %d] '%s %s > %s 2> %s'\n", j->id, execname,
+		       config_file.filename, log_stdout.filename, log_stderr.filename);
 
 		/* unsetting cloexec not necessary for these */
 		XDUP2(log_stdout.fd, STDOUT_FILENO);
@@ -165,12 +158,10 @@ static void *run_job(void *arg)
 	finish_messaging(&mess);
 
 	delete_file(&config_file, true);
-	delete_file(&results_file, true);
 	bool should_delete = !leave_logs && WEXITSTATUS(child_status) == 0;
 	delete_file(&log_stdout, should_delete);
 	delete_file(&log_stderr, should_delete);
 
-	// TODO: interpret results
 	LOCK(&j->done_lock);
 	j->done = true;
 	BROADCAST(&j->done_cvar);
