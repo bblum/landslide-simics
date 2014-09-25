@@ -30,6 +30,8 @@ bool kern_within_functions(struct ls_state *ls);
 bool _within_functions(struct ls_state *ls, const int within_functions[][3], unsigned int length);
 void read_panic_message(conf_object_t *cpu, unsigned int eip, char **buf);
 bool kern_panicked(conf_object_t *cpu, unsigned int eip, char **buf);
+bool kern_page_fault_handler_entering(unsigned int eip);
+bool kern_killed_faulting_user_thread(conf_object_t *cpu, unsigned int eip);
 bool kern_kernel_main(unsigned int eip);
 
 /* Yielding-mutex interactions. */

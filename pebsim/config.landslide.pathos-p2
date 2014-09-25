@@ -76,6 +76,10 @@ VM_USER_COPY=HCTWCvVmVNDgt # vm_dousercopy
 # this == sizeof(ureg_t) - sizeof(<iret frame>). see issue #117.
 PATHOS_SYSCALL_IRET_DISTANCE=60
 
+# enable found_a_bug on kernel thread_exit(CAUSE_FAULT);
+THREAD_KILLED_FUNC=cZYhEivVUOs
+THREAD_KILLED_ARG_VAL=1
+
 #######################################
 #### Scheduler/globals information ####
 #######################################

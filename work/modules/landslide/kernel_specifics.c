@@ -179,6 +179,28 @@ bool kern_panicked(conf_object_t *cpu, unsigned int eip, char **buf)
 	}
 }
 
+bool kern_page_fault_handler_entering(unsigned int eip)
+{
+#ifdef GUEST_PF_HANDLER
+	return eip == GUEST_PF_HANDLER;
+#else
+	return false;
+#endif
+}
+
+bool kern_killed_faulting_user_thread(conf_object_t *cpu, unsigned int eip)
+{
+#ifdef GUEST_THREAD_KILLED
+	return eip == GUEST_THREAD_KILLED
+#ifdef GUEST_THREAD_KILLED_ARG
+		&& READ_STACK(cpu, 1) == GUEST_THREAD_KILLED_ARG
+#endif
+		;
+#else
+	return false;
+#endif
+}
+
 bool kern_kernel_main(unsigned int eip)
 {
 	return eip == GUEST_KERNEL_MAIN;

@@ -173,6 +173,8 @@ TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
 PAGE_FAULT_WRAPPER=
 VM_USER_COPY=
+THREAD_KILLED_FUNC=
+THREAD_KILLED_ARG_VAL=
 PATHOS_SYSCALL_IRET_DISTANCE=
 PRINT_DATA_RACES=0
 VERBOSE=0
@@ -363,6 +365,15 @@ echo "#define GUEST_START 0x`get_func _start`"
 
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"
+fi
+
+if [ ! -z "$THREAD_KILLED_FUNC" ]; then
+	if [ ! -z "THREAD_KILLED_ARG_VAL" ]; then
+		echo "#define GUEST_THREAD_KILLED 0x`get_func $THREAD_KILLED_FUNC`"
+		echo "#define GUEST_THREAD_KILLED_ARG $THREAD_KILLED_ARG_VAL"
+	else
+		die "config option THREAD_KILLED_FUNC defined ($THREAD_KILLED_FUNC) but associated THREAD_KILLED_ARG_VAL is missing."
+	fi
 fi
 
 if [ ! -z "$VM_USER_COPY" ];  then

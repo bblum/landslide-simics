@@ -236,8 +236,7 @@ static bool ensure_progress(struct ls_state *ls)
 		return false;
 	} else if (user_report_end_fail(ls->cpu0, ls->eip)) {
 		FOUND_A_BUG(ls, "User test program reported failure!");
-#ifdef GUEST_PF_HANDLER
-	} else if (ls->eip == GUEST_PF_HANDLER) {
+	} else if (kern_page_fault_handler_entering(ls->eip)) {
 		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
 		lsprintf(DEV, "page fault from ");
 		print_eip(DEV, from_eip);
@@ -253,7 +252,29 @@ static bool ensure_progress(struct ls_state *ls)
 			FOUND_A_BUG(ls, "Kernel page faulted!");
 			return false;
 		}
-#endif
+	} else if (kern_killed_faulting_user_thread(ls->cpu0, ls->eip)) {
+		if (testing_userspace()) {
+			int exn_num = ls->sched.cur_agent->most_recent_syscall;
+			if (exn_num == 0) {
+				lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW
+					 "Warning: MRS = 0 during CAUSE_FAULT. "
+					 "Probably bug or annotation error?\n");
+				FOUND_A_BUG(ls, "TID %d was killed by a fault!\n",
+					    ls->sched.cur_agent->tid);
+			} if (exn_num >= ARRAY_SIZE(exception_names)) {
+				FOUND_A_BUG(ls, "TID %d was killed by a fault! "
+					    "(unknown exception #%u)\n",
+					    ls->sched.cur_agent->tid, exn_num);
+			} else {
+				FOUND_A_BUG(ls, "TID %d was killed by a fault! "
+					    "(exception #%u: %s)\n",
+					    ls->sched.cur_agent->tid, exn_num,
+					    exception_names[exn_num]);
+			}
+		} else {
+			lsprintf(DEV, "Kernel kills faulting thread %d\n",
+				 ls->sched.cur_agent->tid);
+		}
 	}
 
 	/* Can't check for tight loops 0th branch. If one transition has an
