@@ -93,7 +93,8 @@ esac
 if [ "$METHOD" = offline ] ; then
     echo UPDATE METHOD IS OFFLINE. This is not recommended.
     echo Be sure to update and make sure your code works before handing it in.
-    sleep 3
+    # (f this)
+    # sleep 3
     exit
 fi
 
