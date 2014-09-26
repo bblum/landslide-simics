@@ -288,8 +288,16 @@ static bool ensure_progress(struct ls_state *ls)
 		ls->trigger_count - ls->save.current->trigger_count;
 	unsigned long average_triggers =
 		ls->save.total_triggers / ls->save.total_choices;
+	unsigned long thresh = average_triggers * PROGRESS_TRIGGER_FACTOR;
 	const char *headline = "NO PROGRESS (infinite loop?)";
-	if (most_recent > average_triggers * PROGRESS_TRIGGER_FACTOR) {
+
+	/* print a message at 1% increments */
+	if (most_recent > 0 && most_recent % (thresh / 100) == 0) {
+		lsprintf(CHOICE, "progress sense: %u%% (%lu/%lu)\n",
+			 most_recent * 100 / thresh, most_recent, thresh);
+	}
+
+	if (most_recent >= thresh) {
 		char message[BUF_SIZE];
 		scnprintf(message, BUF_SIZE, "It's been %lu instructions since "
 			  "the last preemption point; but the past average is "
