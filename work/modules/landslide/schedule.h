@@ -64,6 +64,11 @@ struct agent {
 		bool user_mutex_unlocking;
 		bool user_mutex_yielding; /* if true, locking addr shall also be set */
 		bool user_mutex_destroying;
+		bool user_cond_waiting;
+		bool user_cond_signalling;
+		bool user_cond_broadcasting;
+		bool user_sem_proberen;
+		bool user_sem_verhogen;
 		bool user_rwlock_locking;
 		bool user_rwlock_unlocking;
 		bool user_locked_mallocing;

@@ -163,6 +163,11 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(action.user_mutex_unlocking);
 	COPY_FIELD(action.user_mutex_yielding);
 	COPY_FIELD(action.user_mutex_destroying);
+	COPY_FIELD(action.user_cond_waiting);
+	COPY_FIELD(action.user_cond_signalling);
+	COPY_FIELD(action.user_cond_broadcasting);
+	COPY_FIELD(action.user_sem_proberen);
+	COPY_FIELD(action.user_sem_verhogen);
 	COPY_FIELD(action.user_rwlock_locking);
 	COPY_FIELD(action.user_rwlock_unlocking);
 	COPY_FIELD(action.user_locked_mallocing);

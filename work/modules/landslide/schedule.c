@@ -80,6 +80,11 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.user_mutex_unlocking = false;
 	a->action.user_mutex_yielding = false;
 	a->action.user_mutex_destroying = false;
+	a->action.user_cond_waiting = false;
+	a->action.user_cond_signalling = false;
+	a->action.user_cond_broadcasting = false;
+	a->action.user_sem_proberen = false;
+	a->action.user_sem_verhogen = false;
 	a->action.user_rwlock_locking = false;
 	a->action.user_rwlock_unlocking = false;
 	a->action.user_locked_mallocing = false;
@@ -881,24 +886,46 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_mutex_activity(&ls->user_sync);
 	/* cvars */
 	} else if (user_cond_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_cond_waiting));
+		ACTION(s, user_cond_waiting) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_wait_exiting(ls->eip)) {
+		assert(ACTION(s, user_cond_waiting));
+		ACTION(s, user_cond_waiting) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_signal_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_cond_signalling));
+		ACTION(s, user_cond_signalling) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_signal_exiting(ls->eip)) {
+		assert(ACTION(s, user_cond_signalling));
+		ACTION(s, user_cond_signalling) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_broadcast_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_cond_broadcasting));
+		ACTION(s, user_cond_broadcasting) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_broadcast_exiting(ls->eip)) {
+		assert(ACTION(s, user_cond_broadcasting));
+		ACTION(s, user_cond_broadcasting) = false;
+		record_user_yield_activity(&ls->user_sync);
 	/* semaphores (TODO: model logic for these) */
 	} else if (user_sem_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_sem_proberen));
+		ACTION(s, user_sem_proberen) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_sem_wait_exiting(ls->eip)) {
+		assert(ACTION(s, user_sem_proberen));
+		ACTION(s, user_sem_proberen) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_sem_signal_entering(ls->cpu0, ls->eip, &lock_addr)) {
+		assert(!ACTION(s, user_sem_verhogen));
+		ACTION(s, user_sem_verhogen) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_sem_signal_exiting(ls->eip)) {
+		assert(ACTION(s, user_sem_verhogen));
+		ACTION(s, user_sem_verhogen) = false;
+		record_user_yield_activity(&ls->user_sync);
 	/* rwlocks */
 	} else if (user_rwlock_lock_entering(ls->cpu0, ls->eip, &lock_addr, &write_mode)) {
 		assert(!ACTION(s, user_rwlock_locking));
