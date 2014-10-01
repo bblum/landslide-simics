@@ -219,6 +219,7 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 	 * loops within user sync primitives, so be more aggressive checking
 	 * there. However, the past instruction average must be non-0. */
 	bool more_aggressive_check = ls->save.current != NULL &&
+		ls->save.total_triggers != 0 &&
 		IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent);
 
 	/* Can't check for tight loops 0th branch. If one transition has an
