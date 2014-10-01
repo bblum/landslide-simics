@@ -212,9 +212,13 @@ elif [ -f $HEADER ]; then
 		if [ "$MD5SUM" == "$MY_MD5SUM" -a "$MD5SUM_C" == "$MY_MD5SUM_C" -a "$MD5SUM_ID" == "$MY_MD5SUM_ID" ]; then
 			SKIP_HEADER=yes
 		else
-			rm $HEADER
+			rm -f $HEADER || die "Couldn't overwrite existing header $HEADER"
 		fi
+	elif [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+		# Run from ID wrapper. Attempt to silently clobber the existing header.
+		rm -f "$HEADER" || die "Attempted to silently clobber $HEADER but failed!"
 	else
+		# Run in manual mode. Let user know about header problem.
 		die "$HEADER exists, would be clobbered; please remove/relocate it."
 	fi
 fi
