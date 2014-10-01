@@ -211,10 +211,63 @@ static void wrong_panic(struct ls_state *ls, const char *panicked, const char *e
 	assert(0 && "wrong panic");
 }
 
+static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int maxlen)
+{
+	/* Can't check for tight loops 0th branch. If one transition has an
+	 * expensive operation like vm_free_pagedir() we don't want to trip on
+	 * it; we want to incorporate it into the average. */
+	if (ls->save.total_jumps == 0)
+		return false;
+
+	// TODO: incorporate userspace sync actions to change threshholds.
+
+	/* Have we been spinning since the last choice point? */
+	unsigned long most_recent =
+		ls->trigger_count - ls->save.current->trigger_count;
+	unsigned long average_triggers =
+		ls->save.total_triggers / ls->save.total_choices;
+	unsigned long thresh = average_triggers * PROGRESS_TRIGGER_FACTOR;
+
+	/* print a message at 1% increments */
+	if (most_recent > 0 && most_recent % (thresh / 100) == 0) {
+		lsprintf(CHOICE, "progress sense: %lu%% (%lu/%lu)\n",
+			 most_recent * 100 / thresh, most_recent, thresh);
+	}
+
+	if (most_recent >= thresh) {
+		scnprintf(message, maxlen, "It's been %lu instructions since "
+			  "the last preemption point; but the past average is "
+			  "%lu -- I think you're stuck in an infinite loop.",
+			  most_recent, average_triggers);
+		return true;
+	}
+
+	/* FIXME: find a less false-negative way to tell when we have enough
+	 * data */
+	STATIC_ASSERT(PROGRESS_MIN_BRANCHES > 0); /* prevent div-by-zero */
+	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
+		return false;
+
+	/* Have we been spinning around a choice point (so this branch would
+	 * end up being infinitely deep)? */
+	unsigned int average_depth =
+		ls->save.depth_total / (1 + ls->save.total_jumps);
+	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
+		scnprintf(message, maxlen, "This interleaving has at least %d "
+			  "preemption-points; but past branches on average were "
+			  "only %d deep -- I think you're stuck in an infinite "
+			  "loop.", ls->save.current->depth, average_depth);
+		return true;
+	}
+
+	return false;
+}
+
 static bool ensure_progress(struct ls_state *ls)
 {
 	char *buf;
 	unsigned int tid = ls->sched.cur_agent->tid;
+	char message[BUF_SIZE];
 
 	if (kern_panicked(ls->cpu0, ls->eip, &buf)) {
 		if (testing_userspace()) {
@@ -236,6 +289,7 @@ static bool ensure_progress(struct ls_state *ls)
 		return false;
 	} else if (user_report_end_fail(ls->cpu0, ls->eip)) {
 		FOUND_A_BUG(ls, "User test program reported failure!");
+		return false;
 	} else if (kern_page_fault_handler_entering(ls->eip)) {
 		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
 		lsprintf(DEV, "page fault from ");
@@ -251,6 +305,8 @@ static bool ensure_progress(struct ls_state *ls)
 			}
 			FOUND_A_BUG(ls, "Kernel page faulted!");
 			return false;
+		} else {
+			return true;
 		}
 	} else if (kern_killed_faulting_user_thread(ls->cpu0, ls->eip)) {
 		if (testing_userspace()) {
@@ -271,69 +327,22 @@ static bool ensure_progress(struct ls_state *ls)
 					    ls->sched.cur_agent->tid, exn_num,
 					    exception_names[exn_num]);
 			}
+			return false;
 		} else {
 			lsprintf(DEV, "Kernel kills faulting thread %d\n",
 				 ls->sched.cur_agent->tid);
+			return true;
 		}
-	}
-
-	/* Can't check for tight loops 0th branch. If one transition has an
-	 * expensive operation like vm_free_pagedir() we don't want to trip on
-	 * it; we want to incorporate it into the average. */
-	if (ls->save.total_jumps == 0)
-		return true;
-
-	/* Have we been spinning since the last choice point? */
-	unsigned long most_recent =
-		ls->trigger_count - ls->save.current->trigger_count;
-	unsigned long average_triggers =
-		ls->save.total_triggers / ls->save.total_choices;
-	unsigned long thresh = average_triggers * PROGRESS_TRIGGER_FACTOR;
-	const char *headline = "NO PROGRESS (infinite loop?)";
-
-	/* print a message at 1% increments */
-	if (most_recent > 0 && most_recent % (thresh / 100) == 0) {
-		lsprintf(CHOICE, "progress sense: %u%% (%lu/%lu)\n",
-			 most_recent * 100 / thresh, most_recent, thresh);
-	}
-
-	if (most_recent >= thresh) {
-		char message[BUF_SIZE];
-		scnprintf(message, BUF_SIZE, "It's been %lu instructions since "
-			  "the last preemption point; but the past average is "
-			  "%lu -- I think you're stuck in an infinite loop.",
-			  most_recent, average_triggers);
+	} else if (check_infinite_loop(ls, message, BUF_SIZE)) {
+		const char *headline = "NO PROGRESS (infinite loop?)";
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "%s\n", message);
 		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
 			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
 		);
 		return false;
-	}
-
-	/* FIXME: find a less false-negative way to tell when we have enough
-	 * data */
-	STATIC_ASSERT(PROGRESS_MIN_BRANCHES > 0); /* prevent div-by-zero */
-	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
+	} else {
 		return true;
-
-	/* Have we been spinning around a choice point (so this branch would
-	 * end up being infinitely deep)? */
-	unsigned int average_depth =
-		ls->save.depth_total / (1 + ls->save.total_jumps);
-	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
-		char message[BUF_SIZE];
-		scnprintf(message, BUF_SIZE, "This interleaving has at least %d "
-			  "preemption-points; but past branches on average were "
-			  "only %d deep -- I think you're stuck in an infinite "
-			  "loop.", ls->save.current->depth, average_depth);
-		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "%s\n", message);
-		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
-			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
-		);
-		return false;
 	}
-
-	return true;
 }
 
 static bool test_ended_safely(struct ls_state *ls)
