@@ -180,9 +180,10 @@ static void check_exception(struct ls_state *ls, int number)
 /* How many transitions deeper than the average branch should this branch be
  * before we call it stuck? */
 #define PROGRESS_DEPTH_FACTOR 20
-/* How many branches should we already have explored before we have a stable
- * enough average to judge an abnormally deep branch? FIXME see below */
-#define PROGRESS_MIN_BRANCHES 20
+/* Before this many branches are explored, we are less confident in the above
+ * number, and will scale it up by this exponent for each lacking branch. */
+#define PROGRESS_CONFIDENT_BRANCHES 20
+#define PROGRESS_BRANCH_UNCERTAINTY_EXPONENT 1.2
 /* How many times more instructions should a given transition be than the
  * average previous transition before we proclaim it stuck? */
 #define PROGRESS_TRIGGER_FACTOR 2000
@@ -234,18 +235,18 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 		ls->trigger_count - ls->save.current->trigger_count;
 	unsigned long average_triggers =
 		ls->save.total_triggers / ls->save.total_choices;
-	unsigned long factor = more_aggressive_check ?
+	unsigned long trigger_factor = more_aggressive_check ?
 		PROGRESS_AGGRESSIVE_TRIGGER_FACTOR : PROGRESS_TRIGGER_FACTOR;
-	unsigned long thresh = average_triggers * factor;
+	unsigned long trigger_thresh = average_triggers * trigger_factor;
 
 	/* print a message at 1% increments */
-	if (most_recent > 0 && most_recent % (thresh / 100) == 0) {
+	if (most_recent > 0 && most_recent % (trigger_thresh / 100) == 0) {
 		lsprintf(CHOICE, "progress sense%s: %lu%% (%lu/%lu)\n",
 			 more_aggressive_check ? " (aggressive)" : "",
-			 most_recent * 100 / thresh, most_recent, thresh);
+			 most_recent * 100 / trigger_thresh, most_recent, trigger_thresh);
 	}
 
-	if (most_recent >= thresh) {
+	if (most_recent >= trigger_thresh) {
 		scnprintf(message, maxlen, "It's been %lu instructions since "
 			  "the last preemption point; but the past average is "
 			  "%lu -- I think you're stuck in an infinite loop.",
@@ -253,17 +254,25 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 		return true;
 	}
 
-	/* FIXME: find a less false-negative way to tell when we have enough
-	 * data */
-	STATIC_ASSERT(PROGRESS_MIN_BRANCHES > 0); /* prevent div-by-zero */
-	if (ls->save.total_jumps < PROGRESS_MIN_BRANCHES)
+	/* FIXME: The one remaining case is an infinite loop around PPs during
+	 * the 0th branch. Need a more conservative, dumber heuristic there. */
+	if (ls->save.total_jumps == 0)
 		return false;
 
 	/* Have we been spinning around a choice point (so this branch would
-	 * end up being infinitely deep)? */
+	 * end up being infinitely deep)? Compute a "depth factor" that
+	 * reflects our confidence in how accurate the past average branch
+	 * depth was -- the fewer branches explored so far, the less so. */
+	long double depth_factor = PROGRESS_DEPTH_FACTOR;
+	/* For each branch short of the magic number, become less confident. */
+	for (unsigned int i = ls->save.total_jumps;
+	     i < PROGRESS_CONFIDENT_BRANCHES; i++) {
+		depth_factor *= PROGRESS_BRANCH_UNCERTAINTY_EXPONENT;
+	}
 	unsigned int average_depth =
 		ls->save.depth_total / (1 + ls->save.total_jumps);
-	if (ls->save.current->depth > average_depth * PROGRESS_DEPTH_FACTOR) {
+	unsigned long depth_thresh = average_depth * depth_factor;
+	if (ls->save.current->depth > depth_thresh) {
 		scnprintf(message, maxlen, "This interleaving has at least %d "
 			  "preemption-points; but past branches on average were "
 			  "only %d deep -- I think you're stuck in an infinite "
