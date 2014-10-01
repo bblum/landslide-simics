@@ -123,6 +123,17 @@ Q_NEW_HEAD(struct agent_q, struct agent);
 	 (a)->action.user_locked_reallocing ||	\
 	 (a)->action.user_locked_freeing)
 
+#define IN_USER_SYNC_PRIMITIVES(a)		\
+	((a)->action.user_mutex_locking ||	\
+	 (a)->action.user_mutex_unlocking ||	\
+	 (a)->action.user_cond_waiting ||	\
+	 (a)->action.user_cond_signalling ||	\
+	 (a)->action.user_cond_broadcasting ||	\
+	 (a)->action.user_sem_proberen ||	\
+	 (a)->action.user_sem_verhogen ||	\
+	 (a)->action.user_rwlock_locking ||	\
+	 (a)->action.user_rwlock_unlocking)
+
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */
 struct sched_state {

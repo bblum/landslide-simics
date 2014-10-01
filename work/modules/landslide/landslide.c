@@ -186,6 +186,7 @@ static void check_exception(struct ls_state *ls, int number)
 /* How many times more instructions should a given transition be than the
  * average previous transition before we proclaim it stuck? */
 #define PROGRESS_TRIGGER_FACTOR 2000
+#define PROGRESS_AGGRESSIVE_TRIGGER_FACTOR 100
 
 static void wrong_panic(struct ls_state *ls, const char *panicked, const char *expected)
 {
@@ -213,11 +214,18 @@ static void wrong_panic(struct ls_state *ls, const char *panicked, const char *e
 
 static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int maxlen)
 {
+	/* Condition for stricter check. Less likely long-running non-infinite
+	 * loops within user sync primitives, so be more aggressive checking
+	 * there. However, the past instruction average must be non-0. */
+	bool more_aggressive_check = ls->save.current != NULL &&
+		IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent);
+
 	/* Can't check for tight loops 0th branch. If one transition has an
 	 * expensive operation like vm_free_pagedir() we don't want to trip on
 	 * it; we want to incorporate it into the average. */
-	if (ls->save.total_jumps == 0)
+	if (ls->save.total_jumps == 0 && !more_aggressive_check) {
 		return false;
+	}
 
 	// TODO: incorporate userspace sync actions to change threshholds.
 
@@ -226,11 +234,14 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 		ls->trigger_count - ls->save.current->trigger_count;
 	unsigned long average_triggers =
 		ls->save.total_triggers / ls->save.total_choices;
-	unsigned long thresh = average_triggers * PROGRESS_TRIGGER_FACTOR;
+	unsigned long factor = more_aggressive_check ?
+		PROGRESS_AGGRESSIVE_TRIGGER_FACTOR : PROGRESS_TRIGGER_FACTOR;
+	unsigned long thresh = average_triggers * factor;
 
 	/* print a message at 1% increments */
 	if (most_recent > 0 && most_recent % (thresh / 100) == 0) {
-		lsprintf(CHOICE, "progress sense: %lu%% (%lu/%lu)\n",
+		lsprintf(CHOICE, "progress sense%s: %lu%% (%lu/%lu)\n",
+			 more_aggressive_check ? " (aggressive)" : "",
 			 most_recent * 100 / thresh, most_recent, thresh);
 	}
 
