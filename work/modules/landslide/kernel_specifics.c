@@ -344,6 +344,16 @@ bool kern_thread_descheduling(conf_object_t *cpu, unsigned int eip, unsigned int
 	}
 }
 
+bool kern_beginning_vanish_before_unreg_process(unsigned int eip)
+{
+	// FIXME #130 - use a separate option than THREAD_KILLED here.
+#ifdef GUEST_THREAD_KILLED
+	return eip == GUEST_THREAD_KILLED;
+#else
+	return false;
+#endif
+}
+
 /******************************************************************************
  * LMM
  ******************************************************************************/

@@ -110,6 +110,8 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 
 	user_yield_state_init(&a->user_yield);
 
+	a->pre_vanish_trace = NULL;
+
 	if (on_runqueue) {
 		Q_INSERT_FRONT(&s->rq, a, nobe);
 	} else {
@@ -189,6 +191,9 @@ static void agent_vanish(struct sched_state *s)
 		assert(s->last_vanished_agent->action.context_switch);
 		lockset_free(&s->last_vanished_agent->kern_locks_held);
 		lockset_free(&s->last_vanished_agent->user_locks_held);
+		if (s->last_vanished_agent->pre_vanish_trace != NULL) {
+			free_stack_trace(s->last_vanished_agent->pre_vanish_trace);
+		}
 		MM_FREE(s->last_vanished_agent);
 	}
 	s->last_vanished_agent = s->cur_agent;
@@ -748,6 +753,9 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	} else if (kern_vm_user_copy_exit(ls->eip)) {
 		assert(ACTION(s, vm_user_copy));
 		ACTION(s, vm_user_copy) = false;
+	} else if (kern_beginning_vanish_before_unreg_process(ls->eip)) {
+		assert(CURRENT(s, pre_vanish_trace) == NULL);
+		CURRENT(s, pre_vanish_trace) = stack_trace(ls);
 	} else {
 		sched_check_lmm_remove_free(ls);
 	}
@@ -771,6 +779,13 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	 * activity if the entire address space is wrong. */
 	if (!check_user_address_space(ls)) {
 		return;
+	}
+
+	if (USER_MEMORY(ls->eip) && CURRENT(s, pre_vanish_trace) != NULL) {
+		assert(0 && "thread went back to userspace after entering vanish");
+		// FIXME(#130) uncomment below to enable more flexibility
+		// free_stack_trace(CURRENT(s, pre_vanish_trace));
+		// CURRENT(s, pre_vanish_trace) = NULL;
 	}
 
 	/* mutexes (and yielding) */

@@ -360,7 +360,6 @@ static bool ensure_progress(struct ls_state *ls)
 		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
 			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
 			if (IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent)) {
-				const char *action;
 				HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
 				HTML_PRINTF(html_env, "<b>NOTE: Infinite loop was "
 					    "encountered during %s()." HTML_NEWLINE,

@@ -104,6 +104,8 @@ struct agent {
 	struct lockset user_locks_held;
 	/* State for tracking userspace synchronization actions */
 	struct user_yield_state user_yield;
+	/* Possible stack trace saved from before sim_unreg_process. */
+	struct stack_trace *pre_vanish_trace;
 	/* Used by partial order reduction, only in "oldsched"s in the tree. */
 	bool do_explore;
 };

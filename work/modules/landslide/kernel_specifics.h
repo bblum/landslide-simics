@@ -52,6 +52,7 @@ bool kern_readline_exit(unsigned int eip);
 bool kern_exec_enter(unsigned int eip);
 bool kern_thread_runnable(conf_object_t *cpu, unsigned int eip, unsigned int *);
 bool kern_thread_descheduling(conf_object_t *cpu, unsigned int eip, unsigned int *);
+bool kern_beginning_vanish_before_unreg_process(unsigned int eip);
 
 /* Dynamic memory allocation */
 bool kern_lmm_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size);

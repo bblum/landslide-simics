@@ -193,6 +193,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);
+	a_dest->pre_vanish_trace = (a_src->pre_vanish_trace == NULL) ?
+		NULL : copy_stack_trace(a_src->pre_vanish_trace);
 
 	a_dest->do_explore = false;
 
