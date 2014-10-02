@@ -359,6 +359,20 @@ static bool ensure_progress(struct ls_state *ls)
 		lsprintf(BUG, COLOUR_BOLD COLOUR_RED "%s\n", message);
 		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
 			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
+			if (IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent)) {
+				const char *action;
+				HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
+				HTML_PRINTF(html_env, "<b>NOTE: Infinite loop was "
+					    "encountered during %s()." HTML_NEWLINE,
+					    USER_SYNC_ACTION_STR(ls->sched.cur_agent));
+				HTML_PRINTF(html_env, "This means you may have "
+					    "a loop of the form 'while (!flag) "
+					    "continue;'." HTML_NEWLINE);
+				HTML_PRINTF(html_env, "Please refer to the "
+					    "Synchronization lectures to see "
+					    "why this is wrong.</b>" HTML_NEWLINE);
+				HTML_PRINTF(html_env, HTML_BOX_END HTML_NEWLINE);
+			}
 		);
 		return false;
 	} else {

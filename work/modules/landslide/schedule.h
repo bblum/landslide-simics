@@ -134,6 +134,18 @@ Q_NEW_HEAD(struct agent_q, struct agent);
 	 (a)->action.user_rwlock_locking ||	\
 	 (a)->action.user_rwlock_unlocking)
 
+#define USER_SYNC_ACTION_STR(a)						\
+	((a)->action.user_mutex_locking     ? "mutex_lock" :		\
+	 (a)->action.user_mutex_unlocking   ? "mutex_unlock" :		\
+	 (a)->action.user_cond_waiting      ? "cond_wait" :		\
+	 (a)->action.user_cond_signalling   ? "cond_signal" :		\
+	 (a)->action.user_cond_broadcasting ? "cond_broadcast" :	\
+	 (a)->action.user_sem_proberen      ? "sem_wait" :		\
+	 (a)->action.user_sem_verhogen      ? "sem_signal" :		\
+	 (a)->action.user_rwlock_locking    ? "rwlock_lock" :		\
+	 (a)->action.user_rwlock_unlocking  ? "rwlock_unlock" :		\
+	 "<unknown>")
+
 /* Internal state for the scheduler.
  * If you change this, make sure to update save.c! */
 struct sched_state {

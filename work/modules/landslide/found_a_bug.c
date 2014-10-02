@@ -343,7 +343,7 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 		assert(ARRAY_LIST_SIZE(&map) > 0);
 
 		if (testing_userspace() && count_distinct_user_threads(&map) < 2) {
-			HTML_PRINTF(&env, "<table><tr><td>\n");
+			HTML_PRINTF(&env, HTML_BOX_BEGIN "\n");
 			HTML_PRINTF(&env, "%s<b>NOTE</b>:%s This bug was detected "
 				    "before multiple user threads were created."
 				    HTML_NEWLINE
@@ -351,8 +351,7 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 				    "with your setup/initialization code.",
 				    HTML_COLOUR_START(HTML_COLOUR_RED),
 				    HTML_COLOUR_END);
-			HTML_PRINTF(&env, "</td></tr></table>"
-				    HTML_NEWLINE HTML_NEWLINE);
+			HTML_PRINTF(&env, HTML_BOX_END HTML_NEWLINE HTML_NEWLINE);
 		}
 
 		/* Print the tabular trace. */

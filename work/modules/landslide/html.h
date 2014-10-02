@@ -20,6 +20,9 @@
 
 #define HTML_NEWLINE "<br />\n"
 
+#define HTML_BOX_BEGIN "<table><tr><td>"
+#define HTML_BOX_END "</td></tr></table>"
+
 #if 0 // no need for this yet
 #define HTML_NBSP "&nbsp;"
 #define HTML_TAB  HTML_NBSP HTML_NBSP HTML_NBSP HTML_NBSP \
