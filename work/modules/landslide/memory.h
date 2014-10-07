@@ -99,6 +99,7 @@ struct mem_state {
 	bool guest_init_done;
 	bool in_mm_init; /* userspace only */
 	bool in_alloc;
+	bool in_realloc;
 	bool in_free;
 	unsigned int alloc_request_size; /* valid iff in_alloc */
 

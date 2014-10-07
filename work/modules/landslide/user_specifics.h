@@ -27,6 +27,9 @@ bool user_mm_malloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int 
 bool user_mm_malloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_mm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_mm_free_exiting(unsigned int eip);
+bool user_mm_realloc_entering(conf_object_t *cpu, unsigned int eip,
+			      unsigned int *orig_base, unsigned int *size);
+bool user_mm_realloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool user_locked_malloc_entering(unsigned int eip);
 bool user_locked_malloc_exiting(unsigned int eip);
 bool user_locked_free_entering(unsigned int eip);

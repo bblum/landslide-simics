@@ -41,6 +41,7 @@ static void mem_heap_init(struct mem_state *m)
 	m->guest_init_done = false;
 	m->in_mm_init = false;
 	m->in_alloc = false;
+	m->in_realloc = false;
 	m->in_free = false;
 	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
 	m->cr3_tid = 0;
@@ -420,6 +421,7 @@ void mem_update(struct ls_state *ls)
 	/* Dynamic memory allocation tracking */
 	unsigned int size;
 	unsigned int base;
+	unsigned int _orig_base;
 
 	/* Only start tracking allocations after kernel_main is entered - the
 	 * multiboot code that runs before kernel_main may confuse us. */
@@ -469,6 +471,16 @@ void mem_update(struct ls_state *ls)
 			mem_enter_free(ls, false, base);
 		} else if (user_mm_free_exiting(ls->eip)) {
 			mem_exit_free(ls, false);
+		} else if (user_mm_realloc_entering(ls->cpu0, ls->eip, &_orig_base, &size)) {
+			assert(!ls->user_mem.in_alloc);
+			assert(!ls->user_mem.in_free);
+			assert(!ls->user_mem.in_realloc);
+			ls->user_mem.in_realloc = true;
+		} else if (user_mm_realloc_exiting(ls->cpu0, ls->eip, &base)) {
+			assert(!ls->user_mem.in_alloc);
+			assert(!ls->user_mem.in_free);
+			assert(ls->user_mem.in_realloc);
+			ls->user_mem.in_realloc = false;
 		} else if (user_mm_init_entering(ls->eip)) {
 			assert(!ls->user_mem.in_alloc);
 			assert(!ls->user_mem.in_free);
@@ -748,7 +760,7 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 	}
 
 	/* the allocator has a free pass to its own accesses */
-	if (m->in_mm_init || m->in_alloc || m->in_free) {
+	if (m->in_mm_init || m->in_alloc || m->in_free || m->in_realloc) {
 		return;
 	}
 

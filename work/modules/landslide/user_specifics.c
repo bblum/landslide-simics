@@ -154,6 +154,41 @@ bool user_mm_free_exiting(unsigned int eip)
 #endif
 }
 
+bool user_mm_realloc_entering(conf_object_t *cpu, unsigned int eip,
+			      unsigned int *orig_base, unsigned int *size)
+{
+#ifdef USER_MM_REALLOC_ENTER
+	if (eip == USER_MM_REALLOC_ENTER) {
+		*orig_base = READ_STACK(cpu, 1);
+		*size = READ_STACK(cpu, 2);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+
+bool user_mm_realloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base)
+{
+#ifdef USER_MM_REALLOC_EXIT
+	if (eip == USER_MM_REALLOC_EXIT) {
+		*base = GET_CPU_ATTR(cpu, eax);
+		return true;
+	} else {
+		return false;
+	}
+#else
+#ifdef USER_MM_REALLOC_ENTER
+	STATIC_ASSERT(false && "user realloc enter but not exit defined");
+#endif
+	return false;
+#endif
+}
+
+/**** Locking wrappers ****/
+
 bool user_locked_malloc_entering(unsigned int eip)
 {
 #ifdef USER_LOCKED_MALLOC_ENTER

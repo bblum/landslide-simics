@@ -324,6 +324,7 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool i
 	dest->guest_init_done    = src->guest_init_done;
 	dest->in_mm_init         = src->in_mm_init;
 	dest->in_alloc           = src->in_alloc;
+	dest->in_realloc         = src->in_realloc;
 	dest->in_free            = src->in_free;
 	dest->alloc_request_size = src->alloc_request_size;
 	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
