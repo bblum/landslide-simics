@@ -153,6 +153,33 @@ void free_stack_trace(struct stack_trace *st)
 	MM_FREE(st);
 }
 
+static bool splice_pre_vanish_trace(struct ls_state *ls, struct stack_trace *st,
+				    unsigned int eip)
+{
+	struct stack_trace *pvt = ls->sched.cur_agent->pre_vanish_trace;
+	bool found_eip = false;
+
+	if (pvt == NULL || KERNEL_MEMORY(eip)) {
+		return false;
+	}
+
+	struct stack_frame *f;
+	Q_FOREACH(f, &pvt->frames, nobe) {
+		if (f->eip == eip) {
+			found_eip = true;
+		}
+		if (found_eip) {
+			struct stack_frame *newf = MM_XMALLOC(1, struct stack_frame);
+			newf->eip  = f->eip;
+			newf->name = f->name == NULL ? NULL : MM_XSTRDUP(f->name);
+			newf->file = f->file == NULL ? NULL : MM_XSTRDUP(f->file);
+			newf->line = f->line;
+			Q_INSERT_TAIL(&st->frames, newf, nobe);
+		}
+	}
+	return found_eip;
+}
+
 /******************************************************************************
  * actual logic
  ******************************************************************************/
@@ -253,7 +280,9 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			}
 			if (extra_frame) {
 				eip = READ_MEMORY(cpu, stack_ptr);
-				if (!SUPPRESS_FRAME(eip)) {
+				if (splice_pre_vanish_trace(ls, st, eip)) {
+					return st;
+				} else if (!SUPPRESS_FRAME(eip)) {
 					bool success = add_frame(st, eip);
 					if (!success && wrong_cr3)
 						return st;
@@ -289,7 +318,9 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 		}
 		stack_ptr = ebp + (2 * WORD_SIZE);
 		/* Suppress kernel frames if testing user, unless verbose enough. */
-		if (!SUPPRESS_FRAME(eip)) {
+		if (splice_pre_vanish_trace(ls, st, eip)) {
+			return st;
+		} else if (!SUPPRESS_FRAME(eip)) {
 			bool success = add_frame(st, eip);
 			if (!success && wrong_cr3)
 				return st;
