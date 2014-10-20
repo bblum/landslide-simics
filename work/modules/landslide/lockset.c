@@ -67,6 +67,8 @@ void lockset_add(struct lockset *l, int lock_addr, enum lock_type type)
 	lockset_print(INFO, l);
 	printf(INFO, "\n");
 
+	assert(lock_addr != 0);
+
 	/* Check that the lock is not already held. Make an exception for
 	 * e.g. mutexes and things that can contain them having the same
 	 * address. */
@@ -123,6 +125,8 @@ static bool _lockset_remove(struct lockset *l, int lock_addr, enum lock_type typ
 void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
 		    bool in_kernel)
 {
+	assert(lock_addr != 0);
+
 	if (_lockset_remove(LOCKSET_OF(s->cur_agent, in_kernel), lock_addr, type))
 		return;
 

@@ -281,6 +281,7 @@ static void user_mutex_block_others(struct agent_q *q, unsigned int mutex_addr, 
 {
 	struct agent *a;
 	assert(mutex_addr != -1);
+	assert(mutex_addr != 0);
 	assert(USER_MEMORY(mutex_addr));
 	Q_FOREACH(a, q, nobe) {
 		/* slightly different than for kernel mutexes, since we
@@ -832,13 +833,16 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		CURRENT(s, user_mutex_locking_addr) = lock_addr;
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
-		lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
+		if (lock_addr != 0) {
+			lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
+		}
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_yielding(ls->cpu0, ls->eip)) {
 		if (ACTION(s, user_mutex_locking)) {
 			/* "Probably" blocked on the mutex. */
 			assert(!ACTION(s, user_mutex_unlocking));
 			assert(CURRENT(s, user_mutex_locking_addr) != -1);
+			assert(CURRENT(s, user_mutex_locking_addr) != 0);
 			/* Could have been yielding before; gotten kicked awake but
 			 * didn't get the lock, have to yield again. */
 			ACTION(s, user_mutex_yielding) = true;
@@ -850,31 +854,35 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			record_user_yield(&ls->user_sync);
 		}
 	} else if (user_mutex_lock_exiting(ls->eip)) {
+		unsigned int lock_addr = CURRENT(s, user_mutex_locking_addr);
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_unlocking));
-		assert(CURRENT(s, user_mutex_locking_addr) != -1);
+		assert(lock_addr != -1);
 		ACTION(s, user_mutex_locking) = false;
 		ACTION(s, user_mutex_yielding) = false;
-		lsprintf(DEV, "tid %d locked mutex 0x%x\n", CURRENT(s, tid),
-			 CURRENT(s, user_mutex_locking_addr));
-		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_locking_addr), true);
+		lsprintf(DEV, "tid %d locked mutex 0x%x\n", CURRENT(s, tid), lock_addr);
+		if (lock_addr != 0) {
+			user_mutex_block_others(&s->rq, lock_addr, true);
+		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_trylock_exiting(ls->cpu0, ls->eip, &succeeded)) {
+		unsigned int lock_addr = CURRENT(s, user_mutex_locking_addr);
 		assert(ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
 		assert(!ACTION(s, user_mutex_unlocking));
-		assert(CURRENT(s, user_mutex_locking_addr) != -1);
+		assert(lock_addr != -1);
 		ACTION(s, user_mutex_locking) = false;
-		if (succeeded) {
+		if (lock_addr == 0) {
+			/* no-op. */
+		} else if (succeeded) {
 			lsprintf(DEV, "tid %d tried + could lock mutex 0x%x\n",
-				 CURRENT(s, tid), CURRENT(s, user_mutex_locking_addr));
-			user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_locking_addr), true);
+				 CURRENT(s, tid), lock_addr);
+			user_mutex_block_others(&s->rq, lock_addr, true);
 		} else {
-			lsprintf(DEV, "tid %d tried + failed to lock mutex 0x%x\n",
-				 CURRENT(s, tid), CURRENT(s, user_mutex_locking_addr));
-			lockset_remove(s, CURRENT(s, user_mutex_unlocking_addr),
-				       LOCK_MUTEX, false);
+			lsprintf(DEV, "tid %d failed to trylock mutex 0x%x\n",
+				 CURRENT(s, tid), lock_addr);
+			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
@@ -887,16 +895,17 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
+		unsigned int lock_addr = CURRENT(s, user_mutex_unlocking_addr);
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
 		assert(ACTION(s, user_mutex_unlocking));
-		assert(CURRENT(s, user_mutex_unlocking_addr) != -1);
+		assert(lock_addr != -1);
 		ACTION(s, user_mutex_unlocking) = false;
-		lockset_remove(s, CURRENT(s, user_mutex_unlocking_addr),
-			       LOCK_MUTEX, false);
-		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", CURRENT(s, tid),
-			 CURRENT(s, user_mutex_unlocking_addr));
-		user_mutex_block_others(&s->rq, CURRENT(s, user_mutex_unlocking_addr), false);
+		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", CURRENT(s, tid), lock_addr);
+		if (lock_addr != 0) {
+			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
+			user_mutex_block_others(&s->rq, lock_addr, false);
+		}
 		CURRENT(s, user_mutex_unlocking_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
 	/* cvars */
