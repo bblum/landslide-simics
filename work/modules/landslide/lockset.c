@@ -12,6 +12,7 @@
 #include "lockset.h"
 #include "schedule.h"
 #include "stack.h"
+#include "student_specifics.h"
 #include "symtable.h"
 
 void lockset_init(struct lockset *l)
@@ -76,8 +77,19 @@ void lockset_add(struct lockset *l, int lock_addr, enum lock_type type)
 	struct lock *lock;
 	ARRAY_LIST_FOREACH(&l->list, i, lock) {
 		if (SAME_LOCK_TYPE(lock->type, type)) {
+#if ALLOW_LOCK_HANDOFF != 0
+			if (lock->addr == lock_addr) {
+				lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW
+					 "WARNING: Recursively locking lock "
+					 "0x%x (type %d) -- ignoring. Possibly "
+					 "caused by handoff? Expect spurious "
+					 "data races.\n", lock_addr, type);
+				return;
+			}
+#else
 			assert(lock->addr != lock_addr &&
 			       "Recursive locking not supported");
+#endif
 		}
 	}
 
@@ -136,7 +148,7 @@ void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
 		 "TID %d unlocking %s @ 0x%x; expect data race tracking may be "
 		 "incorrect\n" COLOUR_DEFAULT, s->cur_agent->tid, lock_name, lock_addr);
 
-#ifdef ALLOW_LOCK_HANDOFF
+#if ALLOW_LOCK_HANDOFF != 0
 	struct agent *a;
 	Q_FOREACH(a, &s->rq, nobe) {
 		if (_lockset_remove(LOCKSET_OF(a, in_kernel), lock_addr, type)) return;
