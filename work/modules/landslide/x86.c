@@ -335,7 +335,14 @@ unsigned int delay_instruction(conf_object_t *cpu)
 	}
 	unsigned int phys_buf;
 	bool mapping_present = mem_translate(cpu, buf, &phys_buf);
-	assert(mapping_present && "cannot delay instruction - stack not mapped!");
+	if (!mapping_present) {
+		buf = USER_IMG_END;
+		lsprintf(DEV, "Need to delay instruction, but the stack is "
+			 "unmapped. Using `_end' instead -- 0x%x.\n", buf);
+		assert(buf % PAGE_SIZE <= PAGE_SIZE - 8 && "Not enough room!");
+		mapping_present = mem_translate(cpu, buf, &phys_buf);
+		assert(mapping_present && "could not delay instruction");
+	}
 
 	/* Compute relative offset. Note "e9 00000000 would jump to buf+5. */
 	unsigned int offset = GET_CPU_ATTR(cpu, eip) - (buf + 5);
