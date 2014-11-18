@@ -1148,10 +1148,14 @@ void sched_update(struct ls_state *ls)
 
 	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
 
-	if (KERNEL_MEMORY(ls->eip)) {
-		sched_update_kern_state_machine(ls);
-	} else {
-		sched_update_user_state_machine(ls);
+	/* Skip state machine update if we expect this is a "duplicate"
+	 * instruction caused by delaying for a data race PP. See #144. */
+	if (!CURRENT(s, just_delayed_for_data_race)) {
+		if (KERNEL_MEMORY(ls->eip)) {
+			sched_update_kern_state_machine(ls);
+		} else {
+			sched_update_user_state_machine(ls);
+		}
 	}
 
 	/**********************************************************************
