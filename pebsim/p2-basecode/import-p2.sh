@@ -11,7 +11,7 @@ function die() {
 
 function check_subdir() {
 	if [ ! -d "$DIR/$1" ]; then
-		die "$DIR doesn't look like a p2 directory -- $1 missing"
+		die "$DIR doesn't look like a p2 directory -- $1 subdir missing (try creating it and try again)"
 	fi
 }
 
@@ -29,7 +29,7 @@ check_subdir user/libthread
 check_subdir user/libsyscall
 check_subdir user/libautostack
 check_subdir user/inc
-check_subdir vq_challenge
+# check_subdir vq_challenge
 
 DESTDIR=p2-basecode
 if [ "`basename $PWD`" != "$DESTDIR" ]; then
@@ -40,8 +40,13 @@ function sync_subdir() {
 	mkdir -p "./$1"
 	rsync -av --delete "$DIR/$1/" "./$1/" || die "rsync failed."
 }
+function sync_optional_subdir() {
+	if [ -d "$DIR/$1" ]; then
+		sync_subdir "$1"
+	fi
+}
 
-sync_subdir vq_challenge
+sync_optional_subdir vq_challenge
 sync_subdir user/inc
 sync_subdir user/libautostack
 sync_subdir user/libsyscall
