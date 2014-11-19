@@ -98,7 +98,7 @@ static bool parse_time(char *str, unsigned long *result)
 
 bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_len,
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
-		 bool *leave_logs)
+		 bool *leave_logs, bool *control_experiment)
 {
 	/* Set up cmdline options & their default values */
 	unsigned int system_cpus = get_nprocs();
@@ -133,6 +133,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_FLAG('v', verbose, "Verbose output");
 	DEF_CMDLINE_FLAG('h', help, "Print this help text and exit");
 	DEF_CMDLINE_FLAG('l', leave_logs, "Don't delete log files from bug-free state spaces");
+	DEF_CMDLINE_FLAG('C', control_experiment, "Control mode, i.e., test only 1 state space");
 #undef DEF_CMDLINE_FLAG
 
 #define DEF_CMDLINE_OPTION(flagname, varname, descr, value)		\
@@ -233,6 +234,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 
 	*verbose = arg_verbose;
 	*leave_logs = arg_leave_logs;
+	*control_experiment = arg_control_experiment;
 
 	return options_valid;
 }

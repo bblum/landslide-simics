@@ -86,6 +86,8 @@ static bool recv(int input_fd, struct input_message *m)
 
 /* event handling logic */
 
+extern bool control_experiment;
+
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			     unsigned int eip, bool confirmed,
 			     unsigned int most_recent_syscall)
@@ -111,7 +113,9 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			struct pp_set *empty = create_pp_set(PRIORITY_NONE);
 			new_set = add_pp_to_set(empty, pp);
 			free_pp_set(empty);
-			add_work(new_job(new_set, false));
+			if (!control_experiment) {
+				add_work(new_job(new_set, false));
+			}
 			added = true;
 		}
 		/* Add a big job. */
@@ -119,7 +123,9 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 		if (bug_already_found(new_set)) {
 			free_pp_set(new_set);
 		} else {
-			add_work(new_job(new_set, true));
+			if (!control_experiment) {
+				add_work(new_job(new_set, true));
+			}
 			added = true;
 		}
 		if (added) {
