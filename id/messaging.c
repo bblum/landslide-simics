@@ -183,10 +183,18 @@ static void handle_crash(struct job *j, struct input_message *m)
 	// TODO: print name of stderr log file.
 
 	ERR("[JOB %d] THIS IS NOT YOUR FAULT.\n", j->id);
-	ERR("[JOB %d] However, consider manually inspecting the following PPs:\n", j->id);
 	struct pp *pp;
+	bool any_drs = false;
 	FOR_EACH_PP(pp, j->config) {
-		ERR("[JOB %d] %s\n", j->id, pp->config_str);
+		if (pp->priority == PRIORITY_DR_SUSPECTED ||
+		    pp->priority == PRIORITY_DR_CONFIRMED) {
+			if (!any_drs) {
+				any_drs = true;
+				ERR("[JOB %d] However, please manually inspect "
+				    "the following data race(s):\n", j->id);
+			}
+			ERR("[JOB %d] %s\n", j->id, pp->config_str);
+		}
 	}
 }
 
