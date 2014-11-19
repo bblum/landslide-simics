@@ -169,6 +169,21 @@ static bool handle_should_continue(struct job *j)
 	}
 }
 
+static void handle_crash(struct job *j, struct input_message *m)
+{
+	ERR("[JOB %d] Landslide crashed. The assert message was: %s\n",
+	    j->id, m->content.crash_report.assert_message);
+	ERR("[JOB %d] For more detail see stderr log file.\n", j->id);
+	// TODO: print name of stderr log file.
+
+	ERR("[JOB %d] THIS IS NOT YOUR FAULT.\n", j->id);
+	ERR("[JOB %d] However, consider manually inspecting the following PPs:\n", j->id);
+	struct pp *pp;
+	FOR_EACH_PP(pp, j->config) {
+		ERR("[JOB %d] %s\n", j->id, pp->config_str);
+	}
+}
+
 /* messaging logic */
 
 /* creates the fifo files on the filesystem, but does not block on them yet. */
@@ -233,12 +248,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 			reply.do_abort = !handle_should_continue(j);
 			send(state->output_pipe.fd, &reply);
 		} else if (m.tag == ASSERT_FAILED) {
-			ERR("[JOB %d] Landslide crashed. "
-			    "The assert message was: %s\n",
-			    j->id, m.content.crash_report.assert_message);
-			ERR("[JOB %d] For more detail see stderr log file.\n",
-			    j->id);
-			// TODO: print name of stderr log file.
+			handle_crash(j, &m);
 			break;
 		} else {
 			assert(false && "unknown message type");
