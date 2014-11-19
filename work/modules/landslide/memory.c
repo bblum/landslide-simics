@@ -285,9 +285,11 @@ static void print_freed_chunk_info(struct chunk *c,
 		printf(BUG, "\n");
 	} else {
 		HTML_PRINTF(html_env, "%s" HTML_NEWLINE, allocated_msg);
+		HTML_PRINTF(html_env, "TID %d at:" HTML_NEWLINE, c->malloc_trace->tid);
 		HTML_PRINT_STACK_TRACE(html_env, c->malloc_trace);
 		HTML_PRINTF(html_env, HTML_NEWLINE HTML_NEWLINE);
 		HTML_PRINTF(html_env, "%s" HTML_NEWLINE, freed_msg);
+		HTML_PRINTF(html_env, "TID %d at:" HTML_NEWLINE, c->free_trace->tid);
 		HTML_PRINT_STACK_TRACE(html_env, c->free_trace);
 		HTML_PRINTF(html_env, HTML_NEWLINE);
 	}
