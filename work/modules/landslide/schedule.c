@@ -1150,7 +1150,15 @@ void sched_update(struct ls_state *ls)
 
 	/* Skip state machine update if we expect this is a "duplicate"
 	 * instruction caused by delaying for a data race PP. See #144. */
-	if (!CURRENT(s, just_delayed_for_data_race)) {
+	// XXX: There is a potential problem (of unknown severity) here. Note
+	// XXX: that we are skipping the state machine update for the *SECOND*
+	// XXX: time we get called for the delayed instruction. But that time
+	// XXX: is when it really gets executed. So we may end up prematurely
+	// XXX: updating the state machine to reflect changes (e.g. in mutex
+	// XXX: ownership) that might not have happened before a context
+	// XXX: switch to another thread.
+	if (!(CURRENT(s, just_delayed_for_data_race) &&
+	      CURRENT(s, delayed_data_race_eip == ls->eip))) {
 		if (KERNEL_MEMORY(ls->eip)) {
 			sched_update_kern_state_machine(ls);
 		} else {
