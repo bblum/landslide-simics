@@ -259,6 +259,10 @@ static bool mem_translate(conf_object_t *cpu, unsigned int addr, unsigned int *r
 	/* check present bit of pde to not anger the simics gods */
 	if ((pde & 0x1) == 0) {
 		return false;
+#ifdef PDE_PTE_POISON
+	} else if (pde == PDE_PTE_POISON) {
+		return false;
+#endif
 	}
 	unsigned int pte_addr = (pde & ~4095) + (4 * lower);
 	unsigned int pte = SIM_read_phys_memory(cpu, pte_addr, WORD_SIZE);
@@ -267,6 +271,10 @@ static bool mem_translate(conf_object_t *cpu, unsigned int addr, unsigned int *r
 	/* check present bit of pte to not anger the simics gods */
 	if ((pte & 0x1) == 0) {
 		return false;
+#ifdef PDE_PTE_POISON
+	} else if (pte == PDE_PTE_POISON) {
+		return false;
+#endif
 	}
 	*result = (pte & ~4095) + offset;
 	return true;
