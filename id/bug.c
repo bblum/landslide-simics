@@ -8,13 +8,15 @@
 
 #include "array_list.h"
 #include "common.h"
+#include "job.h"
 #include "pp.h"
 #include "sync.h"
 #include "xcalls.h"
 
 struct bug_info {
-	char *filename;
+	char *trace_filename;
 	struct pp_set *config;
+	char *log_filename;
 };
 
 static bool fab_inited = false;
@@ -33,11 +35,12 @@ static void check_init()
 	}
 }
 
-void found_a_bug(char *trace_filename, struct pp_set *config)
+void found_a_bug(char *trace_filename, struct job *j)
 {
 	struct bug_info b;
-	b.filename = XSTRDUP(trace_filename);
-	b.config = clone_pp_set(config);
+	b.trace_filename = XSTRDUP(trace_filename);
+	b.config = clone_pp_set(j->config);
+	b.log_filename = XSTRDUP(j->log_stderr.filename);
 
 	check_init();
 
@@ -77,9 +80,9 @@ bool found_any_bugs()
 	LOCK(&fab_lock);
 	ARRAY_LIST_FOREACH(&fab_list, i, b) {
 		printf(COLOUR_BOLD COLOUR_RED
-		       "Found a bug - %s - with PPs: ", b->filename);
+		       "Found a bug - %s - with PPs: ", b->trace_filename);
 		print_pp_set(b->config);
-		printf("\n" COLOUR_DEFAULT);
+		printf("(log file: %s)\n" COLOUR_DEFAULT, b->log_filename);
 		any = true;
 	}
 	UNLOCK(&fab_lock);

@@ -179,8 +179,8 @@ static void handle_crash(struct job *j, struct input_message *m)
 {
 	ERR("[JOB %d] Landslide crashed. The assert message was: %s\n",
 	    j->id, m->content.crash_report.assert_message);
-	ERR("[JOB %d] For more detail see stderr log file.\n", j->id);
-	// TODO: print name of stderr log file.
+	ERR("[JOB %d] For more detail see stderr log file: %s\n",
+	    j->id, j->log_stderr.filename);
 
 	ERR("[JOB %d] THIS IS NOT YOUR FAULT.\n", j->id);
 	struct pp *pp;
@@ -256,7 +256,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 					m.content.estimate.total_usecs,
 					m.content.estimate.elapsed_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
-			found_a_bug(m.content.bug.trace_filename, j->config);
+			found_a_bug(m.content.bug.trace_filename, j);
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;
 			reply.do_abort = !handle_should_continue(j);

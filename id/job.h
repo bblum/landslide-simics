@@ -20,6 +20,9 @@ struct job {
 	unsigned int id;
 	unsigned int generation; /* max among generations of pps + 1 */
 	bool should_reproduce;
+	struct file config_file;
+	struct file log_stdout;
+	struct file log_stderr;
 
 	/* shared state */
 	bool done;

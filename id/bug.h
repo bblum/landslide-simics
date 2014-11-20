@@ -9,9 +9,10 @@
 
 #include <stdbool.h>
 
+struct job;
 struct pp_set;
 
-void found_a_bug(char *trace_filename, struct pp_set *config);
+void found_a_bug(char *trace_filename, struct job *j);
 bool bug_already_found(struct pp_set *config);
 bool found_any_bugs();
 

@@ -63,41 +63,38 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 static void *run_job(void *arg)
 {
 	struct job *j = (struct job *)arg;
-	struct file config_file;
-	struct file log_stdout;
-	struct file log_stderr;
 	struct messaging_state mess;
 
-	create_file(&config_file, CONFIG_FILE_TEMPLATE);
-	create_file(&log_stdout, LOG_FILE_TEMPLATE("stdout"));
-	create_file(&log_stderr, LOG_FILE_TEMPLATE("stderr"));
+	create_file(&j->config_file, CONFIG_FILE_TEMPLATE);
+	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("stdout"));
+	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("stderr"));
 
 	/* write config file */
 
 	// XXX(#120): TEST_CASE must be defined before PPs are specified.
-	XWRITE(&config_file, "TEST_CASE=%s\n", test_name);
-	XWRITE(&config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
+	XWRITE(&j->config_file, "TEST_CASE=%s\n", test_name);
+	XWRITE(&j->config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
 	// FIXME: Make this more principled instead of a gross hack
-	XWRITE(&config_file, "without_user_function mutex_lock\n");
-	XWRITE(&config_file, "without_user_function mutex_unlock\n");
+	XWRITE(&j->config_file, "without_user_function mutex_lock\n");
+	XWRITE(&j->config_file, "without_user_function mutex_unlock\n");
 
 	struct pp *pp;
 	FOR_EACH_PP(pp, j->config) {
-		XWRITE(&config_file, "%s\n", pp->config_str);
+		XWRITE(&j->config_file, "%s\n", pp->config_str);
 	}
 	assert(test_name != NULL);
 	// FIXME: Make this principled, as above
-	XWRITE(&config_file, "without_user_function malloc\n");
-	XWRITE(&config_file, "without_user_function realloc\n");
-	XWRITE(&config_file, "without_user_function calloc\n");
-	XWRITE(&config_file, "without_user_function free\n");
+	XWRITE(&j->config_file, "without_user_function malloc\n");
+	XWRITE(&j->config_file, "without_user_function realloc\n");
+	XWRITE(&j->config_file, "without_user_function calloc\n");
+	XWRITE(&j->config_file, "without_user_function free\n");
 
-	messaging_init(&mess, &config_file, j->id);
+	messaging_init(&mess, &j->config_file, j->id);
 
 	// XXX: Need to do this here so the parent can have the path into pebsim
 	// to properly delete the file, but it brittle-ly causes the child's
 	// exec args to have "../pebsim/"s in them that only "happen to work".
-	move_file_to(&config_file, LANDSLIDE_PATH);
+	move_file_to(&j->config_file, LANDSLIDE_PATH);
 
 	/* while multiple landslides can run at once, compiling each one from a
 	 * different config is mutually exclusive. we'll release this as soon as
@@ -111,16 +108,17 @@ static void *run_job(void *arg)
 		char *execname = "./" LANDSLIDE_PROGNAME;
 		char *const argv[4] = {
 			[0] = execname,
-			[1] = config_file.filename,
+			[1] = j->config_file.filename,
 			[2] = NULL,
 		};
 
 		DBG("[JOB %d] '%s %s > %s 2> %s'\n", j->id, execname,
-		       config_file.filename, log_stdout.filename, log_stderr.filename);
+		       j->config_file.filename, j->log_stdout.filename,
+		       j->log_stderr.filename);
 
 		/* unsetting cloexec not necessary for these */
-		XDUP2(log_stdout.fd, STDOUT_FILENO);
-		XDUP2(log_stderr.fd, STDERR_FILENO);
+		XDUP2(j->log_stdout.fd, STDOUT_FILENO);
+		XDUP2(j->log_stderr.fd, STDERR_FILENO);
 
 		XCHDIR(LANDSLIDE_PATH);
 
@@ -145,7 +143,7 @@ static void *run_job(void *arg)
 		ERR("[JOB %d] There was a problem setting up Landslide.\n", j->id);
 		// TODO: err_pp_set or some such
 		ERR("[JOB %d] For details see %s and %s\n", j->id,
-		    log_stdout.filename, log_stderr.filename);
+		    j->log_stdout.filename, j->log_stderr.filename);
 	}
 
 	int child_status;
@@ -157,10 +155,10 @@ static void *run_job(void *arg)
 
 	finish_messaging(&mess);
 
-	delete_file(&config_file, true);
+	delete_file(&j->config_file, true);
 	bool should_delete = !leave_logs && WEXITSTATUS(child_status) == 0;
-	delete_file(&log_stdout, should_delete);
-	delete_file(&log_stderr, should_delete);
+	delete_file(&j->log_stdout, should_delete);
+	delete_file(&j->log_stderr, should_delete);
 
 	LOCK(&j->done_lock);
 	j->done = true;
