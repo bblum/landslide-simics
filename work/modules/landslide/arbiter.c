@@ -242,9 +242,9 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 	/* No runnable threads. Is this a bug, or is it expected? */
 	if (BUG_ON_THREADS_WEDGED != 0 &&
 	    anybody_alive(ls->cpu0, &ls->test, &ls->sched, true)) {
-		FOUND_A_BUG(ls, "Nobody runnable! All threads wedged?");
+		FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
 	} else {
-		printf(DEV, "Nobody runnable! All threads wedged?\n");
+		printf(DEV, "Deadlock -- no threads are runnable!");
 	}
 	return false;
 }
