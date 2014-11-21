@@ -82,7 +82,8 @@ bool found_any_bugs()
 		printf(COLOUR_BOLD COLOUR_RED
 		       "Found a bug - %s - with PPs: ", b->trace_filename);
 		print_pp_set(b->config);
-		printf("(log file: %s)\n" COLOUR_DEFAULT, b->log_filename);
+		// FIXME: do something better than hardcode print "id/"
+		printf(" (log file: id/%s)\n" COLOUR_DEFAULT, b->log_filename);
 		any = true;
 	}
 	UNLOCK(&fab_lock);
