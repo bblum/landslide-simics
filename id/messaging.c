@@ -198,6 +198,22 @@ static void handle_crash(struct job *j, struct input_message *m)
 	}
 }
 
+static void move_trace_file(const char *trace_filename)
+{
+	/* + 2 because 1 for the '/' in between and 1 for the null. */
+	unsigned int length_old =
+		strlen(LANDSLIDE_PATH) + strlen(trace_filename) + 2;
+	unsigned int length_new =
+		strlen(ROOT_PATH) + strlen(trace_filename) + 2;
+	char *old_path = XMALLOC(length_old, char);
+	char *new_path = XMALLOC(length_new, char);
+	scnprintf(old_path, length_old, "%s/%s", LANDSLIDE_PATH, trace_filename);
+	scnprintf(new_path, length_new, "%s/%s", ROOT_PATH, trace_filename);
+	XRENAME(old_path, new_path);
+	FREE(old_path);
+	FREE(new_path);
+}
+
 /* messaging logic */
 
 /* creates the fifo files on the filesystem, but does not block on them yet. */
@@ -256,6 +272,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 					m.content.estimate.total_usecs,
 					m.content.estimate.elapsed_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
+			move_trace_file(m.content.bug.trace_filename);
 			found_a_bug(m.content.bug.trace_filename, j);
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;
