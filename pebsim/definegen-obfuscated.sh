@@ -173,6 +173,7 @@ TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
 PAGE_FAULT_WRAPPER=
 VM_USER_COPY=
+VM_USER_COPY_TAIL=
 THREAD_KILLED_FUNC=
 THREAD_KILLED_ARG_VAL=
 PATHOS_SYSCALL_IRET_DISTANCE=
@@ -403,7 +404,11 @@ fi
 
 if [ ! -z "$VM_USER_COPY" ];  then
 	echo "#define GUEST_VM_USER_COPY_ENTER 0x`get_func $VM_USER_COPY`"
-	echo "#define GUEST_VM_USER_COPY_EXIT  0x`get_func_end $VM_USER_COPY`"
+	if [ ! -z "$VM_USER_COPY_TAIL" ]; then
+		echo "#define GUEST_VM_USER_COPY_EXIT  0x`get_func_end $VM_USER_COPY_TAIL`"
+	else
+		echo "#define GUEST_VM_USER_COPY_EXIT  0x`get_func_end $VM_USER_COPY`"
+	fi
 fi
 
 if [ ! -z "$PATHOS_SYSCALL_IRET_DISTANCE" ]; then

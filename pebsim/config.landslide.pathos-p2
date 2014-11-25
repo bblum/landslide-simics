@@ -71,6 +71,7 @@ PAGE_FAULT_WRAPPER=JeEZAsscFUBi
 # calls could be "covert communication channels" that we don't want to miss
 # for the purpose of memory independence (e.g. deschedule's reject pointer).
 VM_USER_COPY=cXTnLzDKw # safe_copy()
+VM_USER_COPY_TAIL=rNoobcQrDzQLjXj # safe_copy_fixup()
 
 # obscure annotation for pathos syscall wrappers.
 # this == sizeof(ureg_t) - sizeof(<iret frame>). see issue #117.
