@@ -507,7 +507,7 @@ echo "#define TELL_LANDSLIDE_MUTEX_LOCKING 0x`get_func anaHvBljsftIyrnJvCvYaNhNL
 echo "#define TELL_LANDSLIDE_MUTEX_BLOCKING 0x`get_func wrARlvEveiMTtGngtOYrmbKugdBvB`"
 echo "#define TELL_LANDSLIDE_MUTEX_LOCKING_DONE 0x`get_func hIHDtwffTBIXfpyDBDDqrnealQcvBqnLf`"
 echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING 0x`get_func dTyptqDsHJWWhvWcaNDneYSsQPpwDl`"
-echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func dTyptqDsHJWWhvWcaNDneYSsQPpwDl`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func pMAWEzfdDLmJNDpWmQmwnilwLiWozTHqBZs`"
 echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING 0x`get_func TeodbyzOXeMZbUQTAxtyRRYoVZSnjnX`"
 echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE 0x`get_func NCZHqnXwYHuxvDXpmmzVjUMGZkLqFRxsVsxV`"
 
