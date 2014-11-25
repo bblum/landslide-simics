@@ -29,17 +29,17 @@ TEST_CASE=thr_exit_join
 ######################
 
 # The function registered in the IDT to handle timer interrupts.
-TIMER_WRAPPER=FumOFjZvqszYA
+TIMER_WRAPPER=icWfGRQmDQbWa
 
 # The function that all context switches go through. Preferably the outermost
 # one - e.g. if a C function calls an assembly function, and both meet this
 # criterion, use the name of the former.
-CONTEXT_SWITCH=HiiqHXcSGFIN
+CONTEXT_SWITCH=LWjFcADtWRzC
 
 # The name of the function in which threads go to sleep on readline.
-READLINE=uiPgsvmRjJrp
+READLINE=RJxtfjlPaiuy
 
-EXEC=Qsfwdtar
+EXEC=nTMeeWdP
 
 # The TIDs of important threads - init, shell, idle. Comment IDLE_TID out
 # entirely if your kernel does not have an explicit idle thread.
@@ -61,16 +61,16 @@ starting_threads 0 1 # thunderbirds
 
 CURRENT_THREAD_LIVES_ON_RQ=0
 
-PREEMPT_ENABLE_FLAG=aoeDqkukLMXG
+PREEMPT_ENABLE_FLAG=URSEoQMeIQvO
 PREEMPT_ENABLE_VALUE=0
 
-PAGE_FAULT_WRAPPER=fjCdxZqbauNh
+PAGE_FAULT_WRAPPER=JeEZAsscFUBi
 
 # a kernel-space function which makes userspace memory accesses that might
 # conflict (wrt DPOR) with other accesses from userspace. IOW, some system
 # calls could be "covert communication channels" that we don't want to miss
 # for the purpose of memory independence (e.g. deschedule's reject pointer).
-VM_USER_COPY=HCTWCvVmVNDgt # vm_dousercopy
+VM_USER_COPY=cXTnLzDKw # safe_copy()
 
 # obscure annotation for pathos syscall wrappers.
 # this == sizeof(ureg_t) - sizeof(<iret frame>). see issue #117.
@@ -79,42 +79,42 @@ PATHOS_SYSCALL_IRET_DISTANCE=60
 PDE_PTE_POISON=0xCDCDCDCD
 
 # enable found_a_bug on kernel thread_exit(CAUSE_FAULT);
-THREAD_KILLED_FUNC=cZYhEivVUOs
+THREAD_KILLED_FUNC=ZLWPHNFLFUQ
 THREAD_KILLED_ARG_VAL=1
 
 #######################################
 #### Scheduler/globals information ####
 #######################################
 
-ignore_sym aoeDqkukLMXG 4
-ignore_sym CgNuwKsf 12
-sched_func FumOFjZvqszYA
-sched_func yCTqBALBhO
-sched_func aVSEtHaildT
-sched_func EBKTZNjQT
-sched_func VDfmekakeGSz
-sched_func LOXQLrWDzbweh
-sched_func YKqnyCwUn
-sched_func yeviiyNBUFRhKXGUWERDS
-sched_func uJIXIwQsXRi
-sched_func fBYDCGjvvsjGzxSOGg
-sched_func kPMBARnqSSXXVqEG
-sched_func nsnxlNJpxI
-sched_func RWulmzJfNoivZWCGbbrRX
-sched_func uRVYBqvunPxG
-sched_func BUybDCeymXg
-sched_func lRqBrKtHKH
-sched_func DDoWLNLGxmInH
-sched_func sjPEBhHGdg
-sched_func sGxboVWUUhaSAOGKdFD
-sched_func yeBESdIiIRzEcedhJs
-sched_func dCkUIDzquMTWWvzJw
-sched_func dWLTqcrSfHt
-sched_func QtQyNWMmRQmpO
-sched_func HiiqHXcSGFIN
-sched_func YZSxBJpwjerBLxxhXuBOjYp
-sched_func erzncnmPzIwTKSPmXX
-sched_func olxyEaoGPJNphyNUb
+ignore_sym URSEoQMeIQvO 4
+ignore_sym polPBuOi 12
+sched_func icWfGRQmDQbWa
+sched_func xyRlsbDVrK
+sched_func WZKyeCFpsXt
+sched_func RLMXwGPIk
+sched_func AEuIKqjmENsr
+sched_func xeAXWULpBzBBN
+sched_func GGBsaJauT
+sched_func YkUgKCMGEOBYCjnBMImeN
+sched_func vjelHvkBuni
+sched_func jcFpEThKhiRrQdtYPv
+sched_func djkSpJloYMUfzbTc
+sched_func hEDOoZEYlX
+sched_func zkFNqaNGVZjFRfcoDVVIY
+sched_func dWUlEfIaGqSJ
+sched_func ttwMAOPBxXY
+sched_func jvELqRqVMi
+sched_func TwKFqadyQvLzx
+sched_func VysAUbqVvf
+sched_func hTwyhkuiWTyhaRXhE
+sched_func NTyiQiQWCuj
+sched_func mQoJTdNwJLMlK
+sched_func LWjFcADtWRzC
+sched_func WmYRXGCjurwzQcsFhLTjvgx
+sched_func gvUYUyJqPuesrFyWLC
+sched_func WgAbLRRyBujryZMOJ
+sched_func iejkATqKibpzavgEELmeYJhhX
+sched_func UZSxOcyyuLkomunhmG
 
 ####################################################
 #### Decision-point / Exploration configuration ####

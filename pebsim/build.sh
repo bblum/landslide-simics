@@ -171,12 +171,12 @@ function verify_tell {
 }
 
 if [ "$OBFUSCATED_KERNEL" = 1 ]; then
-	verify_tell BdSfWtYekHgZIrgRvhjOBJZcaBOk
-	verify_tell HiOxsIEPkyrBRLrxkQWOWZtnjkZ
-	verify_tell jEqsDtPugyVZgFYfNdUbBdjp
-	verify_tell qoICNoouqOWYvWrzwcMofmqGdPxa
-	verify_tell VctEddYWBoOmsvViAMLrBhgMClYkIA
-	verify_tell WWCzWNfwDhCMmyOoMjkzqM
+	verify_tell esZREVcyfbPsQoxwXxGdcy
+	verify_tell vhVvYAjGpsbRLTUgHVOKHOTKitUd
+	verify_tell ZlsuZyULncpscbkzngcjwKMxYTs
+	verify_tell sDaRkslyaZLuPxZWEPYXSSIGflzC
+	verify_tell QZUSpPBeeuyaxvNOTPDskqBkRLlYaz
+	verify_tell CHYodnfPjUDNzVkjLEwcuFJs
 else
 	verify_tell tell_landslide_forking
 	verify_tell tell_landslide_thread_off_rq

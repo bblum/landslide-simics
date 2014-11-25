@@ -37,7 +37,7 @@ bool kern_kernel_main(unsigned int eip);
 /* Yielding-mutex interactions. */
 bool kern_mutex_locking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex);
 bool kern_mutex_blocking(conf_object_t *cpu, unsigned int eip, unsigned int *tid);
-bool kern_mutex_locking_done(unsigned int eip);
+bool kern_mutex_locking_done(conf_object_t *cpu, unsigned int eip, unsigned int *mutex);
 bool kern_mutex_unlocking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex);
 bool kern_mutex_unlocking_done(unsigned int eip);
 bool kern_mutex_trylocking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex);

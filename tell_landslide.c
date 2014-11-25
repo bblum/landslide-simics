@@ -16,7 +16,7 @@ void tell_landslide_thread_on_rq(int tid) { }
 void tell_landslide_thread_off_rq(int tid) { }
 void tell_landslide_mutex_locking(void *mutex_addr) { }
 void tell_landslide_mutex_blocking(int owner_tid) { }
-void tell_landslide_mutex_locking_done(void) { }
+void tell_landslide_mutex_locking_done(void *mutex_addr) { }
 void tell_landslide_mutex_trylocking(void *mutex_addr) { }
 void tell_landslide_mutex_trylocking_done(void *mutex_addr, int succeeded) { }
 void tell_landslide_mutex_unlocking(void *mutex_addr) { }

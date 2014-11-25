@@ -240,9 +240,14 @@ bool kern_mutex_blocking(conf_object_t *cpu, unsigned int eip, unsigned int *own
 }
 
 /* This one also tells if the thread is re-enabled. */
-bool kern_mutex_locking_done(unsigned int eip)
+bool kern_mutex_locking_done(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
-	return eip == TELL_LANDSLIDE_MUTEX_LOCKING_DONE;
+	if (eip == TELL_LANDSLIDE_MUTEX_LOCKING_DONE) {
+		*mutex = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 /* Need to re-read the mutex addr because of unlocking mutexes in any order. */

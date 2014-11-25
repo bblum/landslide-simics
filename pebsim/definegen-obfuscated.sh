@@ -268,7 +268,7 @@ echo
 #### TCB management ####
 ########################
 
-echo "#define GUEST_ESP0_ADDR (0x`get_sym jUzFyVVO` + 4)" # see 410kern/x86/asm.S
+echo "#define GUEST_ESP0_ADDR (0x`get_sym tDmmVTNO` + 4)" # see 410kern/x86/asm.S
 
 ###################################
 #### Thread lifecycle tracking ####
@@ -341,11 +341,11 @@ function pathos_syscall {
 	fi
 }
 
-pathos_syscall DESCH ZiWjAIroKVroIz
-pathos_syscall WAIT lmawADVo
-pathos_syscall PRINT gnYAnOxAV
-pathos_syscall GCP ADNqSOexrSXjpIKjEk
-pathos_syscall RF uIgDYeuLuilfx
+pathos_syscall DESCH wpucGHGqlcxjMT
+pathos_syscall WAIT bIGnbhGy
+pathos_syscall PRINT KXBFbHfAm
+pathos_syscall GCP aXJMTsOgxhAQSNySVq
+pathos_syscall RF IQNTOABvZgFO
 
 ######################################
 #### Mutexes / Deadlock detection ####
@@ -358,18 +358,18 @@ pathos_syscall RF uIgDYeuLuilfx
 ###################################
 
 # Pebbles user shouldn't need to change this.
-echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func mTskDOwNL`"
-echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_ret mTskDOwNL`"
+echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func FtMkPemxx`"
+echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_ret FtMkPemxx`"
 echo "#define GUEST_LMM_ALLOC_SIZE_ARGNUM 2"
-echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func AlVrKiapQvUfd`"
-echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret AlVrKiapQvUfd`"
+echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func CZLoltqQauxoc`"
+echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret CZLoltqQauxoc`"
 echo "#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM 2"
-echo "#define GUEST_LMM_FREE_ENTER       0x`get_func xFXlzRXs`"
-echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret xFXlzRXs`"
+echo "#define GUEST_LMM_FREE_ENTER       0x`get_func RCFxRLuV`"
+echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret RCFxRLuV`"
 echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
 echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
-echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func hUPQkGABqJEPgXA`"
-echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret hUPQkGABqJEPgXA`"
+echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func MtqokdCaEfVRCwG`"
+echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret MtqokdCaEfVRCwG`"
 
 echo
 
@@ -384,8 +384,8 @@ echo "#define GUEST_DATA_END 0x`get_sym _edata`" # Everything is awful forever.
 echo "#define GUEST_BSS_START 0x`get_sym __bss_start`"
 echo "#define GUEST_BSS_END GUEST_IMG_END"
 
-echo "#define GUEST_PANIC 0x`get_func bbzre`"
-echo "#define GUEST_KERNEL_MAIN 0x`get_func japmaoNovwH`"
+echo "#define GUEST_PANIC 0x`get_func cnAky`"
+echo "#define GUEST_KERNEL_MAIN 0x`get_func wJTUxjBIOvQ`"
 echo "#define GUEST_START 0x`get_func _start`"
 
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
@@ -495,21 +495,21 @@ echo
 #### In-kernel annotations ####
 ###############################
 
-echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func XMleaoQrEEDXztMMoVhnq`"
-echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func BdSfWtYekHgZIrgRvhjOBJZcaBOk`"
-echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func VctEddYWBoOmsvViAMLrBhgMClYkIA`"
-echo "#define TELL_LANDSLIDE_FORKING 0x`get_func WWCzWNfwDhCMmyOoMjkzqM`"
-echo "#define TELL_LANDSLIDE_VANISHING 0x`get_func jEqsDtPugyVZgFYfNdUbBdjp`"
-echo "#define TELL_LANDSLIDE_SLEEPING 0x`get_func JNehPzSvepxFtCwifiWaQFj`"
-echo "#define TELL_LANDSLIDE_THREAD_RUNNABLE 0x`get_func HiOxsIEPkyrBRLrxkQWOWZtnjkZ`"
-echo "#define TELL_LANDSLIDE_THREAD_DESCHEDULING 0x`get_func qoICNoouqOWYvWrzwcMofmqGdPxa`"
-echo "#define TELL_LANDSLIDE_MUTEX_LOCKING 0x`get_func WBdjzPTblzKGAFXfMFZlMKDdommv`"
-echo "#define TELL_LANDSLIDE_MUTEX_BLOCKING 0x`get_func BtbuWhKUwdgUNHrlMMXmzjNLpRsAG`"
-echo "#define TELL_LANDSLIDE_MUTEX_LOCKING_DONE 0x`get_func ASHNoBtQWKNjtBSMNMcsCSlcbuZKqIIvV`"
-echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING 0x`get_func wQkCpDlyFgFpCZGioSoiodVpYoDukp`"
-echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func dfmqvTByTjNvMgEOZWqCmlIfrqFunhirQgH`"
-echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING 0x0" # FIXME
-echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE 0x0" # FIXME
+echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func yfQWhIMzDSOkdDrpoHhACP`"
+echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func sDaRkslyaZLuPxZWEPYXSSIGflzC`"
+echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func QZUSpPBeeuyaxvNOTPDskqBkRLlYaz`"
+echo "#define TELL_LANDSLIDE_FORKING 0x`get_func esZREVcyfbPsQoxwXxGdcy`"
+echo "#define TELL_LANDSLIDE_VANISHING 0x`get_func CHYodnfPjUDNzVkjLEwcuFJs`"
+echo "#define TELL_LANDSLIDE_SLEEPING 0x`get_func qbyLPGigbZcDIyutrNKAXfs`"
+echo "#define TELL_LANDSLIDE_THREAD_RUNNABLE 0x`get_func ZlsuZyULncpscbkzngcjwKMxYTs`"
+echo "#define TELL_LANDSLIDE_THREAD_DESCHEDULING 0x`get_func vhVvYAjGpsbRLTUgHVOKHOTKitUd`"
+echo "#define TELL_LANDSLIDE_MUTEX_LOCKING 0x`get_func anaHvBljsftIyrnJvCvYaNhNLxMK`"
+echo "#define TELL_LANDSLIDE_MUTEX_BLOCKING 0x`get_func wrARlvEveiMTtGngtOYrmbKugdBvB`"
+echo "#define TELL_LANDSLIDE_MUTEX_LOCKING_DONE 0x`get_func hIHDtwffTBIXfpyDBDDqrnealQcvBqnLf`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING 0x`get_func dTyptqDsHJWWhvWcaNDneYSsQPpwDl`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func dTyptqDsHJWWhvWcaNDneYSsQPpwDl`"
+echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING 0x`get_func TeodbyzOXeMZbUQTAxtyRRYoVZSnjnX`"
+echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE 0x`get_func NCZHqnXwYHuxvDXpmmzVjUMGZkLqFRxsVsxV`"
 
 echo
 

@@ -691,7 +691,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 				FOUND_A_BUG(ls, "KERNEL DEADLOCK! %.*s", len, buf);
 			}
 		}
-	} else if (kern_mutex_locking_done(ls->eip)) {
+	} else if (kern_mutex_locking_done(ls->cpu0, ls->eip, &lock_addr)) {
 		// XXX: Why is this assert commented out? I don't remember.
 		//assert(ACTION(s, kern_mutex_locking));
 		assert(!ACTION(s, kern_mutex_unlocking));
@@ -701,8 +701,6 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		CURRENT(s, kern_blocked_on) = NULL;
 		CURRENT(s, kern_blocked_on_tid) = -1;
 		CURRENT(s, kern_blocked_on_addr) = -1;
-		// FIXME: issue #51.
-		lock_addr = 0;
 		/* no need to check for deadlock; this can't create a cycle. */
 		kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
 					CURRENT(s, tid));
