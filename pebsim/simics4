@@ -11,7 +11,7 @@ fi
 [ -z $SIMBINPATH] && SIMBINPATH=$SIMROOT/simics-4.0.60/bin/$SIMBIN
 [ -z $SIMHOMES ] && SIMHOMES=$SIMROOT/home
 #[ -z $SIMENV ] && SIMENV=$SIMHOMES/pebsim
-[ -z $SIMENV ] && SIMENV=/afs/andrew/usr12/bblum/masters/pebsim
+[ -z $SIMENV ] && SIMENV=/tmp/landslide/pebsim
 
 # a frumious hack
 KERNEL_SOURCE_DIR=`grep KERNEL_SOURCE_DIR $LANDSLIDE_CONFIG | cut -d= -f2-`

@@ -68,7 +68,7 @@ except :
     conf.disk0_image.files[0][1] = 'rw'
 
 run-python-file "410mods.py"
-add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
+add-module-directory /tmp/landslide/work/amd64-linux/lib
 
 ########################
 #### bblum was here ####
