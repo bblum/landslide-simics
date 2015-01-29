@@ -13,6 +13,7 @@
 #include "job.h"
 #include "option.h"
 #include "pp.h"
+#include "signals.h"
 #include "time.h"
 #include "work.h"
 
@@ -35,6 +36,7 @@ int main(int argc, char **argv)
 	DBG("will run for at most %lu seconds\n", max_time);
 
 	set_job_options(test_name, verbose, leave_logs);
+	init_signal_handling();
 	start_time(max_time * 1000000);
 
 	if (!control_experiment) {
