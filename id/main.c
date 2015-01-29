@@ -4,6 +4,8 @@
  * @author Ben Blum
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>

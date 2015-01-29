@@ -4,6 +4,8 @@
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <pthread.h>
 
 #include "array_list.h"

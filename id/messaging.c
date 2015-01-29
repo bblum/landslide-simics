@@ -4,6 +4,8 @@
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -12,6 +14,7 @@
 #include "job.h"
 #include "messaging.h"
 #include "pp.h"
+#include "sync.h"
 #include "time.h"
 #include "work.h"
 #include "xcalls.h"
@@ -148,24 +151,26 @@ static void handle_estimate(struct job *j, long double proportion,
 {
 	unsigned int total_branches =
 	    (unsigned int)((long double)elapsed_branches / proportion);
-	struct human_friendly_time hft_elapsed;
-	struct human_friendly_time hft_eta;
-	human_friendly_time(elapsed_usecs, &hft_elapsed);
-	human_friendly_time(total_usecs - elapsed_usecs, &hft_eta);
+	WRITE_LOCK(&j->stats_lock);
+	j->estimate_proportion = proportion;
+	human_friendly_time(elapsed_usecs, &j->estimate_elapsed);
+	human_friendly_time(total_usecs - elapsed_usecs, &j->estimate_eta);
 	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ETA ", j->id,
 	    elapsed_branches, total_branches, proportion * 100);
-	print_human_friendly_time(&hft_eta);
+	print_human_friendly_time(&j->estimate_eta);
 	DBG(" (elapsed ");
-	print_human_friendly_time(&hft_elapsed);
+	print_human_friendly_time(&j->estimate_elapsed);
 	DBG(")\n");
-	// TODO: update job state
-	(void)j;
+	RW_UNLOCK(&j->stats_lock);
 }
 
 static bool handle_should_continue(struct job *j)
 {
 	if (bug_already_found(j->config)) {
 		DBG("Aborting -- a subset of our PPs already found a bug.\n");
+		WRITE_LOCK(&j->stats_lock);
+		j->cancelled = true;
+		RW_UNLOCK(&j->stats_lock);
 		return false;
 	} else if (TIME_UP()) {
 		DBG("Aborting -- time up!\n");

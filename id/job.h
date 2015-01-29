@@ -9,8 +9,9 @@
 
 #include <pthread.h>
 
-#include "messaging.h"
 #include "io.h"
+#include "messaging.h"
+#include "time.h"
 
 struct pp_set;
 
@@ -24,6 +25,13 @@ struct job {
 	struct file log_stdout;
 	struct file log_stderr;
 
+	/* stats -- writable by owner, readable by display thread */
+	pthread_rwlock_t stats_lock;
+	bool cancelled;
+	long double estimate_proportion;
+	struct human_friendly_time estimate_elapsed;
+	struct human_friendly_time estimate_eta;
+
 	/* shared state */
 	bool done;
 	pthread_cond_t done_cvar;
@@ -34,7 +42,6 @@ void set_job_options(char *test_name, bool verbose, bool leave_logs);
 struct job *new_job(struct pp_set *config, bool should_reproduce);
 void start_job(struct job *j);
 void wait_on_job(struct job *j);
-void cancel_job(struct job *j);
 void finish_job(struct job *j);
 
 #endif

@@ -48,6 +48,11 @@
 
 /* rwlox */
 
+#define RWLOCK_INIT(rwlock) do {				\
+		int __ret = pthread_rwlock_init((rwlock), NULL);\
+		assert(__ret == 0 && "failed rwlock init");	\
+	} while (0)
+
 #define READ_LOCK(rwlock) do {					\
 		int __ret = pthread_rwlock_rdlock(rwlock);	\
 		assert(__ret == 0 && "failed rdlock");		\

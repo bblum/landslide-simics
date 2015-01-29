@@ -20,6 +20,7 @@
 #include "messaging.h"
 #include "pp.h"
 #include "sync.h"
+#include "time.h"
 #include "xcalls.h"
 
 static unsigned int job_id = 0;
@@ -52,6 +53,12 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->generation = compute_generation(config);
 	j->done = false;
 	j->should_reproduce = should_reproduce;
+
+	RWLOCK_INIT(&j->stats_lock);
+	j->cancelled = false;
+	j->estimate_proportion = 0;
+	human_friendly_time(0.0L, &j->estimate_elapsed);
+	human_friendly_time(0.0L, &j->estimate_eta);
 
 	COND_INIT(&j->done_cvar);
 	MUTEX_INIT(&j->done_lock);
@@ -190,15 +197,8 @@ void wait_on_job(struct job *j)
 	UNLOCK(&j->done_lock);
 }
 
-void cancel_job(struct job *j)
-{
-	free_pp_set(j->config);
-	FREE(j);
-}
-
 void finish_job(struct job *j)
 {
 	wait_on_job(j);
 	record_explored_pps(j->config);
-	cancel_job(j);
 }
