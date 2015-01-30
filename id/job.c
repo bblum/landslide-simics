@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "bug.h"
 #include "common.h"
 #include "job.h"
 #include "io.h"
@@ -110,6 +111,24 @@ static void *run_job(void *arg)
 	 * different config is mutually exclusive. we'll release this as soon as
 	 * we get a message from the child that it's up and running. */
 	LOCK(&compile_landslide_lock);
+
+	if (bug_already_found(j->config)) {
+		DBG("[JOB %d] bug already found; aborting compilation.\n", j->id);
+		UNLOCK(&compile_landslide_lock);
+		messaging_abort(&mess);
+		delete_file(&j->config_file, true);
+		delete_file(&j->log_stdout, true);
+		delete_file(&j->log_stderr, true);
+		WRITE_LOCK(&j->stats_lock);
+		j->complete = true;
+		j->cancelled = true;
+		RW_UNLOCK(&j->stats_lock);
+		LOCK(&j->done_lock);
+		j->done = true;
+		BROADCAST(&j->done_cvar);
+		UNLOCK(&j->done_lock);
+		return NULL;
+	}
 
 	pid_t landslide_pid = fork();
 	if (landslide_pid == 0) {

@@ -26,6 +26,7 @@ void messaging_init(struct messaging_state *state, struct file *config_file,
 bool wait_for_child(struct messaging_state *state);
 void talk_to_child(struct messaging_state *state, struct job *j);
 void finish_messaging(struct messaging_state *state);
+void messaging_abort(struct messaging_state *state);
 
 bool found_any_bugs();
 

@@ -323,3 +323,11 @@ void finish_messaging(struct messaging_state *state)
 		delete_unused_fifo(state->output_pipe_name);
 	}
 }
+
+void messaging_abort(struct messaging_state *state)
+{
+	assert(state->input_pipe_name != NULL);
+	assert(state->output_pipe_name != NULL);
+	delete_unused_fifo(state->input_pipe_name);
+	delete_unused_fifo(state->output_pipe_name);
+}
