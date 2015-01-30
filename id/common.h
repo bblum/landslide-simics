@@ -71,9 +71,12 @@
 #define DEBUG
 
 #ifdef DEBUG
+extern bool verbose;
 #define DBG(...) do {							\
-		fprintf(stderr, COLOUR_DARK COLOUR_CYAN __VA_ARGS__);	\
-		fprintf(stderr, COLOUR_DEFAULT);			\
+		if (verbose) {						\
+			fprintf(stderr, COLOUR_DARK COLOUR_CYAN __VA_ARGS__);	\
+			fprintf(stderr, COLOUR_DEFAULT);		\
+		}							\
 	} while (0)
 #else
 #define DBG(...)

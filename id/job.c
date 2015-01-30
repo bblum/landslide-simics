@@ -252,17 +252,17 @@ void print_job_stats(struct job *j, bool pending)
 		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
 		PRINT("(%u interleaving%s tested)\n", j->elapsed_branches,
 		      j->elapsed_branches == 1 ? "" : "s");
+	} else if (j->timed_out) {
+		PRINT(COLOUR_BOLD COLOUR_YELLOW "TIMED OUT ");
+		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
+		print_human_friendly_time(&j->estimate_eta);
+		PRINT(")\n");
 	} else if (j->complete) {
 		PRINT(COLOUR_BOLD COLOUR_GREEN "COMPLETE ");
 		PRINT("(%u interleaving%s tested; ", j->elapsed_branches,
 		      j->elapsed_branches == 1 ? "" : "s");
 		print_human_friendly_time(&j->estimate_elapsed);
 		PRINT(" elapsed)\n");
-	} else if (j->timed_out) {
-		PRINT(COLOUR_BOLD COLOUR_YELLOW "TIMED OUT ");
-		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
-		print_human_friendly_time(&j->estimate_eta);
-		PRINT(")\n");
 	} else if (pending || j->elapsed_branches == 0) {
 		PRINT("Pending...\n");
 	} else {
