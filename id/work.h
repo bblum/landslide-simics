@@ -11,7 +11,7 @@ struct job;
 
 void add_work(struct job *j);
 void signal_work();
-void start_work(unsigned long num_cpus);
+void start_work(unsigned long num_cpus, unsigned long progress_report_interval);
 void wait_to_finish_work();
 
 #endif

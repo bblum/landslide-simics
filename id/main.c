@@ -28,9 +28,11 @@ int main(int argc, char **argv)
 	unsigned long num_cpus;
 	bool verbose;
 	bool leave_logs;
+	unsigned long progress_interval;
 
 	if (!get_options(argc, argv, test_name, BUF_SIZE, &max_time, &num_cpus,
-			 &verbose, &leave_logs, &control_experiment)) {
+			 &verbose, &leave_logs, &control_experiment,
+			 &progress_interval)) {
 		usage(argv[0]);
 		exit(-1);
 	}
@@ -47,7 +49,7 @@ int main(int argc, char **argv)
 		add_work(new_job(create_pp_set(PRIORITY_MUTEX_UNLOCK), true));
 	}
 	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK), true));
-	start_work(num_cpus);
+	start_work(num_cpus, progress_interval);
 	wait_to_finish_work();
 
 #if 0

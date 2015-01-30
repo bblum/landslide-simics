@@ -176,26 +176,41 @@ static void print_all_job_stats()
 	PRINT("\n");
 }
 
-#define PROGRESS_INTERVAL 10 // TODO make cmdline option
-
-void *progress_report_thread(void *arg MAYBE_UNUSED)
+void *progress_report_thread(void *arg)
 {
+	unsigned long interval = (unsigned long)arg;
+
+	if (interval == 0) {
+		/* edge case - run the cvar protocol with the main thread,
+		 * but do nothing in between. */
+		LOCK(&workqueue_lock);
+		while (!work_done) {
+			WAIT(&work_done_cond, &workqueue_lock);
+		}
+		progress_done = true;
+		SIGNAL(&workqueue_cond);
+		UNLOCK(&workqueue_lock);
+		return NULL;
+	}
+
 	LOCK(&workqueue_lock);
 	while (true) {
 		if (work_done) {
+			/* Execution is done. Stop printing progress reports. */
 			print_all_job_stats();
 			progress_done = true;
 			SIGNAL(&workqueue_cond);
 			UNLOCK(&workqueue_lock);
 			DBG("progress report thr exiting\n");
-			/* Execution is done. Stop printing progress reports. */
 			break;
 		} else {
+			/* Wait for the designated interval, or all tests to
+			 * finish, whichever comes first. */
 			struct timespec wait_time;
 			struct timeval current_time;
 			XGETTIMEOFDAY(&current_time);
 			TIMEVAL_TO_TIMESPEC(&current_time, &wait_time);
-			wait_time.tv_sec += PROGRESS_INTERVAL;
+			wait_time.tv_sec += interval;
 			int ret = pthread_cond_timedwait(&work_done_cond,
 							 &workqueue_lock,
 							 &wait_time);
@@ -213,14 +228,15 @@ void *progress_report_thread(void *arg MAYBE_UNUSED)
 	return NULL;
 }
 
-void start_work(unsigned long num_cpus)
+void start_work(unsigned long num_cpus, unsigned long progress_report_interval)
 {
 	check_init();
 	assert(!started);
 	started = true;
 
 	pthread_t child;
-	int ret = pthread_create(&child, NULL, progress_report_thread, NULL);
+	int ret = pthread_create(&child, NULL, progress_report_thread,
+				 (void *)progress_report_interval);
 	assert(ret == 0 && "failed create progress report thread");
 	ret = pthread_detach(child);
 	assert(ret == 0 && "failed detach progress report thread");

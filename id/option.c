@@ -20,8 +20,8 @@
 
 #define MINTIME ((unsigned long)600) /* 10 mins */
 #define DEFAULT_TIME "1h"
-
 #define DEFAULT_TEST_CASE "thr_exit_join"
+#define DEFAULT_PROGRESS_INTERVAL "10" /* seconds */
 
 struct cmdline_option {
 	char flag;
@@ -98,7 +98,8 @@ static bool parse_time(char *str, unsigned long *result)
 
 bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_len,
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
-		 bool *leave_logs, bool *control_experiment)
+		 bool *leave_logs, bool *control_experiment,
+		 unsigned long *progress_report_interval)
 {
 	/* Set up cmdline options & their default values */
 	unsigned int system_cpus = get_nprocs();
@@ -158,6 +159,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_OPTION('p', test_name, "Userspace test program name", DEFAULT_TEST_CASE);
 	DEF_CMDLINE_OPTION('t', max_time, "Total CPU time budget (suffix s/m/d/h/y)", DEFAULT_TIME);
 	DEF_CMDLINE_OPTION('c', num_cpus, "Max parallelism factor", all_but_one_cpus);
+	DEF_CMDLINE_OPTION('i', interval, "Progress report interval", DEFAULT_PROGRESS_INTERVAL);
 #undef DEF_CMDLINE_OPTION
 
 	ready = true;
@@ -224,6 +226,10 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		WARN("%lu CPUs is too many; we can only use %u\n",
 		     *num_cpus, system_cpus);
 		*num_cpus = system_cpus;
+	}
+
+	if (!parse_time(arg_interval, progress_report_interval)) {
+		options_valid = false;
 	}
 
 	if (arg_help) {
