@@ -107,7 +107,8 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	/* If the data race PP is not already enabled in this job's config,
 	 * create a new job based on this one. */
 	if (j->should_reproduce && !pp_set_contains(j->config, pp) &&
-	    !pp_set_contains(*discovered_pps, pp)) {
+	    !pp_set_contains(*discovered_pps, pp) &&
+	    !bug_already_found(j->config)) {
 		DBG("Adding job with new PP '%s'\n", pp->config_str);
 		struct pp_set *new_set;
 		bool added = false;
@@ -278,7 +279,17 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 					m.content.estimate.elapsed_usecs);
 		} else if (m.tag == FOUND_A_BUG) {
 			move_trace_file(m.content.bug.trace_filename);
-			found_a_bug(m.content.bug.trace_filename, j);
+			// NB. Harmless if/then/else race; could cause simply
+			// extraneous bug reports when this races itself.
+			if (bug_already_found(j->config)) {
+				DBG("Ignoring bug report -- a subset of our "
+				    "PPs already found a bug.\n");
+				WRITE_LOCK(&j->stats_lock);
+				j->cancelled = true;
+				RW_UNLOCK(&j->stats_lock);
+			} else {
+				found_a_bug(m.content.bug.trace_filename, j);
+			}
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;
 			reply.do_abort = !handle_should_continue(j);
