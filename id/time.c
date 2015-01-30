@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "time.h"
+#include "xcalls.h"
 
 /* end time = start_timestamp + budget */
 unsigned long start_timestamp = 0;
@@ -16,8 +17,7 @@ unsigned long budget = 0;
 unsigned long timestamp()
 {
 	struct timeval tv;
-	int rv = gettimeofday(&tv, NULL);
-	assert(rv == 0 && "failed gettimeofday");
+	XGETTIMEOFDAY(&tv);
 	return (unsigned long)((tv.tv_sec * 1000000) + tv.tv_usec);
 }
 

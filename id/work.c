@@ -5,8 +5,10 @@
  */
 
 #define _XOPEN_SOURCE 700
+#define _GNU_SOURCE
 
 #include <pthread.h>
+#include <sys/time.h>
 
 #include "array_list.h"
 #include "bug.h"
@@ -20,11 +22,14 @@
 
 static bool inited = false;
 static bool started = false;
+static bool work_done = false;
+static bool progress_done = false;
 static unsigned int nonblocked_threads;
 static ARRAY_LIST(struct job *) workqueue; /* unordered set */
 static ARRAY_LIST(struct job *) nonpending_jobs; /* unordered set */
 static pthread_mutex_t workqueue_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t workqueue_cond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t work_done_cond = PTHREAD_COND_INITIALIZER;
 
 static void check_init()
 {
@@ -87,7 +92,6 @@ static struct job *get_work()
 
 static void process_work(struct job *j)
 {
-	print_all_job_stats();
 	if (bug_already_found(j->config)) {
 		/* Optimization for subset-foundabug jobs where the bug was not
 		 * found until after the work was added, but before we start the
@@ -146,37 +150,11 @@ static void *workqueue_thread(void *arg)
 	return NULL;
 }
 
-void start_work(unsigned long num_cpus)
-{
-	check_init();
-	assert(!started);
-	started = true;
-	nonblocked_threads = num_cpus;
-	for (unsigned long i = 0; i < num_cpus; i++) {
-		pthread_t child;
-		int ret = pthread_create(&child, NULL, workqueue_thread, (void *)i);
-		assert(ret == 0 && "failed create worker thread");
-		ret = pthread_detach(child);
-		assert(ret == 0 && "failed detach worker thread");
-	}
-}
 
-void wait_to_finish_work()
-{
-	assert(inited && started);
-	LOCK(&workqueue_lock);
-	while (nonblocked_threads != 0) {
-		WAIT(&workqueue_cond, &workqueue_lock);
-	}
-	UNLOCK(&workqueue_lock);
-}
-
-void print_all_job_stats()
+static void print_all_job_stats()
 {
 	struct human_friendly_time time_since_start;
 	const char *header = "==== PROGRESS REPORT ====";
-
-	LOCK(&workqueue_lock);
 
 	human_friendly_time(time_elapsed(), &time_since_start);
 	PRINT("%s\n", header);
@@ -196,6 +174,77 @@ void print_all_job_stats()
 		PRINT("=");
 	}
 	PRINT("\n");
+}
 
+#define PROGRESS_INTERVAL 10 // TODO make cmdline option
+
+void *progress_report_thread(void *arg MAYBE_UNUSED)
+{
+	LOCK(&workqueue_lock);
+	while (true) {
+		if (work_done) {
+			print_all_job_stats();
+			progress_done = true;
+			SIGNAL(&workqueue_cond);
+			UNLOCK(&workqueue_lock);
+			DBG("progress report thr exiting\n");
+			/* Execution is done. Stop printing progress reports. */
+			break;
+		} else {
+			struct timespec wait_time;
+			struct timeval current_time;
+			XGETTIMEOFDAY(&current_time);
+			TIMEVAL_TO_TIMESPEC(&current_time, &wait_time);
+			wait_time.tv_sec += PROGRESS_INTERVAL;
+			int ret = pthread_cond_timedwait(&work_done_cond,
+							 &workqueue_lock,
+							 &wait_time);
+			if (ret == ETIMEDOUT) {
+				print_all_job_stats();
+			} else {
+				/* Signalled; execution is done. Go around the
+				 * loop again; next time we'll fall out. */
+				DBG("progress report thr signalled to exit\n");
+				assert(ret == 0 && "timedwait failed?");
+				assert(work_done);
+			}
+		}
+	}
+	return NULL;
+}
+
+void start_work(unsigned long num_cpus)
+{
+	check_init();
+	assert(!started);
+	started = true;
+
+	pthread_t child;
+	int ret = pthread_create(&child, NULL, progress_report_thread, NULL);
+	assert(ret == 0 && "failed create progress report thread");
+	ret = pthread_detach(child);
+	assert(ret == 0 && "failed detach progress report thread");
+
+	nonblocked_threads = num_cpus;
+	for (unsigned long i = 0; i < num_cpus; i++) {
+		ret = pthread_create(&child, NULL, workqueue_thread, (void *)i);
+		assert(ret == 0 && "failed create worker thread");
+		ret = pthread_detach(child);
+		assert(ret == 0 && "failed detach worker thread");
+	}
+}
+
+void wait_to_finish_work()
+{
+	assert(inited && started);
+	LOCK(&workqueue_lock);
+	while (nonblocked_threads != 0) {
+		WAIT(&workqueue_cond, &workqueue_lock);
+	}
+	work_done = true;
+	SIGNAL(&work_done_cond);
+	while (!progress_done) {
+		WAIT(&workqueue_cond, &workqueue_lock);
+	}
 	UNLOCK(&workqueue_lock);
 }

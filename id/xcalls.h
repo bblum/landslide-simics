@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/time.h>
 
 #define EXPECT(cond, ...) do {						\
 		int __last_errno = errno;				\
@@ -85,6 +86,11 @@
 		int __ret = dup2((oldfd), __newfd);			\
 		EXPECT(__ret == __newfd, "failed dup2 %d <- %d\n",	\
 		       (oldfd), __newfd);				\
+	} while (0)
+
+#define XGETTIMEOFDAY(tv) do {						\
+		int __ret = gettimeofday((tv), NULL);			\
+		EXPECT(__ret == 0, "failed gettimeofday");		\
 	} while (0)
 
 #endif
