@@ -262,14 +262,14 @@ static void print_freed_chunk_info(struct chunk *c,
 	pos += scnprintf(freed_msg + pos, BUF_SIZE - pos,
 			 "...and, between preemptions ");
 	if (after == NULL) {
-		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "<root>");
+		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "[root]");
 	} else {
 		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "#%d/tid%d",
 				 after->depth, after->chosen_thread);
 	}
 	pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, " and ");
 	if (before == NULL) {
-		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "<latest>");
+		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "[latest]");
 	} else {
 		pos += scnprintf(freed_msg + pos, BUF_SIZE - pos, "#%d/tid%d",
 				 before->depth, before->chosen_thread);
