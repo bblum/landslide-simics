@@ -2,38 +2,32 @@
  *
  *  @brief Generalized queue module for data collection
  *
- *  @author Vivek Nair (viveknai)
- *  @author Bailey Forrest (bcforres)
+ *  @author Your name here
  **/
 
-#ifndef _VARIABLE_QUEUE_H_
-#define _VARIABLE_QUEUE_H_
 
-/** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
+
+/** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE) 
  *
- *  @brief Generates a new structure of type Q_HEAD_TYPE representing the head
- *  of a queue of elements of type Q_ELEM_TYPE.
- *
+ *  @brief Generates a new structure of type Q_HEAD_TYPE representing the head 
+ *  of a queue of elements of type Q_ELEM_TYPE. 
+ *  
  *  Usage: Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE); //create the type <br>
-             Q_HEAD_TYPE headName; //instantiate a head of the given type
+           Q_HEAD_TYPE headName; //instantiate a head of the given type
  *
  *  @param Q_HEAD_TYPE the type you wish the newly-generated structure to have.
- *
+ *         
  *  @param Q_ELEM_TYPE the type of elements stored in the queue.
  *         Q_ELEM_TYPE must be a structure.
- *
+ *  
  **/
-
-#define Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE) \
-    typedef struct Q_HEAD_TYPE { \
-        struct Q_ELEM_TYPE* head; \
-        struct Q_ELEM_TYPE* tail; \
-    } Q_HEAD_TYPE
+ 
+#define Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE) ;
 
 /** @def Q_NEW_LINK(Q_ELEM_TYPE)
  *
- *  @brief Instantiates a link within a structure, allowing that structure to be
- *         collected into a queue created with Q_NEW_HEAD.
+ *  @brief Instantiates a link within a structure, allowing that structure to be 
+ *         collected into a queue created with Q_NEW_HEAD. 
  *
  *  Usage: <br>
  *  typedef struct Q_ELEM_TYPE {<br>
@@ -46,127 +40,94 @@
  *
  *  @param Q_ELEM_TYPE the type of the structure containing the link
  **/
-#define Q_NEW_LINK(Q_ELEM_TYPE) \
-    struct VQLink { \
-        struct Q_ELEM_TYPE* next; \
-        struct Q_ELEM_TYPE* prev; \
-    }
-
+ #define Q_NEW_LINK(Q_ELEM_TYPE) ;
+ 
+ 
 /** @def Q_INIT_HEAD(Q_HEAD)
  *
  *  @brief Initializes the head of a queue so that the queue head can be used
  *         properly.
  *  @param Q_HEAD Pointer to queue head to initialize
  **/
-#define Q_INIT_HEAD(Q_HEAD) \
-    do { \
-        (Q_HEAD)->head = NULL; \
-        (Q_HEAD)->tail = NULL; \
-    } while (0)
+#define Q_INIT_HEAD(Q_HEAD) ;
 
 /** @def Q_INIT_ELEM(Q_ELEM, LINK_NAME)
  *
- *  @brief Initializes the link named LINK_NAME in an instance of the structure
- *         Q_ELEM.
- *
+ *  @brief Initializes the link named LINK_NAME in an instance of the structure  
+ *         Q_ELEM. 
+ *  
  *  Once initialized, the link can be used to organized elements in a queue.
- *
+ *  
  *  @param Q_ELEM Pointer to the structure instance containing the link
  *  @param LINK_NAME The name of the link to initialize
  **/
-#define Q_INIT_ELEM(Q_ELEM, LINK_NAME) \
-    do { \
-        (Q_ELEM)->LINK_NAME.next = NULL; \
-        (Q_ELEM)->LINK_NAME.prev = NULL; \
-    } while(0)
-
+#define Q_INIT_ELEM(Q_ELEM, LINK_NAME) ;
+ 
 /** @def Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME)
  *
- *  @brief Inserts the queue element pointed to by Q_ELEM at the front of the
- *         queue headed by the structure Q_HEAD.
- *
+ *  @brief Inserts the queue element pointed to by Q_ELEM at the front of the 
+ *         queue headed by the structure Q_HEAD. 
+ *  
  *  The link identified by LINK_NAME will be used to organize the element and
  *  record its location in the queue.
  *
- *  @param Q_HEAD Pointer to the head of the queue into which Q_ELEM will be
+ *  @param Q_HEAD Pointer to the head of the queue into which Q_ELEM will be 
  *         inserted
  *  @param Q_ELEM Pointer to the element to insert into the queue
  *  @param LINK_NAME Name of the link used to organize the queue
  *
- *  @return Void (you may change this if your implementation calls for a
+ *  @return Void (you may change this if your implementation calls for a 
  *                return value)
  **/
-#define Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME) \
-    do { \
-        (Q_ELEM)->LINK_NAME.next = (Q_HEAD)->head; \
-        (Q_ELEM)->LINK_NAME.prev = NULL; \
-        if ((Q_HEAD)->head != NULL) { \
-            (Q_HEAD)->head->LINK_NAME.prev = (Q_ELEM); \
-        } \
-        (Q_HEAD)->head = (Q_ELEM); \
-        if ((Q_HEAD)->tail == NULL) { \
-            (Q_HEAD)->tail = (Q_ELEM); \
-        } \
-    } while (0)
-
-/** @def Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME)
- *  @brief Inserts the queue element pointed to by Q_ELEM at the end of the
- *         queue headed by the structure pointed to by Q_HEAD.
- *
+#define Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME) ;
+ 
+/** @def Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) 
+ *  @brief Inserts the queue element pointed to by Q_ELEM at the end of the 
+ *         queue headed by the structure pointed to by Q_HEAD. 
+ *  
  *  The link identified by LINK_NAME will be used to organize the element and
  *  record its location in the queue.
  *
- *  @param Q_HEAD Pointer to the head of the queue into which Q_ELEM will be
+ *  @param Q_HEAD Pointer to the head of the queue into which Q_ELEM will be 
  *         inserted
  *  @param Q_ELEM Pointer to the element to insert into the queue
  *  @param LINK_NAME Name of the link used to organize the queue
  *
- *  @return Void (you may change this if your implementation calls for a
+ *  @return Void (you may change this if your implementation calls for a 
  *                return value)
  **/
-#define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) \
-    do { \
-        (Q_ELEM)->LINK_NAME.prev = (Q_HEAD)->tail; \
-        (Q_ELEM)->LINK_NAME.next = NULL; \
-        if ((Q_HEAD)->tail != NULL) { \
-            (Q_HEAD)->tail->LINK_NAME.next = (Q_ELEM); \
-        } \
-        (Q_HEAD)->tail = (Q_ELEM); \
-        if ((Q_HEAD)->head == NULL) { \
-            (Q_HEAD)->head = (Q_ELEM); \
-        } \
-    } while (0)
+#define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) ;
 
 
 /** @def Q_GET_FRONT(Q_HEAD)
- *
- *  @brief Returns a pointer to the first element in the queue, or NULL
+ *  
+ *  @brief Returns a pointer to the first element in the queue, or NULL 
  *  (memory address 0) if the queue is empty.
  *
  *  @param Q_HEAD Pointer to the head of the queue
  *  @return Pointer to the first element in the queue, or NULL if the queue
  *          is empty
  **/
-#define Q_GET_FRONT(Q_HEAD) ((Q_HEAD)->head)
-
+#define Q_GET_FRONT(Q_HEAD) ;
+ 
 /** @def Q_GET_TAIL(Q_HEAD)
  *
- *  @brief Returns a pointer to the last element in the queue, or NULL
+ *  @brief Returns a pointer to the last element in the queue, or NULL 
  *  (memory address 0) if the queue is empty.
  *
  *  @param Q_HEAD Pointer to the head of the queue
  *  @return Pointer to the last element in the queue, or NULL if the queue
  *          is empty
  **/
-#define Q_GET_TAIL(Q_HEAD) ((Q_HEAD)->tail)
+#define Q_GET_TAIL(Q_HEAD) ;
 
 
 /** @def Q_GET_NEXT(Q_ELEM, LINK_NAME)
+ * 
+ *  @brief Returns a pointer to the next element in the queue, as linked to by 
+ *         the link specified with LINK_NAME. 
  *
- *  @brief Returns a pointer to the next element in the queue, as linked to by
- *         the link specified with LINK_NAME.
- *
- *  If Q_ELEM is not in a queue or is the last element in the queue,
+ *  If Q_ELEM is not in a queue or is the last element in the queue, 
  *  Q_GET_NEXT should return NULL.
  *
  *  @param Q_ELEM Pointer to the queue element before the desired element
@@ -174,15 +135,14 @@
  *
  *  @return The element after Q_ELEM, or NULL if there is no next element
  **/
-#define Q_GET_NEXT(Q_ELEM, LINK_NAME) ((Q_ELEM)->LINK_NAME.next)
-
-
+#define Q_GET_NEXT(Q_ELEM, LINK_NAME) ;
+ 
 /** @def Q_GET_PREV(Q_ELEM, LINK_NAME)
- *
+ * 
  *  @brief Returns a pointer to the previous element in the queue, as linked to 
- *         by the link specified with LINK_NAME.
+ *         by the link specified with LINK_NAME. 
  *
- *  If Q_ELEM is not in a queue or is the first element in the queue,
+ *  If Q_ELEM is not in a queue or is the first element in the queue, 
  *  Q_GET_NEXT should return NULL.
  *
  *  @param Q_ELEM Pointer to the queue element after the desired element
@@ -190,8 +150,7 @@
  *
  *  @return The element before Q_ELEM, or NULL if there is no next element
  **/
-#define Q_GET_PREV(Q_ELEM, LINK_NAME) ((Q_ELEM)->LINK_NAME.prev)
-
+#define Q_GET_PREV(Q_ELEM, LINK_NAME) ;
 
 /** @def Q_INSERT_AFTER(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME)
  *
@@ -208,18 +167,7 @@
  *  @param LINK_NAME  Name of link field used to organize the queue
  **/
 
-#define Q_INSERT_AFTER(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME) \
-    do { \
-        (Q_TOINSERT)->LINK_NAME.prev = (Q_INQ); \
-        (Q_TOINSERT)->LINK_NAME.next = (Q_INQ)->LINK_NAME.next; \
-        if ((Q_TOINSERT)->LINK_NAME.next == NULL) { \
-            (Q_HEAD)->tail = (Q_TOINSERT); \
-        } else { \
-            (Q_TOINSERT)->LINK_NAME.next->LINK_NAME.prev = (Q_TOINSERT); \
-        } \
-        (Q_INQ)->LINK_NAME.next = (Q_TOINSERT); \
-    } while (0)
-
+#define Q_INSERT_AFTER(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME);
 
 /** @def Q_INSERT_BEFORE(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME)
  *
@@ -235,60 +183,37 @@
  *  @param Q_TOINSERT Element to insert into queue
  *  @param LINK_NAME  Name of link field used to organize the queue
  **/
-#define Q_INSERT_BEFORE(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME) \
-    do { \
-        (Q_TOINSERT)->LINK_NAME.next = (Q_INQ); \
-        (Q_TOINSERT)->LINK_NAME.prev = (Q_INQ)->LINK_NAME.prev; \
-        if ((Q_TOINSERT)->LINK_NAME.prev == NULL) { \
-            (Q_HEAD)->head = (Q_TOINSERT); \
-        } else { \
-            (Q_TOINSERT)->LINK_NAME.prev->LINK_NAME.next = (Q_TOINSERT); \
-        } \
-        (Q_INQ)->LINK_NAME.prev = (Q_TOINSERT); \
-    } while (0)
+
+#define Q_INSERT_BEFORE(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME);
 
 /** @def Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME)
- *
- *  @brief Detaches the element Q_ELEM from the queue organized by LINK_NAME,
- *         and returns a pointer to the element.
+ * 
+ *  @brief Detaches the element Q_ELEM from the queue organized by LINK_NAME, 
+ *         and returns a pointer to the element. 
  *
  *  If Q_HEAD does not use the link named LINK_NAME to organize its elements or 
  *  if Q_ELEM is not a member of Q_HEAD's queue, the behavior of this macro
  *  is undefined.
  *
- *  @param Q_HEAD Pointer to the head of the queue containing Q_ELEM. If
- *         Q_REMOVE removes the first, last, or only element in the queue,
+ *  @param Q_HEAD Pointer to the head of the queue containing Q_ELEM. If 
+ *         Q_REMOVE removes the first, last, or only element in the queue, 
  *         Q_HEAD should be updated appropriately.
- *  @param Q_ELEM Pointer to the element to remove from the queue headed by
+ *  @param Q_ELEM Pointer to the element to remove from the queue headed by 
  *         Q_HEAD.
  *  @param LINK_NAME The name of the link used to organize Q_HEAD's queue
- *
+ * 
  *  @return Void (if you would like to return a value, you may change this
  *                specification)
  **/
-#define Q_REMOVE(Q_HEAD, Q_ELEM, LINK_NAME) \
-    do { \
-        if ((Q_ELEM)->LINK_NAME.prev == NULL) { \
-            (Q_HEAD)->head = (Q_ELEM)->LINK_NAME.next; \
-        } else { \
-            (Q_ELEM)->LINK_NAME.prev->LINK_NAME.next = \
-                (Q_ELEM)->LINK_NAME.next; \
-        } \
-        if ((Q_ELEM)->LINK_NAME.next == NULL) { \
-            (Q_HEAD)->tail = (Q_ELEM)->LINK_NAME.prev; \
-        } else { \
-            (Q_ELEM)->LINK_NAME.next->LINK_NAME.prev = \
-                (Q_ELEM)->LINK_NAME.prev; \
-        } \
-    } while (0)
+#define Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME) ;
 
-/** @def Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME)
+/** @def Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME) 
  *
  *  @brief Constructs an iterator block (like a for block) that operates
  *         on each element in Q_HEAD, in order.
  *
  *  Q_FOREACH constructs the head of a block of code that will iterate through
- *  each element in the queue headed by Q_HEAD. Each time through the loop,
+ *  each element in the queue headed by Q_HEAD. Each time through the loop, 
  *  the variable named by CURRENT_ELEM will be set to point to a subsequent
  *  element in the queue.
  *
@@ -304,18 +229,11 @@
  *  @param CURRENT_ELEM name of the variable to use for iteration. On each
  *         loop through the Q_FOREACH block, CURRENT_ELEM will point to the
  *         current element in the queue. CURRENT_ELEM should be an already-
- *         defined variable name, and its type should be a pointer to
+ *         defined variable name, and its type should be a pointer to 
  *         the type of data organized by Q_HEAD
  *  @param Q_HEAD Pointer to the head of the queue to iterate through
  *  @param LINK_NAME The name of the link used to organize the queue headed
  *         by Q_HEAD.
  **/
 
-#define Q_FOREACH(CURRENT_ELEM, Q_HEAD, LINK_NAME) \
-    for ( \
-            (CURRENT_ELEM) = (Q_HEAD)->head; \
-            (CURRENT_ELEM) != NULL; \
-            (CURRENT_ELEM) = (CURRENT_ELEM)->LINK_NAME.next \
-        )
-
-#endif /* _VARIABLE_QUEUE_H_ */
+#define Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME) ;
