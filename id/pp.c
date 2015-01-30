@@ -28,11 +28,12 @@ static struct pp **registry = NULL; /* NULL means not yet initialized */
  * PP registry
  ******************************************************************************/
 
-static struct pp *pp_append(char *config_str, unsigned int priority,
-			    unsigned int generation)
+static struct pp *pp_append(char *config_str, char *short_str,
+			    unsigned int priority, unsigned int generation)
 {
 	struct pp *pp = XMALLOC(1, struct pp);
 	pp->config_str = config_str;
+	pp->short_str  = short_str;
 	pp->priority   = priority;
 	pp->id         = next_id;
 	pp->generation = generation;
@@ -71,10 +72,12 @@ static void check_init() {
 			registry = XMALLOC(registry_capacity, struct pp *);
 			struct pp *pp = pp_append(
 				XSTRDUP("within_user_function mutex_lock"),
+				XSTRDUP("mutex_lock"),
 				PRIORITY_MUTEX_LOCK, max_generation);
 			assert(pp->id == 0);
 			pp = pp_append(
 				XSTRDUP("within_user_function mutex_unlock"),
+				XSTRDUP("mutex_unlock"),
 				PRIORITY_MUTEX_UNLOCK, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
@@ -83,7 +86,7 @@ static void check_init() {
 	}
 }
 
-struct pp *pp_new(char *config_str, unsigned int priority,
+struct pp *pp_new(char *config_str, char *short_str, unsigned int priority,
 		  unsigned int generation, bool *duplicate)
 {
 	struct pp *result;
@@ -110,7 +113,8 @@ struct pp *pp_new(char *config_str, unsigned int priority,
 
 	if (!already_present) {
 		DBG("adding new pp '%s' priority %d\n", config_str, priority);
-		result = pp_append(XSTRDUP(config_str), priority, generation);
+		result = pp_append(XSTRDUP(config_str), XSTRDUP(short_str),
+				   priority, generation);
 	}
 	RW_UNLOCK(&pp_registry_lock);
 	return result;
@@ -187,12 +191,12 @@ void free_pp_set(struct pp_set *set)
 	FREE(set);
 }
 
-void print_pp_set(struct pp_set *set)
+void print_pp_set(struct pp_set *set, bool short_strs)
 {
 	struct pp *pp;
 	printf("{ ");
 	FOR_EACH_PP(pp, set) {
-		printf("'%s' ", pp->config_str);
+		printf("'%s' ", short_strs ? pp->short_str : pp->config_str);
 	}
 	printf("}");
 }

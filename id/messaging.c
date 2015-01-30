@@ -98,11 +98,14 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	/* register a (possibly) new PP based on the data race */
 	bool duplicate;
 	char config_str[BUF_SIZE];
+	char short_str[BUF_SIZE];
 	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, most_recent_syscall);
+	scnprintf(short_str, BUF_SIZE, "data race @ 0x%x", eip);
 
 	unsigned int priority = confirmed ?
 		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
-	struct pp *pp = pp_new(config_str, priority, j->generation, &duplicate);
+	struct pp *pp = pp_new(config_str, short_str, priority,
+			       j->generation, &duplicate);
 
 	/* If the data race PP is not already enabled in this job's config,
 	 * create a new job based on this one. */

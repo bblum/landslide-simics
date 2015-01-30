@@ -23,6 +23,7 @@
 struct pp {
 	/* all read-only once created */
 	char *config_str; /* e.g., "data_race 0xdeadbeef 0x47" */
+	char *short_str;
 	unsigned int priority;
 	unsigned int id; /* global unique identifier among PPs */
 	unsigned int generation;
@@ -37,7 +38,7 @@ struct pp_set {
 };
 
 /* pp registry functions */
-struct pp *pp_new(char *config_str, unsigned int priority,
+struct pp *pp_new(char *config_str, char *short_str, unsigned int priority,
 		    unsigned int generation, bool *duplicate);
 struct pp *pp_get(unsigned int id);
 
@@ -46,7 +47,7 @@ struct pp_set *create_pp_set(unsigned int pp_mask);
 struct pp_set *clone_pp_set(struct pp_set *set);
 struct pp_set *add_pp_to_set(struct pp_set *set, struct pp *pp);
 void free_pp_set(struct pp_set *set);
-void print_pp_set(struct pp_set *set);
+void print_pp_set(struct pp_set *set, bool short_strs);
 bool pp_subset(struct pp_set *sub, struct pp_set *super);
 struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
 bool pp_set_contains(struct pp_set *set, struct pp *pp);

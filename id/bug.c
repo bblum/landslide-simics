@@ -88,7 +88,7 @@ bool found_any_bugs()
 	ARRAY_LIST_FOREACH(&fab_list, i, b) {
 		printf(COLOUR_BOLD COLOUR_RED
 		       "Found a bug - %s - with PPs: ", b->trace_filename);
-		print_pp_set(b->config);
+		print_pp_set(b->config, true);
 		// FIXME: do something better than hardcode print "id/"
 		printf(" (log file: id/%s)\n" COLOUR_DEFAULT, b->log_filename);
 		any = true;

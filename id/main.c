@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 			struct job *j = new_job(config);
 			unsigned int last_generation = j->generation;
 			printf("Starting job with PP set ");
-			print_pp_set(config);
+			print_pp_set(config, false);
 			printf("\n");
 			start_job(j);
 			finish_job(j);
