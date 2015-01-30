@@ -56,9 +56,12 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 
 	RWLOCK_INIT(&j->stats_lock);
 	j->cancelled = false;
+	j->elapsed_branches = 0;
 	j->estimate_proportion = 0;
 	human_friendly_time(0.0L, &j->estimate_elapsed);
 	human_friendly_time(0.0L, &j->estimate_eta);
+	j->complete = false;
+	j->trace_filename = NULL;
 
 	COND_INIT(&j->done_cvar);
 	MUTEX_INIT(&j->done_lock);
@@ -167,6 +170,9 @@ static void *run_job(void *arg)
 	delete_file(&j->log_stdout, should_delete);
 	delete_file(&j->log_stderr, should_delete);
 
+	WRITE_LOCK(&j->stats_lock);
+	j->complete = true;
+	RW_UNLOCK(&j->stats_lock);
 	LOCK(&j->done_lock);
 	j->done = true;
 	BROADCAST(&j->done_cvar);
@@ -206,8 +212,36 @@ void finish_job(struct job *j)
 void print_job_stats(struct job *j, bool pending)
 {
 	READ_LOCK(&j->stats_lock);
-	PRINT("[JOB %d] status todo\n", j->id); // TODO
-	// TODO: save bug trace filename in job stats
-	(void)pending;
+	if (j->cancelled && !verbose) {
+		RW_UNLOCK(&j->stats_lock);
+		return;
+	}
+	PRINT("[JOB %d] ", j->id);
+	if (j->cancelled) {
+		PRINT(COLOUR_DARK COLOUR_RED "CANCELLED\n");
+	} else if (j->trace_filename != NULL) {
+		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
+		PRINT("(%u interleaving%s tested; ", j->elapsed_branches,
+		      j->elapsed_branches == 1 ? "" : "s");
+		print_human_friendly_time(&j->estimate_elapsed);
+		PRINT(" elapsed)\n");
+	} else if (j->complete) {
+		PRINT(COLOUR_BOLD COLOUR_GREEN "COMPLETE ");
+		PRINT("(%u interleaving%s tested; ", j->elapsed_branches,
+		      j->elapsed_branches == 1 ? "" : "s");
+		print_human_friendly_time(&j->estimate_elapsed);
+		PRINT(" elapsed)\n");
+	} else if (pending || j->elapsed_branches == 0) {
+		PRINT("Pending...\n");
+	} else {
+		PRINT(COLOUR_BOLD COLOUR_MAGENTA "Running ");
+		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
+		print_human_friendly_time(&j->estimate_eta);
+		PRINT(")\n");
+	}
+	PRINT(COLOUR_DARK COLOUR_GREY "        PPs: ");
+	printf(COLOUR_GREY);
+	print_pp_set(j->config);
+	PRINT("\n");
 	RW_UNLOCK(&j->stats_lock);
 }

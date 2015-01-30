@@ -49,6 +49,11 @@ void found_a_bug(char *trace_filename, struct job *j)
 	LOCK(&fab_lock);
 	ARRAY_LIST_APPEND(&fab_list, b);
 	UNLOCK(&fab_lock);
+
+	WRITE_LOCK(&j->stats_lock);
+	assert(j->trace_filename == NULL && "bug already found same job?");
+	j->trace_filename = XSTRDUP(trace_filename);
+	RW_UNLOCK(&j->stats_lock);
 }
 
 /* Did a prior job with a subset of the given PPs already find a bug? */

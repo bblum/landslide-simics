@@ -153,6 +153,7 @@ static void handle_estimate(struct job *j, long double proportion,
 	unsigned int total_branches =
 	    (unsigned int)((long double)elapsed_branches / proportion);
 	WRITE_LOCK(&j->stats_lock);
+	j->elapsed_branches = elapsed_branches;
 	j->estimate_proportion = proportion;
 	human_friendly_time(elapsed_usecs, &j->estimate_elapsed);
 	human_friendly_time(total_usecs - elapsed_usecs, &j->estimate_eta);

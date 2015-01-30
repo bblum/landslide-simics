@@ -29,11 +29,14 @@ struct job {
 	 * LOCK NOTICE: this is taken while workqueue lock is held. */
 	pthread_rwlock_t stats_lock;
 	bool cancelled;
+	unsigned int elapsed_branches;
 	long double estimate_proportion;
 	struct human_friendly_time estimate_elapsed;
 	struct human_friendly_time estimate_eta;
+	bool complete; /* same as 'done' just under different lock */
+	char *trace_filename;
 
-	/* shared state */
+	/* misc shared state */
 	bool done;
 	pthread_cond_t done_cvar;
 	pthread_mutex_t done_lock;
