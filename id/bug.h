@@ -1,5 +1,5 @@
 /**
- * @file found_a_bug.h
+ * @file bug.h
  * @brief remembering which bugs have been found under which pp configs
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */

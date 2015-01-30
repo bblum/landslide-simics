@@ -32,7 +32,7 @@ extern char **environ;
 
 // TODO-FIXME: Insert timestamps so log files are sorted chronologically.
 #define CONFIG_FILE_TEMPLATE "config-id.landslide.XXXXXX"
-#define LOG_FILE_TEMPLATE(x) "landslide-id-" x ".log.XXXXXX"
+#define LOG_FILE_TEMPLATE(x) "ls-" x ".log.XXXXXX"
 
 char *test_name = NULL;
 bool verbose = false;
@@ -56,12 +56,14 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->should_reproduce = should_reproduce;
 
 	RWLOCK_INIT(&j->stats_lock);
-	j->cancelled = false;
 	j->elapsed_branches = 0;
 	j->estimate_proportion = 0;
 	human_friendly_time(0.0L, &j->estimate_elapsed);
 	human_friendly_time(0.0L, &j->estimate_eta);
+	j->cancelled = false;
 	j->complete = false;
+	j->timed_out = false;
+	j->log_filename = NULL;
 	j->trace_filename = NULL;
 
 	COND_INIT(&j->done_cvar);
@@ -77,8 +79,8 @@ static void *run_job(void *arg)
 	struct messaging_state mess;
 
 	create_file(&j->config_file, CONFIG_FILE_TEMPLATE);
-	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("stdout"));
-	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("stderr"));
+	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("setup"));
+	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("output"));
 
 	/* write config file */
 
@@ -129,6 +131,10 @@ static void *run_job(void *arg)
 		UNLOCK(&j->done_lock);
 		return NULL;
 	}
+
+	WRITE_LOCK(&j->stats_lock);
+	j->log_filename = XSTRDUP(j->log_stderr.filename);
+	RW_UNLOCK(&j->stats_lock);
 
 	pid_t landslide_pid = fork();
 	if (landslide_pid == 0) {
@@ -191,6 +197,10 @@ static void *run_job(void *arg)
 
 	WRITE_LOCK(&j->stats_lock);
 	j->complete = true;
+	if (should_delete) {
+		FREE(j->log_filename);
+		j->log_filename = NULL;
+	}
 	RW_UNLOCK(&j->stats_lock);
 	LOCK(&j->done_lock);
 	j->done = true;
@@ -240,16 +250,19 @@ void print_job_stats(struct job *j, bool pending)
 		PRINT(COLOUR_DARK COLOUR_RED "CANCELLED\n");
 	} else if (j->trace_filename != NULL) {
 		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
-		PRINT("(%u interleaving%s tested; ", j->elapsed_branches,
+		PRINT("(%u interleaving%s tested)\n", j->elapsed_branches,
 		      j->elapsed_branches == 1 ? "" : "s");
-		print_human_friendly_time(&j->estimate_elapsed);
-		PRINT(" elapsed)\n");
 	} else if (j->complete) {
 		PRINT(COLOUR_BOLD COLOUR_GREEN "COMPLETE ");
 		PRINT("(%u interleaving%s tested; ", j->elapsed_branches,
 		      j->elapsed_branches == 1 ? "" : "s");
 		print_human_friendly_time(&j->estimate_elapsed);
 		PRINT(" elapsed)\n");
+	} else if (j->timed_out) {
+		PRINT(COLOUR_BOLD COLOUR_YELLOW "TIMED OUT ");
+		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
+		print_human_friendly_time(&j->estimate_eta);
+		PRINT(")\n");
 	} else if (pending || j->elapsed_branches == 0) {
 		PRINT("Pending...\n");
 	} else {
@@ -258,7 +271,12 @@ void print_job_stats(struct job *j, bool pending)
 		print_human_friendly_time(&j->estimate_eta);
 		PRINT(")\n");
 	}
-	PRINT(COLOUR_DARK COLOUR_GREY "        PPs: ");
+	PRINT("       ");
+	if (j->log_filename != NULL) {
+		// FIXME: "id/" -- better solution for where log files should go
+		PRINT(COLOUR_DARK COLOUR_GREY "Log: id/%s -- ", j->log_filename);
+	}
+	PRINT(COLOUR_DARK COLOUR_GREY "PPs: ");
 	printf(COLOUR_GREY);
 	print_pp_set(j->config, true);
 	PRINT("\n");

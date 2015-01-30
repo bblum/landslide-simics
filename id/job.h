@@ -28,12 +28,14 @@ struct job {
 	/* stats -- writable by owner, readable by display thread.
 	 * LOCK NOTICE: this is taken while workqueue lock is held. */
 	pthread_rwlock_t stats_lock;
-	bool cancelled;
 	unsigned int elapsed_branches;
 	long double estimate_proportion;
 	struct human_friendly_time estimate_elapsed;
 	struct human_friendly_time estimate_eta;
+	bool cancelled;
 	bool complete; /* same as 'done' just under different lock */
+	bool timed_out;
+	char *log_filename;
 	char *trace_filename;
 
 	/* misc shared state */

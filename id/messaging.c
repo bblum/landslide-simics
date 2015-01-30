@@ -179,6 +179,9 @@ static bool handle_should_continue(struct job *j)
 		return false;
 	} else if (TIME_UP()) {
 		DBG("Aborting -- time up!\n");
+		WRITE_LOCK(&j->stats_lock);
+		j->timed_out = true;
+		RW_UNLOCK(&j->stats_lock);
 		return false;
 	} else {
 		return true;
@@ -297,6 +300,14 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 				RW_UNLOCK(&j->stats_lock);
 			} else {
 				found_a_bug(m.content.bug.trace_filename, j);
+
+				WRITE_LOCK(&j->stats_lock);
+				assert(j->trace_filename == NULL &&
+				       "bug already found same job?");
+				j->trace_filename =
+					XSTRDUP(m.content.bug.trace_filename);
+				j->elapsed_branches++;
+				RW_UNLOCK(&j->stats_lock);
 			}
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;
