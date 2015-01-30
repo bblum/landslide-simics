@@ -29,6 +29,14 @@ void start_time(unsigned long usecs)
 	budget = usecs;
 }
 
+unsigned long time_elapsed()
+{
+	assert(start_timestamp != 0);
+	unsigned long now = timestamp();
+	assert(now >= start_timestamp && "travelled back in time??");
+	return now - start_timestamp;
+}
+
 unsigned long time_remaining()
 {
 	assert(start_timestamp != 0);
@@ -68,6 +76,25 @@ void human_friendly_time(long double usecs, struct human_friendly_time *hft)
 }
 
 void print_human_friendly_time(struct human_friendly_time *hft)
+{
+	if (hft->inf) {
+		PRINT("INF");
+		return;
+	}
+
+	if (hft->years != 0)
+		PRINT("%luy ", hft->years);
+	if (hft->days  != 0)
+		PRINT("%lud ", hft->days);
+	if (hft->hours != 0)
+		PRINT("%luh ", hft->hours);
+	if (hft->mins  != 0)
+		PRINT("%lum ", hft->mins);
+
+	PRINT("%lus", hft->secs);
+}
+
+void dbg_human_friendly_time(struct human_friendly_time *hft)
 {
 	if (hft->inf) {
 		DBG("INF");

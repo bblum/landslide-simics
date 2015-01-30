@@ -158,9 +158,9 @@ static void handle_estimate(struct job *j, long double proportion,
 	human_friendly_time(total_usecs - elapsed_usecs, &j->estimate_eta);
 	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ETA ", j->id,
 	    elapsed_branches, total_branches, proportion * 100);
-	print_human_friendly_time(&j->estimate_eta);
+	dbg_human_friendly_time(&j->estimate_eta);
 	DBG(" (elapsed ");
-	print_human_friendly_time(&j->estimate_elapsed);
+	dbg_human_friendly_time(&j->estimate_elapsed);
 	DBG(")\n");
 	RW_UNLOCK(&j->stats_lock);
 }
@@ -202,6 +202,10 @@ static void handle_crash(struct job *j, struct input_message *m)
 			ERR("[JOB %d] %s\n", j->id, pp->config_str);
 		}
 	}
+
+	WRITE_LOCK(&j->stats_lock);
+	j->cancelled = true;
+	RW_UNLOCK(&j->stats_lock);
 }
 
 static void move_trace_file(const char *trace_filename)

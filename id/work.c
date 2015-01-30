@@ -87,6 +87,7 @@ static struct job *get_work()
 
 static void process_work(struct job *j)
 {
+	print_all_job_stats();
 	if (bug_already_found(j->config)) {
 		/* Optimization for subset-foundabug jobs where the bug was not
 		 * found until after the work was added, but before we start the
@@ -167,5 +168,34 @@ void wait_to_finish_work()
 	while (nonblocked_threads != 0) {
 		WAIT(&workqueue_cond, &workqueue_lock);
 	}
+	UNLOCK(&workqueue_lock);
+}
+
+void print_all_job_stats()
+{
+	struct human_friendly_time time_since_start;
+	const char *header = "==== PROGRESS REPORT ====";
+
+	LOCK(&workqueue_lock);
+
+	human_friendly_time(time_elapsed(), &time_since_start);
+	PRINT("%s\n", header);
+	PRINT("time elapsed: ");
+	print_human_friendly_time(&time_since_start);
+	PRINT("\n");
+
+	struct job **j;
+	unsigned int i;
+	ARRAY_LIST_FOREACH(&nonpending_jobs, i, j) {
+		print_job_stats(*j, false);
+	}
+	ARRAY_LIST_FOREACH(&workqueue, i, j) {
+		print_job_stats(*j, true);
+	}
+	for (unsigned int i = 0; i < strlen(header); i++) {
+		PRINT("=");
+	}
+	PRINT("\n");
+
 	UNLOCK(&workqueue_lock);
 }

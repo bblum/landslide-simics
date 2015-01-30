@@ -202,3 +202,12 @@ void finish_job(struct job *j)
 	wait_on_job(j);
 	record_explored_pps(j->config);
 }
+
+void print_job_stats(struct job *j, bool pending)
+{
+	READ_LOCK(&j->stats_lock);
+	PRINT("[JOB %d] status todo\n", j->id); // TODO
+	// TODO: save bug trace filename in job stats
+	(void)pending;
+	RW_UNLOCK(&j->stats_lock);
+}

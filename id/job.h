@@ -25,7 +25,8 @@ struct job {
 	struct file log_stdout;
 	struct file log_stderr;
 
-	/* stats -- writable by owner, readable by display thread */
+	/* stats -- writable by owner, readable by display thread.
+	 * LOCK NOTICE: this is taken while workqueue lock is held. */
 	pthread_rwlock_t stats_lock;
 	bool cancelled;
 	long double estimate_proportion;
@@ -43,5 +44,6 @@ struct job *new_job(struct pp_set *config, bool should_reproduce);
 void start_job(struct job *j);
 void wait_on_job(struct job *j);
 void finish_job(struct job *j);
+void print_job_stats(struct job *j, bool pending);
 
 #endif

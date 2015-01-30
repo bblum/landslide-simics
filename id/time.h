@@ -12,6 +12,7 @@
 unsigned long timestamp();
 
 void start_time(unsigned long usecs);
+unsigned long time_elapsed();
 unsigned long time_remaining();
 
 #define TIME_UP() (time_remaining() == 0)
@@ -19,5 +20,6 @@ unsigned long time_remaining();
 struct human_friendly_time { uint64_t secs, mins, hours, days, years; bool inf; };
 void human_friendly_time(long double usecs, struct human_friendly_time *hft);
 void print_human_friendly_time(struct human_friendly_time *hft);
+void dbg_human_friendly_time(struct human_friendly_time *hft);
 
 #endif

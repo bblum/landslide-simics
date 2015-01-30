@@ -62,6 +62,11 @@
 		fprintf(stderr, COLOUR_DEFAULT);			\
 	} while (0)
 
+#define PRINT(...) do {							\
+		printf(COLOUR_BOLD COLOUR_CYAN __VA_ARGS__);		\
+		printf(COLOUR_DEFAULT);					\
+	} while (0)
+
 /* Debug flag, controls info printouts not useful for ze studence */
 #define DEBUG
 
