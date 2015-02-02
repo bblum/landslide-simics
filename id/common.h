@@ -52,19 +52,24 @@
 
 #define typeof __typeof__
 
+extern void log_msg(const char *pfx, const char *format, ...);
+
 #define ERR(...) do {							\
 		fprintf(stderr, COLOUR_BOLD COLOUR_RED __VA_ARGS__);	\
 		fprintf(stderr, COLOUR_DEFAULT);			\
+		log_msg("ERR", __VA_ARGS__);				\
 	} while (0)
 
 #define WARN(...) do {							\
 		fprintf(stderr, COLOUR_BOLD COLOUR_YELLOW __VA_ARGS__);	\
 		fprintf(stderr, COLOUR_DEFAULT);			\
+		log_msg("WARN", __VA_ARGS__);				\
 	} while (0)
 
 #define PRINT(...) do {							\
 		printf(COLOUR_BOLD COLOUR_CYAN __VA_ARGS__);		\
 		printf(COLOUR_DEFAULT);					\
+		log_msg(NULL, __VA_ARGS__);				\
 	} while (0)
 
 /* Debug flag, controls info printouts not useful for ze studence */
@@ -77,6 +82,7 @@ extern bool verbose;
 			fprintf(stderr, COLOUR_DARK COLOUR_CYAN __VA_ARGS__);	\
 			fprintf(stderr, COLOUR_DEFAULT);		\
 		}							\
+		log_msg("DBG", __VA_ARGS__);				\
 	} while (0)
 #else
 #define DBG(...)

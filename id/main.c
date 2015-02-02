@@ -28,14 +28,19 @@ int main(int argc, char **argv)
 	unsigned long num_cpus;
 	bool verbose;
 	bool leave_logs;
+	bool use_wrapper_log;
+	char wrapper_log[BUF_SIZE];
 	unsigned long progress_interval;
 
 	if (!get_options(argc, argv, test_name, BUF_SIZE, &max_time, &num_cpus,
 			 &verbose, &leave_logs, &control_experiment,
+			 &use_wrapper_log, wrapper_log, BUF_SIZE,
 			 &progress_interval)) {
 		usage(argv[0]);
 		exit(-1);
 	}
+
+	set_logging_options(use_wrapper_log, wrapper_log);
 
 	DBG("will run for at most %lu seconds\n", max_time);
 

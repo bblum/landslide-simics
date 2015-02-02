@@ -8,6 +8,7 @@
 #define _GNU_SOURCE
 
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -93,4 +94,46 @@ void move_file_to(struct file *f, const char *dirpath)
 	XRENAME(f->filename, new_filename);
 	FREE(f->filename);
 	f->filename = new_filename;
+}
+
+/* utilities related to logging the wrapper script needs for snapshotting */
+
+bool logging_inited = false;
+bool logging_active = false;
+struct file log_file;
+
+void set_logging_options(bool use_log, char *filename)
+{
+	assert(!logging_inited && "double log init");
+	logging_inited = true;
+	if ((logging_active = use_log)) {
+		char log_filename[BUF_SIZE];
+		scnprintf(log_filename, BUF_SIZE, "%s.XXXXXX", filename);
+		create_file(&log_file, log_filename);
+	}
+}
+
+void log_msg(const char *pfx, const char *format, ...)
+{
+	assert(logging_inited && "illegal PRINT/WARN/ERR/DBG before log init");
+	if (logging_active) {
+		va_list ap;
+		char line_buf[BUF_SIZE];
+		char line_buf2[BUF_SIZE];
+		va_start(ap, format);
+		vsnprintf(line_buf, BUF_SIZE, format, ap);
+		va_end(ap);
+		// FIXME: kind of gross
+		if (pfx != NULL) {
+			snprintf(line_buf2, BUF_SIZE, "[%s] %s", pfx, line_buf);
+		} else {
+			snprintf(line_buf2, BUF_SIZE, "%s", line_buf);
+		}
+		int ret = write(log_file.fd, line_buf2, strlen(line_buf2));
+		if (ret < 0) {
+			/* don't crash the program if e.g. out of disk space */
+			fprintf(stderr, COLOUR_BOLD COLOUR_RED
+				"WARNING: couldn't write to log file\n");
+		}
+	}
 }

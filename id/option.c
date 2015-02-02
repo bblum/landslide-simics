@@ -54,7 +54,8 @@ void usage(char *execname)
 	ARRAY_LIST_FOREACH(&cmdline_options, i, optp) {
 		if (optp->requires_arg) {
 			printf("\t-%c %s:\t%s (default %s)\n", optp->flag,
-			       optp->name, optp->description, optp->default_value);
+			       optp->name, optp->description,
+			       optp->default_value == NULL ? "<none>" : optp->default_value);
 		} else {
 			printf("\t-%c:\t\t%s\n", optp->flag, optp->description);
 		}
@@ -98,7 +99,8 @@ static bool parse_time(char *str, unsigned long *result)
 
 bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_len,
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
-		 bool *leave_logs, bool *control_experiment,
+		 bool *leave_logs, bool *control_experiment, bool *use_wrapper_log,
+		 char *wrapper_log, unsigned int wrapper_log_len,
 		 unsigned long *progress_report_interval)
 {
 	/* Set up cmdline options & their default values */
@@ -160,6 +162,10 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_OPTION('t', max_time, "Total CPU time budget (suffix s/m/d/h/y)", DEFAULT_TIME);
 	DEF_CMDLINE_OPTION('c', num_cpus, "Max parallelism factor", all_but_one_cpus);
 	DEF_CMDLINE_OPTION('i', interval, "Progress report interval", DEFAULT_PROGRESS_INTERVAL);
+	/* Log file to output PRINT/DBG messages to in addition to console.
+	 * Used by wrapper file to tie together which bug traces go where, etc.,
+	 * for purpose of snapshotting. */
+	DEF_CMDLINE_OPTION('L', log_name, "(Logging; internal use)", NULL);
 #undef DEF_CMDLINE_OPTION
 
 	ready = true;
@@ -237,6 +243,10 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	}
 
 	scnprintf(test_name, test_name_len, "%s", arg_test_name);
+
+	if ((*use_wrapper_log = (arg_log_name != NULL))) {
+		scnprintf(wrapper_log, wrapper_log_len, "%s", arg_log_name);
+	}
 
 	*verbose = arg_verbose;
 	*leave_logs = arg_leave_logs;

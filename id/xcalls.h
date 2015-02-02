@@ -38,11 +38,12 @@
 
 #define XSTRDUP(s) ({							\
 	char *__s = (s);						\
+	__s == NULL ? NULL : ({						\
 	int __len = strlen(__s);					\
 	char *__buf = XMALLOC(__len + 1, char);				\
 	int __ret = scnprintf(__buf, __len + 1, "%s", __s);		\
 	EXPECT(__ret == __len, "scprintf failed");			\
-	__buf; })
+	__buf; }); })
 
 #define FREE(x) free(x)
 
