@@ -279,6 +279,6 @@ void print_job_stats(struct job *j, bool pending)
 	PRINT(COLOUR_DARK COLOUR_GREY "PPs: ");
 	printf(COLOUR_GREY);
 	print_pp_set(j->config, true);
-	PRINT("\n");
+	PRINT(COLOUR_DEFAULT "\n");
 	RW_UNLOCK(&j->stats_lock);
 }

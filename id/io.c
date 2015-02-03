@@ -115,8 +115,7 @@ void set_logging_options(bool use_log, char *filename)
 
 void log_msg(const char *pfx, const char *format, ...)
 {
-	assert(logging_inited && "illegal PRINT/WARN/ERR/DBG before log init");
-	if (logging_active) {
+	if (logging_inited && logging_active) {
 		va_list ap;
 		char line_buf[BUF_SIZE];
 		char line_buf2[BUF_SIZE];
