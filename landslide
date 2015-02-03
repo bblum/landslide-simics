@@ -3,10 +3,50 @@
 IDDIR=id
 IDEXE=landslide-id
 
-if [ ! -f "$IDDIR/$IDEXE" ]; then
-	echo "p2-setup.sh was not run or did not succeed."
+if [ ! -d "pebsim" -o ! -d "work" ]; then
+	echo -e "\033[01;31m$0 must be run from the root of the landslide repository.\033[00m"
 	exit 1
 fi
 
-cd $IDDIR
-exec ./$IDEXE "$@"
+if [ ! -f "$IDDIR/$IDEXE" ]; then
+	echo -e "\033[01;31mp2-setup.sh was not run or did not succeed.\033[00m"
+	exit 1
+fi
+
+SUFFIX=`date +%Y%m%d%H%M%S`
+
+CMDLINE_OPTION_FILE=`mktemp "ls-id-options-$SUFFIX.cfg.XXXXXXXX"`
+echo "$@" > $CMDLINE_OPTION_FILE
+
+WRAPPER_LOG="ls-id-log-$SUFFIX.log"
+
+ORIGDIR="$PWD"
+cd "$IDDIR"
+./$IDEXE -L $WRAPPER_LOG "$@"
+RV=$?
+
+cd "$ORIGDIR"
+
+SNAPSHOT_DIR="/dev/shm" # TODO
+SNAPSHOT_NAME="ls-snap-$USER-$SUFFIX.tar.bz2"
+tar cvjf "$SNAPSHOT_DIR/$SNAPSHOT_NAME" \
+	--exclude="pebsim/p2-basecode/410user/*" \
+	--exclude="pebsim/p2-basecode/410kern/*" \
+	--exclude="pebsim/p2-basecode/temp/*" \
+	--exclude=".git/*" \
+	--exclude="work/*" \
+	--exclude="tests/*" \
+	--exclude="*.o" \
+	--exclude="*.a" \
+	--exclude="*.bz2" \
+	--exclude="*.dep" \
+	--exclude="*.py" \
+	--exclude="*.pyc" \
+	--exclude="*landslide-id" \
+	--exclude="*kernel" \
+	--exclude="*bootfd.img" \
+	--exclude="*kernel.strip" \
+	--exclude="*kernel.log" \
+	"./" >/dev/null
+
+exit $RV
