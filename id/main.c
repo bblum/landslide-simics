@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 			 &use_wrapper_log, wrapper_log, BUF_SIZE,
 			 &progress_interval)) {
 		usage(argv[0]);
-		exit(-1);
+		exit(ID_EXIT_USAGE);
 	}
 
 	set_logging_options(use_wrapper_log, wrapper_log);
@@ -105,5 +105,5 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	return found_any_bugs() ? -1 : 0;
+	return found_any_bugs() ? ID_EXIT_BUG_FOUND : ID_EXIT_SUCCESS;
 }

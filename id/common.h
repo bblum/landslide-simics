@@ -88,6 +88,11 @@ extern bool verbose;
 #define DBG(...)
 #endif
 
+#define ID_EXIT_SUCCESS 0
+#define ID_EXIT_BUG_FOUND 1
+#define ID_EXIT_USAGE 2
+#define ID_EXIT_CRASH 3
+
 /* MIN()/MAX() implementations that avoid the MAX(x++,y++) problem and provide
  * strict typechecking. */
 #define MIN(x, y) ({			\

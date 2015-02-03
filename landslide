@@ -27,6 +27,12 @@ RV=$?
 
 cd "$ORIGDIR"
 
+ID_EXIT_USAGE=2
+
+if [ "$RV" = "$ID_EXIT_USAGE" ]; then
+	exit $RV
+fi
+
 SNAPSHOT_DIR="/dev/shm" # TODO
 SNAPSHOT_NAME="ls-snap-$USER-$SUFFIX.tar.bz2"
 tar cvjf "$SNAPSHOT_DIR/$SNAPSHOT_NAME" \
