@@ -90,7 +90,7 @@
 		typeof(a) __a = (a);						\
 		assert(__a->size != 0);						\
 		assert(__i < __a->size && "array list index out of bounds");	\
-		for (int __j = __i + 1; __j < __a->size; __j++) {		\
+		for (unsigned int __j = __i + 1; __j < __a->size; __j++) {	\
 			memcpy(&__a->array[__j - 1], &__a->array[__j],		\
 			       sizeof(*__a->array));				\
 		}								\

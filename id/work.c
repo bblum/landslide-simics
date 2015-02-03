@@ -26,7 +26,8 @@ static bool work_done = false;
 static bool progress_done = false;
 static unsigned int nonblocked_threads;
 static ARRAY_LIST(struct job *) workqueue; /* unordered set */
-static ARRAY_LIST(struct job *) nonpending_jobs; /* unordered set */
+static ARRAY_LIST(struct job *) running_or_done_jobs; /* unordered set */
+static ARRAY_LIST(struct job *) blocked_jobs; /* unordered set */
 static pthread_mutex_t workqueue_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t workqueue_cond = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t work_done_cond = PTHREAD_COND_INITIALIZER;
@@ -37,7 +38,8 @@ static void check_init()
 		LOCK(&workqueue_lock);
 		if (!inited) {
 			ARRAY_LIST_INIT(&workqueue, 16);
-			ARRAY_LIST_INIT(&nonpending_jobs, 16);
+			ARRAY_LIST_INIT(&running_or_done_jobs, 16);
+			ARRAY_LIST_INIT(&blocked_jobs, 16);
 			inited = true;
 		}
 		UNLOCK(&workqueue_lock);
@@ -58,7 +60,7 @@ void signal_work()
 }
 
 /* returns NULL if no work is available */
-static struct job *get_work()
+static struct job *get_work(bool *was_blocked)
 {
 	struct job *best_job = NULL;
 	unsigned int best_index;
@@ -84,13 +86,54 @@ static struct job *get_work()
 		}
 	}
 	if (best_job != NULL) {
+		/* Found best fresh job. Move it to the active queue. */
 		ARRAY_LIST_REMOVE_SWAP(&workqueue, best_index);
-		ARRAY_LIST_APPEND(&nonpending_jobs, best_job);
+		ARRAY_LIST_APPEND(&running_or_done_jobs, best_job);
+		*was_blocked = false;
+	} else if (ARRAY_LIST_SIZE(&blocked_jobs) > 0) {
+		/* No fresh jobs. Take the blocked job with the best ETA. */
+		best_index = ARRAY_LIST_SIZE(&blocked_jobs) - 1;
+		best_job = *ARRAY_LIST_GET(&blocked_jobs, best_index);
+		ARRAY_LIST_REMOVE(&blocked_jobs, best_index);
+		ARRAY_LIST_APPEND(&running_or_done_jobs, best_job);
+		*was_blocked = true;
 	}
 	return best_job;
 }
 
-static void process_work(struct job *j)
+static void move_job_to_blocked_queue(struct job *j)
+{
+	struct job **j2;
+	unsigned int i;
+	LOCK(&workqueue_lock);
+
+	/* Find job on active jobs list and remove it. */
+	ARRAY_LIST_FOREACH(&running_or_done_jobs, i, j2) {
+		if (*j2 == j) {
+			break;
+		}
+	}
+	assert(i < ARRAY_LIST_SIZE(&running_or_done_jobs) &&
+	       "couldn't find now-blocked job on running queue");
+	assert(*ARRAY_LIST_GET(&running_or_done_jobs, i) == j);
+	ARRAY_LIST_REMOVE_SWAP(&running_or_done_jobs, i);
+
+	/* Put it on blocked queue and bubble-sort it. */
+	ARRAY_LIST_APPEND(&blocked_jobs, j);
+	i = ARRAY_LIST_SIZE(&blocked_jobs) - 1;
+	/* Lower ETA jobs stay closer to the end of the array. */
+	while (i > 0 && compare_job_eta(*ARRAY_LIST_GET(&blocked_jobs, i),
+					*ARRAY_LIST_GET(&blocked_jobs, i-1)) > 0) {
+		DBG("[JOB %d] bubble-sorting blocked job\n", j->id);
+		ARRAY_LIST_SWAP(&blocked_jobs, i, i-1);
+		i--;
+	}
+
+	signal_work();
+	UNLOCK(&workqueue_lock);
+}
+
+static void process_work(struct job *j, bool was_blocked)
 {
 	if (bug_already_found(j->config)) {
 		/* Optimization for subset-foundabug jobs where the bug was not
@@ -98,12 +141,23 @@ static void process_work(struct job *j)
 		 * job. Don't waste time compiling landslide before checking. */
 		j->cancelled = true;
 	} else {
-		// TODO: upgrade to allow for blocked jobs
-		// TODO: when running e.g. mx lock+unlock job, periodically
-		// check for lower priority jobs.
-		start_job(j);
-		wait_on_job(j);
-		finish_job(j);
+		if (was_blocked) {
+			DBG("[JOB %d] process(): waking up blocked job\n", j->id);
+			resume_job(j);
+		} else {
+			DBG("[JOB %d] process(): starting a fresh job\n", j->id);
+			start_job(j);
+		}
+
+		if (wait_on_job(j)) {
+			/* Job became blocked, is still alive. */
+			DBG("[JOB %d] process(): after waiting, job blocked\n", j->id);
+			move_job_to_blocked_queue(j);
+		} else {
+			/* Job ran to completion. */
+			DBG("[JOB %d] process(): after waiting, job complete\n", j->id);
+			record_explored_pps(j->config);
+		}
 	}
 }
 
@@ -115,11 +169,12 @@ static void *workqueue_thread(void *arg)
 
 	LOCK(&workqueue_lock);
 	while (true) {
-		struct job *j = get_work();
+		bool was_blocked;
+		struct job *j = get_work(&was_blocked);
 		if (j != NULL) {
 			UNLOCK(&workqueue_lock);
 			DBG("WQ thread %lu got work: job %u\n", id, j->id);
-			process_work(j);
+			process_work(j, was_blocked);
 			LOCK(&workqueue_lock);
 		} else {
 			nonblocked_threads--;
@@ -164,11 +219,14 @@ static void print_all_job_stats()
 
 	struct job **j;
 	unsigned int i;
-	ARRAY_LIST_FOREACH(&nonpending_jobs, i, j) {
-		print_job_stats(*j, false);
+	ARRAY_LIST_FOREACH(&running_or_done_jobs, i, j) {
+		print_job_stats(*j, false, false);
 	}
 	ARRAY_LIST_FOREACH(&workqueue, i, j) {
-		print_job_stats(*j, true);
+		print_job_stats(*j, true, false);
+	}
+	ARRAY_LIST_FOREACH(&blocked_jobs, i, j) {
+		print_job_stats(*j, false, true);
 	}
 	for (unsigned int i = 0; i < strlen(header); i++) {
 		PRINT("=");

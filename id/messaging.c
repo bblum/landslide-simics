@@ -159,7 +159,8 @@ static void handle_estimate(struct job *j, long double proportion,
 	j->elapsed_branches = elapsed_branches;
 	j->estimate_proportion = proportion;
 	human_friendly_time(elapsed_usecs, &j->estimate_elapsed);
-	human_friendly_time(total_usecs - elapsed_usecs, &j->estimate_eta);
+	j->estimate_eta_numeric = total_usecs - elapsed_usecs;
+	human_friendly_time(j->estimate_eta_numeric, &j->estimate_eta);
 	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ETA ", j->id,
 	    elapsed_branches, total_branches, proportion * 100);
 	dbg_human_friendly_time(&j->estimate_eta);

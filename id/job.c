@@ -52,7 +52,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 
 	j->id = __sync_fetch_and_add(&job_id, 1);
 	j->generation = compute_generation(config);
-	j->done = false;
+	j->status = JOB_NORMAL;
 	j->should_reproduce = should_reproduce;
 
 	RWLOCK_INIT(&j->stats_lock);
@@ -60,6 +60,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->estimate_proportion = 0;
 	human_friendly_time(0.0L, &j->estimate_elapsed);
 	human_friendly_time(0.0L, &j->estimate_eta);
+	j->estimate_eta_numeric = 0.0L;
 	j->cancelled = false;
 	j->complete = false;
 	j->timed_out = false;
@@ -67,7 +68,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->trace_filename = NULL;
 
 	COND_INIT(&j->done_cvar);
-	MUTEX_INIT(&j->done_lock);
+	MUTEX_INIT(&j->lifecycle_lock);
 
 	return j;
 }
@@ -125,10 +126,10 @@ static void *run_job(void *arg)
 		j->complete = true;
 		j->cancelled = true;
 		RW_UNLOCK(&j->stats_lock);
-		LOCK(&j->done_lock);
-		j->done = true;
+		LOCK(&j->lifecycle_lock);
+		j->status = JOB_DONE;
 		BROADCAST(&j->done_cvar);
-		UNLOCK(&j->done_lock);
+		UNLOCK(&j->lifecycle_lock);
 		return NULL;
 	}
 
@@ -202,13 +203,32 @@ static void *run_job(void *arg)
 		j->log_filename = NULL;
 	}
 	RW_UNLOCK(&j->stats_lock);
-	LOCK(&j->done_lock);
-	j->done = true;
+	LOCK(&j->lifecycle_lock);
+	j->status = JOB_DONE;
 	BROADCAST(&j->done_cvar);
-	UNLOCK(&j->done_lock);
+	UNLOCK(&j->lifecycle_lock);
 
 	return NULL;
 }
+
+/* to be called by job thread of its own volition */
+void job_block(struct job *j)
+{
+	LOCK(&j->lifecycle_lock);
+	assert(j->status == JOB_NORMAL);
+	j->status = JOB_BLOCKED;
+	/* signal workqueue thread to go find something else to do */
+	BROADCAST(&j->done_cvar);
+	/* wait until there's nothing better to do */
+	while (j->status == JOB_BLOCKED) {
+		WAIT(&j->blocking_cvar, &j->lifecycle_lock);
+	}
+	/* we have been woken up and rescheduled */
+	assert(j->status == JOB_NORMAL);
+	UNLOCK(&j->lifecycle_lock);
+}
+
+/* the workqueue threads use the following calls to manage the job threads */
 
 void start_job(struct job *j)
 {
@@ -219,27 +239,32 @@ void start_job(struct job *j)
 	assert(ret == 0 && "failed detach");
 }
 
-// TODO: allow for job to block until later
-
-// TODO: add block_job
-
-void wait_on_job(struct job *j)
+MUST_CHECK bool wait_on_job(struct job *j)
 {
-	LOCK(&j->done_lock);
-	while (!j->done) {
-		WAIT(&j->done_cvar, &j->done_lock);
+	LOCK(&j->lifecycle_lock);
+	while (j->status == JOB_NORMAL) {
+		WAIT(&j->done_cvar, &j->lifecycle_lock);
 	}
-	UNLOCK(&j->done_lock);
+	assert(j->status == JOB_BLOCKED || j->status == JOB_DONE);
+	bool rv = j->status == JOB_BLOCKED;
+	UNLOCK(&j->lifecycle_lock);
+	return rv;
 }
 
-void finish_job(struct job *j)
+/* should be immediately followed by another call to wait_on */
+void resume_job(struct job *j)
 {
-	wait_on_job(j);
-	record_explored_pps(j->config);
+	LOCK(&j->lifecycle_lock);
+	assert(j->status == JOB_BLOCKED);
+	j->status = JOB_NORMAL;
+	SIGNAL(&j->blocking_cvar);
+	UNLOCK(&j->lifecycle_lock);
 }
 
-void print_job_stats(struct job *j, bool pending)
+void print_job_stats(struct job *j, bool pending, bool blocked)
 {
+	assert(!pending || !blocked);
+
 	READ_LOCK(&j->stats_lock);
 	if (j->cancelled && !verbose) {
 		RW_UNLOCK(&j->stats_lock);
@@ -265,6 +290,11 @@ void print_job_stats(struct job *j, bool pending)
 		PRINT(" elapsed)\n");
 	} else if (pending || j->elapsed_branches == 0) {
 		PRINT("Pending...\n");
+	} else if (blocked) {
+		PRINT(COLOUR_DARK COLOUR_MAGENTA "Deferred... ");
+		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
+		print_human_friendly_time(&j->estimate_eta);
+		PRINT(")\n");
 	} else {
 		PRINT(COLOUR_BOLD COLOUR_MAGENTA "Running ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
@@ -281,4 +311,17 @@ void print_job_stats(struct job *j, bool pending)
 	print_pp_set(j->config, true);
 	PRINT(COLOUR_DEFAULT "\n");
 	RW_UNLOCK(&j->stats_lock);
+}
+
+int compare_job_eta(struct job *j0, struct job *j1)
+{
+	READ_LOCK(&j0->stats_lock);
+	long double eta0 = j0->estimate_eta_numeric;
+	RW_UNLOCK(&j0->stats_lock);
+
+	READ_LOCK(&j1->stats_lock);
+	long double eta1 = j1->estimate_eta_numeric;
+	RW_UNLOCK(&j1->stats_lock);
+
+	return eta0 == eta1 ? 0 : eta0 < eta1 ? -1 : 1;
 }
