@@ -94,26 +94,31 @@ static struct job *get_work(bool *was_blocked)
 	struct job **j;
 	unsigned int i;
 
-	if (TIME_UP()) {
-		return NULL;
-	}
-
-	ARRAY_LIST_FOREACH(&workqueue, i, j) {
-		unsigned int priority = unexplored_priority((*j)->config);
-		unsigned int size = (*j)->config->size;
-		if (best_job == NULL || priority < best_priority ||
-		    (priority == best_priority && size < best_size)) {
-			best_job = *j;
-			best_index = i;
-			best_priority = priority;
-			best_size = size;
+	/* If time is up, there may still yet be work to do -- kicking awake
+	 * all the blocked jobs so that they can exit cleanly (which they will
+	 * do immediately -- see messaging.c). Otherwise, during normal time,
+	 * prioritize "fresh" jobs from the pending queue. */
+	if (!TIME_UP()) {
+		ARRAY_LIST_FOREACH(&workqueue, i, j) {
+			unsigned int priority = unexplored_priority((*j)->config);
+			unsigned int size = (*j)->config->size;
+			if (best_job == NULL || priority < best_priority ||
+			    (priority == best_priority && size < best_size)) {
+				best_job = *j;
+				best_index = i;
+				best_priority = priority;
+				best_size = size;
+			}
 		}
 	}
+
 	if (best_job != NULL) {
 		/* Found best fresh job. Move it to the active queue. */
 		ARRAY_LIST_REMOVE_SWAP(&workqueue, best_index);
 		ARRAY_LIST_APPEND(&running_or_done_jobs, best_job);
 		*was_blocked = false;
+		/* Notionally asserting this. Of course it could race and trip.
+		 * assert(!TIME_UP()); */
 	} else if (ARRAY_LIST_SIZE(&blocked_jobs) > 0) {
 		/* No fresh jobs. Take the blocked job with the best ETA. */
 		best_index = ARRAY_LIST_SIZE(&blocked_jobs) - 1;
