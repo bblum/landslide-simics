@@ -58,7 +58,12 @@ struct output_message {
 
 struct input_message {
 	unsigned int magic;
-	bool do_abort;
+	enum {
+		SHOULD_CONTINUE_REPLY = 0,
+		SUSPEND_TIME = 1,
+		RESUME_TIME = 2,
+	} tag;
+	bool value;
 };
 
 /******************************************************************************
@@ -79,7 +84,8 @@ static void recv(struct messaging_state *state, struct input_message *m)
 	int ret = read(state->input_fd, m, sizeof(struct input_message));
 	if (ret == 0) {
 		/* pipe closed */
-		m->do_abort = true;
+		m->tag = SHOULD_CONTINUE_REPLY;
+		m->value = true;
 	} else if (ret != sizeof(struct input_message)) {
 		assert(false && "read failed");
 	} else {
@@ -92,7 +98,8 @@ static void recv(struct messaging_state *state, struct input_message *m)
 static void send(struct messaging_state *state, struct output_message *m) { }
 
 static void recv(struct messaging_state *state, struct input_message *m) {
-	m->do_abort = false;
+	m->type = SHOULD_CONTINUE_REPLY;
+	m->value = false;
 }
 
 #endif
@@ -153,6 +160,26 @@ void message_estimate(struct messaging_state *state, long double proportion,
 	m.content.estimate.total_usecs = total_usecs;
 	m.content.estimate.elapsed_usecs = elapsed_usecs;
 	send(state, &m);
+
+	/* Ask whether or not our execution is being suspended. If so we must
+	 * record the pause and resume times to not screw up ETA estimates. */
+	struct input_message result;
+	recv(state, &result);
+	if (result.tag == SUSPEND_TIME) {
+		if (result.value == true) {
+			/* YOU ARE BOTH SUSPENDED. */
+			// TODO: record time
+			lsprintf(DEV, "suspending time\n");
+			recv(state, &result);
+			assert(result.tag == RESUME_TIME ||
+			       result.tag == SHOULD_CONTINUE_REPLY);
+			lsprintf(DEV, "resuming time\n");
+			// TODO: record new time
+		}
+	} else {
+		/* pipe closed (or running in standalone mode) */
+		assert(result.tag == SHOULD_CONTINUE_REPLY);
+	}
 }
 
 void message_found_a_bug(struct messaging_state *state, const char *trace_filename)
@@ -172,7 +199,8 @@ bool should_abort(struct messaging_state *state)
 
 	struct input_message result;
 	recv(state, &result);
-	return result.do_abort;
+	assert(result.tag == SHOULD_CONTINUE_REPLY);
+	return result.value;
 }
 
 void message_assert_fail(struct messaging_state *state, const char *message,

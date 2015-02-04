@@ -61,7 +61,12 @@ struct input_message {
 
 struct output_message {
 	unsigned int magic;
-	bool do_abort;
+	enum {
+		SHOULD_CONTINUE_REPLY = 0,
+		SUSPEND_TIME = 1,
+		RESUME_TIME = 2,
+	} tag;
+	bool value;
 };
 
 /* glue */
@@ -157,8 +162,8 @@ extern unsigned long eta_threshold;
  * to fresh jobs. */
 #define HOMESTRETCH (60 * 1000000)
 
-static void handle_estimate(struct job *j, long double proportion,
-			    unsigned int elapsed_branches,
+static void handle_estimate(struct messaging_state *state, struct job *j,
+			    long double proportion, unsigned int elapsed_branches,
 			    long double total_usecs, long double elapsed_usecs)
 {
 	unsigned int total_branches =
@@ -180,14 +185,28 @@ static void handle_estimate(struct job *j, long double proportion,
 	/* Does this ETA suck? (note all numbers here are in usecs) */
 	unsigned long eta = (long double)total_usecs - elapsed_usecs;
 	unsigned long time_left = time_remaining();
+
+	struct output_message reply;
+	reply.tag = SUSPEND_TIME;
+
 	assert(eta_factor >= 1);
 	if (elapsed_branches >= eta_threshold && time_left > HOMESTRETCH &&
 	    time_left * eta_factor < eta && should_work_block(j)) {
 		WARN("[JOB %d] State space too big (%u brs elapsed, "
 		     "time rem %lu, eta %lu) -- blocking!\n", j->id,
 		     elapsed_branches, time_left / 1000000, eta / 1000000);
-		// TODO: what to do if there are no nonblocked jobs here
+		/* Inform landslide instance to pause its time counter. */
+		reply.value = true;
+		send(state->output_pipe.fd, &reply);
+		/* Wait until we get rescheduled. */
 		job_block(j);
+		/* Tell landslide instance to start timing again. */
+		reply.tag = RESUME_TIME;
+		send(state->output_pipe.fd, &reply);
+	} else {
+		/* Normal operation. Tell landslide not to pause timing. */
+		reply.value = false;
+		send(state->output_pipe.fd, &reply);
 	}
 }
 
@@ -306,7 +325,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 					 m.content.dr.confirmed,
 					 m.content.dr.most_recent_syscall);
 		} else if (m.tag == ESTIMATE) {
-			handle_estimate(j, m.content.estimate.proportion,
+			handle_estimate(state, j, m.content.estimate.proportion,
 					m.content.estimate.elapsed_branches,
 					m.content.estimate.total_usecs,
 					m.content.estimate.elapsed_usecs);
@@ -333,7 +352,8 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 			}
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;
-			reply.do_abort = !handle_should_continue(j);
+			reply.tag = SHOULD_CONTINUE_REPLY;
+			reply.value = !handle_should_continue(j);
 			send(state->output_pipe.fd, &reply);
 		} else if (m.tag == ASSERT_FAILED) {
 			handle_crash(j, &m);
