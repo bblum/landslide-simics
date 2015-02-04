@@ -28,9 +28,13 @@ RV=$?
 cd "$ORIGDIR"
 
 ID_EXIT_USAGE=2
+ID_EXIT_CTRL_C=3
 
 if [ "$RV" = "$ID_EXIT_USAGE" ]; then
 	exit $RV
+elif [ "$RV" = "$ID_EXIT_CTRL_C" ]; then
+	reset -I
+	echo
 fi
 
 SNAPSHOT_DIR="/dev/shm" # TODO
