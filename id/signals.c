@@ -21,6 +21,7 @@ static void handle_sigint(int MAYBE_UNUSED signum)
 	pid_t me = syscall(SYS_gettid);
 	DBG("ctrl-C press handled by thread %u\n", me);
 	ERR("ctrl-C pressed, aborting...\n");
+	WARN("note: terminal settings may be left in an inconsistent state; use 'reset' to restore.\n");
 	exit(ID_EXIT_CRASH);
 }
 
