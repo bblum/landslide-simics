@@ -59,6 +59,30 @@ void signal_work()
 	BROADCAST(&workqueue_cond);
 }
 
+bool should_work_block(struct job *j)
+{
+	bool result;
+	LOCK(&workqueue_lock);
+	if (ARRAY_LIST_SIZE(&workqueue) != 0) {
+		/* A fresh job exists. Switch to it. */
+		result = true;
+	} else {
+		unsigned int num_blocked_jobs = ARRAY_LIST_SIZE(&blocked_jobs);
+		if (num_blocked_jobs != 0) {
+			/* A different blocked job exists. Switch to it,
+			 * but only if its ETA is better. */
+			struct job *j2 = *ARRAY_LIST_GET(&blocked_jobs,
+							 num_blocked_jobs-1);
+			result = compare_job_eta(j, j2) > 0;
+		} else {
+			/* No other possible jobs to switch to. */
+			result = false;
+		}
+	}
+	UNLOCK(&workqueue_lock);
+	return result;
+}
+
 /* returns NULL if no work is available */
 static struct job *get_work(bool *was_blocked)
 {
@@ -142,20 +166,20 @@ static void process_work(struct job *j, bool was_blocked)
 		j->cancelled = true;
 	} else {
 		if (was_blocked) {
-			DBG("[JOB %d] process(): waking up blocked job\n", j->id);
+			// DBG("[JOB %d] process(): waking up blocked job\n", j->id);
 			resume_job(j);
 		} else {
-			DBG("[JOB %d] process(): starting a fresh job\n", j->id);
+			// DBG("[JOB %d] process(): starting a fresh job\n", j->id);
 			start_job(j);
 		}
 
 		if (wait_on_job(j)) {
 			/* Job became blocked, is still alive. */
-			DBG("[JOB %d] process(): after waiting, job blocked\n", j->id);
+			// DBG("[JOB %d] process(): after waiting, job blocked\n", j->id);
 			move_job_to_blocked_queue(j);
 		} else {
 			/* Job ran to completion. */
-			DBG("[JOB %d] process(): after waiting, job complete\n", j->id);
+			// DBG("[JOB %d] process(): after waiting, job complete\n", j->id);
 			record_explored_pps(j->config);
 		}
 	}
@@ -186,7 +210,7 @@ static void *workqueue_thread(void *arg)
 				break;
 			} else {
 				/* wait for another thread to make work */
-				DBG("WQ thread %lu waiting for work\n", id);
+				// DBG("WQ thread %lu waiting for work\n", id);
 				WAIT(&workqueue_cond, &workqueue_lock);
 				if (nonblocked_threads == 0) {
 					/* all other threads ran out of work too */
@@ -194,7 +218,7 @@ static void *workqueue_thread(void *arg)
 					break;
 				} else {
 					/* work appeared; contend for it */
-					DBG("WQ thread %lu woken to try\n", id);
+					// DBG("WQ thread %lu woken to try\n", id);
 					nonblocked_threads++;
 				}
 			}
@@ -213,7 +237,7 @@ static void print_all_job_stats()
 
 	human_friendly_time(time_elapsed(), &time_since_start);
 	PRINT("%s\n", header);
-	PRINT("time elapsed: ");
+	PRINT("total time elapsed: ");
 	print_human_friendly_time(&time_since_start);
 	PRINT("\n");
 
@@ -234,7 +258,7 @@ static void print_all_job_stats()
 	PRINT("\n");
 }
 
-void *progress_report_thread(void *arg)
+static void *progress_report_thread(void *arg)
 {
 	unsigned long interval = (unsigned long)arg;
 

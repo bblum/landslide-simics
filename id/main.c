@@ -20,6 +20,8 @@
 #include "work.h"
 
 bool control_experiment;
+unsigned long eta_factor;
+unsigned long eta_threshold;
 
 int main(int argc, char **argv)
 {
@@ -35,7 +37,7 @@ int main(int argc, char **argv)
 	if (!get_options(argc, argv, test_name, BUF_SIZE, &max_time, &num_cpus,
 			 &verbose, &leave_logs, &control_experiment,
 			 &use_wrapper_log, wrapper_log, BUF_SIZE,
-			 &progress_interval)) {
+			 &progress_interval, &eta_factor, &eta_threshold)) {
 		usage(argv[0]);
 		exit(ID_EXIT_USAGE);
 	}

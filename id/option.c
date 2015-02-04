@@ -23,6 +23,18 @@
 #define DEFAULT_TEST_CASE "thr_exit_join"
 #define DEFAULT_PROGRESS_INTERVAL "10" /* seconds */
 
+/* The ETA factor heuristic controls how optimistic/pessimistic we are about
+ * descheduling "too large" state spaces. At any point if the ETA for a state
+ * space is [this many] times bigger than the remaining time budget, we postpone
+ * it and run a fresh job instead. (If no non-postponed jobs exist, we run the
+ * postponed jobs, preferring the ones with lowest ETA.) */
+#define DEFAULT_ETA_FACTOR "2"
+
+/* ...However, very early on in a state space, the estimates are notoriously
+ * inaccurate. We grant each job this many "free" branches to let its estimate
+ * to stabilize somewhat, before applying the above heuristic. */
+#define DEFAULT_ETA_STABILITY_THRESHOLD "32"
+
 struct cmdline_option {
 	char flag;
 	bool requires_arg;
@@ -101,7 +113,8 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
 		 bool *leave_logs, bool *control_experiment, bool *use_wrapper_log,
 		 char *wrapper_log, unsigned int wrapper_log_len,
-		 unsigned long *progress_report_interval)
+		 unsigned long *progress_report_interval,
+		 unsigned long *eta_factor, unsigned long *eta_thresh)
 {
 	/* Set up cmdline options & their default values */
 	unsigned int system_cpus = get_nprocs();
@@ -162,6 +175,8 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_OPTION('t', max_time, "Total CPU time budget (suffix s/m/d/h/y)", DEFAULT_TIME);
 	DEF_CMDLINE_OPTION('c', num_cpus, "Max parallelism factor", all_but_one_cpus);
 	DEF_CMDLINE_OPTION('i', interval, "Progress report interval", DEFAULT_PROGRESS_INTERVAL);
+	DEF_CMDLINE_OPTION('e', eta_factor, "ETA factor heuristic (see comments in source code)", DEFAULT_ETA_FACTOR);
+	DEF_CMDLINE_OPTION('E', eta_thresh, "ETA threshold heuristic (see source code)", DEFAULT_ETA_STABILITY_THRESHOLD);
 	/* Log file to output PRINT/DBG messages to in addition to console.
 	 * Used by wrapper file to tie together which bug traces go where, etc.,
 	 * for purpose of snapshotting. */
@@ -235,6 +250,24 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	}
 
 	if (!parse_time(arg_interval, progress_report_interval)) {
+		options_valid = false;
+	}
+
+	*eta_factor = strtol(arg_eta_factor, NULL, 0);
+	if (errno != 0) {
+		ERR("ETA factor heuristic must be a number (got '%s')\n", arg_eta_factor);
+		options_valid = false;
+	} else if (*eta_factor == 0) {
+		ERR("ETA factor heuristic must be >= 1\n");
+		options_valid = false;
+	}
+
+	*eta_thresh = strtol(arg_eta_thresh, NULL, 0);
+	if (errno != 0) {
+		ERR("ETA threshold heuristic must be a number (got '%s')\n", arg_eta_factor);
+		options_valid = false;
+	} else if (*eta_thresh == 0) {
+		ERR("ETA stability threshold heuristic must be >= 1\n");
 		options_valid = false;
 	}
 

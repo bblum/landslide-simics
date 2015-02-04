@@ -149,6 +149,9 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	free_pp_set(old_discovered);
 }
 
+extern unsigned long eta_factor;
+extern unsigned long eta_threshold;
+
 static void handle_estimate(struct job *j, long double proportion,
 			    unsigned int elapsed_branches,
 			    long double total_usecs, long double elapsed_usecs)
@@ -168,6 +171,19 @@ static void handle_estimate(struct job *j, long double proportion,
 	dbg_human_friendly_time(&j->estimate_elapsed);
 	DBG(")\n");
 	RW_UNLOCK(&j->stats_lock);
+
+	/* Does this ETA suck? (note all numbers here are in usecs) */
+	unsigned long eta = (long double)total_usecs - elapsed_usecs;
+	unsigned long time_left = time_remaining();
+	assert(eta_factor >= 1);
+	if (elapsed_branches >= eta_threshold &&
+	    time_left * eta_factor < eta && should_work_block(j)) {
+		WARN("[JOB %d] State space too big (%u brs elapsed, "
+		     "time rem %lu, eta %lu) -- blocking!\n", j->id,
+		     elapsed_branches, time_left / 1000000, eta / 1000000);
+		// TODO: what to do if there are no nonblocked jobs here
+		job_block(j);
+	}
 }
 
 static bool handle_should_continue(struct job *j)
