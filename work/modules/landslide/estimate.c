@@ -26,10 +26,6 @@ uint64_t update_time(struct timeval *tv)
 	time_t secs = new_time.tv_sec - tv->tv_sec;
 	suseconds_t usecs = new_time.tv_usec - tv->tv_usec;
 
-	assert(tv->tv_sec <= new_time.tv_sec && "travelled back in time?");
-	assert((tv->tv_sec < new_time.tv_sec || tv->tv_usec <= new_time.tv_usec)
-	       && "travelled back in time?");
-
 	tv->tv_sec  = new_time.tv_sec;
 	tv->tv_usec = new_time.tv_usec;
 
