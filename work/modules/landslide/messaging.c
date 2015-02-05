@@ -100,7 +100,7 @@ static void recv(struct messaging_state *state, struct input_message *m)
 static void send(struct messaging_state *state, struct output_message *m) { }
 
 static void recv(struct messaging_state *state, struct input_message *m) {
-	m->type = SHOULD_CONTINUE_REPLY;
+	m->tag = SHOULD_CONTINUE_REPLY;
 	m->value = false;
 }
 
