@@ -6,6 +6,7 @@
 
 #define MODULE_NAME "MESSAGING"
 
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -13,6 +14,7 @@
 
 #include "common.h"
 #include "compiler.h"
+#include "estimate.h"
 #include "messaging.h"
 #include "student_specifics.h"
 
@@ -149,9 +151,9 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	send(state, &m);
 }
 
-void message_estimate(struct messaging_state *state, long double proportion,
-		      unsigned int elapsed_branches, long double total_usecs,
-		      unsigned long elapsed_usecs)
+uint64_t message_estimate(struct messaging_state *state, long double proportion,
+			  unsigned int elapsed_branches, long double total_usecs,
+			  unsigned long elapsed_usecs)
 {
 	struct output_message m;
 	m.tag = ESTIMATE;
@@ -163,23 +165,28 @@ void message_estimate(struct messaging_state *state, long double proportion,
 
 	/* Ask whether or not our execution is being suspended. If so we must
 	 * record the pause and resume times to not screw up ETA estimates. */
+	uint64_t time_asleep = 0;
 	struct input_message result;
 	recv(state, &result);
 	if (result.tag == SUSPEND_TIME) {
 		if (result.value == true) {
 			/* YOU ARE BOTH SUSPENDED. */
-			// TODO: record time
+			struct timeval tv;
+			update_time(&tv);
 			lsprintf(DEV, "suspending time\n");
 			recv(state, &result);
 			assert(result.tag == RESUME_TIME ||
 			       result.tag == SHOULD_CONTINUE_REPLY);
-			lsprintf(DEV, "resuming time\n");
-			// TODO: record new time
+			time_asleep = update_time(&tv);
+			lsprintf(DEV, "resuming time (time asleep: %" PRIu64 ")\n",
+				 time_asleep);
 		}
 	} else {
 		/* pipe closed (or running in standalone mode) */
 		assert(result.tag == SHOULD_CONTINUE_REPLY);
 	}
+
+	return time_asleep;
 }
 
 void message_found_a_bug(struct messaging_state *state, const char *trace_filename)

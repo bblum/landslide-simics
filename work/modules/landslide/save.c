@@ -20,6 +20,7 @@
 #include "arbiter.h"
 #include "common.h"
 #include "compiler.h"
+#include "estimate.h"
 #include "found_a_bug.h"
 #include "landslide.h"
 #include "lockset.h"
@@ -106,24 +107,6 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
 /******************************************************************************
  * helpers
  ******************************************************************************/
-
-/* Returns number of elapsed useconds since last call to this. If there was no
- * last call, return value is undefined. */
-static uint64_t update_time(struct timeval *tv)
-{
-	struct timeval new_time;
-	int rv = gettimeofday(&new_time, NULL);
-	assert(rv == 0 && "failed to gettimeofday");
-	assert(new_time.tv_usec < 1000000);
-
-	time_t secs = new_time.tv_sec - tv->tv_sec;
-	suseconds_t usecs = new_time.tv_usec - tv->tv_usec;
-
-	tv->tv_sec  = new_time.tv_sec;
-	tv->tv_usec = new_time.tv_usec;
-
-	return (secs * 1000000) + usecs;
-}
 
 static void copy_lockset(struct lockset *dest, struct lockset *src)
 {

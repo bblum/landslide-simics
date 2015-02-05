@@ -17,9 +17,10 @@ void messaging_init(struct messaging_state *m);
 void message_data_race(struct messaging_state *m, unsigned int eip,
 		       unsigned int most_recent_syscall, bool confirmed);
 
-void message_estimate(struct messaging_state *m, long double proportion,
-		      unsigned int elapsed_branches, long double total_usecs,
-		      unsigned long elapsed_usecs);
+/* returns the # of useconds that landslide was put to sleep for */
+uint64_t message_estimate(struct messaging_state *m, long double proportion,
+			  unsigned int elapsed_branches, long double total_usecs,
+			  unsigned long elapsed_usecs);
 
 void message_found_a_bug(struct messaging_state *m, const char *trace_filename);
 

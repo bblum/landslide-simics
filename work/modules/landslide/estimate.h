@@ -13,6 +13,10 @@ struct hax;
 struct ls_state;
 struct agent;
 
+/* Returns number of elapsed useconds since last call to this. If there was no
+ * last call, return value is undefined. */
+uint64_t update_time(struct timeval *tv);
+
 /* internal logic used by user_sync. when a thread is identified to be
  * yield-blocked, we may need to undo estimates from tagging it in the past. */
 void untag_blocked_branch(struct hax *ancestor, struct hax *leaf,

@@ -16,6 +16,34 @@
 #include "tree.h"
 #include "variable_queue.h"
 
+uint64_t update_time(struct timeval *tv)
+{
+	struct timeval new_time;
+	int rv = gettimeofday(&new_time, NULL);
+	assert(rv == 0 && "failed to gettimeofday");
+	assert(new_time.tv_usec < 1000000);
+
+	time_t secs = new_time.tv_sec - tv->tv_sec;
+	suseconds_t usecs = new_time.tv_usec - tv->tv_usec;
+
+	tv->tv_sec  = new_time.tv_sec;
+	tv->tv_usec = new_time.tv_usec;
+
+	return (secs * 1000000) + usecs;
+}
+
+static void fudge_time(struct timeval *tv, uint64_t time_asleep)
+{
+	/* Suppose our last save time was X, and our new save time will be X+Y.
+	 * But between there we got suspended for Z time which we don't want to
+	 * count among that. To make the next update_time() call produce Y-Z as
+	 * the result, fudge X to be X+Z instead. X+Y - (X+Z) = Y-Z. */
+	time_t secs_asleep = time_asleep / 1000000;
+	time_t usecs_asleep = time_asleep % 1000000;
+	tv->tv_sec += secs_asleep;
+	tv->tv_usec += usecs_asleep;
+}
+
 /******************************************************************************
  * estimation algorithm / logic
  ******************************************************************************/
@@ -397,6 +425,8 @@ void print_estimates(struct ls_state *ls)
 		 usecs / 1000000, (long double)ls->save.total_usecs / 1000000,
 		 (usecs - (long double)ls->save.total_usecs) / 1000000);
 
-	message_estimate(&ls->mess, proportion, branches,
-			 usecs, ls->save.total_usecs);
+	uint64_t time_asleep =
+		message_estimate(&ls->mess, proportion, branches,
+				 usecs, ls->save.total_usecs);
+	fudge_time(&ls->save.last_save_time, time_asleep);
 }
