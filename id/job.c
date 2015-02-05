@@ -288,8 +288,10 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 		      j->elapsed_branches == 1 ? "" : "s");
 		print_human_friendly_time(&j->estimate_elapsed);
 		PRINT(" elapsed)\n");
-	} else if (pending || j->elapsed_branches == 0) {
+	} else if (pending) {
 		PRINT("Pending...\n");
+	} else if (j->elapsed_branches == 0) {
+		PRINT("Setting up...\n");
 	} else if (blocked) {
 		PRINT(COLOUR_DARK COLOUR_MAGENTA "Deferred... ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);

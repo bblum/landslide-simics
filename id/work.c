@@ -234,6 +234,8 @@ static void *workqueue_thread(void *arg)
 	return NULL;
 }
 
+extern bool verbose;
+#define TOO_MANY_PENDING_JOBS 5
 
 static void print_all_job_stats()
 {
@@ -246,16 +248,25 @@ static void print_all_job_stats()
 	print_human_friendly_time(&time_since_start);
 	PRINT("\n");
 
+	bool summarize_pending = !verbose &&
+		ARRAY_LIST_SIZE(&workqueue) >= TOO_MANY_PENDING_JOBS;
+
 	struct job **j;
 	unsigned int i;
 	ARRAY_LIST_FOREACH(&running_or_done_jobs, i, j) {
 		print_job_stats(*j, false, false);
 	}
-	ARRAY_LIST_FOREACH(&workqueue, i, j) {
-		print_job_stats(*j, true, false);
+	if (!summarize_pending) {
+		ARRAY_LIST_FOREACH(&workqueue, i, j) {
+			print_job_stats(*j, true, false);
+		}
 	}
 	ARRAY_LIST_FOREACH(&blocked_jobs, i, j) {
 		print_job_stats(*j, false, true);
+	}
+	if (summarize_pending) {
+		PRINT("And %d more pending jobs should time allow.\n",
+		      ARRAY_LIST_SIZE(&workqueue));
 	}
 	for (unsigned int i = 0; i < strlen(header); i++) {
 		PRINT("=");
