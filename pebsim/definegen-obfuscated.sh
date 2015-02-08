@@ -389,6 +389,9 @@ echo "#define GUEST_PANIC 0x`get_func cnAky`"
 echo "#define GUEST_KERNEL_MAIN 0x`get_func wJTUxjBIOvQ`"
 echo "#define GUEST_START 0x`get_func _start`"
 
+# Potentially pathos-only...
+echo "#define GUEST_HLT_EXIT 0x`get_func_ret yqI`"
+
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"
 fi

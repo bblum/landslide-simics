@@ -76,7 +76,15 @@ bool symtable_lookup(unsigned int eip, char **func, char **file, int *line)
 
 	/* Copy out the function name and line number. However, need to
 	 * do some checks on the filename before copying it out as well. */
-	*func = MM_XSTRDUP(SIM_attr_string(SIM_attr_list_item(result, 2)));
+	if (testing_userspace() && eip == GUEST_CONTEXT_SWITCH_ENTER) {
+		*func = MM_XSTRDUP("[context switch]");
+#ifdef GUEST_HLT_EXIT
+	} else if (testing_userspace() && eip == GUEST_HLT_EXIT) {
+		*func = MM_XSTRDUP("[kernel idle]");
+#endif
+	} else {
+		*func = MM_XSTRDUP(SIM_attr_string(SIM_attr_list_item(result, 2)));
+	}
 	const char *maybe_file = SIM_attr_string(SIM_attr_list_item(result, 0));
 	*line = SIM_attr_integer(SIM_attr_list_item(result, 1));
 
