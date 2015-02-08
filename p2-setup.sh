@@ -45,7 +45,8 @@ ln -s $CONFIG config.landslide || die "couldn't create config symlink"
 
 cd p2-basecode || die "couldn't cd into p2 basecode directory"
 
-msg "Importing your p2 into '$PWD' - look there if something goes wrong..."
+P2DIR="$PWD"
+msg "Importing your p2 into '$P2DIR' - look there if something goes wrong..."
 
 ./import-p2.sh "$1" || die "could not import your p2"
 
@@ -54,6 +55,15 @@ PATH=/afs/cs/academic/class/15410-f14/bin/:$PATH make || die "import p2 was succ
 cp bootfd.img ../../pebsim/ || die "couldn't move floppy disk image (from '$PWD')"
 cp kernel ../../pebsim/ || die "couldn't move kernel binary (from '$PWD')"
 
+cd ../../pebsim/ || die "couldn't cd into pebsim"
+
+msg "Setting up Landslide..."
+
+export LANDSLIDE_CONFIG=config.landslide
+./build.sh || die "Failed to compile landslide. Please send a tarball of this directory to Ben for assistance."
+
+echo -ne '\033[01;33m'
+echo "Note: Your P2 was imported into '$P2DIR'. If you wish to make changes to it, recommend editing it in '$1' then running this script again."
 echo -ne '\033[01;32m'
 echo "Setup successful. Can now run ./landslide."
 echo -ne '\033[00m'
