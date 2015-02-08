@@ -241,5 +241,6 @@ fi
 if [ ! -f $STUDENT ]; then
 	die "$STUDENT doesn't seem to exist yet. Please implement it."
 fi
-(cd ../work && make) || die "Building landslide failed."
+# XXX FIXME: Shouldn't need to 'make clean' here. But trying to hack around bug #114.
+(cd ../work && make clean && make) || die "Building landslide failed."
 success "Build succeeded."
