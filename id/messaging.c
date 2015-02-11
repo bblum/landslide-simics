@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "bug.h"
@@ -232,6 +233,19 @@ static bool handle_should_continue(struct job *j)
 
 static void handle_crash(struct job *j, struct input_message *m)
 {
+	WRITE_LOCK(&j->stats_lock);
+	j->cancelled = true;
+	RW_UNLOCK(&j->stats_lock);
+
+	// XXX (issue #88): Support this properly.
+	char *is_atomic_dr_issue =
+		strstr(m->content.crash_report.assert_message,
+		       "Data races on xchg/atomic instructions is unsupported");
+	if (is_atomic_dr_issue != NULL) {
+		DBG("[JOB %d] Cancelling job due to atomic-DR-PP issue #88.\n", j->id);
+		return;
+	}
+
 	ERR("[JOB %d] Landslide crashed. The assert message was: %s\n",
 	    j->id, m->content.crash_report.assert_message);
 	ERR("[JOB %d] For more detail see stderr log file: %s\n",
@@ -245,16 +259,12 @@ static void handle_crash(struct job *j, struct input_message *m)
 		    pp->priority == PRIORITY_DR_CONFIRMED) {
 			if (!any_drs) {
 				any_drs = true;
-				ERR("[JOB %d] However, please manually inspect "
-				    "the following data race(s):\n", j->id);
+				ERR("[JOB %d] However, you may wish to manually"
+				    "inspect the following data race(s):\n", j->id);
 			}
 			ERR("[JOB %d] %s\n", j->id, pp->config_str);
 		}
 	}
-
-	WRITE_LOCK(&j->stats_lock);
-	j->cancelled = true;
-	RW_UNLOCK(&j->stats_lock);
 }
 
 static void move_trace_file(const char *trace_filename)
