@@ -651,26 +651,6 @@ static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 	}
 }
 
-/* Students: don't modify this check. Honor code! */
-#define ACCESS_FILE "/afs/andrew/usr12/bblum/www/landslide-whitelist/access"
-#define LOGIN_REJECTED "ERROR: You are not on the access white-list to use " \
-			"Landslide. You and your partner must complete the " \
-			"sign-up checklist for access, available at: http://" \
-			"www.contrib.andrew.cmu.edu/~bblum/landslide-sign-up.pdf"
-
-static void check_access_for_p2()
-{
-	int fd = open(ACCESS_FILE, O_RDONLY);
-	if (fd == -1) {
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "%s\n", LOGIN_REJECTED);
-		assert(false && LOGIN_REJECTED);
-	} else {
-		lsprintf(DEV, "user on whitelist - access granted.\n");
-		close(fd);
-	}
-}
-
-
 /******************************************************************************
  * interface
  ******************************************************************************/
@@ -688,7 +668,6 @@ void save_init(struct save_state *ss)
 	ss->total_usecs = 0;
 
 	update_time(&ss->last_save_time);
-	check_access_for_p2();
 }
 
 void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
