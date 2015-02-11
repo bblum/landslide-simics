@@ -194,11 +194,15 @@ void free_pp_set(struct pp_set *set)
 void print_pp_set(struct pp_set *set, bool short_strs)
 {
 	struct pp *pp;
+	// FIXME: clean this up
 	printf("{ ");
+	log_msg(NULL, "{ ");
 	FOR_EACH_PP(pp, set) {
 		printf("'%s' ", short_strs ? pp->short_str : pp->config_str);
+		log_msg(NULL, "'%s' ", short_strs ? pp->short_str : pp->config_str);
 	}
 	printf("}");
+	log_msg(NULL, "}");
 }
 
 bool pp_set_contains(struct pp_set *set, struct pp *pp)
