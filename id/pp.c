@@ -28,12 +28,13 @@ static struct pp **registry = NULL; /* NULL means not yet initialized */
  * PP registry
  ******************************************************************************/
 
-static struct pp *pp_append(char *config_str, char *short_str,
+static struct pp *pp_append(char *config_str, char *short_str, char *long_str,
 			    unsigned int priority, unsigned int generation)
 {
 	struct pp *pp = XMALLOC(1, struct pp);
 	pp->config_str = config_str;
 	pp->short_str  = short_str;
+	pp->long_str   = long_str;
 	pp->priority   = priority;
 	pp->id         = next_id;
 	pp->generation = generation;
@@ -73,11 +74,13 @@ static void check_init() {
 			struct pp *pp = pp_append(
 				XSTRDUP("within_user_function mutex_lock"),
 				XSTRDUP("mutex_lock"),
+				XSTRDUP("<at beginning of mutex_lock>"),
 				PRIORITY_MUTEX_LOCK, max_generation);
 			assert(pp->id == 0);
 			pp = pp_append(
 				XSTRDUP("within_user_function mutex_unlock"),
 				XSTRDUP("mutex_unlock"),
+				XSTRDUP("<at end of mutex_unlock>"),
 				PRIORITY_MUTEX_UNLOCK, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
@@ -86,8 +89,8 @@ static void check_init() {
 	}
 }
 
-struct pp *pp_new(char *config_str, char *short_str, unsigned int priority,
-		  unsigned int generation, bool *duplicate)
+struct pp *pp_new(char *config_str, char *short_str, char *long_str,
+		  unsigned int priority, unsigned int generation, bool *duplicate)
 {
 	struct pp *result;
 	bool already_present = false;
@@ -113,8 +116,12 @@ struct pp *pp_new(char *config_str, char *short_str, unsigned int priority,
 
 	if (!already_present) {
 		DBG("adding new pp '%s' priority %d\n", config_str, priority);
+		if (priority == PRIORITY_DR_CONFIRMED ||
+		    priority == PRIORITY_DR_SUSPECTED) {
+			WARN("Found a potentially-racy access at %s\n", long_str);
+		}
 		result = pp_append(XSTRDUP(config_str), XSTRDUP(short_str),
-				   priority, generation);
+				   XSTRDUP(long_str), priority, generation);
 	}
 	RW_UNLOCK(&pp_registry_lock);
 	return result;

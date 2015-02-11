@@ -17,6 +17,7 @@
 #include "estimate.h"
 #include "messaging.h"
 #include "student_specifics.h"
+#include "symtable.h"
 
 /* Spec. */
 
@@ -39,6 +40,7 @@ struct output_message {
 			unsigned int eip;
 			unsigned int most_recent_syscall;
 			bool confirmed;
+			char pretty_printed[MESSAGE_BUF_SIZE];
 		} dr;
 
 		struct {
@@ -148,6 +150,25 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	m.content.dr.eip = eip;
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;
+	/* pretty print the data race addr to propagate to master program */
+	char *func;
+	char *file;
+	int line;
+	bool res = symtable_lookup(eip, &func, &file, &line);
+	if (!res || func == NULL) {
+		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
+			  "0x%.8x <unknown>", eip);
+	} else if (file == NULL) {
+		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
+			  "0x%.8x in %s <source unknown>", eip, func);
+	} else {
+		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
+			  "0x%.8x in %s (%s:%d)", eip, func, file, line);
+	}
+	if (res) {
+		if (func != NULL) MM_FREE(func);
+		if (file != NULL) MM_FREE(file);
+	}
 	send(state, &m);
 }
 

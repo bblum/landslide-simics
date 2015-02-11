@@ -40,6 +40,7 @@ struct input_message {
 			unsigned int eip;
 			unsigned int most_recent_syscall;
 			bool confirmed;
+			char pretty_printed[MESSAGE_BUF_SIZE];
 		} dr;
 
 		struct {
@@ -98,7 +99,7 @@ extern bool control_experiment;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			     unsigned int eip, bool confirmed,
-			     unsigned int most_recent_syscall)
+			     unsigned int most_recent_syscall, char *pretty)
 {
 	/* register a (possibly) new PP based on the data race */
 	bool duplicate;
@@ -109,7 +110,7 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 
 	unsigned int priority = confirmed ?
 		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
-	struct pp *pp = pp_new(config_str, short_str, priority,
+	struct pp *pp = pp_new(config_str, short_str, pretty, priority,
 			       j->generation, &duplicate);
 
 	/* If the data race PP is not already enabled in this job's config,
@@ -323,7 +324,8 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 		} else if (m.tag == DATA_RACE) {
 			handle_data_race(j, &discovered_pps, m.content.dr.eip,
 					 m.content.dr.confirmed,
-					 m.content.dr.most_recent_syscall);
+					 m.content.dr.most_recent_syscall,
+					 m.content.dr.pretty_printed);
 		} else if (m.tag == ESTIMATE) {
 			handle_estimate(state, j, m.content.estimate.proportion,
 					m.content.estimate.elapsed_branches,

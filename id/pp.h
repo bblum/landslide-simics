@@ -24,6 +24,7 @@ struct pp {
 	/* all read-only once created */
 	char *config_str; /* e.g., "data_race 0xdeadbeef 0x47" */
 	char *short_str;
+	char *long_str;
 	unsigned int priority;
 	unsigned int id; /* global unique identifier among PPs */
 	unsigned int generation;
@@ -38,8 +39,8 @@ struct pp_set {
 };
 
 /* pp registry functions */
-struct pp *pp_new(char *config_str, char *short_str, unsigned int priority,
-		    unsigned int generation, bool *duplicate);
+struct pp *pp_new(char *config_str, char *short_str, char *long_str,
+		  unsigned int priority, unsigned int generation, bool *duplicate);
 struct pp *pp_get(unsigned int id);
 
 /* pp set manipulation functions */
