@@ -97,7 +97,7 @@ static void begin_html_output(const char *filename, struct fab_html_env *env) {
 	HTML_PRINTF(env, "</title><style>\n");
 	HTML_PRINTF(env, "table,th,td { border:1px solid black; }\n");
 	HTML_PRINTF(env, "</style></head><body>\n");
-	HTML_PRINTF(env, "<marquee>&iexcl;CUIDADO! &iexcl;LAS LLAMAS SON MUY PELIGROSAS!</marquee>\n");
+	//HTML_PRINTF(env, "<marquee>&iexcl;CUIDADO! &iexcl;LAS LLAMAS SON MUY PELIGROSAS!</marquee>\n");
 }
 
 static void end_html_output(struct fab_html_env *env) {
