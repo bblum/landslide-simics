@@ -106,25 +106,6 @@ static void recv(struct messaging_state *state, struct input_message *m) {
 
 #endif
 
-/* Students: don't modify this check. Honor code! */
-#define ACCESS_FILE "/afs/andrew/usr12/bblum/www/landslide-whitelist/access"
-#define LOGIN_REJECTED "ERROR: You are not on the access white-list to use " \
-			"Landslide. You and your partner must complete the " \
-			"sign-up checklist for access, available at: http://" \
-			"www.contrib.andrew.cmu.edu/~bblum/landslide-sign-up.pdf"
-
-static void check_access_for_p2()
-{
-	int fd = open(ACCESS_FILE, O_RDONLY);
-	if (fd == -1) {
-		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "%s\n", LOGIN_REJECTED);
-		assert(false && LOGIN_REJECTED);
-	} else {
-		lsprintf(DEV, "user on whitelist - access granted.\n");
-		close(fd);
-	}
-}
-
 /******************************************************************************
  * messaging logic
  ******************************************************************************/
@@ -154,7 +135,6 @@ void messaging_init(struct messaging_state *state)
 #else
 	STATIC_ASSERT(false && "ID magic but INPUT_PIPE not defined");
 #endif
-	check_access_for_p2();
 #else
 	/* Not running in ID wrapper. Nothing to initialize. */
 #endif

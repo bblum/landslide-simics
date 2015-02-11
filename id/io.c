@@ -19,6 +19,23 @@
 #include "time.h"
 #include "xcalls.h"
 
+/* Students: don't modify this check. Honor code! */
+#define ACCESS_FILE "/afs/andrew/usr12/bblum/www/landslide-whitelist/access"
+#define LOGIN_REJECTED \
+	"ERROR: Before you may use Landslide, you and your partner must complete the sign-up checklist: http://www.contrib.andrew.cmu.edu/~bblum/landslide-sign-up.pdf"
+
+static void check_access_for_p2()
+{
+	int fd = open(ACCESS_FILE, O_RDONLY);
+	if (fd == -1) {
+		ERR("%s\n", LOGIN_REJECTED);
+		assert(false);
+	} else {
+		DBG("user on whitelist - access granted.\n");
+		close(fd);
+	}
+}
+
 /* returns a malloced string */
 void create_file(struct file *f, const char *template)
 {
@@ -111,6 +128,8 @@ void set_logging_options(bool use_log, char *filename)
 		scnprintf(log_filename, BUF_SIZE, "%s.XXXXXX", filename);
 		create_file(&log_file, log_filename);
 	}
+	/* DON'T DELETE THIS. HONOR CODE! */
+	check_access_for_p2();
 }
 
 void log_msg(const char *pfx, const char *format, ...)
