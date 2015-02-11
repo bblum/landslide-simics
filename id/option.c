@@ -119,9 +119,9 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	/* Set up cmdline options & their default values */
 	unsigned int system_cpus = get_nprocs();
 	assert(system_cpus > 0);
-	char all_but_one_cpus[BUF_SIZE];
-	scnprintf(all_but_one_cpus, BUF_SIZE, "%u",
-		  MAX((unsigned int)1, system_cpus - 1));
+	char half_the_cpus[BUF_SIZE];
+	scnprintf(half_the_cpus, BUF_SIZE, "%u",
+		  MAX((unsigned int)1, system_cpus / 2));
 
 	ARRAY_LIST_INIT(&cmdline_options, 16);
 
@@ -173,7 +173,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 
 	DEF_CMDLINE_OPTION('p', test_name, "Userspace test program name", DEFAULT_TEST_CASE);
 	DEF_CMDLINE_OPTION('t', max_time, "Total CPU time budget (suffix s/m/d/h/y)", DEFAULT_TIME);
-	DEF_CMDLINE_OPTION('c', num_cpus, "Max parallelism factor", all_but_one_cpus);
+	DEF_CMDLINE_OPTION('c', num_cpus, "Max parallelism factor", half_the_cpus);
 	DEF_CMDLINE_OPTION('i', interval, "Progress report interval", DEFAULT_PROGRESS_INTERVAL);
 	DEF_CMDLINE_OPTION('e', eta_factor, "ETA factor heuristic (see comments in source code)", DEFAULT_ETA_FACTOR);
 	DEF_CMDLINE_OPTION('E', eta_thresh, "ETA threshold heuristic (see source code)", DEFAULT_ETA_STABILITY_THRESHOLD);
