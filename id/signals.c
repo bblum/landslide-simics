@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "pp.h"
 #include "signals.h"
 
 static void handle_sigint(int MAYBE_UNUSED signum)
@@ -21,6 +22,7 @@ static void handle_sigint(int MAYBE_UNUSED signum)
 	pid_t me = syscall(SYS_gettid);
 	DBG("ctrl-C press handled by thread %u\n", me);
 	ERR("ctrl-C pressed, aborting...\n");
+	try_print_live_data_race_pps();
 	exit(ID_EXIT_CRASH);
 }
 

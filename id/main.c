@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK), true));
 	start_work(num_cpus, progress_interval);
 	wait_to_finish_work();
+	print_live_data_race_pps();
 
 	return found_any_bugs() ? ID_EXIT_BUG_FOUND : ID_EXIT_SUCCESS;
 }

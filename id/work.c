@@ -185,7 +185,10 @@ static void process_work(struct job *j, bool was_blocked)
 		} else {
 			/* Job ran to completion. */
 			// DBG("[JOB %d] process(): after waiting, job complete\n", j->id);
-			record_explored_pps(j->config);
+			READ_LOCK(&j->stats_lock);
+			unsigned int elapsed_branches = j->elapsed_branches;
+			RW_UNLOCK(&j->stats_lock);
+			record_explored_pps(j->config, elapsed_branches);
 		}
 	}
 }

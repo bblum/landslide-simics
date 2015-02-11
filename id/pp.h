@@ -43,6 +43,9 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 		  unsigned int priority, unsigned int generation, bool *duplicate);
 struct pp *pp_get(unsigned int id);
 
+void print_live_data_race_pps();
+void try_print_live_data_race_pps(); /* signal handler safe; may do nothing. */
+
 /* pp set manipulation functions */
 struct pp_set *create_pp_set(unsigned int pp_mask);
 struct pp_set *clone_pp_set(struct pp_set *set);
@@ -54,7 +57,7 @@ struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
 bool pp_set_contains(struct pp_set *set, struct pp *pp);
 
 unsigned int compute_generation(struct pp_set *set);
-void record_explored_pps(struct pp_set *set);
+void record_explored_pps(struct pp_set *set, unsigned int elapsed_branches);
 struct pp_set *filter_unexplored_pps(struct pp_set *set);
 unsigned int unexplored_priority(struct pp_set *set);
 
@@ -64,5 +67,8 @@ unsigned int unexplored_priority(struct pp_set *set);
 
 #define MAKE_DR_PP_STR(buf, maxlen, eip, mrs)	\
 	scnprintf((buf), (maxlen), "data_race 0x%x 0x%x", (eip), (mrs))
+
+#define IS_DATA_RACE(priority) \
+	((priority) == PRIORITY_DR_CONFIRMED || (priority) == PRIORITY_DR_SUSPECTED)
 
 #endif

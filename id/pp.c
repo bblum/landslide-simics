@@ -116,8 +116,7 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 
 	if (!already_present) {
 		DBG("adding new pp '%s' priority %d\n", config_str, priority);
-		if (priority == PRIORITY_DR_CONFIRMED ||
-		    priority == PRIORITY_DR_SUSPECTED) {
+		if (IS_DATA_RACE(priority)) {
 			WARN("Found a potentially-racy access at %s\n", long_str);
 		}
 		result = pp_append(XSTRDUP(config_str), XSTRDUP(short_str),
@@ -136,6 +135,53 @@ struct pp *pp_get(unsigned int id)
 	RW_UNLOCK(&pp_registry_lock);
 	assert(result->id == id && "inconsistent PP id in PP registry");
 	return result;
+}
+
+static void _print_live_data_race_pps_unlocked()
+{
+	bool any_exist = false;
+	for (unsigned int i = 0; i < next_id; i++) {
+		struct pp *pp = registry[i];
+		if (IS_DATA_RACE(pp->priority) && !pp->explored) {
+			// XXX: Better way of figuring out how to suppress
+			// unreadable obfuscated kernel addresses.
+			const char *gross_special_case = "0x00102917";
+			if (0 == strncmp(pp->long_str, gross_special_case,
+					 strlen(gross_special_case))) {
+				continue;
+			}
+			if (!any_exist) {
+				/* first one such found; print header */
+				any_exist = true;
+				WARN("NOTE: I discovered the following "
+				     "POTENTIALLY-RACY accesses,\n");
+				WARN("but was not able to confirm them either "
+				     "way as benign or buggy.\n");
+				WARN("You may wish to inspect them manually, "
+				     "if the following info is convenient:\n");
+			}
+			WARN("Data race at %s\n", pp->long_str);
+		}
+	}
+}
+
+void print_live_data_race_pps()
+{
+	READ_LOCK(&pp_registry_lock);
+	_print_live_data_race_pps_unlocked();
+	RW_UNLOCK(&pp_registry_lock);
+}
+
+/* Signal-handler-safe. */
+void try_print_live_data_race_pps()
+{
+	int ret = pthread_rwlock_tryrdlock(&pp_registry_lock);
+	if (ret == 0) {
+		_print_live_data_race_pps_unlocked();
+		RW_UNLOCK(&pp_registry_lock);
+	} else {
+		DBG("Couldn't get PP registry lock to print DR PPs.\n");
+	}
 }
 
 /******************************************************************************
@@ -264,7 +310,7 @@ unsigned int compute_generation(struct pp_set *set)
 	return max_generation;
 }
 
-void record_explored_pps(struct pp_set *set)
+void record_explored_pps(struct pp_set *set, unsigned int elapsed_branches)
 {
 	struct pp *pp;
 	/* nb. iteration takes the read lock */
@@ -272,7 +318,12 @@ void record_explored_pps(struct pp_set *set)
 		/* strictly speaking the lock is not needed to protect the
 		 * explored flag, as it's write-once. */
 		WRITE_LOCK(&pp_registry_lock);
-		pp->explored = true;
+		/* If a data race PP was supposedly "all explored" in a state
+		 * space with only 1 branch, most likely it didn't show up
+		 * at all. So don't listen to that state space; keep it live. */
+		if (!IS_DATA_RACE(pp->priority) || elapsed_branches > 1) {
+			pp->explored = true;
+		}
 		RW_UNLOCK(&pp_registry_lock);
 	}
 }
