@@ -50,7 +50,7 @@ msg "Importing your p2 into '$P2DIR' - look there if something goes wrong..."
 
 ./import-p2.sh "$1" || die "could not import your p2"
 
-PATH=/afs/cs/academic/class/15410-s15/bin/:$PATH make || die "import p2 was successful, but build failed (from '$PWD')"
+PATH=/afs/cs.cmu.edu/academic/class/15410-s15/bin/:$PATH make || die "import p2 was successful, but build failed (from '$PWD')"
 
 cp bootfd.img ../../pebsim/ || die "couldn't move floppy disk image (from '$PWD')"
 cp kernel ../../pebsim/ || die "couldn't move kernel binary (from '$PWD')"
