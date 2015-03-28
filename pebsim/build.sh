@@ -170,21 +170,14 @@ function verify_tell {
 	fi
 }
 
-if [ "$OBFUSCATED_KERNEL" = 1 ]; then
-	verify_tell esZREVcyfbPsQoxwXxGdcy
-	verify_tell vhVvYAjGpsbRLTUgHVOKHOTKitUd
-	verify_tell ZlsuZyULncpscbkzngcjwKMxYTs
-	verify_tell sDaRkslyaZLuPxZWEPYXSSIGflzC
-	verify_tell QZUSpPBeeuyaxvNOTPDskqBkRLlYaz
-	verify_tell CHYodnfPjUDNzVkjLEwcuFJs
-else
-	verify_tell tell_landslide_forking
-	verify_tell tell_landslide_thread_off_rq
-	verify_tell tell_landslide_thread_on_rq
-	verify_tell tell_landslide_thread_switch
-	verify_tell tell_landslide_sched_init_done
-	verify_tell tell_landslide_vanishing
-fi
+source ./symbols.sh
+
+verify_tell "$TL_FORKING"
+verify_tell "$TL_OFF_RQ"
+verify_tell "$TL_ON_RQ"
+verify_tell "$TL_SWITCH"
+verify_tell "$TL_INIT_DONE"
+verify_tell "$TL_VANISH"
 
 if [ ! -z "$MISSING_ANNOTATIONS" ]; then
 	die "Please fix the missing annotations."
@@ -241,11 +234,7 @@ msg "Generating simics config..."
 ./configgen.sh > landslide-config.py || die "configgen.sh failed."
 if [ -z "$SKIP_HEADER" ]; then
 	msg "Generating header file..."
-	if [ "$OBFUSCATED_KERNEL" = 0 ]; then
-		./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
-	else
-		./definegen-obfuscated.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
-	fi
+	./definegen.sh > $HEADER || (rm -f $HEADER; die "definegen.sh failed.")
 else
 	msg "Header already generated; skipping."
 fi

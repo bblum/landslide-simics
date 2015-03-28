@@ -183,7 +183,11 @@ VERBOSE=0
 EXTRA_VERBOSE=0
 TABULAR_TRACE=0
 ALLOW_LOCK_HANDOFF=0
+OBFUSCATED_KERNEL=0
+PINTOS_KERNEL=0
 source $CONFIG
+
+source ./symbols.sh
 
 ########################################
 #### Reading config from ID wrapper ####
@@ -269,7 +273,7 @@ echo
 #### TCB management ####
 ########################
 
-echo "#define GUEST_ESP0_ADDR (0x`get_sym init_tss` + 4)" # see 410kern/x86/asm.S
+echo "#define GUEST_ESP0_ADDR (0x`get_sym $INIT_TSS` + 4)" # see 410kern/x86/asm.S
 
 ###################################
 #### Thread lifecycle tracking ####
@@ -325,6 +329,31 @@ fi
 
 echo
 
+# XXX HACK. pathos-only, for userspace data race optimization.
+# This is way less general than it could be.
+if [ "$OBFUSCATED_KERNEL" = 1 ]; then
+	function pathos_syscall {
+		ADDR=`get_func $2`
+		if [ ! -z "$ADDR" ]; then
+			echo "#define PATHOS_${1}_ENTER 0x$ADDR"
+		else
+			die "$2 missing in pathos"
+		fi
+		ADDR=`get_func_ret $2`
+		if [ ! -z "$ADDR" ]; then
+			echo "#define PATHOS_${1}_EXIT 0x$ADDR"
+		else
+			die "$2 seems noreturn in pathos?"
+		fi
+	}
+
+	pathos_syscall DESCH wpucGHGqlcxjMT
+	pathos_syscall WAIT bIGnbhGy
+	pathos_syscall PRINT KXBFbHfAm
+	pathos_syscall GCP aXJMTsOgxhAQSNySVq
+	pathos_syscall RF IQNTOABvZgFO
+fi
+
 ######################################
 #### Mutexes / Deadlock detection ####
 ######################################
@@ -336,18 +365,18 @@ echo
 ###################################
 
 # Pebbles user shouldn't need to change this.
-echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func lmm_alloc`"
-echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_ret lmm_alloc`"
+echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func $LMM_ALLOC`"
+echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_ret $LMM_ALLOC`"
 echo "#define GUEST_LMM_ALLOC_SIZE_ARGNUM 2"
-echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func lmm_alloc_gen`"
-echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret lmm_alloc_gen`"
+echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func $LMM_ALLOC_GEN`"
+echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret $LMM_ALLOC_GEN`"
 echo "#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM 2"
-echo "#define GUEST_LMM_FREE_ENTER       0x`get_func lmm_free`"
-echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret lmm_free`"
+echo "#define GUEST_LMM_FREE_ENTER       0x`get_func $LMM_FREE`"
+echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret $LMM_FREE`"
 echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
 echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
-echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func lmm_remove_free`"
-echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret lmm_remove_free`"
+echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func $LMM_REMOVE_FREE`"
+echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret $LMM_REMOVE_FREE`"
 
 echo
 
@@ -362,9 +391,12 @@ echo "#define GUEST_DATA_END 0x`get_sym _edata`" # Everything is awful forever.
 echo "#define GUEST_BSS_START 0x`get_sym __bss_start`"
 echo "#define GUEST_BSS_END GUEST_IMG_END"
 
-echo "#define GUEST_PANIC 0x`get_func panic`"
-echo "#define GUEST_KERNEL_MAIN 0x`get_func kernel_main`"
+echo "#define GUEST_PANIC 0x`get_func $KERN_PANIC`"
+echo "#define GUEST_KERNEL_MAIN 0x`get_func $KERN_MAIN`"
 echo "#define GUEST_START 0x`get_func _start`"
+
+# Potentially pathos-only...
+echo "#define GUEST_HLT_EXIT 0x`get_func_ret $KERN_HLT`"
 
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"
@@ -477,22 +509,22 @@ echo
 #### In-kernel annotations ####
 ###############################
 
-echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func tell_landslide_preempt`"
-echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func tell_landslide_thread_switch`"
-echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func tell_landslide_sched_init_done`"
-echo "#define TELL_LANDSLIDE_FORKING 0x`get_func tell_landslide_forking`"
-echo "#define TELL_LANDSLIDE_VANISHING 0x`get_func tell_landslide_vanishing`"
-echo "#define TELL_LANDSLIDE_SLEEPING 0x`get_func tell_landslide_sleeping`"
-echo "#define TELL_LANDSLIDE_THREAD_RUNNABLE 0x`get_func tell_landslide_thread_on_rq`"
-echo "#define TELL_LANDSLIDE_THREAD_DESCHEDULING 0x`get_func tell_landslide_thread_off_rq`"
-echo "#define TELL_LANDSLIDE_MUTEX_LOCKING 0x`get_func tell_landslide_mutex_locking`"
-echo "#define TELL_LANDSLIDE_MUTEX_BLOCKING 0x`get_func tell_landslide_mutex_blocking`"
-echo "#define TELL_LANDSLIDE_MUTEX_LOCKING_DONE 0x`get_func tell_landslide_mutex_locking_done`"
-echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING 0x`get_func tell_landslide_mutex_unlocking`"
-echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func tell_landslide_mutex_unlocking_done`"
-echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING 0x`get_func tell_landslide_mutex_trylocking`"
-echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE 0x`get_func tell_landslide_mutex_trylocking_done`"
-echo "#define TELL_LANDSLIDE_DUMP_STACK 0x`get_func tell_landslide_dump_stack`"
+echo "#define TELL_LANDSLIDE_DECIDE 0x`get_func $TL_DECIDE`"
+echo "#define TELL_LANDSLIDE_THREAD_SWITCH 0x`get_func $TL_SWITCH`"
+echo "#define TELL_LANDSLIDE_SCHED_INIT_DONE 0x`get_func $TL_INIT_DONE`"
+echo "#define TELL_LANDSLIDE_FORKING 0x`get_func $TL_FORKING`"
+echo "#define TELL_LANDSLIDE_VANISHING 0x`get_func $TL_VANISH`"
+echo "#define TELL_LANDSLIDE_SLEEPING 0x`get_func $TL_SLEEP`"
+echo "#define TELL_LANDSLIDE_THREAD_RUNNABLE 0x`get_func $TL_ON_RQ`"
+echo "#define TELL_LANDSLIDE_THREAD_DESCHEDULING 0x`get_func $TL_OFF_RQ`"
+echo "#define TELL_LANDSLIDE_MUTEX_LOCKING 0x`get_func $TL_MX_LOCK`"
+echo "#define TELL_LANDSLIDE_MUTEX_BLOCKING 0x`get_func $TL_MX_BLOCK`"
+echo "#define TELL_LANDSLIDE_MUTEX_LOCKING_DONE 0x`get_func $TL_MX_LOCK_DONE`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING 0x`get_func $TL_MX_UNLOCK`"
+echo "#define TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE 0x`get_func $TL_MX_UNLOCK_DONE`"
+echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING 0x`get_func $TL_MX_TRYLOCK`"
+echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE 0x`get_func $TL_MX_TRYLOCK_DONE`"
+echo "#define TELL_LANDSLIDE_DUMP_STACK 0x`get_func $TL_STACK`"
 
 echo
 
