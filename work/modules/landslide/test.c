@@ -84,7 +84,8 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 		return true;
 	}
 
-	/* */
+	/* Figure out what the shell is doing - running or waiting? */
+	assert(kern_has_shell() && "Pebbles kernel must have shell!");
 	if ((shell = agent_by_tid_or_null(&s->rq, kern_get_shell_tid())) ||
 	    (shell = agent_by_tid_or_null(&s->dq, kern_get_shell_tid()))) {
 		if (shell->action.readlining) {

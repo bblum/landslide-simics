@@ -175,7 +175,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
  * current thread or any other thread), and sets 'our_choice' to false if
  * somebody else already made this choice for us, true otherwise. */
 #define IS_IDLE(ls, a)							\
-	(kern_has_idle() && (a)->tid == kern_get_idle_tid() &&		\
+	(TID_IS_IDLE((a)->tid) &&					\
 	 BUG_ON_THREADS_WEDGED != 0 && (ls)->test.test_ever_caused &&	\
 	 (ls)->test.start_population != (ls)->sched.most_agents_ever)
 bool arbiter_choose(struct ls_state *ls, struct agent *current,

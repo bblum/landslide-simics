@@ -457,7 +457,20 @@ int kern_get_idle_tid()
 /* the tid of the shell (OK to assume the first shell never exits). */
 int kern_get_shell_tid()
 {
+#ifdef GUEST_SHELL_TID
 	return GUEST_SHELL_TID;
+#else
+	assert(false && "This kernel does not have a shell!");
+#endif
+}
+
+bool kern_has_shell()
+{
+#ifdef GUEST_SHELL_TID
+	return true;
+#else
+	return false;
+#endif
 }
 
 /* Which thread runs first on kernel init? */

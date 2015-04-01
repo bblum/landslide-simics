@@ -166,6 +166,7 @@ if [ ! -f "$CONFIG" ]; then
 fi
 TIMER_WRAPPER_DISPATCH=
 IDLE_TID=
+SHELL_TID=
 CONTEXT_SWITCH_RETURN=
 CONTEXT_SWITCH_2=
 EXEC=
@@ -550,7 +551,9 @@ echo -e "#define GUEST_SCHEDULER_GLOBALS { $IGNORE_SYMS }"
 echo
 
 echo "#define GUEST_INIT_TID $INIT_TID"
-echo "#define GUEST_SHELL_TID $SHELL_TID"
+if [ ! -z "$SHELL_TID" ]; then
+	echo "#define GUEST_SHELL_TID $SHELL_TID"
+fi
 echo "#define GUEST_FIRST_TID $FIRST_TID"
 if [ -z "$IDLE_TID" ]; then
 	echo "#ifdef GUEST_IDLE_TID"

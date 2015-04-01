@@ -71,7 +71,11 @@ int kern_get_init_tid(void);
 int kern_get_idle_tid(void);
 int kern_get_shell_tid(void);
 int kern_get_first_tid(void);
+bool kern_has_shell(void);
 bool kern_has_idle(void);
+#define TID_IS_INIT(tid) ((tid) == kern_get_init_tid())
+#define TID_IS_SHELL(tid) (kern_has_shell() && (tid) == kern_get_shell_tid())
+#define TID_IS_IDLE(tid) (kern_has_idle() && (tid) == kern_get_idle_tid())
 void kern_init_threads(struct sched_state *,
 		       void (*)(struct sched_state *, unsigned int, bool));
 bool kern_current_extra_runnable(conf_object_t *cpu);

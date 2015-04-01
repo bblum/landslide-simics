@@ -75,9 +75,8 @@ static bool ignore_user_access(struct ls_state *ls)
 		 * when doing a kernel test we cannot, so instead we have to
 		 * ignore all user accesses entirely. */
 		return true;
-	} else if (current_tid == kern_get_init_tid() ||
-	    current_tid == kern_get_shell_tid() ||
-	    (kern_has_idle() && current_tid == kern_get_idle_tid())) {
+	} else if (TID_IS_INIT(current_tid) || TID_IS_SHELL(current_tid) ||
+		   TID_IS_IDLE(current_tid)) {
 		return true;
 	} else if (ls->user_mem.cr3 == USER_CR3_WAITING_FOR_THUNDERBIRDS) {
 		ls->user_mem.cr3 = USER_CR3_WAITING_FOR_EXEC;

@@ -1134,12 +1134,11 @@ void sched_update(struct ls_state *ls)
 			assert(0);
 		}
 		/* Some debug info to help the studence. */
-		if (CURRENT(s, tid) == kern_get_init_tid()) {
+		if (TID_IS_INIT(CURRENT(s, tid))) {
 			lskprintf(DEV, "Now running init.\n");
-		} else if (CURRENT(s, tid) == kern_get_shell_tid()) {
+		} else if (TID_IS_SHELL(CURRENT(s, tid))) {
 			lskprintf(DEV, "Now running shell.\n");
-		} else if (kern_has_idle() &&
-			   CURRENT(s, tid) == kern_get_idle_tid()) {
+		} else if (TID_IS_IDLE(CURRENT(s, tid))) {
 			lskprintf(DEV, "Now idling.\n");
 		}
 	}

@@ -264,9 +264,8 @@ static unsigned int count_distinct_user_threads(table_column_map_t *map)
 	unsigned int count = 0;
 	unsigned int *tidp;
 	ARRAY_LIST_FOREACH(map, i, tidp) {
-		if (*tidp != kern_get_init_tid() &&
-		    *tidp != kern_get_shell_tid() &&
-		    !(kern_has_idle() && *tidp == kern_get_idle_tid())) {
+		if (!(TID_IS_INIT(*tidp) || TID_IS_SHELL(*tidp) ||
+		      TID_IS_IDLE(*tidp))) {
 			count++;
 		}
 	}
@@ -363,11 +362,11 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			HTML_PRINTF(&env, "<td><div style=\"%s\">",
 				    "font-size:large;text-align:center");
 			HTML_PRINTF(&env, "TID %d", *tidp);
-			if (*tidp == kern_get_init_tid()) {
+			if (TID_IS_INIT(*tidp)) {
 				HTML_PRINTF(&env, " (init)");
-			} else if (*tidp == kern_get_shell_tid()) {
+			} else if (TID_IS_SHELL(*tidp)) {
 				HTML_PRINTF(&env, " (shell)");
-			} else if (kern_has_idle() && *tidp == kern_get_idle_tid()) {
+			} else if (TID_IS_IDLE(*tidp)) {
 				HTML_PRINTF(&env, " (idle)");
 			}
 			HTML_PRINTF(&env, "</div></td>\n");

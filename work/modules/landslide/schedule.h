@@ -206,21 +206,19 @@ struct sched_state {
 	bool __idle_is_runnable = true;			\
 	if ((s)->current_extra_runnable &&		\
 	    /* skip cur_agent if it's idle (see #74) */	\
-	    !(kern_has_idle() && (s)->cur_agent->tid == kern_get_idle_tid())) {	\
+	    !TID_IS_IDLE((s)->cur_agent->tid)) {	\
 		a = (s)->cur_agent;			\
 		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	Q_FOREACH(a, &(s)->rq, nobe) {			\
-		if (kern_has_idle() &&			\
-		    a->tid == kern_get_idle_tid())	\
+		if (TID_IS_IDLE(a->tid))		\
 			continue;			\
 		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	Q_FOREACH(a, &(s)->sq, nobe) {			\
-		if (kern_has_idle() &&			\
-		    a->tid == kern_get_idle_tid())	\
+		if (TID_IS_IDLE(a->tid))		\
 			continue; /* why it sleep?? */	\
 		__idle_is_runnable = false;		\
 		EVAPORATE_FLOW_CONTROL(code);		\

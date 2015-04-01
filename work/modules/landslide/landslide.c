@@ -299,8 +299,7 @@ static bool ensure_progress(struct ls_state *ls)
 		MM_FREE(buf);
 		return false;
 	} else if (user_panicked(ls->cpu0, ls->eip, &buf) &&
-		   tid != kern_get_init_tid() && tid != kern_get_shell_tid() &&
-		   !(kern_has_idle() && tid == kern_get_idle_tid())) {
+		   !(TID_IS_INIT(tid) || TID_IS_SHELL(tid) || TID_IS_IDLE(tid))) {
 		if (testing_userspace()) {
 			FOUND_A_BUG(ls, "USERSPACE PANIC: %s", buf);
 		} else {

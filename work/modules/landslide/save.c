@@ -631,9 +631,8 @@ static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 		if (h->chosen_thread == old->chosen_thread) {
 			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
 				 h->chosen_thread, h->depth, old->depth);
-		} else if (kern_has_idle() &&
-			   (h->chosen_thread == kern_get_idle_tid() ||
-			    old->chosen_thread == kern_get_idle_tid())) {
+		} else if (TID_IS_IDLE(h->chosen_thread) ||
+			   TID_IS_IDLE(old->chosen_thread)) {
 			/* Idle shouldn't have siblings, but just in case. */
 			h->conflicts[old->depth] = true;
 		} else if (old->depth == 0) {
