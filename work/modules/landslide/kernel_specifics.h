@@ -57,7 +57,7 @@ bool kern_beginning_vanish_before_unreg_process(unsigned int eip);
 /* Dynamic memory allocation */
 bool kern_lmm_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size);
 bool kern_lmm_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base);
-bool kern_lmm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base, unsigned int *size);
+bool kern_lmm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base);
 bool kern_lmm_free_exiting(unsigned int eip);
 bool kern_lmm_remove_free_entering(unsigned int eip);
 bool kern_lmm_remove_free_exiting(unsigned int eip);

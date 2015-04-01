@@ -306,11 +306,19 @@ bool kern_vanishing(unsigned int eip)
 }
 bool kern_readline_enter(unsigned int eip)
 {
+#ifdef PINTOS_KERNEL
+	return false;
+#else
 	return eip == GUEST_READLINE_WINDOW_ENTER;
+#endif
 }
 bool kern_readline_exit(unsigned int eip)
 {
+#ifdef PINTOS_KERNEL
+	return false;
+#else
 	return eip == GUEST_READLINE_WINDOW_EXIT;
+#endif
 }
 bool kern_exec_enter(unsigned int eip)
 {
@@ -368,9 +376,11 @@ bool kern_lmm_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int 
 	if (eip == GUEST_LMM_ALLOC_ENTER) {
 		*size = READ_STACK(cpu, GUEST_LMM_ALLOC_SIZE_ARGNUM);
 		return true;
+#ifdef GUEST_LMM_ALLOC_GEN_ENTER
 	} else if (eip == GUEST_LMM_ALLOC_GEN_ENTER) {
 		*size = READ_STACK(cpu, GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM);
 		return true;
+#endif
 	} else {
 		return false;
 	}
@@ -378,7 +388,11 @@ bool kern_lmm_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int 
 
 bool kern_lmm_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base)
 {
-	if (eip == GUEST_LMM_ALLOC_EXIT || eip == GUEST_LMM_ALLOC_GEN_EXIT) {
+	if (eip == GUEST_LMM_ALLOC_EXIT
+#ifdef GUEST_LMM_ALLOC_GEN_EXIT
+	    || eip == GUEST_LMM_ALLOC_GEN_EXIT
+#endif
+	    ) {
 		*base = GET_CPU_ATTR(cpu, eax);
 		return true;
 	} else {
@@ -386,11 +400,10 @@ bool kern_lmm_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *
 	}
 }
 
-bool kern_lmm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base, unsigned int *size)
+bool kern_lmm_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base)
 {
 	if (eip == GUEST_LMM_FREE_ENTER) {
 		*base = READ_STACK(cpu, GUEST_LMM_FREE_BASE_ARGNUM);
-		*size = READ_STACK(cpu, GUEST_LMM_FREE_SIZE_ARGNUM);
 		return true;
 	} else {
 		return false;

@@ -52,7 +52,14 @@ unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 
 		lsprintf(DEV, "tock! from userspace! (0x%x)\n", eip);
 
-		unsigned int esp0 = READ_MEMORY(cpu, (unsigned)GUEST_ESP0_ADDR);
+		unsigned int esp0 =
+#ifdef PINTOS_KERNEL
+			0;
+		// FIXME
+		assert(false && "TSS/esp0 not implemented for Pintos.");
+#else
+			READ_MEMORY(cpu, (unsigned)GUEST_ESP0_ADDR);
+#endif
 		/* 20 is the size of an IRET frame coming from userland. */
 		unsigned int new_esp = esp0 - 20;
 		SET_CPU_ATTR(cpu, esp, new_esp);

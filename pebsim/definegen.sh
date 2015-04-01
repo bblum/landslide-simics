@@ -184,7 +184,7 @@ EXTRA_VERBOSE=0
 TABULAR_TRACE=0
 ALLOW_LOCK_HANDOFF=0
 OBFUSCATED_KERNEL=0
-PINTOS_KERNEL=0
+PINTOS_KERNEL=
 source $CONFIG
 
 source ./symbols.sh
@@ -269,11 +269,21 @@ echo "#ifndef __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
 echo "#define __LS_KERNEL_SPECIFICS_${KERNEL_NAME_UPPER}_H"
 echo
 
+if [ ! -z "$PINTOS_KERNEL" ]; then
+	# Many functionalities in Landslide will change depending on this.
+	# For Pebbles, many #defines are expected and Landslide will not compile
+	# without them. In Pintos we are not able to provide these whatsoever.
+	echo "#define PINTOS_KERNEL"
+fi
+
 ########################
 #### TCB management ####
 ########################
 
-echo "#define GUEST_ESP0_ADDR (0x`get_sym $INIT_TSS` + 4)" # see 410kern/x86/asm.S
+if [ -z "$PINTOS_KERNEL" ]; then
+	# FIXME - deferred to post-userprog to implement this
+	echo "#define GUEST_ESP0_ADDR (0x`get_sym $INIT_TSS` + 4)" # see 410kern/x86/asm.S
+fi
 
 ###################################
 #### Thread lifecycle tracking ####
@@ -319,8 +329,10 @@ fi
 echo
 
 # Readline
-echo "#define GUEST_READLINE_WINDOW_ENTER 0x`get_func $READLINE`"
-echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_ret $READLINE`"
+if [ -z "$PINTOS_KERNEL" ]; then
+	echo "#define GUEST_READLINE_WINDOW_ENTER 0x`get_func $READLINE`"
+	echo "#define GUEST_READLINE_WINDOW_EXIT 0x`get_func_ret $READLINE`"
+fi
 
 # Exec, only required if testing userspace
 if [ ! -z "$EXEC" ]; then
@@ -354,27 +366,22 @@ if [ "$OBFUSCATED_KERNEL" = 1 ]; then
 	pathos_syscall RF IQNTOABvZgFO
 fi
 
-######################################
-#### Mutexes / Deadlock detection ####
-######################################
-
-# Moved to annotations
-
 ###################################
 #### Dynamic memory allocation ####
 ###################################
 
-# Pebbles user shouldn't need to change this.
 echo "#define GUEST_LMM_ALLOC_ENTER      0x`get_func $LMM_ALLOC`"
 echo "#define GUEST_LMM_ALLOC_EXIT       0x`get_func_ret $LMM_ALLOC`"
-echo "#define GUEST_LMM_ALLOC_SIZE_ARGNUM 2"
-echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func $LMM_ALLOC_GEN`"
-echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret $LMM_ALLOC_GEN`"
-echo "#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM 2"
+echo "#define GUEST_LMM_ALLOC_SIZE_ARGNUM $LMM_ALLOC_SIZE_ARGNUM"
+if [ ! -z "$LMM_ALLOC_GEN" ]; then
+	echo "#define GUEST_LMM_ALLOC_GEN_ENTER  0x`get_func $LMM_ALLOC_GEN`"
+	echo "#define GUEST_LMM_ALLOC_GEN_EXIT   0x`get_func_ret $LMM_ALLOC_GEN`"
+	echo "#define GUEST_LMM_ALLOC_GEN_SIZE_ARGNUM $LMM_ALLOC_GEN_SIZE_ARGNUM"
+fi
 echo "#define GUEST_LMM_FREE_ENTER       0x`get_func $LMM_FREE`"
 echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret $LMM_FREE`"
-echo "#define GUEST_LMM_FREE_BASE_ARGNUM 2"
-echo "#define GUEST_LMM_FREE_SIZE_ARGNUM 3"
+echo "#define GUEST_LMM_FREE_BASE_ARGNUM $LMM_FREE_BASE_ARGNUM"
+# TODO - rename to malloc init
 echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func $LMM_REMOVE_FREE`"
 echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret $LMM_REMOVE_FREE`"
 
@@ -384,19 +391,20 @@ echo
 #### Kernel image regions / misc symbols ####
 #############################################
 
-# Pebbles user shouldn't need to change this.
 echo "#define GUEST_IMG_END 0x`get_sym _end`"
 echo "#define GUEST_DATA_START 0x`get_sym .data`"
-echo "#define GUEST_DATA_END 0x`get_sym _edata`" # Everything is awful forever.
-echo "#define GUEST_BSS_START 0x`get_sym __bss_start`"
+echo "#define GUEST_DATA_END 0x`get_sym .bss`"
+echo "#define GUEST_BSS_START 0x`get_sym .bss`"
 echo "#define GUEST_BSS_END GUEST_IMG_END"
 
 echo "#define GUEST_PANIC 0x`get_func $KERN_PANIC`"
 echo "#define GUEST_KERNEL_MAIN 0x`get_func $KERN_MAIN`"
-echo "#define GUEST_START 0x`get_func _start`"
+echo "#define GUEST_START 0x`get_func $KERN_START`"
 
-# Potentially pathos-only...
-echo "#define GUEST_HLT_EXIT 0x`get_func_ret $KERN_HLT`"
+if [ ! -z "$KERN_HLT" ]; then
+	# Potentially pathos-only...
+	echo "#define GUEST_HLT_EXIT 0x`get_func_ret $KERN_HLT`"
+fi
 
 if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 	echo "#define GUEST_PF_HANDLER 0x`get_sym $PAGE_FAULT_WRAPPER`"

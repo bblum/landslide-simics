@@ -84,6 +84,7 @@ VERBOSE=0
 EXTRA_VERBOSE=0
 TABULAR_TRACE=0
 OBFUSCATED_KERNEL=0
+PINTOS_KERNEL=
 source ./$LANDSLIDE_CONFIG
 
 #### Check environment ####
@@ -155,6 +156,8 @@ fi
 if [ ! "$OBFUSCATED_KERNEL" = 0 ]; then
 	if [ ! "$OBFUSCATED_KERNEL" = 1 ]; then
 		die "Invalid value for OBFUSCATED_KERNEL; have '$OBFUSCATED_KERNEL'; need 0/1"
+	elif [ ! -z "$PINTOS_KERNEL" ]; then
+		die "PINTOS_KERNEL and OBFUSCATED_KERNEL are incompatible."
 	fi
 fi
 

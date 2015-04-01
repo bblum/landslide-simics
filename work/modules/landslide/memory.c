@@ -442,7 +442,7 @@ void mem_update(struct ls_state *ls)
 			mem_enter_bad_place(ls, true, size);
 		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
 			mem_exit_bad_place(ls, true, base);
-		} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base, &size)) {
+		} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base)) {
 			mem_enter_free(ls, true, base);
 		} else if (kern_lmm_free_exiting(ls->eip)) {
 			mem_exit_free(ls, true);
