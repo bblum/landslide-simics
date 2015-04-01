@@ -15,6 +15,7 @@
 #include "found_a_bug.h"
 #include "landslide.h"
 #include "kernel_specifics.h"
+#include "kspec.h"
 #include "memory.h"
 #include "schedule.h"
 #include "stack.h"

@@ -11,6 +11,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "kernel_specifics.h"
+#include "kspec.h"
 #include "user_specifics.h"
 #include "x86.h"
 

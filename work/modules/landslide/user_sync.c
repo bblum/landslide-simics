@@ -8,6 +8,7 @@
 #define MODULE_COLOUR COLOUR_DARK COLOUR_GREY
 
 #include "common.h"
+#include "kspec.h"
 #include "landslide.h"
 #include "schedule.h"
 #include "symtable.h"

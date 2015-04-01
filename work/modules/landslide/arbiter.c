@@ -13,6 +13,7 @@
 #include "common.h"
 #include "found_a_bug.h"
 #include "kernel_specifics.h"
+#include "kspec.h"
 #include "landslide.h"
 #include "memory.h"
 #include "rand.h"

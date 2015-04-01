@@ -54,5 +54,10 @@
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 
+#define ASSERT_UNSIGNED(addr) do {					\
+		typeof(addr) __must_not_be_signed = (typeof(addr))(-1);	\
+		assert(__must_not_be_signed > 0 &&			\
+		       "type error: unsigned type required here");	\
+	} while (0)
 
 #endif /* !_INC_COMPILER_H */

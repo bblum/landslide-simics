@@ -10,6 +10,7 @@
 #include "common.h"
 #include "html.h"
 #include "kernel_specifics.h"
+#include "kspec.h"
 #include "landslide.h"
 #include "stack.h"
 #include "symtable.h"

@@ -9,6 +9,7 @@ MODULE_CLASSES=landslide
 SRC_FILES = landslide.h landslide.c \
 	    simics_glue.c \
 	    x86.c x86.h \
+	    kspec.h \
 	    kernel_specifics.h kernel_specifics.c student.c \
 	    user_specifics.h user_specifics.c \
 	    schedule.h schedule.c \

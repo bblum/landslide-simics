@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "kernel_specifics.h"
+#include "kspec.h"
 #include "stack.h"
 #include "x86.h"
 

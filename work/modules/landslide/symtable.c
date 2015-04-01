@@ -7,6 +7,7 @@
 #define MODULE_NAME "symtable glue"
 
 #include "common.h"
+#include "kspec.h"
 #include "stack.h"
 #include "symtable.h"
 #include "x86.h"

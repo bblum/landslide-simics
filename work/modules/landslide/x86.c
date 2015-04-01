@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "kernel_specifics.h"
+#include "kspec.h"
 #include "landslide.h"
 #include "student_specifics.h"
 #include "x86.h"
