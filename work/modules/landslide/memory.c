@@ -433,7 +433,7 @@ void mem_update(struct ls_state *ls)
 		} else {
 			return;
 		}
-	} else if (ls->sched.cur_agent->action.lmm_remove_free) {
+	} else if (ls->sched.cur_agent->action.lmm_init) {
 		return;
 	}
 

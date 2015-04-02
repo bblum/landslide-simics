@@ -382,9 +382,8 @@ fi
 echo "#define GUEST_LMM_FREE_ENTER       0x`get_func $LMM_FREE`"
 echo "#define GUEST_LMM_FREE_EXIT        0x`get_func_ret $LMM_FREE`"
 echo "#define GUEST_LMM_FREE_BASE_ARGNUM $LMM_FREE_BASE_ARGNUM"
-# TODO - rename to malloc init
-echo "#define GUEST_LMM_REMOVE_FREE_ENTER 0x`get_func $LMM_REMOVE_FREE`"
-echo "#define GUEST_LMM_REMOVE_FREE_EXIT 0x`get_func_ret $LMM_REMOVE_FREE`"
+echo "#define GUEST_LMM_INIT_ENTER 0x`get_func $LMM_INIT`"
+echo "#define GUEST_LMM_INIT_EXIT 0x`get_func_ret $LMM_INIT`"
 
 echo
 

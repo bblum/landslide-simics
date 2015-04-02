@@ -30,7 +30,7 @@ if [ "$OBFUSCATED_KERNEL" = 1 ]; then
 	LMM_ALLOC=FtMkPemxx
 	LMM_ALLOC_GEN=CZLoltqQauxoc
 	LMM_FREE=RCFxRLuV
-	LMM_REMOVE_FREE=MtqokdCaEfVRCwG
+	LMM_INIT=MtqokdCaEfVRCwG
 	KERN_PANIC=cnAky
 	KERN_MAIN=wJTUxjBIOvQ
 	KERN_HLT=yqI
@@ -60,7 +60,7 @@ else
 		LMM_ALLOC=lmm_alloc
 		LMM_ALLOC_GEN=lmm_alloc_gen
 		LMM_FREE=lmm_free
-		LMM_REMOVE_FREE=lmm_remove_free
+		LMM_INIT=lmm_remove_free
 		LMM_ALLOC_SIZE_ARGNUM=2
 		LMM_ALLOC_GEN_SIZE_ARGNUM=2
 		LMM_FREE_BASE_ARGNUM=2
@@ -75,7 +75,7 @@ else
 		LMM_ALLOC=malloc
 		LMM_ALLOC_GEN= # doesn't exists
 		LMM_FREE=free
-		LMM_REMOVE_FREE=malloc_init
+		LMM_INIT=malloc_init
 		LMM_ALLOC_SIZE_ARGNUM=1
 		LMM_ALLOC_GEN_SIZE_ARGNUM= # doesn't exists
 		LMM_FREE_BASE_ARGNUM=1

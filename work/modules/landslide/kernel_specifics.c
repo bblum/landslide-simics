@@ -416,14 +416,14 @@ bool kern_lmm_free_exiting(unsigned int eip)
 	return (eip == GUEST_LMM_FREE_EXIT);
 }
 
-bool kern_lmm_remove_free_entering(unsigned int eip)
+bool kern_lmm_init_entering(unsigned int eip)
 {
-	return eip == GUEST_LMM_REMOVE_FREE_ENTER;
+	return eip == GUEST_LMM_INIT_ENTER;
 }
 
-bool kern_lmm_remove_free_exiting(unsigned int eip)
+bool kern_lmm_init_exiting(unsigned int eip)
 {
-	return eip == GUEST_LMM_REMOVE_FREE_EXIT;
+	return eip == GUEST_LMM_INIT_EXIT;
 }
 
 bool kern_address_in_heap(unsigned int addr)

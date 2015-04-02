@@ -71,7 +71,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.vanishing = false;
 	a->action.readlining = false;
 	a->action.just_forked = true;
-	a->action.lmm_remove_free = false;
+	a->action.lmm_init = false;
 	a->action.vm_user_copy = false;
 	a->action.kern_mutex_locking = false;
 	a->action.kern_mutex_unlocking = false;
@@ -505,16 +505,16 @@ static void handle_unsleep(struct sched_state *s, unsigned int tid)
  * Main entry point(s) and state machine logic
  ******************************************************************************/
 
-static void sched_check_lmm_remove_free(struct ls_state *ls)
+static void sched_check_lmm_init(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
 
-	if (kern_lmm_remove_free_entering(ls->eip)) {
+	if (kern_lmm_init_entering(ls->eip)) {
 		assert_no_action(s, "lmm remove free");
-		ACTION(s, lmm_remove_free) = true;
-	} else if (kern_lmm_remove_free_exiting(ls->eip)) {
-		assert(ACTION(s, lmm_remove_free));
-		ACTION(s, lmm_remove_free) = false;
+		ACTION(s, lmm_init) = true;
+	} else if (kern_lmm_init_exiting(ls->eip)) {
+		assert(ACTION(s, lmm_init));
+		ACTION(s, lmm_init) = false;
 	}
 }
 
@@ -757,7 +757,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		assert(CURRENT(s, pre_vanish_trace) == NULL);
 		CURRENT(s, pre_vanish_trace) = stack_trace(ls);
 	} else {
-		sched_check_lmm_remove_free(ls);
+		sched_check_lmm_init(ls);
 	}
 }
 
@@ -1051,7 +1051,7 @@ void sched_update(struct ls_state *ls)
 			/* Deprecated since kern_get_current_tid went away. */
 			// assert(old_tid == new_tid && "init tid mismatch");
 		} else {
-			sched_check_lmm_remove_free(ls);
+			sched_check_lmm_init(ls);
 			return;
 		}
 	}
