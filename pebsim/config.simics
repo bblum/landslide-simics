@@ -81,6 +81,14 @@ add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 deflsym.load-symbols kernel
 @SIM_set_attribute(SIM_get_object("deflsym"), "sourcepath", ls_source_path)
 
+## adjust bootfd disk set up if necessary
+
+if $ls_pintos == "yes":
+	flp0.eject-floppy A
+	disk0.add-diff-file bootfd.img
+	system_cmp0.cmos-boot-dev C
+	print "Pintos boot disk moved to drive C."
+
 ## setting up landslide
 
 
