@@ -59,6 +59,7 @@ unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
 bool interrupts_enabled(conf_object_t *cpu);
 unsigned int read_memory(conf_object_t *cpu, unsigned int addr, unsigned int width);
+bool write_memory(conf_object_t *cpu, unsigned int addr, unsigned int val, unsigned int width);
 char *read_string(conf_object_t *cpu, unsigned int eip);
 bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip);
 unsigned int delay_instruction(conf_object_t *cpu);

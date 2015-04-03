@@ -439,6 +439,16 @@ if [ ! -z "$PDE_PTE_POISON" ]; then
 	echo "#define PDE_PTE_POISON $PDE_PTE_POISON"
 fi
 
+if [ ! -z "$PINTOS_KERNEL" ]; then
+	# The pintos boot sequence contains a very... shall we say...
+	# landslide-unfriendly way of calibrating the timer. We'll skip dis.
+	echo "#define GUEST_TIMER_CALIBRATE 0x`get_func timer_calibrate`"
+	echo "#define GUEST_TIMER_CALIBRATE_END 0x`get_func_end timer_calibrate`"
+	echo "#define GUEST_TIMER_CALIBRATE_RESULT 0x`get_sym loops_per_tick`"
+	# Obtained via experiment. Independent of landslide or host CPU rate.
+	echo "#define GUEST_TIMER_CALIBRATE_VALUE 39270400"
+fi
+
 echo
 
 ############################################################

@@ -518,6 +518,24 @@ static void sched_check_lmm_init(struct ls_state *ls)
 	}
 }
 
+static void sched_check_timer_calibrate(struct ls_state *ls)
+{
+#ifdef PINTOS_KERNEL
+	if (ls->eip == GUEST_TIMER_CALIBRATE) {
+		if (write_memory(ls->cpu0, GUEST_TIMER_CALIBRATE_RESULT,
+				  GUEST_TIMER_CALIBRATE_VALUE, WORD_SIZE)) {
+			lskprintf(DEV, "Nice try pintos, but there will be "
+				  "no timer calibration on my watch.\n");
+			SET_CPU_ATTR(ls->cpu0, eip, GUEST_TIMER_CALIBRATE_END);
+			ls->eip = GUEST_TIMER_CALIBRATE_END;
+		} else {
+			lskprintf(DEV, "Warning: Couldn't avoid timer "
+				  "calibration routine. Just be patient!\n");
+		}
+	}
+#endif
+}
+
 static void sched_finish_inflight(struct sched_state *s)
 {
 	ACTION(s, schedule_target) = false;
@@ -1052,6 +1070,7 @@ void sched_update(struct ls_state *ls)
 			// assert(old_tid == new_tid && "init tid mismatch");
 		} else {
 			sched_check_lmm_init(ls);
+			sched_check_timer_calibrate(ls);
 			return;
 		}
 	}

@@ -247,6 +247,14 @@ bool interrupts_enabled(conf_object_t *cpu)
 
 static bool mem_translate(conf_object_t *cpu, unsigned int addr, unsigned int *result)
 {
+#ifdef PINTOS_KERNEL
+	/* In pintos the kernel is mapped at 3 GB, not direct-mapped. Luckily,
+	 * paging is enabled in start(), while landslide enters at main(). */
+	assert((GET_CPU_ATTR(cpu, cr0) & CR0_PG) != 0 &&
+	       "Expected Pintos to have paging enabled before landslide entrypoint.");
+#else
+	/* In pebbles the kernel is direct-mapped and paging may not be enabled
+	 * until after landslide starts recording instructions. */
 	if (KERNEL_MEMORY(addr)) {
 		/* assume kern mem direct-mapped -- not strictly necessary */
 		*result = addr;
@@ -255,6 +263,7 @@ static bool mem_translate(conf_object_t *cpu, unsigned int addr, unsigned int *r
 		/* paging disabled; cannot translate user address */
 		return false;
 	}
+#endif
 
 	unsigned int upper = addr >> 22;
 	unsigned int lower = (addr >> 12) & 1023;
@@ -298,6 +307,19 @@ unsigned int read_memory(conf_object_t *cpu, unsigned int addr, unsigned int wid
 		return result;
 	} else {
 		return 0; /* :( */
+	}
+}
+
+bool write_memory(conf_object_t *cpu, unsigned int addr, unsigned int val, unsigned int width)
+{
+	unsigned int phys_addr;
+	if (mem_translate(cpu, addr, &phys_addr)) {
+		SIM_write_phys_memory(cpu, phys_addr, val, width);
+		assert(SIM_get_pending_exception() == SimExc_No_Exception &&
+		       "failed memory write during VM translation -- kernel VM bug?");
+		return true;
+	} else {
+		return false;
 	}
 }
 
