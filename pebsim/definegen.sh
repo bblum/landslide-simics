@@ -80,7 +80,10 @@ function get_func_ret {
 }
 
 function get_test_file {
-	if [ -f $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE ]; then
+	if [ ! -z "$PINTOS_KERNEL" ]; then
+		# TODO
+		echo "/dev/null"
+	elif [ -f $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE ]; then
 		echo "$KERNEL_SOURCE_DIR/user/progs/$TEST_CASE"
 	elif [ -f $KERNEL_SOURCE_DIR/410user/progs/$TEST_CASE ]; then
 		echo "$KERNEL_SOURCE_DIR/410user/progs/$TEST_CASE"

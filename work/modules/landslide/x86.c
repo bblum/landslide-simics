@@ -352,7 +352,16 @@ unsigned int delay_instruction(conf_object_t *cpu)
 	unsigned int phys_buf;
 	bool mapping_present = mem_translate(cpu, buf, &phys_buf);
 	if (!mapping_present) {
-		buf = USER_IMG_END;
+		if (testing_userspace()) {
+#ifdef PINTOS_KERNEL
+			// TODO
+			assert(false && "Unimplemented");
+#else
+			buf = USER_IMG_END;
+#endif
+		} else {
+			buf = GUEST_IMG_END;
+		}
 		lsprintf(DEV, "Need to delay instruction, but the stack is "
 			 "unmapped. Using `_end' instead -- 0x%x.\n", buf);
 		assert(buf % PAGE_SIZE <= PAGE_SIZE - 8 && "Not enough room!");

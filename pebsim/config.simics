@@ -68,11 +68,12 @@ except :
     conf.disk0_image.files[0][1] = 'rw'
 
 run-python-file "410mods.py"
-add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 
 ########################
 #### bblum was here ####
 ########################
+
+add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
 
 # Get the kernel image name, source path, test case name.
 @SIM_source_python("landslide-config.py")
@@ -83,14 +84,15 @@ deflsym.load-symbols kernel
 
 ## adjust bootfd disk set up if necessary
 
-if $ls_pintos == "yes":
+@simenv.ls_pintos = ls_pintos
+if $ls_pintos == "yes" {
 	flp0.eject-floppy A
 	disk0.add-diff-file bootfd.img
 	system_cmp0.cmos-boot-dev C
-	print "Pintos boot disk moved to drive C."
+	@print "Pintos boot disk moved to drive C."
+}
 
 ## setting up landslide
-
 
 load-module landslide
 @landslide = SIM_create_object("landslide", "landslide0", [])
@@ -99,7 +101,14 @@ load-module landslide
 @html_file = "landslide-trace-" + str(time.time()) + ".html"
 @SIM_set_attribute(landslide, "html_file", html_file)
 
-break (sym _start)
+if $ls_pintos == "yes" {
+	# Bit of a hack. But "start" doesn't work... in pintos, start() is
+	# called still in some real mode bizarro world. The "mov $SEL_KDSEG,
+	# %ax" instruction in start.S is the first one that can be broken on.
+	break (sym main)
+} else {
+	break (sym _start)
+}
 run
 delete 1
 new-tracer

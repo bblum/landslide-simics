@@ -462,6 +462,7 @@ int kern_get_shell_tid()
 	return GUEST_SHELL_TID;
 #else
 	assert(false && "This kernel does not have a shell!");
+	return -1;
 #endif
 }
 

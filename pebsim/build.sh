@@ -124,9 +124,11 @@ verify_dir KERNEL_SOURCE_DIR
 verify_nonempty TEST_CASE
 verify_nonempty TIMER_WRAPPER
 verify_nonempty CONTEXT_SWITCH
-verify_nonempty READLINE
+if [ -z "$PINTOS_KERNEL" ]; then
+	verify_nonempty READLINE
+	verify_numeric SHELL_TID
+fi
 verify_numeric INIT_TID
-verify_numeric SHELL_TID
 verify_numeric FIRST_TID
 verify_numeric BUG_ON_THREADS_WEDGED
 verify_numeric EXPLORE_BACKWARDS
@@ -161,8 +163,16 @@ if [ ! "$OBFUSCATED_KERNEL" = 0 ]; then
 	fi
 fi
 
-if ! grep "${TEST_CASE}_exec2obj_userapp_code_ptr" $KERNEL_IMG 2>&1 >/dev/null; then
-	die "Missing test program: $KERNEL_IMG isn't built with '$TEST_CASE'!"
+if [ -z "$PINTOS_KERNEL" ]; then
+	# Pebbles
+	if ! grep "${TEST_CASE}_exec2obj_userapp_code_ptr" $KERNEL_IMG 2>&1 >/dev/null; then
+		die "Missing test program: $KERNEL_IMG isn't built with '$TEST_CASE'!"
+	fi
+else
+	# Pintos
+	# TODO - verify test case
+	err "PINTOS_KERNEL is enabled. I'll do what I can, but all bets are off!"
+	msg "$TEST_CASE, huh? Just gonna trust you on this one for now."
 fi
 
 MISSING_ANNOTATIONS=
