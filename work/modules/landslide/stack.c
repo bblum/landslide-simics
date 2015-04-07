@@ -199,6 +199,14 @@ static bool add_frame(struct stack_trace *st, unsigned int eip)
 #define SUPPRESS_FRAME(eip) \
 	(MAX_VERBOSITY < DEV && testing_userspace() && KERNEL_MEMORY(eip) )
 
+#ifdef PINTOS_KERNEL
+/* The pintos boot sequence puts the initial kstack below the kernel image
+ * (approx 0xc000eXXX, compared to 0xc002XXXX). */
+#define CHECK_JUNK_EBP_BELOW_TEXT(ebp) false
+#else
+#define CHECK_JUNK_EBP_BELOW_TEXT(ebp) ((unsigned)(ebp) < GUEST_DATA_START)
+#endif
+
 struct stack_trace *stack_trace(struct ls_state *ls)
 {
 	conf_object_t *cpu = ls->cpu0;
@@ -234,7 +242,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 		 * but duplicated here for the corner case where ebp's initial
 		 * value is trash. (It's inside the loop so we can still look
 		 * for extra frames.) */
-		if ((unsigned int)ebp < GUEST_DATA_START) {
+		if (CHECK_JUNK_EBP_BELOW_TEXT(ebp)) {
 			ebp = 0;
 		}
 
@@ -337,7 +345,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, rabbit);
 		if (rabbit == ebp) stop_ebp = ebp;
 		ebp = READ_MEMORY(cpu, ebp);
-		if ((unsigned int)ebp < GUEST_DATA_START) {
+		if (CHECK_JUNK_EBP_BELOW_TEXT(ebp)) {
 			/* Some kernels allow terminal ebps to trail off into
 			 * "junk values". Sometimes these are very small values.
 			 * We can avoid emitting simics errors in these cases. */
