@@ -10,6 +10,7 @@
 #include <simics/api.h>
 
 struct sched_state;
+struct ls_state;
 
 struct test_state {
 	bool test_is_running;
@@ -21,8 +22,7 @@ struct test_state {
 };
 
 void test_init(struct test_state *);
-bool test_update_state(conf_object_t *cpu, struct test_state *,
-		       struct sched_state *);
+bool test_update_state(struct ls_state *ls);
 bool cause_test(conf_object_t *kbd, struct test_state *, struct ls_state *,
 		const char *test_string);
 

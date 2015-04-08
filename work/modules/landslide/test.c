@@ -16,12 +16,120 @@
 #include "variable_queue.h"
 #include "x86.h"
 
+/******************************************************************************
+ * Common to all kernels
+ ******************************************************************************/
+
 void test_init(struct test_state *t)
 {
 	t->test_is_running  = false;
 	t->test_ever_caused = false;
 	t->current_test     = NULL;
 }
+
+bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
+		const char *test_string)
+{
+	if (t->test_is_running || t->current_test != NULL) {
+		lsprintf(INFO, "can't run \"%s\" with another test running\n",
+			 test_string);
+		return false;
+	}
+
+	/* save the test string */
+	t->current_test = MM_XSTRDUP(test_string);
+
+#ifndef PINTOS_KERNEL
+	/* feed input */
+	for (int i = 0; i < strlen(test_string); i++) {
+		cause_keypress(kbd, test_string[i]);
+	}
+	if (test_string[strlen(test_string)-1] != '\n') {
+		cause_keypress(kbd, '\n');
+		lsprintf(BRANCH, "Beginning test %s\n", test_string);
+	} else {
+		lsprintf(BRANCH, "Beginning test %s", test_string);
+	}
+#endif
+
+	t->test_ever_caused = true;
+
+	/* Record how many people are alive at the start of the test */
+	if (ls->sched.num_agents != ls->sched.most_agents_ever) {
+	       lskprintf(BUG, "WARNING: somebody died before test started!\n");
+	       ls->sched.most_agents_ever = ls->sched.num_agents;
+	}
+	t->start_population = ls->sched.num_agents;
+	lsprintf(DEV, "test startpop... sched state: ");
+	print_qs(DEV, &ls->sched);
+	printf(DEV, "\n");
+
+	/* Record the size of the heap at the start of the test */
+	t->start_kern_heap_size = ls->kern_mem.heap_size;
+	t->start_user_heap_size = ls->user_mem.heap_size;
+
+	return true;
+}
+
+#ifdef PINTOS_KERNEL
+
+/******************************************************************************
+ * Pintos
+ ******************************************************************************/
+
+#define REASON(str) do { if (chatty) { lsprintf(DEV, "%s\n", str); } } while (0)
+bool anybody_alive(conf_object_t *cpu, struct test_state *t,
+		   struct sched_state *s, bool chatty)
+{
+	if (Q_GET_SIZE(&s->rq) != 0) {
+		REASON("Somebody's alive -- runqueue is populated.");
+		return true;
+	} else if (Q_GET_SIZE(&s->sq) != 0) {
+		REASON("Somebody's alive -- sleep queue is populated.");
+		return true;
+	} else if (Q_GET_SIZE(&s->dq) != 0) {
+		if (Q_GET_SIZE(&s->dq) == 1 && TID_IS_IDLE(Q_GET_HEAD(&s->dq)->tid)) {
+			REASON("Nobody's alive -- only idle remains.");
+			return true;
+		} else {
+			REASON("Somebody's alive -- a non-idle thread exists.");
+			return true;
+		}
+	} else {
+		REASON("Nobody's alive -- no threads exist (idle vanished?!).");
+		return false;
+	}
+}
+
+bool test_update_state(struct ls_state *ls)
+{
+	//struct test_state *t = &ls->test;
+	if (ls->eip == GUEST_RUN_TASK_ENTER) {
+		// assert(!t->test_is_running);
+		// t->test_is_running = true;
+		lsprintf(DEV, "a test appears to be starting - ");
+		print_qs(DEV, &ls->sched);
+		printf(DEV, "\n");
+		return true;
+	} else if (ls->eip == GUEST_RUN_TASK_EXIT) {
+		// TODO. Wait until all other threads quiesce, as in priority-sema.
+		// assert(t->test_is_running);
+		// t->test_is_running = false;
+		lsprintf(DEV, "a test appears to be ending - ");
+		print_qs(DEV, &ls->sched);
+		printf(DEV, "\n");
+		return true;
+	} else {
+		/* No change. */
+		return false;
+	}
+}
+
+#else
+
+/******************************************************************************
+ * Pebbles
+ ******************************************************************************/
 
 static bool unexpected_idle()
 {
@@ -129,13 +237,13 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 #undef REASON
 
 /* returns true if the state changed. */
-bool test_update_state(conf_object_t *cpu, struct test_state *t,
-		       struct sched_state *s)
+bool test_update_state(struct ls_state *ls)
 {
-	if (anybody_alive(cpu, t, s, false)) {
+	struct test_state *t = &ls->test;
+	if (anybody_alive(ls->cpu0, t, &ls->sched, false)) {
 		if (!t->test_is_running) {
 			lsprintf(DEV, "a test appears to be starting - ");
-			print_qs(DEV, s);
+			print_qs(DEV, &ls->sched);
 			printf(DEV, "\n");
 			t->test_is_running = true;
 			return true;
@@ -143,7 +251,7 @@ bool test_update_state(conf_object_t *cpu, struct test_state *t,
 	} else {
 		if (t->test_is_running) {
 			lsprintf(DEV, "a test appears to be ending - ");
-			print_qs(DEV, s);
+			print_qs(DEV, &ls->sched);
 			printf(DEV, "\n");
 			if (t->current_test) {
 				MM_FREE(t->current_test);
@@ -156,41 +264,4 @@ bool test_update_state(conf_object_t *cpu, struct test_state *t,
 	return false;
 }
 
-bool cause_test(conf_object_t *kbd, struct test_state *t, struct ls_state *ls,
-		const char *test_string)
-{
-	if (t->test_is_running || t->current_test) {
-		lsprintf(INFO, "can't run \"%s\" with another test running\n",
-			 test_string);
-		return false;
-	}
-
-	/* save the test string */
-	t->current_test = MM_XSTRDUP(test_string);
-
-	/* feed input */
-	for (int i = 0; i < strlen(test_string); i++) {
-		cause_keypress(kbd, test_string[i]);
-	}
-	if (test_string[strlen(test_string)-1] != '\n') {
-		cause_keypress(kbd, '\n');
-		lsprintf(BRANCH, "Beginning test %s\n", test_string);
-	} else {
-		lsprintf(BRANCH, "Beginning test %s", test_string);
-	}
-
-	t->test_ever_caused = true;
-
-	/* Record how many people are alive at the start of the test */
-	if (ls->sched.num_agents != ls->sched.most_agents_ever) {
-	       lskprintf(BUG, "WARNING: somebody died before test started!\n");
-	       ls->sched.most_agents_ever = ls->sched.num_agents;
-	}
-	t->start_population = ls->sched.num_agents;
-
-	/* Record the size of the heap at the start of the test */
-	t->start_kern_heap_size = ls->kern_mem.heap_size;
-	t->start_user_heap_size = ls->user_mem.heap_size;
-
-	return true;
-}
+#endif /* ndef PINTOS_KERNEL */

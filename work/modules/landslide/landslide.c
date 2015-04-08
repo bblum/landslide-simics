@@ -464,8 +464,7 @@ static void check_test_state(struct ls_state *ls)
 {
 	/* When a test case finishes, break the simulation so the wrapper can
 	 * decide what to do. */
-	if (test_update_state(ls->cpu0, &ls->test, &ls->sched) &&
-	    !ls->test.test_is_running) {
+	if (test_update_state(ls) && !ls->test.test_is_running) {
 		/* See if it's time to try again... */
 		if (ls->test.test_ever_caused) {
 			lsprintf(DEV, "test case ended!\n");
