@@ -42,9 +42,9 @@ unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 		/* 12 is the size of an IRET frame only when already in kernel mode. */
 		unsigned int new_esp = esp - 12;
 		SET_CPU_ATTR(cpu, esp, new_esp);
-		SIM_write_phys_memory(cpu, new_esp + 8, eflags, 4);
-		SIM_write_phys_memory(cpu, new_esp + 4, SEGSEL_KERNEL_CS, 4);
-		SIM_write_phys_memory(cpu, new_esp + 0, eip, 4);
+		write_memory(cpu, new_esp + 8, eflags, 4);
+		write_memory(cpu, new_esp + 4, SEGSEL_KERNEL_CS, 4);
+		write_memory(cpu, new_esp + 0, eip, 4);
 	} else {
 		/* Hard mode - do a mode switch also. Grab esp0, make a large
 		 * iret frame, and change the segsel registers to kernel mode. */
@@ -64,11 +64,11 @@ unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 		/* 20 is the size of an IRET frame coming from userland. */
 		unsigned int new_esp = esp0 - 20;
 		SET_CPU_ATTR(cpu, esp, new_esp);
-		SIM_write_phys_memory(cpu, new_esp + 16, SEGSEL_USER_DS, 4);
-		SIM_write_phys_memory(cpu, new_esp + 12, esp, 4);
-		SIM_write_phys_memory(cpu, new_esp +  8, eflags, 4);
-		SIM_write_phys_memory(cpu, new_esp +  4, SEGSEL_USER_CS, 4);
-		SIM_write_phys_memory(cpu, new_esp +  0, eip, 4);
+		write_memory(cpu, new_esp + 16, SEGSEL_USER_DS, 4);
+		write_memory(cpu, new_esp + 12, esp, 4);
+		write_memory(cpu, new_esp +  8, eflags, 4);
+		write_memory(cpu, new_esp +  4, SEGSEL_USER_CS, 4);
+		write_memory(cpu, new_esp +  0, eip, 4);
 
 		/* Change %cs and %ss. (Other segsels should be saved/restored
 		 * in the kernel's handler wrappers.) */
@@ -158,7 +158,7 @@ unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 
 	STATIC_ASSERT(ARRAY_SIZE(custom_assembly_codes) % 4 == 0);
 	for (int i = 0; i < ARRAY_SIZE(custom_assembly_codes); i++) {
-		SIM_write_phys_memory(cpu, buf+i, custom_assembly_codes[i], 1);
+		write_memory(cpu, buf + i, custom_assembly_codes[i], 1);
 	}
 
 	SET_CPU_ATTR(cpu, eip, buf);
