@@ -161,6 +161,14 @@ void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
 	}
 #endif
 
+#ifdef PINTOS_KERNEL
+	/* In pintos, semaphores are the base synch primitive. Sometimes they
+	 * are used as mutexes; sometimes they are used for oneshot message-
+	 * passing. When we detect the latter case (i.e., a thread does a post
+	 * without owning the sem, causing the count to potentially become 2),
+	 * we mark them to ignore for data-race tracking. (See issue #163.) */
+	// TODO - WERE MAKING IT HAPEN
+#else
 	// Lock not found.
 	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "WARNING: Couldn't find "
 		 "unlock()ed lock 0x%x in lockset; probably incorrect "
@@ -172,6 +180,7 @@ void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
 	if (in_kernel) {
 		LS_ABORT();
 	}
+#endif
 }
 #undef LOCKSET_OF
 
