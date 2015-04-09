@@ -426,15 +426,26 @@ bool kern_lmm_init_exiting(unsigned int eip)
 	return eip == GUEST_LMM_INIT_EXIT;
 }
 
+static bool kern_address_in_vga_console(unsigned int addr)
+{
+#ifdef PINTOS_KERNEL
+	return addr >= GUEST_VGA_CONSOLE_BASE && addr < GUEST_VGA_CONSOLE_END;
+#else
+	return false;
+#endif
+}
+
 bool kern_address_in_heap(unsigned int addr)
 {
-	return (addr >= GUEST_IMG_END && KERNEL_MEMORY(addr));
+	return (addr >= GUEST_IMG_END && KERNEL_MEMORY(addr)) &&
+		!kern_address_in_vga_console(addr);
 }
 
 bool kern_address_global(unsigned int addr)
 {
-	return ((addr >= GUEST_DATA_START && addr < GUEST_DATA_END) ||
-		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END));
+	return (addr >= GUEST_DATA_START && addr < GUEST_DATA_END) ||
+		(addr >= GUEST_BSS_START && addr < GUEST_BSS_END) ||
+		kern_address_in_vga_console(addr);
 }
 
 /******************************************************************************
