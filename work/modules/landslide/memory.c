@@ -10,6 +10,7 @@
 #define MODULE_COLOUR COLOUR_DARK COLOUR_YELLOW
 
 #include "common.h"
+#include "compiler.h"
 #include "found_a_bug.h"
 #include "html.h"
 #include "kernel_specifics.h"
@@ -306,31 +307,54 @@ static void print_freed_chunk_info(struct chunk *c,
 
 #define K_STR(in_kernel) ((in_kernel) ? "kernel" : "userspace")
 
-/* bad place == mal loc */
-static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, unsigned int size)
-{
-	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+/* In the 4 following functions, intialize pointers to the appropriate heaps
+ * and flags depending on which heap (kmalloc, kpalloc, umalloc) is used. */
+#ifdef PINTOS_KERNEL
+#define INIT_PTRS(m, heap, init, alloc, free, reqsize)				\
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;	\
+	MAYBE_UNUSED struct rb_root *heap =					\
+		is_palloc ? &m->palloc_heap : &m->heap;			\
+	MAYBE_UNUSED bool *init  = &m->in_mm_init; /* gross, but harmless. */	\
+	MAYBE_UNUSED bool *alloc = is_palloc ? &m->in_page_alloc : &m->in_alloc;\
+	MAYBE_UNUSED bool *free  = is_palloc ? &m->in_page_free  : &m->in_free;	\
+	MAYBE_UNUSED unsigned int *reqsize =					\
+		is_palloc ? &m->palloc_request_size : &m->alloc_request_size
+#else
+#define INIT_PTRS(m, heap, init, alloc, free, reqsize)				\
+	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;	\
+	MAYBE_UNUSED struct rb_root *heap = &m->heap;			\
+	MAYBE_UNUSED bool *init  = &m->in_mm_init;				\
+	MAYBE_UNUSED bool *alloc = &m->in_alloc;				\
+	MAYBE_UNUSED bool *free  = &m->in_free;					\
+	MAYBE_UNUSED unsigned int *reqsize = &m->alloc_request_size
+#endif
 
-	assert(!m->in_mm_init);
-	if (m->in_alloc || m->in_free) {
+/* bad place == mal loc */
+/* so... pal loc == a friendly place? */
+static void mem_enter_bad_place(struct ls_state *ls, bool in_kernel, bool is_palloc, unsigned int size)
+{
+	INIT_PTRS(m, heap, in_init, in_alloc, in_free, request_size);
+
+	assert(!*in_init);
+	if (*in_alloc || *in_free) {
 		FOUND_A_BUG(ls, "Malloc (in %s) reentered %s!", K_STR(in_kernel),
-			    m->in_alloc ? "Malloc" : "Free");
+			    *in_alloc ? "Malloc" : "Free");
 	}
 
-	m->in_alloc = true;
-	m->alloc_request_size = size;
+	*in_alloc = true;
+	*request_size = size;
 }
 
-static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, unsigned int base)
+static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, bool is_palloc, unsigned int base)
 {
-	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+	INIT_PTRS(m, heap, in_init, in_alloc, in_free, request_size);
 
-	assert(m->in_alloc && "attempt to exit malloc without being in!");
-	assert(!m->in_free && "attempt to exit malloc while in free!");
-	assert(!m->in_mm_init && "attempt to exit malloc while in init!");
+	assert(*in_alloc && "attempt to exit malloc without being in!");
+	assert(!*in_free && "attempt to exit malloc while in free!");
+	assert(!*in_init && "attempt to exit malloc while in init!");
 
 	if (in_kernel != testing_userspace()) {
-		lsprintf(DEV, "Malloc [0x%x | %d]\n", base, m->alloc_request_size);
+		lsprintf(DEV, "Malloc [0x%x | %d]\n", base, *request_size);
 	}
 
 	if (in_kernel) {
@@ -344,37 +368,42 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, unsigned int
 	} else {
 		struct chunk *chunk = MM_XMALLOC(1, struct chunk);
 		chunk->base = base;
-		chunk->len = m->alloc_request_size;
+		chunk->len = *request_size;
 		chunk->id = m->heap_next_id;
 		chunk->malloc_trace = stack_trace(ls);
 		chunk->free_trace = NULL;
 #ifdef PINTOS_KERNEL
-		// TODO
-		chunk->pages_reserved_for_malloc = false;
+		/* In pintos, malloc() uses palloc() to back the arenas. We want
+		 * to check for UAFs in both types of allocations, so specially
+		 * flag palloced pages that should still UAF if there's an
+		 * access not also part of a malloc()ed block inside. */
+		chunk->pages_reserved_for_malloc = is_palloc &&
+			within_function_st(chunk->malloc_trace, GUEST_LMM_ALLOC_ENTER,
+					   GUEST_LMM_ALLOC_EXIT);
 #endif
 
-		m->heap_size += m->alloc_request_size;
+		m->heap_size += *request_size;
 		assert(m->heap_next_id != INT_MAX && "need a wider type");
 		m->heap_next_id++;
-		insert_chunk(&m->heap, chunk, false);
+		insert_chunk(heap, chunk, false);
 	}
 
-	m->in_alloc = false;
+	*in_alloc = false;
 }
 
-static void mem_enter_free(struct ls_state *ls, bool in_kernel, unsigned int base)
+static void mem_enter_free(struct ls_state *ls, bool in_kernel, bool is_palloc, unsigned int base)
 {
-	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+	INIT_PTRS(m, heap, in_init, in_alloc, in_free, request_size);
 
 	struct chunk *chunk;
 
-	assert(!m->in_mm_init);
-	if (m->in_alloc || m->in_free) {
+	assert(!*in_init);
+	if (*in_alloc || *in_free) {
 		FOUND_A_BUG(ls, "Free (in %s) reentered %s!", K_STR(in_kernel),
-			    m->in_alloc ? "Malloc" : "Free");
+			    *in_alloc ? "Malloc" : "Free");
 	}
 
-	chunk = remove_chunk(&m->heap, base);
+	chunk = remove_chunk(heap, base);
 
 	if (base == 0) {
 		assert(chunk == NULL);
@@ -413,18 +442,19 @@ static void mem_enter_free(struct ls_state *ls, bool in_kernel, unsigned int bas
 		insert_chunk(&m->freed, chunk, true);
 	}
 
-	m->in_free = true;
+	*in_free = true;
 }
 
-static void mem_exit_free(struct ls_state *ls, bool in_kernel)
+static void mem_exit_free(struct ls_state *ls, bool in_kernel, bool is_palloc)
 {
-	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
+	INIT_PTRS(m, heap, in_init, in_alloc, in_free, request_size);
 
-	assert(m->in_free && "attempt to exit free without being in!");
-	assert(!m->in_alloc && "attempt to exit free while in malloc!");
-	assert(!m->in_mm_init && "attempt to exit free while in init!");
-	m->in_free = false;
+	assert(*in_free && "attempt to exit free without being in!");
+	assert(!*in_alloc && "attempt to exit free while in malloc!");
+	assert(!*in_init && "attempt to exit free while in init!");
+	*in_free = false;
 }
+#undef INIT_PTRS
 #undef K_STR
 
 void mem_update(struct ls_state *ls)
@@ -447,14 +477,25 @@ void mem_update(struct ls_state *ls)
 	}
 
 	if (KERNEL_MEMORY(ls->eip)) {
+		/* Normal malloc */
 		if (kern_lmm_alloc_entering(ls->cpu0, ls->eip, &size)) {
-			mem_enter_bad_place(ls, true, size);
+			mem_enter_bad_place(ls, true, false, size);
 		} else if (kern_lmm_alloc_exiting(ls->cpu0, ls->eip, &base)) {
-			mem_exit_bad_place(ls, true, base);
+			mem_exit_bad_place(ls, true, false, base);
 		} else if (kern_lmm_free_entering(ls->cpu0, ls->eip, &base)) {
-			mem_enter_free(ls, true, base);
+			mem_enter_free(ls, true, false, base);
 		} else if (kern_lmm_free_exiting(ls->eip)) {
-			mem_exit_free(ls, true);
+			mem_exit_free(ls, true, false);
+		/* Pintos-only separate page allocator */
+		} else if (kern_page_alloc_entering(ls->cpu0, ls->eip, &size)) {
+			mem_enter_bad_place(ls, true, true, size);
+		} else if (kern_page_alloc_exiting(ls->cpu0, ls->eip, &base)) {
+			mem_exit_bad_place(ls, true, true, base);
+		} else if (kern_page_free_entering(ls->cpu0, ls->eip, &base)) {
+			mem_enter_free(ls, true, true, base);
+		} else if (kern_page_free_exiting(ls->eip)) {
+			mem_exit_free(ls, true, true);
+		/* Etc. */
 		} else if (testing_userspace() && kern_exec_enter(ls->eip)) {
 			/* Update user process cr3 state machine.
 			 * See ignore-user-access above and below. */
@@ -467,9 +508,9 @@ void mem_update(struct ls_state *ls)
 		if (ignore_user_access(ls)) {
 			return;
 		} else if (user_mm_malloc_entering(ls->cpu0, ls->eip, &size)) {
-			mem_enter_bad_place(ls, false, size);
+			mem_enter_bad_place(ls, false, false, size);
 		} else if (user_mm_malloc_exiting(ls->cpu0, ls->eip, &base)) {
-			mem_exit_bad_place(ls, false, base);
+			mem_exit_bad_place(ls, false, false, base);
 			/* was this malloc part of a userspace mutex_init call?
 			 * here is where we discover the structure of student
 			 * mutexes that have dynamically-allocated bits. */
@@ -479,9 +520,9 @@ void mem_update(struct ls_state *ls)
 					base, ls->user_mem.alloc_request_size);
 			}
 		} else if (user_mm_free_entering(ls->cpu0, ls->eip, &base)) {
-			mem_enter_free(ls, false, base);
+			mem_enter_free(ls, false, false, base);
 		} else if (user_mm_free_exiting(ls->eip)) {
-			mem_exit_free(ls, false);
+			mem_exit_free(ls, false, false);
 		} else if (user_mm_realloc_entering(ls->cpu0, ls->eip, &_orig_base, &size)) {
 			assert(!ls->user_mem.in_alloc);
 			assert(!ls->user_mem.in_free);

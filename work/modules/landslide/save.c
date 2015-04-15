@@ -310,31 +310,31 @@ static struct rb_node *dup_chunk(const struct rb_node *nobe,
 }
 static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool in_tree)
 {
-	dest->guest_init_done    = src->guest_init_done;
-	dest->in_mm_init         = src->in_mm_init;
-	dest->in_alloc           = src->in_alloc;
-	dest->in_realloc         = src->in_realloc;
-	dest->in_free            = src->in_free;
-	dest->alloc_request_size = src->alloc_request_size;
-	dest->heap.rb_node       = dup_chunk(src->heap.rb_node, NULL);
+	dest->guest_init_done     = src->guest_init_done;
+	dest->in_mm_init          = src->in_mm_init;
+	dest->in_alloc            = src->in_alloc;
+	dest->in_realloc          = src->in_realloc;
+	dest->in_free             = src->in_free;
+	dest->alloc_request_size  = src->alloc_request_size;
+	dest->heap.rb_node = dup_chunk(src->heap.rb_node, NULL);
 #ifdef PINTOS_KERNEL
 	dest->palloc_heap.rb_node = dup_chunk(src->palloc_heap.rb_node, NULL);
 	dest->in_page_alloc       = src->in_page_alloc;
 	dest->in_page_free        = src->in_page_free;
 	dest->palloc_request_size = src->palloc_request_size;
 #endif
-	dest->heap_size          = src->heap_size;
-	dest->heap_next_id       = src->heap_next_id;
-	dest->cr3                = src->cr3;
-	dest->cr3_tid            = src->cr3_tid;
-	dest->user_mutex_size    = src->user_mutex_size;
+	dest->heap_size           = src->heap_size;
+	dest->heap_next_id        = src->heap_next_id;
+	dest->cr3                 = src->cr3;
+	dest->cr3_tid             = src->cr3_tid;
+	dest->user_mutex_size     = src->user_mutex_size;
 	/* NB: The shm and freed heaps are copied below, in shimsham_shm,
 	 * because this function is also used to restore when time travelling,
 	 * and we want it to reset the shm and freed heap to empty. But,
 	 * depending whether we're testing user or kernel, we might skip
 	 * the shimsham_shm call, so we at least must initialize them here. */
-	dest->shm.rb_node        = NULL;
-	dest->freed.rb_node      = NULL;
+	dest->shm.rb_node         = NULL;
+	dest->freed.rb_node       = NULL;
 	/* do NOT copy data_races! */
 	if (in_tree) {
 		/* see corresponding assert in free_mem() */
