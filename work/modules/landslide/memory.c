@@ -659,10 +659,12 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 	bool in_kernel;
 	unsigned int addr;
 
+#ifndef PINTOS_KERNEL
 	if (KERNEL_MEMORY(phys_addr) && virt_addr != 0) {
 		/* non-page-table-read access in kernel mem. */
 		assert(phys_addr == virt_addr && "kernel memory not direct-mapped??");
 	}
+#endif
 
 	if (!ls->sched.guest_init_done) {
 		return;
@@ -678,7 +680,13 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 	if (KERNEL_MEMORY(ls->eip) && !is_vm_user_copy) {
 		/* KERNEL SPACE */
 		in_kernel = true;
+#ifdef PINTOS_KERNEL
+		/* Pintos is not direct-mapped. FIXME, this is a bit sloppy. */
+		addr = virt_addr == 0 ? phys_addr : virt_addr;
+#else
+		/* Pebbles is. */
 		addr = phys_addr;
+#endif
 
 		/* Certain components of the kernel have a free pass, such as
 		 * the scheduler */
