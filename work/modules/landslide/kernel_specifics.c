@@ -426,6 +426,55 @@ bool kern_lmm_init_exiting(unsigned int eip)
 	return eip == GUEST_LMM_INIT_EXIT;
 }
 
+
+#ifdef PINTOS_KERNEL
+
+bool kern_page_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size)
+{
+	if (eip == GUEST_PALLOC_ALLOC_ENTER) {
+		*size = READ_STACK(cpu, GUEST_PALLOC_ALLOC_SIZE_ARGNUM)
+			* GUEST_PALLOC_ALLOC_SIZE_FACTOR;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_page_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base)
+{
+	if (eip == GUEST_PALLOC_ALLOC_EXIT) {
+		*base = GET_CPU_ATTR(cpu, eax);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_page_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base)
+{
+	if (eip == GUEST_PALLOC_FREE_ENTER) {
+		*base = READ_STACK(cpu, GUEST_PALLOC_FREE_BASE_ARGNUM);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool kern_page_free_exiting(unsigned int eip)
+{
+	return eip == GUEST_PALLOC_FREE_EXIT;
+}
+
+#else
+
+bool kern_page_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size) { return false; }
+bool kern_page_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base) { return false; }
+bool kern_page_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base) { return false; }
+bool kern_page_free_exiting(unsigned int eip) { return false; }
+
+#endif
+
+
 static bool kern_address_in_vga_console(unsigned int addr)
 {
 #ifdef PINTOS_KERNEL

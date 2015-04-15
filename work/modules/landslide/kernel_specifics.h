@@ -62,6 +62,11 @@ bool kern_lmm_free_exiting(unsigned int eip);
 bool kern_lmm_init_entering(unsigned int eip);
 bool kern_lmm_init_exiting(unsigned int eip);
 
+bool kern_page_alloc_entering(conf_object_t *cpu, unsigned int eip, unsigned int *size);
+bool kern_page_alloc_exiting(conf_object_t *cpu, unsigned int eip, unsigned int *base);
+bool kern_page_free_entering(conf_object_t *cpu, unsigned int eip, unsigned int *base);
+bool kern_page_free_exiting(unsigned int eip);
+
 /* Other memory operations */
 bool kern_address_in_heap(unsigned int addr);
 bool kern_address_global(unsigned int addr);

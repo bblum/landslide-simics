@@ -388,6 +388,25 @@ echo "#define GUEST_LMM_FREE_BASE_ARGNUM $LMM_FREE_BASE_ARGNUM"
 echo "#define GUEST_LMM_INIT_ENTER 0x`get_func $LMM_INIT`"
 echo "#define GUEST_LMM_INIT_EXIT 0x`get_func_ret $LMM_INIT`"
 
+# There's another allocator in pintos. We gotta model both of em.
+if [ ! -z "$PINTOS_KERNEL" ]; then
+	## NB. The pintos page allocator init() doesn't touch any memory in
+	## the heap itself; it only initializes bitmaps stored in .data.
+	# echo "#define GUEST_PALLOC_INIT_ENTER 0x`get_func palloc_init`"
+	# echo "#define GUEST_PALLOC_INIT_EXIT 0x`get_func_ret palloc_init`"
+
+	# palloc_get_page just wraps palloc_get_multiple
+	echo "#define GUEST_PALLOC_ALLOC_ENTER 0x`get_func palloc_get_multiple`"
+	echo "#define GUEST_PALLOC_ALLOC_EXIT 0x`get_func_ret palloc_get_multiple`"
+	echo "#define GUEST_PALLOC_ALLOC_SIZE_ARGNUM 2"
+	echo "#define GUEST_PALLOC_ALLOC_SIZE_FACTOR 4096"
+
+	# palloc_free_page just wraps palloc_free_multiple
+	echo "#define GUEST_PALLOC_FREE_ENTER 0x`get_func palloc_free_multiple`"
+	echo "#define GUEST_PALLOC_FREE_EXIT 0x`get_func_ret palloc_free_multiple`"
+	echo "#define GUEST_PALLOC_FREE_BASE_ARGNUM 1"
+fi
+
 echo
 
 #############################################
