@@ -44,6 +44,11 @@ static void mem_heap_init(struct mem_state *m)
 	m->in_alloc = false;
 	m->in_realloc = false;
 	m->in_free = false;
+#ifdef PINTOS_KERNEL
+	m->palloc_heap.rb_node = NULL;
+	m->in_page_alloc = false;
+	m->in_page_free = false;
+#endif
 	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
 	m->cr3_tid = 0;
 	m->user_mutex_size = 0;
@@ -343,6 +348,10 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, unsigned int
 		chunk->id = m->heap_next_id;
 		chunk->malloc_trace = stack_trace(ls);
 		chunk->free_trace = NULL;
+#ifdef PINTOS_KERNEL
+		// TODO
+		chunk->pages_reserved_for_malloc = false;
+#endif
 
 		m->heap_size += m->alloc_request_size;
 		assert(m->heap_next_id != INT_MAX && "need a wider type");
