@@ -37,7 +37,7 @@
 
 static void mem_heap_init(struct mem_state *m)
 {
-	m->heap.rb_node = NULL;
+	m->malloc_heap.rb_node = NULL;
 	m->heap_size = 0;
 	m->heap_next_id = 0;
 	m->guest_init_done = false;
@@ -313,7 +313,7 @@ static void print_freed_chunk_info(struct chunk *c,
 #define INIT_PTRS(m, heap, init, alloc, free, reqsize)				\
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;	\
 	MAYBE_UNUSED struct rb_root *heap =					\
-		is_palloc ? &m->palloc_heap : &m->heap;			\
+		is_palloc ? &m->palloc_heap : &m->malloc_heap;			\
 	MAYBE_UNUSED bool *init  = &m->in_mm_init; /* gross, but harmless. */	\
 	MAYBE_UNUSED bool *alloc = is_palloc ? &m->in_page_alloc : &m->in_alloc;\
 	MAYBE_UNUSED bool *free  = is_palloc ? &m->in_page_free  : &m->in_free;	\
@@ -322,7 +322,7 @@ static void print_freed_chunk_info(struct chunk *c,
 #else
 #define INIT_PTRS(m, heap, init, alloc, free, reqsize)				\
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;	\
-	MAYBE_UNUSED struct rb_root *heap = &m->heap;			\
+	MAYBE_UNUSED struct rb_root *heap = &m->malloc_heap;			\
 	MAYBE_UNUSED bool *init  = &m->in_mm_init;				\
 	MAYBE_UNUSED bool *alloc = &m->in_alloc;				\
 	MAYBE_UNUSED bool *free  = &m->in_free;					\
@@ -667,7 +667,7 @@ static void use_after_free(struct ls_state *ls, unsigned int addr,
 
 	// TODO: do something analogous to a wrong_panic() assert here
 	lsprintf(BUG, "Heap contents: {");
-	print_heap(BUG, m->heap.rb_node, true);
+	print_heap(BUG, m->malloc_heap.rb_node, true);
 	printf(BUG, "}\n");
 
 	/* Find the chunk and print stack traces for it */
@@ -830,7 +830,7 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 
 	if ((in_kernel && kern_address_in_heap(addr)) ||
 	    (!in_kernel && user_address_in_heap(addr))) {
-		struct chunk *c = find_containing_chunk(&m->heap, addr);
+		struct chunk *c = find_containing_chunk(&m->malloc_heap, addr);
 		if (c == NULL) {
 			use_after_free(ls, addr, write, KERNEL_MEMORY(addr));
 		} else if (do_add_shm) {
@@ -1190,9 +1190,9 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			/* found a match; advance both */
 			if (ma0->write || ma1->write) {
 				struct chunk *c0 =
-					find_containing_chunk(&m0->heap, ma0->addr);
+					find_containing_chunk(&m0->malloc_heap, ma0->addr);
 				struct chunk *c1 =
-					find_containing_chunk(&m1->heap, ma1->addr);
+					find_containing_chunk(&m1->malloc_heap, ma1->addr);
 				if (conflicts < MAX_CONFLICTS) {
 					if (conflicts > 0)
 						printf(DEV, ", ");

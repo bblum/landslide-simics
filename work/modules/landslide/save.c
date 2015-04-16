@@ -316,7 +316,7 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool i
 	dest->in_realloc          = src->in_realloc;
 	dest->in_free             = src->in_free;
 	dest->alloc_request_size  = src->alloc_request_size;
-	dest->heap.rb_node = dup_chunk(src->heap.rb_node, NULL);
+	dest->malloc_heap.rb_node = dup_chunk(src->malloc_heap.rb_node, NULL);
 #ifdef PINTOS_KERNEL
 	dest->palloc_heap.rb_node = dup_chunk(src->palloc_heap.rb_node, NULL);
 	dest->in_page_alloc       = src->in_page_alloc;
@@ -435,8 +435,8 @@ static void free_shm(struct rb_node *nobe)
 
 static void free_mem(struct mem_state *m, bool in_tree)
 {
-	free_heap(m->heap.rb_node);
-	m->heap.rb_node = NULL;
+	free_heap(m->malloc_heap.rb_node);
+	m->malloc_heap.rb_node = NULL;
 #ifdef PINTOS_KERNEL
 	free_heap(m->palloc_heap.rb_node);
 	m->palloc_heap.rb_node = NULL;

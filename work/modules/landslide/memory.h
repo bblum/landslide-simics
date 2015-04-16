@@ -95,7 +95,7 @@ struct chunk {
 
 struct mem_state {
 	/**** heap state tracking ****/
-	struct rb_root heap;
+	struct rb_root malloc_heap;
 	unsigned int heap_size;
 	unsigned int heap_next_id; /* generation counter for chunks */
 	/* dynamic allocation request state */
