@@ -170,6 +170,21 @@ static struct chunk *find_containing_chunk(struct rb_root *root, unsigned int ad
 	}
 }
 
+/* As above, but searches both the malloc and palloc heap (if it exists). */
+static struct chunk *find_alloced_chunk(struct mem_state *m, unsigned int addr)
+{
+	struct chunk *c = find_containing_chunk(&m->malloc_heap, addr);
+	if (c == NULL) {
+		c = find_containing_chunk(&m->palloc_heap, addr);
+		/* Pages used to back malloc are still illegal. */
+		if (c != NULL && c->pages_reserved_for_malloc) {
+			c = NULL;
+		}
+	}
+	return c;
+}
+
+
 static void insert_chunk(struct rb_root *root, struct chunk *c, bool coalesce)
 {
 	struct chunk *parent = NULL;
@@ -653,9 +668,14 @@ static void use_after_free(struct ls_state *ls, unsigned int addr,
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
 	// TODO: do something analogous to a wrong_panic() assert here
-	lsprintf(BUG, "Heap contents: {");
+	lsprintf(BUG, "Malloc() heap contents: {");
 	print_heap(BUG, m->malloc_heap.rb_node, true);
 	printf(BUG, "}\n");
+	if (m->palloc_heap.rb_node != NULL) {
+		lsprintf(BUG, "Palloc() heap contents: {");
+		print_heap(BUG, m->palloc_heap.rb_node, true);
+		printf(BUG, "}\n");
+	}
 
 	/* Find the chunk and print stack traces for it */
 	struct hax *before;
@@ -807,7 +827,8 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 	}
 
 	/* the allocator has a free pass to its own accesses */
-	if (m->in_mm_init || m->in_alloc || m->in_free || m->in_realloc) {
+	if (m->in_mm_init || m->in_alloc || m->in_free || m->in_realloc ||
+	    m->in_page_alloc || m->in_page_free) {
 		return;
 	}
 
@@ -817,7 +838,7 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 
 	if ((in_kernel && kern_address_in_heap(addr)) ||
 	    (!in_kernel && user_address_in_heap(addr))) {
-		struct chunk *c = find_containing_chunk(&m->malloc_heap, addr);
+		struct chunk *c = find_alloced_chunk(m, addr);
 		if (c == NULL) {
 			use_after_free(ls, addr, write, KERNEL_MEMORY(addr));
 		} else if (do_add_shm) {
@@ -920,6 +941,7 @@ static void check_stack_conflict(struct mem_access *ma, unsigned int other_tid,
 static void check_freed_conflict(struct mem_access *ma0, struct mem_state *m1,
 				 unsigned int other_tid, unsigned int *conflicts)
 {
+	// FIXME: Unimplemented for the palloc heap. What are the consequences?
 	struct chunk *c = find_containing_chunk(&m1->freed, ma0->addr);
 
 	if (c != NULL) {
@@ -1176,10 +1198,8 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		} else {
 			/* found a match; advance both */
 			if (ma0->write || ma1->write) {
-				struct chunk *c0 =
-					find_containing_chunk(&m0->malloc_heap, ma0->addr);
-				struct chunk *c1 =
-					find_containing_chunk(&m1->malloc_heap, ma1->addr);
+				struct chunk *c0 = find_alloced_chunk(m0, ma0->addr);
+				struct chunk *c1 = find_alloced_chunk(m1, ma1->addr);
 				if (conflicts < MAX_CONFLICTS) {
 					if (conflicts > 0)
 						printf(DEV, ", ");
