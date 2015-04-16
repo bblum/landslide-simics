@@ -41,6 +41,7 @@ void free_stack_trace(struct stack_trace *st);
 
 /* actual logic */
 struct stack_trace *stack_trace(struct ls_state *ls);
+bool within_function_st(struct stack_trace *st, unsigned int func, unsigned int func_end);
 bool within_function(struct ls_state *ls, unsigned int func, unsigned int func_end);
 
 /* convenience */

@@ -372,14 +372,11 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 	return st;
 }
 
-/* Performs a stack trace to see if the current call stack has the given
- * function somewhere on it. */
-bool within_function(struct ls_state *ls, unsigned int func, unsigned int func_end)
+/* As below but doesn't require duplicating the work of making a fresh stack
+ * trace if you already have one. .*/
+bool within_function_st(struct stack_trace *st, unsigned int func,
+			unsigned int func_end)
 {
-	/* Note while it may seem wasteful to malloc a bunch of times to make
-	 * the stack trace, many (not all) of the mallocs are actually needed
-	 * because the 'wrong cr3' end condition requires a symtable lookup. */
-	struct stack_trace *st = stack_trace(ls);
 	struct stack_frame *f;
 	bool result = false;
 	Q_FOREACH(f, &st->frames, nobe) {
@@ -388,6 +385,18 @@ bool within_function(struct ls_state *ls, unsigned int func, unsigned int func_e
 			break;
 		}
 	}
+	return result;
+}
+
+/* Performs a stack trace to see if the current call stack has the given
+ * function somewhere on it. */
+bool within_function(struct ls_state *ls, unsigned int func, unsigned int func_end)
+{
+	/* Note while it may seem wasteful to malloc a bunch of times to make
+	 * the stack trace, many (not all) of the mallocs are actually needed
+	 * because the 'wrong cr3' end condition requires a symtable lookup. */
+	struct stack_trace *st = stack_trace(ls);
+	bool result = within_function_st(st, func, func_end);
 	free_stack_trace(st);
 	return result;
 }
