@@ -45,11 +45,9 @@ static void mem_heap_init(struct mem_state *m)
 	m->in_alloc = false;
 	m->in_realloc = false;
 	m->in_free = false;
-#ifdef PINTOS_KERNEL
 	m->palloc_heap.rb_node = NULL;
 	m->in_page_alloc = false;
 	m->in_page_free = false;
-#endif
 	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
 	m->cr3_tid = 0;
 	m->user_mutex_size = 0;
@@ -309,7 +307,6 @@ static void print_freed_chunk_info(struct chunk *c,
 
 /* In the 4 following functions, intialize pointers to the appropriate heaps
  * and flags depending on which heap (kmalloc, kpalloc, umalloc) is used. */
-#ifdef PINTOS_KERNEL
 #define INIT_PTRS(m, heap, init, alloc, free, reqsize)				\
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;	\
 	MAYBE_UNUSED struct rb_root *heap =					\
@@ -319,15 +316,6 @@ static void print_freed_chunk_info(struct chunk *c,
 	MAYBE_UNUSED bool *free  = is_palloc ? &m->in_page_free  : &m->in_free;	\
 	MAYBE_UNUSED unsigned int *reqsize =					\
 		is_palloc ? &m->palloc_request_size : &m->alloc_request_size
-#else
-#define INIT_PTRS(m, heap, init, alloc, free, reqsize)				\
-	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;	\
-	MAYBE_UNUSED struct rb_root *heap = &m->malloc_heap;			\
-	MAYBE_UNUSED bool *init  = &m->in_mm_init;				\
-	MAYBE_UNUSED bool *alloc = &m->in_alloc;				\
-	MAYBE_UNUSED bool *free  = &m->in_free;					\
-	MAYBE_UNUSED unsigned int *reqsize = &m->alloc_request_size
-#endif
 
 /* bad place == mal loc */
 /* so... pal loc == a friendly place? */
@@ -372,15 +360,14 @@ static void mem_exit_bad_place(struct ls_state *ls, bool in_kernel, bool is_pall
 		chunk->id = m->heap_next_id;
 		chunk->malloc_trace = stack_trace(ls);
 		chunk->free_trace = NULL;
-#ifdef PINTOS_KERNEL
 		/* In pintos, malloc() uses palloc() to back the arenas. We want
 		 * to check for UAFs in both types of allocations, so specially
 		 * flag palloced pages that should still UAF if there's an
-		 * access not also part of a malloc()ed block inside. */
+		 * access not also part of a malloc()ed block inside.
+		 * In pebbles, is_palloc will never be true. */
 		chunk->pages_reserved_for_malloc = is_palloc &&
 			within_function_st(chunk->malloc_trace, GUEST_LMM_ALLOC_ENTER,
 					   GUEST_LMM_ALLOC_EXIT);
-#endif
 
 		m->heap_size += *request_size;
 		assert(m->heap_next_id != INT_MAX && "need a wider type");

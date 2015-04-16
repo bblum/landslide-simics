@@ -88,9 +88,7 @@ struct chunk {
 	/* for use-after-free reporting */
 	struct stack_trace *malloc_trace;
 	struct stack_trace *free_trace;
-#ifdef PINTOS_KERNEL
 	bool pages_reserved_for_malloc;
-#endif
 };
 
 struct mem_state {
@@ -106,16 +104,15 @@ struct mem_state {
 	bool in_free;
 	unsigned int alloc_request_size; /* valid iff in_alloc */
 
-#ifdef PINTOS_KERNEL
-	/* Separate from the malloc heap because malloc uses palloc'ed pages
-	 * as its backing arenas (the chunks will overlap). The above fields
-	 * for size and generation counter are shared for simplicity of code,
-	 * but others need to be duplicated. */
+	/* Separate from the malloc heap because, in pintos, malloc uses
+	 * palloc'ed pages as its backing arenas (the chunks will overlap).
+	 * The above fields for size and generation counter are shared for
+	 * simplicity of code, but others need to be duplicated. In pebbles
+	 * this is deadcode. */
 	struct rb_root palloc_heap;
 	bool in_page_alloc;
 	bool in_page_free;
 	unsigned int palloc_request_size; /* valid iff in_alloc */
-#endif
 
 	/**** userspace information ****/
 	unsigned int cr3; /* 0 == uninitialized or this is for kernel mem */
