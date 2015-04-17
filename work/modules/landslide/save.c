@@ -757,8 +757,10 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->estimate_computed = false;
 
 		if (voluntary) {
+#ifndef PINTOS_KERNEL
 			assert(h->chosen_thread == -1 || h->chosen_thread ==
 			       ls->sched.voluntary_resched_tid);
+#endif
 			assert(ls->sched.voluntary_resched_stack != NULL);
 			assert(data_race_eip == -1);
 			h->stack_trace = ls->sched.voluntary_resched_stack;

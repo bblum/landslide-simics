@@ -105,9 +105,16 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		printf(DEV, " to ");
 		print_agent(DEV, ls->sched.cur_agent);
 		printf(DEV, "\n");
+#ifndef PINTOS_KERNEL
+		/* Pintos includes a semaphore implementation which can go
+		 * around its anti-paradise-lost while loop a full time without
+		 * interrupts coming back on. So, there can be a voluntary
+		 * reschedule sequence where an uninterruptible, blocked thread
+		 * gets jammed in the middle of this transition. Issue #165. */
 		if (ls->save.next_tid != ls->sched.last_agent->tid) {
 			ASSERT_ONE_THREAD_PER_PP(ls);
 		}
+#endif
 		assert(ls->sched.voluntary_resched_tid != -1);
 		*voluntary = true;
 		return true;
