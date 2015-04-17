@@ -107,6 +107,9 @@ unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 
 	}
 	SET_CPU_ATTR(cpu, eip, handler);
+#ifdef PINTOS_KERNEL
+	SET_CPU_ATTR(cpu, eflags, GET_CPU_ATTR(cpu, eflags) & ~EFL_IF);
+#endif
 	return handler;
 }
 
