@@ -13,7 +13,8 @@ struct sched_state;
 struct ls_state;
 
 struct test_state {
-	bool test_is_running;
+	bool test_is_running; /* used for pebbles */
+	bool test_ended; /* used for pintos */
 	bool test_ever_caused;
 	char *current_test;
 	int start_population; /* valid iff test_ever_caused */

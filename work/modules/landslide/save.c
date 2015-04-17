@@ -260,6 +260,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 static void copy_test(struct test_state *dest, const struct test_state *src)
 {
 	dest->test_is_running      = src->test_is_running;
+	dest->test_ended           = src->test_ended;
 	dest->start_population     = src->start_population;
 	dest->start_kern_heap_size = src->start_kern_heap_size;
 	dest->start_user_heap_size = src->start_user_heap_size;

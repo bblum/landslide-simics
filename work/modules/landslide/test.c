@@ -23,6 +23,7 @@
 void test_init(struct test_state *t)
 {
 	t->test_is_running  = false;
+	t->test_ended       = false;
 	t->test_ever_caused = false;
 	t->current_test     = NULL;
 }
@@ -90,7 +91,7 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 	} else if (Q_GET_SIZE(&s->dq) != 0) {
 		if (Q_GET_SIZE(&s->dq) == 1 && TID_IS_IDLE(Q_GET_HEAD(&s->dq)->tid)) {
 			REASON("Nobody's alive -- only idle remains.");
-			return true;
+			return false;
 		} else {
 			REASON("Somebody's alive -- a non-idle thread exists.");
 			return true;
@@ -105,19 +106,19 @@ bool test_update_state(struct ls_state *ls)
 {
 	//struct test_state *t = &ls->test;
 	if (ls->eip == GUEST_RUN_TASK_ENTER) {
-		// assert(!t->test_is_running);
-		// t->test_is_running = true;
 		lsprintf(DEV, "a test appears to be starting - ");
 		print_qs(DEV, &ls->sched);
 		printf(DEV, "\n");
 		return true;
 	} else if (ls->eip == GUEST_RUN_TASK_EXIT) {
-		// TODO. Wait until all other threads quiesce, as in priority-sema.
-		// assert(t->test_is_running);
-		// t->test_is_running = false;
+		ls->test.test_ended = true;
 		lsprintf(DEV, "a test appears to be ending - ");
 		print_qs(DEV, &ls->sched);
 		printf(DEV, "\n");
+		return false; /* Wait for all threads to quiesce. */
+	} else if (ls->test.test_ended &&
+		   !anybody_alive(ls->cpu0, &ls->test, &ls->sched, false)) {
+		lsprintf(DEV, "threads have quiesced; ok to rewind\n");
 		return true;
 	} else {
 		/* No change. */
