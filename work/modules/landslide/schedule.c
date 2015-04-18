@@ -264,6 +264,8 @@ static void kern_mutex_block_others(struct agent_q *q, unsigned int mutex_addr,
 			            struct agent *kern_blocked_on,
 			            unsigned int kern_blocked_on_tid)
 {
+	// FIXME: Issue 167
+#ifndef PINTOS_KERNEL
 	struct agent *a;
 	assert(mutex_addr != -1);
 	Q_FOREACH(a, q, nobe) {
@@ -276,6 +278,7 @@ static void kern_mutex_block_others(struct agent_q *q, unsigned int mutex_addr,
 			a->kern_blocked_on_tid = kern_blocked_on_tid;
 		}
 	}
+#endif
 }
 
 static void user_mutex_block_others(struct agent_q *q, unsigned int mutex_addr, bool mutex_held)
