@@ -104,20 +104,19 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 
 bool test_update_state(struct ls_state *ls)
 {
-	//struct test_state *t = &ls->test;
+	struct test_state *t = &ls->test;
 	if (ls->eip == GUEST_RUN_TASK_ENTER) {
 		lsprintf(DEV, "a test appears to be starting - ");
 		print_qs(DEV, &ls->sched);
 		printf(DEV, "\n");
 		return true;
 	} else if (ls->eip == GUEST_RUN_TASK_EXIT) {
-		ls->test.test_ended = true;
+		t->test_ended = true;
 		lsprintf(DEV, "a test appears to be ending - ");
 		print_qs(DEV, &ls->sched);
 		printf(DEV, "\n");
 		return false; /* Wait for all threads to quiesce. */
-	} else if (ls->test.test_ended &&
-		   !anybody_alive(ls->cpu0, &ls->test, &ls->sched, false)) {
+	} else if (t->test_ended && !anybody_alive(ls->cpu0, t, &ls->sched, false)) {
 		lsprintf(DEV, "threads have quiesced; ok to rewind\n");
 		return true;
 	} else {
