@@ -572,6 +572,25 @@ echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING 0x`get_func $TL_MX_TRYLOCK`"
 echo "#define TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE 0x`get_func $TL_MX_TRYLOCK_DONE`"
 echo "#define TELL_LANDSLIDE_DUMP_STACK 0x`get_func $TL_STACK`"
 
+if [ ! -z "$PINTOS_KERNEL" ]; then
+	# For pintos we'll hook the mutex implementation by name rather than
+	# relying on annotations. There's too much conflict across student
+	# implementations for any set of annotations to patch cleanly.
+	# mutex_lock
+	echo "#define GUEST_SEMA_DOWN_ENTER 0x`get_func sema_down`"
+	echo "#define GUEST_SEMA_DOWN_EXIT 0x`get_func_end sema_down`"
+	echo "#define GUEST_SEMA_DOWN_ARGNUM 1"
+	# mutex_trylock
+	echo "#define GUEST_SEMA_TRY_DOWN_ENTER 0x`get_func sema_try_down`"
+	echo "#define GUEST_SEMA_TRY_DOWN_EXIT 0x`get_func_end sema_try_down`"
+	echo "#define GUEST_SEMA_TRY_DOWN_ARGNUM 1"
+	echo "#define GUEST_SEMA_TRY_DOWN_FAILURE 0" # false
+	# mutex_unlock
+	echo "#define GUEST_SEMA_UP_ENTER 0x`get_func sema_up`"
+	echo "#define GUEST_SEMA_UP_EXIT 0x`get_func_end sema_up`"
+	echo "#define GUEST_SEMA_UP_ARGNUM 1"
+fi
+
 echo
 
 ##########################

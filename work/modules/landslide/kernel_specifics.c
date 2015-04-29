@@ -221,8 +221,13 @@ bool kern_kernel_main(unsigned int eip)
 
 bool kern_mutex_locking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
+#ifdef PINTOS_KERNEL
+	if (eip == GUEST_SEMA_DOWN_ENTER) {
+		*mutex = READ_STACK(cpu, GUEST_SEMA_DOWN_ARGNUM);
+#else
 	if (eip == TELL_LANDSLIDE_MUTEX_LOCKING) {
 		*mutex = READ_STACK(cpu, 1);
+#endif
 		return true;
 	} else {
 		return false;
@@ -232,8 +237,12 @@ bool kern_mutex_locking(conf_object_t *cpu, unsigned int eip, unsigned int *mute
 /* Is the thread becoming "disabled" because the mutex is owned? */
 bool kern_mutex_blocking(conf_object_t *cpu, unsigned int eip, unsigned int *owner_tid)
 {
+#ifdef PINTOS_KERNEL
+	if (false) {
+#else
 	if (eip == TELL_LANDSLIDE_MUTEX_BLOCKING) {
 		*owner_tid = READ_STACK(cpu, 1);
+#endif
 		return true;
 	} else {
 		return false;
@@ -243,8 +252,16 @@ bool kern_mutex_blocking(conf_object_t *cpu, unsigned int eip, unsigned int *own
 /* This one also tells if the thread is re-enabled. */
 bool kern_mutex_locking_done(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
+#ifdef PINTOS_KERNEL
+	if (eip == GUEST_SEMA_DOWN_EXIT) {
+		// FIXME: Ugly. Relies on compiler not changing the argument
+		// packet above %ebp during the function's execution. In this
+		// case, the value will not be used (see callsite), but...
+		*mutex = READ_STACK(cpu, GUEST_SEMA_DOWN_ARGNUM);
+#else
 	if (eip == TELL_LANDSLIDE_MUTEX_LOCKING_DONE) {
 		*mutex = READ_STACK(cpu, 1);
+#endif
 		return true;
 	} else {
 		return false;
@@ -254,8 +271,13 @@ bool kern_mutex_locking_done(conf_object_t *cpu, unsigned int eip, unsigned int 
 /* Need to re-read the mutex addr because of unlocking mutexes in any order. */
 bool kern_mutex_unlocking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
+#ifdef PINTOS_KERNEL
+	if (eip == GUEST_SEMA_UP_ENTER) {
+		*mutex = READ_STACK(cpu, GUEST_SEMA_UP_ARGNUM);
+#else
 	if (eip == TELL_LANDSLIDE_MUTEX_UNLOCKING) {
 		*mutex = READ_STACK(cpu, 1);
+#endif
 		return true;
 	} else {
 		return false;
@@ -264,13 +286,22 @@ bool kern_mutex_unlocking(conf_object_t *cpu, unsigned int eip, unsigned int *mu
 
 bool kern_mutex_unlocking_done(unsigned int eip)
 {
+#ifdef PINTOS_KERNEL
+	return eip == GUEST_SEMA_UP_EXIT;
+#else
 	return eip == TELL_LANDSLIDE_MUTEX_UNLOCKING_DONE;
+#endif
 }
 
 bool kern_mutex_trylocking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex)
 {
+#ifdef PINTOS_KERNEL
+	if (eip == GUEST_SEMA_TRY_DOWN_ENTER) {
+		*mutex = READ_STACK(cpu, GUEST_SEMA_TRY_DOWN_ARGNUM);
+#else
 	if (eip == TELL_LANDSLIDE_MUTEX_TRYLOCKING) {
 		*mutex = READ_STACK(cpu, 1);
+#endif
 		return true;
 	} else {
 		return false;
@@ -279,9 +310,18 @@ bool kern_mutex_trylocking(conf_object_t *cpu, unsigned int eip, unsigned int *m
 
 bool kern_mutex_trylocking_done(conf_object_t *cpu, unsigned int eip, unsigned int *mutex, bool *success)
 {
+#ifdef PINTOS_KERNEL
+	if (eip == GUEST_SEMA_TRY_DOWN_EXIT) {
+		// FIXME: As previous FIXME above.
+		// ..., but here the value needs to be used to unwind the
+		// lockset tracking. So we really need gcc to not hose us here!
+		*mutex = READ_STACK(cpu, GUEST_SEMA_TRY_DOWN_ARGNUM);
+		*success = GET_CPU_ATTR(cpu, eax) != GUEST_SEMA_TRY_DOWN_FAILURE;
+#else
 	if (eip == TELL_LANDSLIDE_MUTEX_TRYLOCKING_DONE) {
 		*mutex = READ_STACK(cpu, 1);
 		*success = READ_STACK(cpu, 2) != 0;
+#endif
 		return true;
 	} else {
 		return false;

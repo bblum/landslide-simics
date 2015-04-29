@@ -170,6 +170,11 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			return false;
 		}
 	/* kernel-mode-only preemption points */
+#ifdef PINTOS_KERNEL
+	} else if ((ls->eip == GUEST_SEMA_DOWN_ENTER || ls->eip == GUEST_SEMA_UP_EXIT) && kern_within_functions(ls)) {
+		ASSERT_ONE_THREAD_PER_PP(ls);
+		return true;
+#endif
 	} else if (kern_decision_point(ls->eip) &&
 		   kern_within_functions(ls)) {
 		ASSERT_ONE_THREAD_PER_PP(ls);
