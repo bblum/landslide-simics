@@ -1,0 +1,167 @@
+# The path to your kernel image; the file called "kernel" that gets built.
+# (It's ok if you renamed it something other than "kernel".)
+KERNEL_IMG=kernel
+
+# Relative to the pebsim/ directory.
+KERNEL_SOURCE_DIR=pintos/pintos/src
+
+PINTOS_KERNEL=1
+
+TEST_CASE=priority_sema
+
+######################
+#### Simple stuff ####
+######################
+
+# The function registered in the IDT to handle timer interrupts.
+TIMER_WRAPPER=intr20_stub
+# TODO: This *might* work if it's shared with other interrupts? Test.
+TIMER_WRAPPER_DISPATCH=intr_exit
+
+# The function that all context switches go through. Preferably the outermost
+# one - e.g. if a C function calls an assembly function, and both meet this
+# criterion, use the name of the former.
+CONTEXT_SWITCH=schedule
+
+# The TIDs of important threads - init, shell, idle. Comment IDLE_TID out
+# entirely if your kernel does not have an explicit idle thread.
+INIT_TID=1
+IDLE_TID=2
+
+# After tell_landslide_sched_init_done(), which thread is the first one to run?
+FIRST_TID=$INIT_TID
+
+# Call this for each thread that exists in your kernel when it
+# tells_landslide_sched_init_done(). The first argument is the TID; the second
+# is "1" if the thread is on the runqueue, and "0" if the thread is not (for
+# example, if it starts descheduled, or if it's the current thread and
+# kern_current_extra_runnable would return true, etc).
+starting_threads $INIT_TID 0
+starting_threads $IDLE_TID 0
+
+CURRENT_THREAD_LIVES_ON_RQ=0
+
+# pintos appears to just use intr disable/enable and clis and stis appropriately
+#PREEMPT_ENABLE_FLAG=URSEoQMeIQvO
+#PREEMPT_ENABLE_VALUE=0
+
+PAGE_FAULT_WRAPPER=intr0e_stub # IDT entry 14
+
+# a kernel-space function which makes userspace memory accesses that might
+# conflict (wrt DPOR) with other accesses from userspace. IOW, some system
+# calls could be "covert communication channels" that we don't want to miss
+# for the purpose of memory independence (e.g. deschedule's reject pointer).
+# TODO: reenable once hooking up userland project (maybe? will ever need it?)
+## VM_USER_COPY=cXTnLzDKw # safe_copy()
+## VM_USER_COPY_TAIL=rNoobcQrDzQLjXj # safe_copy_fixup()
+
+# obscure annotation for pathos syscall wrappers.
+# this == sizeof(ureg_t) - sizeof(<iret frame>). see issue #117.
+## PATHOS_SYSCALL_IRET_DISTANCE=60
+
+## PDE_PTE_POISON=0xCDCDCDCD
+
+# enable found_a_bug on kernel thread_exit(CAUSE_FAULT);
+## THREAD_KILLED_FUNC=ZLWPHNFLFUQ
+## THREAD_KILLED_ARG_VAL=1
+
+#######################################
+#### Scheduler/globals information ####
+#######################################
+
+ignore_sym yield_on_return 4
+ignore_sym in_external_intr 4
+ignore_sym ticks 4
+# ignore_sym ready_list ## NO (for now). Want to test parts of sched impl itself..
+
+sched_func intr_handler
+sched_func timer_interrupt
+sched_func schedule
+sched_func switch_threads
+sched_func thread_schedule_tail
+
+# ignore_sym URSEoQMeIQvO 4
+# ignore_sym polPBuOi 12
+# sched_func icWfGRQmDQbWa
+# sched_func xyRlsbDVrK
+# sched_func WZKyeCFpsXt
+# sched_func RLMXwGPIk
+# sched_func AEuIKqjmENsr
+# sched_func xeAXWULpBzBBN
+# sched_func GGBsaJauT
+# sched_func YkUgKCMGEOBYCjnBMImeN
+# sched_func vjelHvkBuni
+# sched_func jcFpEThKhiRrQdtYPv
+# sched_func djkSpJloYMUfzbTc
+# sched_func hEDOoZEYlX
+# sched_func zkFNqaNGVZjFRfcoDVVIY
+# sched_func dWUlEfIaGqSJ
+# sched_func ttwMAOPBxXY
+# sched_func jvELqRqVMi
+# sched_func TwKFqadyQvLzx
+# sched_func VysAUbqVvf
+# sched_func hTwyhkuiWTyhaRXhE
+# sched_func NTyiQiQWCuj
+# sched_func mQoJTdNwJLMlK
+# sched_func LWjFcADtWRzC
+# sched_func WmYRXGCjurwzQcsFhLTjvgx
+# sched_func gvUYUyJqPuesrFyWLC
+# sched_func WgAbLRRyBujryZMOJ
+# sched_func iejkATqKibpzavgEELmeYJhhX
+# sched_func UZSxOcyyuLkomunhmG
+
+####################################################
+#### Decision-point / Exploration configuration ####
+####################################################
+
+# XXX (issue #120): Cannot have any userspace directives here to be
+# compatible with additional iterative deepening config.
+
+# All PPs are specified in supplemental ID config file.
+
+##########################
+#### Advanced options ####
+##########################
+
+# If you need to know any other global variables when implementing the
+# in-landslide hooks, write them here. First argument is the symbol name in your
+# kernel; second argument is the name of the define for its address that you'll
+# be able to use.
+
+# Landslide has detection for "all threads are wedged", but it's imperfect, so
+# by default we let the kernel keep running. If you see an "all threads wedged?"
+# message and your kernel doesn't seem to be making progress, change this to 1.
+BUG_ON_THREADS_WEDGED=1
+
+# Exploring "backwards" means starting with a forced preemption at every
+# decision point. Exploring "forwards" means letting threads continue running by
+# default and adding extra preemptions as exploration progresses.
+# Backwards is likely to find bugs much more quickly, but will produce a
+# longer, more difficult to understand debug trace.
+# !!!   Backwards is the recommended default! Only change this if you've   !!!
+# !!!     already found a bug and are trying to understand it better!      !!!
+EXPLORE_BACKWARDS=1
+
+# Set this to 1 if you want Landslide not to explore the tree, but to stop after
+# the first branch and print out the set of decision points that it found using
+# your current configuration. This is useful for fine-tuning your set of custom
+# decision points.
+DONT_EXPLORE=0
+
+# When Landslide finds a bug, should it make simics quit (0) or drop into the
+# command line (1)? (Quitting will make the correct elapsed time print out.)
+BREAK_ON_BUG=0
+
+TESTING_USERSPACE=0
+
+PRINT_DATA_RACES=1
+TABULAR_TRACE=1
+
+OBFUSCATED_KERNEL=0
+
+ALLOW_LOCK_HANDOFF=0
+
+VERBOSE=1
+#EXTRA_VERBOSE=1
+
+# vim: ft=sh
