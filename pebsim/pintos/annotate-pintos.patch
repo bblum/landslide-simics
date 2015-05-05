@@ -1,0 +1,273 @@
+diff --git a/pintos/src/Make.config b/pintos/src/Make.config
+index 40feba6..05d34df 100644
+--- a/pintos/src/Make.config
++++ b/pintos/src/Make.config
+@@ -33,7 +33,7 @@ endif
+ # Compiler and assembler invocation.
+ DEFINES =
+ WARNINGS = -Wall -W -Wstrict-prototypes -Wmissing-prototypes -Wsystem-headers
+-CFLAGS = -g -msoft-float -O
++CFLAGS = -g -msoft-float -O -fno-omit-frame-pointer
+ CPPFLAGS = -nostdinc -I$(SRCDIR) -I$(SRCDIR)/lib
+ ASFLAGS = -Wa,--gstabs
+ LDFLAGS = 
+diff --git a/pintos/src/Makefile.build b/pintos/src/Makefile.build
+index e997d27..c5ecfad 100644
+--- a/pintos/src/Makefile.build
++++ b/pintos/src/Makefile.build
+@@ -13,6 +13,7 @@ kernel.bin: CPPFLAGS += -I$(SRCDIR)/lib/kernel
+ 
+ # Core kernel.
+ threads_SRC  = threads/start.S		# Startup code.
++threads_SRC += threads/tell_landslide.c
+ threads_SRC += threads/init.c		# Main program.
+ threads_SRC += threads/thread.c		# Thread management core.
+ threads_SRC += threads/switch.S		# Thread switch routine.
+diff --git a/pintos/src/lib/kernel/list.c b/pintos/src/lib/kernel/list.c
+index 316d9ef..6bd41bb 100644
+--- a/pintos/src/lib/kernel/list.c
++++ b/pintos/src/lib/kernel/list.c
+@@ -34,6 +34,23 @@
+ static bool is_sorted (struct list_elem *a, struct list_elem *b,
+                        list_less_func *less, void *aux) UNUSED;
+ 
++/* for landslide annotations */
++#include "threads/thread.h" // for get_rq_addr(), list_entry(struct thread) and thread->tid
++#include "threads/tell_landslide.h"
++static bool is_runqueue(struct list_elem *elem)
++{
++  struct list_elem *e;
++  for (e = list_begin(get_rq_addr()); e != list_end(get_rq_addr()); e = list_next(e)) {
++    if (e == elem) {
++      return true;
++    }
++  }
++  if (e == elem) { /* check for e.g. list_insert(list_end(list), elem) */
++    return true;
++  }
++  return false;
++}
++
+ /* Returns true if ELEM is a head, false otherwise. */
+ static inline bool
+ is_head (struct list_elem *elem)
+@@ -171,6 +188,10 @@ list_insert (struct list_elem *before, struct list_elem *elem)
+   ASSERT (is_interior (before) || is_tail (before));
+   ASSERT (elem != NULL);
+ 
++  if (is_runqueue(before)) {
++    tell_landslide_thread_on_rq(list_entry(elem, struct thread, elem)->tid);
++  }
++
+   elem->prev = before->prev;
+   elem->next = before;
+   before->prev->next = elem;
+@@ -187,6 +208,13 @@ list_splice (struct list_elem *before,
+   ASSERT (is_interior (before) || is_tail (before));
+   if (first == last)
+     return;
++  if (is_runqueue(before)) {
++    struct list_elem *e;
++    /* exclude 'last' which is why this is before the list_prev call below  */
++    for (e = first; e != NULL && e != last; e = list_next(first)) {
++      tell_landslide_thread_on_rq(list_entry(e, struct thread, elem)->tid);
++    }
++  }
+   last = list_prev (last);
+ 
+   ASSERT (is_interior (first));
+@@ -249,6 +277,9 @@ struct list_elem *
+ list_remove (struct list_elem *elem)
+ {
+   ASSERT (is_interior (elem));
++  if (is_runqueue(elem)) {
++    tell_landslide_thread_off_rq(list_entry(elem, struct thread, elem)->tid);
++  }
+   elem->prev->next = elem->next;
+   elem->next->prev = elem->prev;
+   return elem->next;
+diff --git a/pintos/src/tests/threads/priority-sema.c b/pintos/src/tests/threads/priority-sema.c
+index 2834a88..5f75e11 100644
+--- a/pintos/src/tests/threads/priority-sema.c
++++ b/pintos/src/tests/threads/priority-sema.c
+@@ -22,7 +22,7 @@ test_priority_sema (void)
+ 
+   sema_init (&sema, 0);
+   thread_set_priority (PRI_MIN);
+-  for (i = 0; i < 10; i++) 
++  for (i = 0; i < 2; i++)
+     {
+       int priority = PRI_DEFAULT - (i + 3) % 10 - 1;
+       char name[16];
+@@ -30,10 +30,10 @@ test_priority_sema (void)
+       thread_create (name, priority, priority_sema_thread, NULL);
+     }
+ 
+-  for (i = 0; i < 10; i++) 
++  for (i = 0; i < 2; i++)
+     {
+       sema_up (&sema);
+-      msg ("Back in main thread."); 
++      //msg ("Back in main thread.");
+     }
+ }
+ 
+@@ -41,5 +41,5 @@ static void
+ priority_sema_thread (void *aux UNUSED) 
+ {
+   sema_down (&sema);
+-  msg ("Thread %s woke up.", thread_name ());
++  // msg ("Thread %s woke up.", thread_name ());
+ }
+diff --git a/pintos/src/threads/init.c b/pintos/src/threads/init.c
+index cebec2c..1e94ca0 100644
+--- a/pintos/src/threads/init.c
++++ b/pintos/src/threads/init.c
+@@ -22,6 +22,7 @@
+ #include "threads/palloc.h"
+ #include "threads/pte.h"
+ #include "threads/thread.h"
++#include "threads/tell_landslide.h"
+ #ifdef USERPROG
+ #include "userprog/process.h"
+ #include "userprog/exception.h"
+@@ -128,6 +129,8 @@ main (void)
+ #endif
+ 
+   printf ("Boot complete.\n");
++
++  tell_landslide_sched_init_done();
+   
+   /* Run actions specified on kernel command line. */
+   run_actions (argv);
+diff --git a/pintos/src/threads/tell_landslide.c b/pintos/src/threads/tell_landslide.c
+new file mode 100644
+index 0000000..ff2bcd7
+--- /dev/null
++++ b/pintos/src/threads/tell_landslide.c
+@@ -0,0 +1,24 @@
++/**
++ * @file tell_landslide.c
++ * @brief Specification for pebbles kernels to tell landslide about themselves.
++ * @author Ben Blum <bblum@andrew.cmu.edu>
++ */
++
++#include "tell_landslide.h"
++
++void tell_landslide_preempt(void) { }
++void tell_landslide_thread_switch(int new_tid) { }
++void tell_landslide_sched_init_done(void) { }
++void tell_landslide_forking(void) { }
++void tell_landslide_vanishing(void) { }
++void tell_landslide_sleeping(void) { }
++void tell_landslide_thread_on_rq(int tid) { }
++void tell_landslide_thread_off_rq(int tid) { }
++void tell_landslide_mutex_locking(void *mutex_addr) { }
++void tell_landslide_mutex_blocking(int owner_tid) { }
++void tell_landslide_mutex_locking_done(void *mutex_addr) { }
++void tell_landslide_mutex_trylocking(void *mutex_addr) { }
++void tell_landslide_mutex_trylocking_done(void *mutex_addr, int succeeded) { }
++void tell_landslide_mutex_unlocking(void *mutex_addr) { }
++void tell_landslide_mutex_unlocking_done(void) { }
++void tell_landslide_dump_stack(void) { }
+diff --git a/pintos/src/threads/tell_landslide.h b/pintos/src/threads/tell_landslide.h
+new file mode 100644
+index 0000000..705713e
+--- /dev/null
++++ b/pintos/src/threads/tell_landslide.h
+@@ -0,0 +1,37 @@
++/**
++ * @file tell_landslide.h
++ * @brief Specification for pebbles kernels to tell landslide about themselves.
++ * @author Ben Blum <bblum@andrew.cmu.edu>
++ */
++
++#ifndef __LS_TELL_LANDSLIDE_H
++#define __LS_TELL_LANDSLIDE_H
++
++/* Call this to indicate a "preemption point" in your kernel's execution. */
++void tell_landslide_preempt(void);
++
++void tell_landslide_thread_switch(int new_tid);
++void tell_landslide_sched_init_done(void);
++void tell_landslide_forking(void);
++void tell_landslide_vanishing(void);
++void tell_landslide_sleeping(void);
++void tell_landslide_thread_on_rq(int tid);
++void tell_landslide_thread_off_rq(int tid);
++
++/* You should use this one IF AND ONLY IF you have mutexes that leave blocked
++ * threads on the runqueue (e.g., they yield-to-owner). */
++void tell_landslide_mutex_blocking(int owner_tid);
++
++/* You should use these if you used blocking(), above, or if you wish to turn
++ * on the data race detector (PRINT_DATA_RACES=1). Otherwise not necessary. */
++void tell_landslide_mutex_locking(void *mutex_addr);
++void tell_landslide_mutex_locking_done(void *mutex_addr);
++void tell_landslide_mutex_unlocking(void *mutex_addr);
++void tell_landslide_mutex_unlocking_done(void);
++void tell_landslide_mutex_trylocking(void *mutex_addr);
++void tell_landslide_mutex_trylocking_done(void *mutex_addr, int succeeded); /* 1 true, 0 false */
++
++/* Bonus annotations */
++void tell_landslide_dump_stack(void);
++
++#endif
+diff --git a/pintos/src/threads/thread.c b/pintos/src/threads/thread.c
+index 87f22b8..fb88495 100644
+--- a/pintos/src/threads/thread.c
++++ b/pintos/src/threads/thread.c
+@@ -4,6 +4,7 @@
+ #include <random.h>
+ #include <stdio.h>
+ #include <string.h>
++#include "threads/tell_landslide.h"
+ #include "threads/flags.h"
+ #include "threads/interrupt.h"
+ #include "threads/intr-stubs.h"
+@@ -23,6 +24,7 @@
+ /* List of processes in THREAD_READY state, that is, processes
+    that are ready to run but not actually running. */
+ static struct list ready_list;
++struct list *get_rq_addr() { return &ready_list; }
+ 
+ /* List of all processes.  Processes are added to this list
+    when they are first scheduled and removed when they exit. */
+@@ -199,6 +201,7 @@ thread_create (const char *name, int priority,
+   sf->ebp = 0;
+ 
+   /* Add to run queue. */
++  tell_landslide_forking();
+   thread_unblock (t);
+ 
+   return tid;
+@@ -292,6 +295,7 @@ thread_exit (void)
+   intr_disable ();
+   list_remove (&thread_current()->allelem);
+   thread_current ()->status = THREAD_DYING;
++  tell_landslide_vanishing();
+   schedule ();
+   NOT_REACHED ();
+ }
+@@ -556,6 +560,9 @@ schedule (void)
+   struct thread *next = next_thread_to_run ();
+   struct thread *prev = NULL;
+ 
++  if (cur != next)
++    tell_landslide_thread_switch(next->tid);
++
+   ASSERT (intr_get_level () == INTR_OFF);
+   ASSERT (cur->status != THREAD_RUNNING);
+   ASSERT (is_thread (next));
+diff --git a/pintos/src/threads/thread.h b/pintos/src/threads/thread.h
+index 0e02199..61f8b25 100644
+--- a/pintos/src/threads/thread.h
++++ b/pintos/src/threads/thread.h
+@@ -111,6 +111,7 @@ extern bool thread_mlfqs;
+ 
+ void thread_init (void);
+ void thread_start (void);
++struct list *get_rq_addr(void);
+ 
+ void thread_tick (void);
+ void thread_print_stats (void);

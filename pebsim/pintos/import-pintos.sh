@@ -56,11 +56,20 @@ if [ "`basename $PWD`" != "$DESTDIR" ]; then
 	die "$0 run from wrong directory -- need to cd into $DESTDIR, wherever that is"
 fi
 
+# Set up basecode if not already done.
+if [ ! -d "$SUBDIR" ]; then
+	REPO=group0
+	if [ ! -d "$REPO" ]; then
+		git clone "https://github.com/Berkeley-CS162/$REPO.git" || die "Couldn't clone basecode repository."
+	fi
+	mv "$REPO/$SUBDIR" "$SUBDIR" || die "couldn't bring $SUBDIR out of repository"
+fi
+
 function sync_file() {
-	cp "$DIR/$1/" "./$SUBDIR/$1/" || die "cp of $1 failed."
+	cp "$DIR/$1" "./$SUBDIR/$1" || die "cp of $1 failed."
 }
 function sync_subdir() {
-	mkdir -p "./$1"
+	mkdir -p "./$SUBDIR/$1"
 	rsync -av --delete "$DIR/$1/" "./$SUBDIR/$1/" || die "rsync failed."
 }
 function sync_optional_subdir() {
@@ -77,8 +86,10 @@ sync_subdir src/devices
 sync_subdir src/lib
 sync_subdir src/misc
 sync_subdir src/utils
+sync_subdir src/tests
 # And the makefile. Just clobber, applying patch will take care of rest.
 sync_file src/Makefile.build
+sync_file src/Make.config
 
 # Apply tell_landslide annotations.
 

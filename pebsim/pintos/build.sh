@@ -31,4 +31,4 @@ TEST_CASE=priority-sema
 cp bootfd.img ../bootfd.img
 cp kernel.o.strip ../kernel-pintos
 rm -f ../kernel
-ln -s ../kernel-pintos ../kernel
+ln -s kernel-pintos ../kernel
