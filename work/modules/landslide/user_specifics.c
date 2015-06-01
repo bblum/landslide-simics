@@ -27,6 +27,19 @@ bool user_within_functions(struct ls_state *ls)
 	return _within_functions(ls, within_functions, length);
 }
 
+bool ignore_dr_function(unsigned int eip)
+{
+	/* true = suppress data race report; false = emit report. we can't use
+	 * within_function since there aren't retroactive stack traces. */
+	static const int ignore_dr_fns[][3] = IGNORE_DR_FUNCTIONS;
+	for (int i = 0; i < ARRAY_SIZE(ignore_dr_fns); i++) {
+		if (eip >= ignore_dr_fns[i][0] && eip <= ignore_dr_fns[i][1]) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /******************************************************************************
  * Syscall wrappers / misc
  ******************************************************************************/

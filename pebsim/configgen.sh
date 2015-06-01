@@ -21,6 +21,9 @@ function without_user_function {
 function within_user_function {
 	echo -n
 }
+function ignore_dr_function {
+	echo -n
+}
 function data_race {
 	echo -n
 }

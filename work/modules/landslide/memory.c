@@ -1148,7 +1148,9 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	Q_FOREACH(l0, &ma0->locksets, nobe) {
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			/* Are there any 2 locksets without a lock in common? */
-			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)) {
+			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)
+			    && !ignore_dr_function(l0->eip)
+			    && !ignore_dr_function(l1->eip)) {
 				/* Data race. Have we seen it reordered? */
 				bool confirmed = check_data_race(m, l0->eip, l1->eip);
 				print_data_race(ls, h0, h1, ma0, ma1, c0, c1,

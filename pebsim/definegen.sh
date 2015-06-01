@@ -140,6 +140,12 @@ function without_user_function {
 	WITHIN_USER_FUNCTIONS="${WITHIN_USER_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 0 },"
 }
 
+IGNORE_DR_FUNCTIONS=
+function ignore_dr_function {
+	# the 0 parameter is unused (for now; there could be a whitelist later)
+	IGNORE_DR_FUNCTIONS="${IGNORE_DR_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 0 },"
+}
+
 DATA_RACE_INFO=
 function data_race {
 	if [ -z "$1" -o -z "$2" ]; then
@@ -642,6 +648,7 @@ echo -e "$EXTRA_SYMS"
 
 echo -e "#define KERN_WITHIN_FUNCTIONS { $WITHIN_KERN_FUNCTIONS }"
 echo -e "#define USER_WITHIN_FUNCTIONS { $WITHIN_USER_FUNCTIONS }"
+echo -e "#define IGNORE_DR_FUNCTIONS   { $IGNORE_DR_FUNCTIONS   }"
 
 echo "#define DATA_RACE_INFO { $DATA_RACE_INFO }"
 
