@@ -77,7 +77,7 @@ DEP_SUFFIX = dep
 410USER_LIBS_EARLY = # libthrgrp.a
 410USER_LIBS_LATE = libRNG.a libx86.a libsimics.a libstdio.a libstdlib.a \
                     libstring.a libmalloc.a libtest.a
-STUDENT_LIBS_EARLY = libthread.a libautostack.a
+STUDENT_LIBS_EARLY = libthread.a libautostack.a libc0.a libc0concur.a
 STUDENT_LIBS_LATE = libsyscall.a
 
 ###########################################################################
@@ -175,7 +175,7 @@ KINCLUDES = -I$(410KDIR) -I$(410KDIR)/inc \
 			-I$(STUKDIR) -I$(STUKDIR)/inc \
 			$(patsubst lib%.a,-I$(410KDIR)/%,$(410KERNEL_LIBS))
 
-UCFLAGS = -nostdinc -fno-strict-aliasing -fno-builtin -Wall -gdwarf-2 -Werror -O0 -m32
+UCFLAGS = -nostdinc -fno-strict-aliasing -fno-builtin -Wall -Wno-unused-variable -gdwarf-2 -Werror -O0 -m32
 # This prevents the gcc4 "hurr durr I'm aligning main()'s stack"
 UCFLAGS += -mpreferred-stack-boundary=2
 ULDFLAGS = -static -Ttext 1000000 --fatal-warnings -melf_i386 --entry=_main
