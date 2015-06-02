@@ -5,7 +5,7 @@
 
 SIMICS_MODEL_BUILDER=/afs/cs.cmu.edu/academic/class/15410-f13/simics/simics-4.0.60/../simics-model-builder-4.0.16
 SIMICS_BASE=/afs/cs.cmu.edu/academic/class/15410-f13/simics/simics-4.0.60
-SIMICS_WORKSPACE=/afs/andrew.cmu.edu/usr12/bblum/masters/work
+SIMICS_WORKSPACE=/afs/andrew.cmu.edu/usr12/bblum/fp/landslide/work
 PYTHON=$(SIMICS_WORKSPACE)/bin/mini-python
 
 INCLUDE_PATHS = /afs/cs.cmu.edu/academic/class/15410-f13/simics/simics-4.0.60/src/include:/afs/cs.cmu.edu/academic/class/15410-f13/simics/simics-4.0.60/../simics-model-builder-4.0.16/src/include

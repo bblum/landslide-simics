@@ -22,7 +22,7 @@ KERNEL_IMG=kernel
 KERNEL_SOURCE_DIR=p2-basecode
 
 # What program should landslide run? vanish_vanish, double_thread_fork, ...
-TEST_CASE=thr_exit_join
+TEST_CASE=odd_even_sort4_c1
 
 ######################
 #### Simple stuff ####
@@ -126,6 +126,17 @@ sched_func UZSxOcyyuLkomunhmG
 
 # All PPs are specified in supplemental ID config file.
 
+ignore_dr_function new_queue
+ignore_dr_function pack_msg
+ignore_dr_function cond_wait
+ignore_dr_function cond_signal
+ignore_dr_function wakeup_thread
+ignore_dr_function thr_create
+ignore_dr_function atomic_fetch_add
+ignore_dr_function mutex_lock
+ignore_dr_function mutex_destroy
+ignore_dr_function remove_thread
+
 ##########################
 #### Advanced options ####
 ##########################
@@ -147,7 +158,7 @@ BUG_ON_THREADS_WEDGED=1
 # longer, more difficult to understand debug trace.
 # !!!   Backwards is the recommended default! Only change this if you've   !!!
 # !!!     already found a bug and are trying to understand it better!      !!!
-EXPLORE_BACKWARDS=0
+EXPLORE_BACKWARDS=1
 
 # Set this to 1 if you want Landslide not to explore the tree, but to stop after
 # the first branch and print out the set of decision points that it found using
