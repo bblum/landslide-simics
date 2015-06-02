@@ -65,7 +65,7 @@ extern void sim_fr_here(void);
 /** @brief Convenience wrapper around sim_puts(). */
 extern void sim_printf(const char *fmt, ...) __attribute__((__format__ (__printf__, 1, 2)));
 
-/** @brief readline(), but wrapped in "magic" */
+/** @brief sys_readline(), but wrapped in "magic" */
 int magic_readline(int size, char *buf);
 
 /* "Compatibility mode" for old code */

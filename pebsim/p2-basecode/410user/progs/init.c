@@ -3,7 +3,7 @@
  *  @brief Initial program.
  *  @public yes
  *  @for p2 p3
- *  @covers fork exec wait print
+ *  @covers fork exec wait sys_print
  *  @status done
  */
 

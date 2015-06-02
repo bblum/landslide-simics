@@ -1,7 +1,7 @@
 #include <simics.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <syscall.h>    /* for readline() */
+#include <syscall.h>    /* for sys_readline() */
 
 int sim_in_simics(void) {
     return sim_call(SIM_IN_SIMICS);
@@ -48,5 +48,5 @@ void sim_printf(const char *fmt, ...) {
 
 int magic_readline(int size, char *buf) {
     sim_call(SIM_FR_INKEYS);
-    return readline(size, buf);
+    return sys_readline(size, buf);
 }

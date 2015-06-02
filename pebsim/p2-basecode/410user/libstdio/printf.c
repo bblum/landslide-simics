@@ -42,9 +42,9 @@ struct printf_state {
 };
 
 static void
-flush(struct printf_state *state)
+sys_flush(struct printf_state *state)
 {
-	print(state->index, state->buf);
+	sys_print(state->index, state->buf);
 	state->index = 0;
 }
 
@@ -54,13 +54,13 @@ printf_char(char *arg, int c)
 	struct printf_state *state = (struct printf_state *) arg;
 
 	if (state->index >= PRINTF_BUFMAX) {
-		flush(state);
+		sys_flush(state);
 	}
 
 	state->buf[state->index] = c;
 	state->index++;
 	if (c == '\n') {
-		flush(state);
+		sys_flush(state);
 	}
 }
 
@@ -75,7 +75,7 @@ int vprintf(const char *fmt, va_list args)
 	_doprnt(fmt, args, 0, (void (*)())printf_char, (char *) &state);
 
 	if (state.index != 0)
-	    flush(&state);
+	    sys_flush(&state);
 
 	/* _doprnt currently doesn't pass back error codes,
 	   so just assume nothing bad happened.  */

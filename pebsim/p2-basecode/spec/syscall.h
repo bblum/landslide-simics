@@ -35,8 +35,8 @@ int remove_pages(void * addr);
 
 /* Console I/O */
 char getchar(void);
-int readline(int size, char *buf);
-int print(int size, char *buf);
+int sys_readline(int size, char *buf);
+int sys_print(int size, char *buf);
 int set_term_color(int color);
 int set_cursor_pos(int row, int col);
 int get_cursor_pos(int *row, int *col);

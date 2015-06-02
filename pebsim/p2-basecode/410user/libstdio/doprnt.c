@@ -96,7 +96,7 @@
  *
  * If the second character in <arg> is also a control character, it
  * indicates the last bit of a bit field.  In this case, printf will extract
- * bits <1> to <2> and print it.  Characters following the second control
+ * bits <1> to <2> and sys_print it.  Characters following the second control
  * character are printed before the bit field.
  *	printf("reg = %b\n", 0xb, "\10\4\3FIELD1=\2BITTWO\1BITONE")
  * would produce
@@ -107,8 +107,8 @@
  *	#	prefix for alternate format:
  *		0x (0X) for hex
  *		leading 0 for octal
- *	+	print '+' if positive
- *	blank	print ' ' if positive
+ *	+	sys_print '+' if positive
+ *	blank	sys_print ' ' if positive
  *
  *	z	signed hexadecimal
  *	r	signed, 'radix'
@@ -147,7 +147,7 @@ static char digs[] = "0123456789abcdef";
 
 static void
 printnum(u, base, putc, putc_arg)
-	register unsigned long	u;	/* number to print */
+	register unsigned long	u;	/* number to sys_print */
 	register int		base;
 	void			(*putc)();
 	char			*putc_arg;
@@ -166,7 +166,7 @@ printnum(u, base, putc, putc_arg)
 
 static void
 printnum_16(u, putc, putc_arg)
-	register unsigned long	u;	/* number to print */
+	register unsigned long	u;	/* number to sys_print */
 	void			(*putc)();
 	char			*putc_arg;
 {

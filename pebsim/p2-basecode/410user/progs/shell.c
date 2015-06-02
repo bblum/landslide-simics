@@ -3,7 +3,7 @@
  *  @brief The shell.
  *  @public yes
  *  @for p2 p3
- *  @covers fork exec wait set_status vanish print ls
+ *  @covers fork exec wait set_status vanish sys_print ls
  *  @status done
  */
 
@@ -76,24 +76,24 @@ main( int argc, char *argv[] )
   separators[2] = '\n';
   separators[3] = '\0';
 
-  print( strlen( startmsg ), startmsg );
+  sys_print( strlen( startmsg ), startmsg );
 
   while( 1 ) {
 
     bzero( buf, MAX_LENGTH );
-    print( strlen(prompt), prompt );
+    sys_print( strlen(prompt), prompt );
     n = mystical_readline( MAX_LENGTH - 1, buf );
     if (n == 0) {
       /* Empty result; this shouldn't happen. */
-      print( strlen(nothing), nothing );
+      sys_print( strlen(nothing), nothing );
       continue;
     } else if( n >= MAX_LENGTH ) {
       /* line too big -- kernel declared that it clobbered memory */
-      print( strlen(too_long), too_long);
+      sys_print( strlen(too_long), too_long);
       exit(-1);
     } else if(buf[MAX_LENGTH - 1] != '\0') {
       /* Overflow -- kernel tapdanced on random memory! */
-      print( strlen(null_check), null_check );
+      sys_print( strlen(null_check), null_check );
       exit(-1);
     }
 
@@ -103,7 +103,7 @@ main( int argc, char *argv[] )
       continue;
     }
     if( (strcmp( cmd_argv[0], "exit" ) == 0) ) {
-      print( strlen( exitmsg ), exitmsg );
+      sys_print( strlen( exitmsg ), exitmsg );
 			exit(0);
     }
 		if( (strcmp( cmd_argv[0], "ls" ) == 0 ) ) {
@@ -115,7 +115,7 @@ main( int argc, char *argv[] )
 
     pid = fork();
     if( pid < 0 ) {
-      print( sizeof( forkerrmsg ), forkerrmsg );
+      sys_print( sizeof( forkerrmsg ), forkerrmsg );
       continue;
     }
     if( pid == 0 ) {
@@ -246,7 +246,7 @@ static int mystical_readline(int len, char *buf) {
     /* If we're in the test harness, this does something very special! */
     sim_call(0x04108005, buf, len);
 
-    return (buf[0] ? strlen(buf) : readline(len, buf));
+    return (buf[0] ? strlen(buf) : sys_readline(len, buf));
 }
 
 static int console_height() {

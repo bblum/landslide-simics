@@ -25,7 +25,7 @@
 
 int putchar(int c)
 {
-    print( 1, (char *)&c );
+    sys_print( 1, (char *)&c );
     return c;
 }
 

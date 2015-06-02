@@ -8,7 +8,7 @@
 #include <syscall.h>
 
 int puts(const char *s) {
-	print(strlen(s), (char *)s);
+	sys_print(strlen(s), (char *)s);
 	putchar('\n');
 	return 0;
 }
