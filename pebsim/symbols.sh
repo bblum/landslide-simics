@@ -31,9 +31,13 @@ if [ "$OBFUSCATED_KERNEL" = 1 ]; then
 	LMM_ALLOC_GEN=CZLoltqQauxoc
 	LMM_FREE=RCFxRLuV
 	LMM_INIT=MtqokdCaEfVRCwG
+	LMM_ALLOC_SIZE_ARGNUM=2
+	LMM_ALLOC_GEN_SIZE_ARGNUM=2
+	LMM_FREE_BASE_ARGNUM=2
 	KERN_PANIC=cnAky
 	KERN_MAIN=wJTUxjBIOvQ
 	KERN_HLT=yqI
+	KERN_START=_start
 else
 	# Symbols needed by verify-tell in build.sh.
 	TL_FORKING=tell_landslide_forking
