@@ -552,10 +552,33 @@ void mem_update(struct ls_state *ls)
  * recording shm accesses (per-instruction)
  ******************************************************************************/
 
+static void merge_chunk_id_info(enum chunk_id_info *dst_any, unsigned int *dst_id,
+				enum chunk_id_info  src_any, unsigned int  src_id)
+{
+	if (*dst_any == MULTIPLE_CHUNK_IDS || src_any == MULTIPLE_CHUNK_IDS) {
+		*dst_any = MULTIPLE_CHUNK_IDS; /* top */
+	} else if (*dst_any == HAS_CHUNK_ID && src_any == HAS_CHUNK_ID) {
+		if (*dst_id != src_id) {
+			*dst_any = MULTIPLE_CHUNK_IDS; /* promote */
+		} /* otherwise, nothing to do */
+	} else if (src_any == HAS_CHUNK_ID) {
+		assert(*dst_id == NOT_IN_HEAP);
+		*dst_any = src_any; /* absorb */
+		*dst_id = src_id;
+	} /* otherwise, nothing to do */
+}
+
+static bool was_freed_remalloced(struct mem_lockset *l0, struct mem_lockset *l1)
+{
+	return l0->any_chunk_ids == HAS_CHUNK_ID &&
+		l1->any_chunk_ids == HAS_CHUNK_ID &&
+		l0->chunk_id != l1->chunk_id;
+}
+
 /* Actually looking for data races cannot happen until we know the
  * happens-before relationship to previous transitions, in save.c. */
 static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
-			       bool in_kernel)
+			       struct chunk *c, bool in_kernel)
 {
 	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
 	                                 &ls->sched.cur_agent->user_locks_held;
@@ -569,10 +592,16 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	bool during_destroy = DESTROYING_SOMETHING(ls->sched.cur_agent);
 	assert(!(during_init && during_destroy));
 
+	enum chunk_id_info any_cids = c == NULL ? NOT_IN_HEAP : HAS_CHUNK_ID;
+	unsigned int cid = c == NULL ? 0x15410de0u : c->id;
+
 	Q_FOREACH(l, &ma->locksets, nobe) {
 		if (remove_prev) {
 			struct mem_lockset *l_old = l->nobe.prev;
 			Q_REMOVE(&ma->locksets, l_old, nobe);
+			/* union ITS old chunk id info into OUR current one */
+			merge_chunk_id_info(&any_cids, &cid, l_old->any_chunk_ids,
+					    l_old->chunk_id);
 			lockset_free(&l_old->locks_held);
 			MM_FREE(l_old);
 			remove_prev = false;
@@ -597,6 +626,9 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			// than l0 for finding data races on this access, so no
 			// need to add l0 in addition.
 			need_add = false;
+			/* union OUR chunk id info into ITS old one */
+			merge_chunk_id_info(&l->any_chunk_ids, &l->chunk_id,
+					    any_cids, cid);
 			break;
 		} else {
 			// if subset, then l0 would be a strict upgrade over l,
@@ -606,8 +638,11 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	}
 
 	if (remove_prev) {
+		assert(need_add);
 		l = Q_GET_TAIL(&ma->locksets);
 		Q_REMOVE(&ma->locksets, l, nobe);
+		lockset_free(&l->locks_held);
+		MM_FREE(l);
 	}
 
 	if (need_add) {
@@ -616,6 +651,8 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		l->during_init = during_init;
 		l->during_destroy = during_destroy;
 		l->most_recent_syscall = current_syscall;
+		l->any_chunk_ids = any_cids;
+		l->chunk_id = cid;
 		lockset_clone(&l->locks_held, l0);
 		Q_INSERT_FRONT(&ma->locksets, l, nobe);
 	}
@@ -643,7 +680,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 			/* access already exists */
 			ma->count++;
 			ma->write = ma->write || write;
-			add_lockset_to_shm(ls, ma, in_kernel);
+			add_lockset_to_shm(ls, ma, c, in_kernel);
 			return;
 		}
 	}
@@ -656,7 +693,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	ma->conflict  = false;
 	ma->other_tid = 0;
 	Q_INIT_HEAD(&ma->locksets);
-	add_lockset_to_shm(ls, ma, in_kernel);
+	add_lockset_to_shm(ls, ma, c, in_kernel);
 
 	rb_link_node(&ma->nobe, parent, p);
 	rb_insert_color(&ma->nobe, &m->shm);
@@ -1133,12 +1170,6 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		return;
 	}
 
-	if (c0 != NULL && c1 != NULL && c0->id != c1->id) {
-		/* The apparent data race was actually in a part of the heap
-		 * that was freed and re-malloced in between. */
-		return;
-	}
-
 	/* Note since we're just identifying *suspected* data races here, we
 	 * need to pay attention to each distinct eip pair, rather than just
 	 * calling it a day after the first matching eip pair. (IOW, suppose
@@ -1149,6 +1180,7 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			/* Are there any 2 locksets without a lock in common? */
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)
+			    && !was_freed_remalloced(l0, l1)
 			    && !ignore_dr_function(l0->eip)
 			    && !ignore_dr_function(l1->eip)) {
 				/* Data race. Have we seen it reordered? */

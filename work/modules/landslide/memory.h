@@ -20,18 +20,28 @@ struct stack_trace;
  * Shared memory access tracking
  ******************************************************************************/
 
+enum chunk_id_info { NOT_IN_HEAP, HAS_CHUNK_ID, MULTIPLE_CHUNK_IDS };
+
+/* represents a single instance of accessing a shared memory location */
 struct mem_lockset {
 	unsigned int eip;
 	unsigned int most_recent_syscall;
 	bool during_init;
 	bool during_destroy;
+	/* two locksets with existing but different chunk ids are a false
+	 * positive for data race detection (see issues #23 and #170).
+	 * however, since we aggressively combine locksets, multiple chunk
+	 * ids may appear; if so, we fall back to false-positiving. */
+	enum chunk_id_info any_chunk_ids;
+	unsigned int chunk_id;
 	struct lockset locks_held;
 	Q_NEW_LINK(struct mem_lockset) nobe;
 };
 
 Q_NEW_HEAD(struct mem_locksets, struct mem_lockset);
 
-/* represents an access to shared memory */
+/* represents a shared memory address, accessed once or more, possibly from
+ * different locations in the code */
 struct mem_access {
 	unsigned int addr; /* byte granularity */
 	bool write;        /* false == read; true == write */
