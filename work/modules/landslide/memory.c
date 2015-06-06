@@ -620,6 +620,11 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			continue;
 		}
 
+		/* ensure eip matches */
+		if (l->eip != ls->eip) {
+			continue;
+		}
+
 		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
 		if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
 			// if l subset l0, then we already have a better lockset
