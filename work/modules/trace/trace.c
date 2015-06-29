@@ -82,6 +82,10 @@
 #include <simics/arch/sparc.h>
 #include <simics/arch/x86.h>
 
+#ifndef __off64_t_defined
+typedef __off64_t off64_t;
+#endif
+
 #if defined(HAVE_LIBZ)
  #include <zlib.h>
  #define GZ_FILE(bt) ((bt)->gz_file)
