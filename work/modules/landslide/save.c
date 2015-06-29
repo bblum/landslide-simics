@@ -384,6 +384,7 @@ static void free_sched_q(struct agent_q *q)
 {
 	while (Q_GET_SIZE(q) > 0) {
 		struct agent *a = Q_GET_HEAD(q);
+		assert(a != NULL);
 		Q_REMOVE(q, a, nobe);
 		lockset_free(&a->kern_locks_held);
 		lockset_free(&a->user_locks_held);
@@ -423,6 +424,7 @@ static void free_shm(struct rb_node *nobe)
 	struct mem_access *ma = rb_entry(nobe, struct mem_access, nobe);
 	while (Q_GET_SIZE(&ma->locksets) > 0) {
 		struct mem_lockset *l = Q_GET_HEAD(&ma->locksets);
+		assert(l != NULL);
 		Q_REMOVE(&ma->locksets, l, nobe);
 		lockset_free(&l->locks_held);
 		MM_FREE(l);
@@ -453,9 +455,11 @@ static unsigned int free_user_sync(struct user_sync_state *u)
 {
 	while (Q_GET_SIZE(&u->mutexes) > 0) {
 		struct mutex *mp = Q_GET_HEAD(&u->mutexes);
+		assert(mp != NULL);
 		Q_REMOVE(&u->mutexes, mp, nobe);
 		while (Q_GET_SIZE(&mp->chunks) > 0) {
 			struct mutex_chunk *c = Q_GET_HEAD(&mp->chunks);
+			assert(c != NULL);
 			Q_REMOVE(&mp->chunks, c, nobe);
 			MM_FREE(c);
 		}

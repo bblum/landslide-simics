@@ -142,6 +142,7 @@ void free_stack_trace(struct stack_trace *st)
 {
 	while (Q_GET_SIZE(&st->frames) > 0) {
 		struct stack_frame *f = Q_GET_HEAD(&st->frames);
+		assert(f != NULL);
 		Q_REMOVE(&st->frames, f, nobe);
 		if (f->name != NULL) {
 			MM_FREE(f->name);

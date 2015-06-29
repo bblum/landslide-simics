@@ -74,6 +74,7 @@ void mutex_destroy(struct user_sync_state *u, unsigned int lock_addr)
 		Q_REMOVE(&u->mutexes, mp, nobe);
 		while (Q_GET_SIZE(&mp->chunks) > 0) {
 			struct mutex_chunk *c = Q_GET_HEAD(&mp->chunks);
+			assert(c != NULL);
 			printf(DEV, " [0x%x | %d]", c->base, c->size);
 			Q_REMOVE(&mp->chunks, c, nobe);
 			MM_FREE(c);
