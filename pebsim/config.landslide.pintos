@@ -7,7 +7,7 @@ KERNEL_SOURCE_DIR=pintos/pintos/src
 
 PINTOS_KERNEL=1
 
-TEST_CASE=priority_sema
+TEST_CASE=wait_simple
 
 ######################
 #### Simple stuff ####

@@ -9,8 +9,14 @@ function die() {
 }
 
 
-# TODO: parameterize threads vs userprog
-PROJECT=threads
+USERPROG=$1
+if [ -z "$USERPROG" ]; then
+	die "usage: $0 <userprog>"
+elif [ "$USERPROG" = "0" ]; then
+	PROJECT=threads
+else
+	PROJECT=userprog
+fi
 
 cd pintos/src/$PROJECT
 make || die "failed make"
@@ -24,8 +30,8 @@ fi
 cp pintos/src/$PROJECT/build/kernel.o kernel.o || die "failed cp kernel.o"
 ./fix-symbols.sh kernel.o || die "failed fix symbols"
 rm -f bootfd.img
-# TODO: change run priority-sema into run something else
-TEST_CASE=priority-sema
+# TODO: change run priority-sema into run something else (parameterize)
+TEST_CASE="wait-simple"
 ./pintos/src/utils/pintos-mkdisk --kernel=pintos/src/$PROJECT/build/kernel.bin --format=partitioned --loader=pintos/src/$PROJECT/build/loader.bin bootfd.img -- run $TEST_CASE || die "failed pintos mkdisk"
 
 cp bootfd.img ../bootfd.img

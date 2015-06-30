@@ -21,6 +21,21 @@ if [ ! -d "$1" ]; then
 	die "argument '$1' is not a directory"
 fi
 
+# Process threads-vs-userprog argument
+USERPROG=0
+ARG2=$2
+if [ -z "$2" ]; then
+	ARG2=threads
+fi
+if [ "$ARG2" = "threads" -o "$ARG2" = "k" ]; then
+	msg "Setting up a kernel-space pintos build"
+elif [ "$ARG2" = "userprog" -o "$ARG2" = "u" ]; then
+	msg "Setting up a user-space pintos build"
+	USERPROG=1
+else
+	die "Argument 2 must be either 'threads' or 'userprog'"
+fi
+
 # Get started with side effects.
 
 ./prepare-workspace.sh || die "couldn't prepare workspace"
@@ -50,9 +65,9 @@ msg "Importing your Pintos into '$PINTOSDIR' - look there if something goes wron
 
 # expect this to generate subdirectory called pintos/ inside of the pintos/
 # we're already in, eg pintos/[WE ARE HERE]/pintos/src/threads
-./import-pintos.sh "$1" || die "could not import your pintos"
+./import-pintos.sh "$1" "$USERPROG" || die "could not import your pintos"
 
-./build.sh || die "import pintos was successful, but build failed (from '$PWD')"
+./build.sh "$USERPROG" || die "import pintos was successful, but build failed (from '$PWD')"
 
 ## build.sh already does dis
 #cp bootfd.img ../../pebsim/ || die "couldn't move floppy disk image (from '$PWD')"

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DIR=$1
+USERPROG=$2
 
 function die() {
 	echo -ne '\033[01;31m'
@@ -20,20 +21,25 @@ function check_subdir() {
 	fi
 }
 
-if [ -z "$DIR" ]; then
-	die "usage: $0 <absolute-path-to-pintos-directory>"
+if [ -z "$DIR" -o -z "$USERPROG" ]; then
+	die "usage: $0 <absolute-path-to-pintos-directory> <userprog>"
 fi
 if [ ! -d "$DIR" ]; then
 	die "$DIR not a directory"
 fi
 # look for src/.
+if [ "$USERPROG" = "0" ]; then
+	PROJ="p1"
+else
+	PROJ="p2"
+fi
 if [ ! -d "$DIR/src/threads" ]; then
-	# support either "foo/" or "foo/pintos-p1/" or "foo/p1/",
+	# support either "foo/" or "foo/pintos-pX/" or "foo/pX/",
 	# when "foo" is supplied as DIR.
-	if [ -d "$DIR/pintos-p1/src/threads" ]; then
-		DIR="$DIR/pintos-p1"
-	elif [ -d "$DIR/p1/src/threads" ]; then
-		DIR="$DIR/p1"
+	if [ -d "$DIR/pintos-$PROJ/src/threads" ]; then
+		DIR="$DIR/pintos-$PROJ"
+	elif [ -d "$DIR/$PROJ/src/threads" ]; then
+		DIR="$DIR/$PROJ"
 	else
 		die "Couldn't find src/ subdirectory in '$DIR'"
 	fi
