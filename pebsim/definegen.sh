@@ -81,8 +81,13 @@ function get_func_ret {
 
 function get_test_file {
 	if [ ! -z "$PINTOS_KERNEL" ]; then
-		# TODO
-		echo "/dev/null"
+		if [ -z "$PINTOS_USERPROG" ]; then
+			die "PINTOS_KERNEL is set but PINTOS_USERPROG was not"
+		elif [ "$PINTOS_USERPROG" = "0" ]; then
+			echo "/dev/null"
+		else
+			echo "$KERNEL_SOURCE_DIR/userprog/build/tests/userprog/$TEST_CASE"
+		fi
 	elif [ -f $KERNEL_SOURCE_DIR/user/progs/$TEST_CASE ]; then
 		echo "$KERNEL_SOURCE_DIR/user/progs/$TEST_CASE"
 	elif [ -f $KERNEL_SOURCE_DIR/410user/progs/$TEST_CASE ]; then
@@ -195,6 +200,7 @@ TABULAR_TRACE=0
 ALLOW_LOCK_HANDOFF=0
 OBFUSCATED_KERNEL=0
 PINTOS_KERNEL=
+PINTOS_USERPROG=
 source $CONFIG
 
 source ./symbols.sh

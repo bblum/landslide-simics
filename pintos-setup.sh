@@ -56,6 +56,12 @@ CONFIG=config.landslide.pintos
 rm -f config.landslide
 ln -s $CONFIG config.landslide || die "couldn't create config symlink"
 
+if grep "PINTOS_USERPROG" config.landslide >/dev/null; then
+	sed -i "s/PINTOS_USERPROG.*/PINTOS_USERPROG=$USERPROG/" config.landslide || die "couldn't set PINTOS_USERPROG setting in config.landslide"
+else
+	echo "PINTOS_USERPROG=$USERPROG" >> config.landslide || die "couldn't add PINTOS_USERPROG setting to config.landslide"
+fi
+
 # Import and build student pintos.
 
 cd pintos || die "couldn't cd into pintos directory"
