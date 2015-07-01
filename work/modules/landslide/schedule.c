@@ -535,6 +535,15 @@ static void sched_check_timer_calibrate(struct ls_state *ls)
 			lskprintf(DEV, "Warning: Couldn't avoid timer "
 				  "calibration routine. Just be patient!\n");
 		}
+	} else if (ls->eip == GUEST_TIMER_MSLEEP) {
+		if (write_memory(ls->cpu0, GET_CPU_ATTR(ls->cpu0, esp)
+				 + WORD_SIZE, 0, WORD_SIZE)) {
+			lskprintf(DEV, "I tried to eat a clock once, "
+				  "but it was very time-consuming.\n");
+		} else {
+			lskprintf(DEV, "Warning: Couldn't avoid timer_msleep. "
+				  "Just be patient!\n");
+		}
 	}
 #endif
 }

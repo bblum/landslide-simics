@@ -478,6 +478,8 @@ if [ ! -z "$PINTOS_KERNEL" ]; then
 	echo "#define GUEST_TIMER_CALIBRATE_RESULT 0x`get_sym loops_per_tick`"
 	# Obtained via experiment. Independent of landslide or host CPU rate.
 	echo "#define GUEST_TIMER_CALIBRATE_VALUE 39270400"
+	# For speeding up ide_init and uhci_init.
+	echo "#define GUEST_TIMER_MSLEEP 0x`get_func timer_msleep`"
 	# For test lifecycle.
 	echo "#define GUEST_RUN_TASK_ENTER 0x`get_func run_task`"
 	echo "#define GUEST_RUN_TASK_EXIT 0x`get_func_end run_task`"
