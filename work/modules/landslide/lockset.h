@@ -25,7 +25,7 @@ enum lock_type {
 	 ((t1) == LOCK_RWLOCK_READ && (t2) == LOCK_RWLOCK))
 
 struct lock {
-	int addr;
+	unsigned int addr;
 	enum lock_type type;
 };
 
@@ -45,10 +45,13 @@ enum lockset_cmp_result {
 void lockset_init(struct lockset *l);
 void lockset_free(struct lockset *l);
 void lockset_print(verbosity v, struct lockset *l);
-void lockset_clone(struct lockset *dest, struct lockset *src);
-void lockset_add(struct lockset *l, int lock_addr, enum lock_type type);
-void lockset_remove(struct sched_state *s, int lock_addr, enum lock_type type,
-					bool in_kernel);
+void lockset_clone(struct lockset *dest, const struct lockset *src);
+void lockset_record_semaphore(struct lockset *semaphores, unsigned int lock_addr,
+			      bool is_semaphore);
+void lockset_add(struct sched_state *s, struct lockset *l,
+		 unsigned int lock_addr, enum lock_type type);
+void lockset_remove(struct sched_state *s, unsigned int lock_addr,
+		    enum lock_type type, bool in_kernel);
 bool lockset_intersect(struct lockset *l0, struct lockset *l1);
 enum lockset_cmp_result lockset_compare(struct lockset *l0, struct lockset *l1);
 

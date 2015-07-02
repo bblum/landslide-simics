@@ -108,7 +108,7 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
  * helpers
  ******************************************************************************/
 
-static void copy_lockset(struct lockset *dest, struct lockset *src)
+static void copy_lockset(struct lockset *dest, const struct lockset *src)
 {
 	lockset_clone(dest, src);
 }
@@ -255,6 +255,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->voluntary_resched_stack =
 		(src->voluntary_resched_stack == NULL) ? NULL :
 			copy_stack_trace(src->voluntary_resched_stack);
+	copy_lockset(&dest->known_semaphores, &src->known_semaphores);
 }
 
 static void copy_test(struct test_state *dest, const struct test_state *src)
@@ -396,6 +397,7 @@ static void free_sched(struct sched_state *s)
 	free_sched_q(&s->rq);
 	free_sched_q(&s->dq);
 	free_sched_q(&s->sq);
+	lockset_free(&s->known_semaphores);
 }
 static void free_test(const struct test_state *t)
 {

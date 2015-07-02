@@ -168,6 +168,9 @@ struct sched_state {
 	unsigned int most_agents_ever;
 	/* See agent_vanish for justification */
 	struct agent *last_vanished_agent;
+	/* List of known semaphores that were initialized with values other than
+	 * 1 (i.e., ones that don't behave like mutexes for sake of locksets). */
+	struct lockset known_semaphores;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
 	/* It does take many instructions for us to switch, after all. This is

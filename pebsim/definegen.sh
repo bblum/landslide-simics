@@ -590,6 +590,10 @@ if [ ! -z "$PINTOS_KERNEL" ]; then
 	# For pintos we'll hook the mutex implementation by name rather than
 	# relying on annotations. There's too much conflict across student
 	# implementations for any set of annotations to patch cleanly.
+	# mutex_init -- check for value!=1 to omit lockset checking.
+	echo "#define GUEST_SEMA_INIT_ENTER 0x`get_func sema_init`"
+	echo "#define GUEST_SEMA_INIT_SEMA_ARGNUM 1"
+	echo "#define GUEST_SEMA_INIT_VALUE_ARGNUM 2"
 	# mutex_lock
 	echo "#define GUEST_SEMA_DOWN_ENTER 0x`get_func sema_down`"
 	echo "#define GUEST_SEMA_DOWN_EXIT 0x`get_func_end sema_down`"

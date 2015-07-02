@@ -211,6 +211,22 @@ bool kern_kernel_main(unsigned int eip)
  * Yielding mutexes
  ******************************************************************************/
 
+bool kern_mutex_initing(conf_object_t *cpu, unsigned int eip,
+			unsigned int *mutex, bool *isnt_mutex)
+{
+#ifdef PINTOS_KERNEL
+	if (eip == GUEST_SEMA_INIT_ENTER) {
+		*mutex = READ_STACK(cpu, GUEST_SEMA_INIT_SEMA_ARGNUM);
+		*isnt_mutex = 1 != READ_STACK(cpu, GUEST_SEMA_INIT_VALUE_ARGNUM);
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+
 /* If the kernel uses yielding mutexes, we need to explicitly keep track of when
  * threads are blocked on them. (If mutexes deschedule, it should be safe to
  * have all these functions just return false.)

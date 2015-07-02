@@ -29,7 +29,7 @@
 #define ARRAY_LIST_CLONE(dest, src) do {					\
 		STATIC_ASSERT(SAME_TYPE(*(dest)->array, *(src)->array));	\
 		typeof(dest) __dest = (dest);					\
-		typeof(dest) __src  = (src);					\
+		typeof(src)  __src  = (src);					\
 		__dest->size = __src->size;					\
 		/* space optimization for long-term storage */			\
 		__dest->capacity = __src->size;					\

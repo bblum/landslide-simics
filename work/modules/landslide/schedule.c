@@ -328,6 +328,7 @@ void sched_init(struct sched_state *s)
 	s->entering_timer = false;
 	s->voluntary_resched_tid = -1;
 	s->voluntary_resched_stack = NULL;
+	lockset_init(&s->known_semaphores);
 }
 
 void print_agent(verbosity v, const struct agent *a)
@@ -521,9 +522,11 @@ static void sched_check_lmm_init(struct ls_state *ls)
 	}
 }
 
-static void sched_check_timer_calibrate(struct ls_state *ls)
+static void sched_check_pintos_init_sequence(struct ls_state *ls)
 {
 #ifdef PINTOS_KERNEL
+	unsigned int lock_addr;
+	bool is_sema;
 	if (ls->eip == GUEST_TIMER_CALIBRATE) {
 		if (write_memory(ls->cpu0, GUEST_TIMER_CALIBRATE_RESULT,
 				  GUEST_TIMER_CALIBRATE_VALUE, WORD_SIZE)) {
@@ -544,6 +547,9 @@ static void sched_check_timer_calibrate(struct ls_state *ls)
 			lskprintf(DEV, "Warning: Couldn't avoid timer_msleep. "
 				  "Just be patient!\n");
 		}
+	} else if (kern_mutex_initing(ls->cpu0, ls->eip, &lock_addr, &is_sema)) {
+		lockset_record_semaphore(&ls->sched.known_semaphores,
+					 lock_addr, is_sema);
 	}
 #endif
 }
@@ -586,6 +592,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	unsigned int target_tid;
 	unsigned int lock_addr;
 	bool succeeded;
+	bool is_sema;
 
 	/* Timer interrupt handling. */
 	if (kern_timer_entering(ls->eip)) {
@@ -696,12 +703,14 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		/* A thread is about to deschedule. Is it vanishing/sleeping? */
 		agent_deschedule(s, target_tid);
 	/* Mutex tracking and noob deadlock detection */
+	} else if (kern_mutex_initing(ls->cpu0, ls->eip, &lock_addr, &is_sema)) {
+		lockset_record_semaphore(&s->known_semaphores, lock_addr, is_sema);
 	} else if (kern_mutex_locking(ls->cpu0, ls->eip, &lock_addr)) {
 		//assert(!ACTION(s, kern_mutex_locking));
 		assert(!ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_locking) = true;
 		CURRENT(s, kern_blocked_on_addr) = lock_addr;
-		lockset_add(&CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
+		lockset_add(s, &CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
 	} else if (kern_mutex_blocking(ls->cpu0, ls->eip, &target_tid)) {
 		/* Possibly not the case - if this thread entered mutex_lock,
 		 * then switched and someone took it, these would be set already
@@ -741,7 +750,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		// XXX: couldn't it also preempt itself, with a PP on trylock?
 		assert(!ACTION(s, kern_mutex_trylocking));
 		ACTION(s, kern_mutex_trylocking) = true;
-		lockset_add(&CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
+		lockset_add(s, &CURRENT(s, kern_locks_held), lock_addr, LOCK_MUTEX);
 	} else if (kern_mutex_trylocking_done(ls->cpu0, ls->eip, &lock_addr, &succeeded)) {
 		assert(ACTION(s, kern_mutex_trylocking));
 		assert(!ACTION(s, kern_mutex_unlocking));
@@ -863,7 +872,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
 		if (lock_addr != 0) {
-			lockset_add(&CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
+			lockset_add(s, &CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
 		}
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_yielding(ls->cpu0, ls->eip)) {
@@ -1002,7 +1011,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			 lock_addr, write_mode ? "writing" : "reading");
 		/* Add to lockset INSIDE lock implementation; i.e., we consider
 		 * the implementation not protected by itself w.r.t data races. */
-		lockset_add(&CURRENT(s, user_locks_held), lock_addr,
+		lockset_add(s, &CURRENT(s, user_locks_held), lock_addr,
 			    write_mode ? LOCK_RWLOCK : LOCK_RWLOCK_READ);
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_rwlock_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
@@ -1082,7 +1091,7 @@ void sched_update(struct ls_state *ls)
 			// assert(old_tid == new_tid && "init tid mismatch");
 		} else {
 			sched_check_lmm_init(ls);
-			sched_check_timer_calibrate(ls);
+			sched_check_pintos_init_sequence(ls);
 			return;
 		}
 	}

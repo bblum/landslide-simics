@@ -35,6 +35,7 @@ bool kern_killed_faulting_user_thread(conf_object_t *cpu, unsigned int eip);
 bool kern_kernel_main(unsigned int eip);
 
 /* Yielding-mutex interactions. */
+bool kern_mutex_initing(conf_object_t *cpu, unsigned int eip, unsigned int *mutex, bool *isnt_mutex);
 bool kern_mutex_locking(conf_object_t *cpu, unsigned int eip, unsigned int *mutex);
 bool kern_mutex_blocking(conf_object_t *cpu, unsigned int eip, unsigned int *tid);
 bool kern_mutex_locking_done(conf_object_t *cpu, unsigned int eip, unsigned int *mutex);
