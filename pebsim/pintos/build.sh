@@ -34,6 +34,15 @@ rm -f bootfd.img
 TEST_CASE="wait-simple"
 ./pintos/src/utils/pintos-mkdisk --kernel=pintos/src/$PROJECT/build/kernel.bin --format=partitioned --loader=pintos/src/$PROJECT/build/loader.bin bootfd.img -- run $TEST_CASE || die "failed pintos mkdisk"
 
+#### Filesystem incantation:
+#### Run this command on vipassana (or otherwise w/ bochs installation):
+# cd ~/berkeley/group0/pintos/src/userprog/build
+# ../../utils/pintos-mkdisk filesys.dsk --filesys-size=2
+# ../../utils/pintos -p tests/userprog/wait-simple -a wait-simple -- -f -q
+# scp filesys.dsk ...
+# # TODO: put multiple programs
+# --filesys-from=filesys.dsk
+
 cp bootfd.img ../bootfd.img
 cp kernel.o.strip ../kernel-pintos
 rm -f ../kernel

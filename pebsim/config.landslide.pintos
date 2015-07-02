@@ -6,6 +6,7 @@ KERNEL_IMG=kernel
 KERNEL_SOURCE_DIR=pintos/pintos/src
 
 PINTOS_KERNEL=1
+PINTOS_USERPROG=1
 
 TEST_CASE="wait-simple"
 
@@ -30,6 +31,8 @@ IDLE_TID=2
 
 # After tell_landslide_sched_init_done(), which thread is the first one to run?
 FIRST_TID=$INIT_TID
+
+EXEC=exec
 
 # Call this for each thread that exists in your kernel when it
 # tells_landslide_sched_init_done(). The first argument is the TID; the second
@@ -131,7 +134,10 @@ sched_func thread_schedule_tail
 # Landslide has detection for "all threads are wedged", but it's imperfect, so
 # by default we let the kernel keep running. If you see an "all threads wedged?"
 # message and your kernel doesn't seem to be making progress, change this to 1.
-BUG_ON_THREADS_WEDGED=1
+
+# FIXME: Add a notion for this to change depending whether a thread is waiting
+# FIXME: for an IDE interrupt. In that case we must let idle run.
+BUG_ON_THREADS_WEDGED=0
 
 # Exploring "backwards" means starting with a forced preemption at every
 # decision point. Exploring "forwards" means letting threads continue running by

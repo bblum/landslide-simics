@@ -257,7 +257,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 	    anybody_alive(ls->cpu0, &ls->test, &ls->sched, true)) {
 		FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
 	} else {
-		printf(DEV, "Deadlock -- no threads are runnable!");
+		printf(DEV, "Deadlock -- no threads are runnable!\n");
 	}
 	return false;
 }
