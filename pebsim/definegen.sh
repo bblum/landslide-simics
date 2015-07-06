@@ -480,6 +480,9 @@ if [ ! -z "$PINTOS_KERNEL" ]; then
 	echo "#define GUEST_TIMER_CALIBRATE_VALUE 39270400"
 	# For speeding up ide_init and uhci_init.
 	echo "#define GUEST_TIMER_MSLEEP 0x`get_func timer_msleep`"
+	# Debug/logging.
+	echo "#define GUEST_PRINTF 0x`get_func printf`"
+	echo "#define GUEST_DBG_PANIC 0x`get_func debug_panic`"
 	# For test lifecycle.
 	echo "#define GUEST_RUN_TASK_ENTER 0x`get_func run_task`"
 	echo "#define GUEST_RUN_TASK_EXIT 0x`get_func_end run_task`"

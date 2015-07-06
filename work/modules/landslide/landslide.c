@@ -374,6 +374,35 @@ static bool ensure_progress(struct ls_state *ls)
 			}
 		);
 		return false;
+#ifdef PINTOS_KERNEL
+	} else if (ls->eip == GUEST_PRINTF) {
+		unsigned int esp = GET_CPU_ATTR(ls->cpu0, esp);
+		char *fmt = read_string(
+			ls->cpu0, READ_MEMORY(ls->cpu0, esp + WORD_SIZE));
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_BLUE "klog: %s", fmt);
+		if (fmt[strlen(fmt)-1] != '\n') {
+			printf(ALWAYS, "\n");
+		}
+		if (strstr(fmt, "%") != NULL && strstr(fmt, "%")[1] == 's') {
+			MM_FREE(fmt);
+			fmt = read_string(
+				ls->cpu0, READ_MEMORY(ls->cpu0, esp + (2*WORD_SIZE)));
+			lsprintf(ALWAYS, COLOUR_BOLD COLOUR_BLUE
+				 "klog fmt string: %s\n", fmt);
+		}
+		MM_FREE(fmt);
+		return true;
+	} else if (ls->eip == GUEST_DBG_PANIC) {
+		unsigned int esp = GET_CPU_ATTR(ls->cpu0, esp);
+		char *fmt = read_string(
+			ls->cpu0, READ_MEMORY(ls->cpu0, esp + (4*WORD_SIZE)));
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "panic: %s", fmt);
+		if (fmt[strlen(fmt)-1] != '\n') {
+			printf(ALWAYS, "\n");
+		}
+		MM_FREE(fmt);
+		return true;
+#endif
 	} else {
 		return true;
 	}

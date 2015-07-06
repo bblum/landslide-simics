@@ -122,6 +122,14 @@ sched_func thread_schedule_tail
 
 # All PPs are specified in supplemental ID config file.
 
+without_function block_read
+without_function block_write
+without_function acquire_console
+without_function release_console
+without_function malloc
+without_function free
+without_function palloc_get_multiple
+
 ##########################
 #### Advanced options ####
 ##########################
