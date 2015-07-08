@@ -75,7 +75,7 @@ bool kern_sched_init_done(unsigned int eip)
 
 bool kern_in_scheduler(conf_object_t *cpu, unsigned int eip)
 {
-	static const int sched_funx[][2] = GUEST_SCHEDULER_FUNCTIONS;
+	static const unsigned int sched_funx[][2] = GUEST_SCHEDULER_FUNCTIONS;
 
 	for (int i = 0; i < ARRAY_SIZE(sched_funx); i++) {
 		/* The get_func_end returns the last instr, so be inclusive */
@@ -90,7 +90,7 @@ bool kern_in_scheduler(conf_object_t *cpu, unsigned int eip)
 
 bool kern_access_in_scheduler(unsigned int addr)
 {
-	static const int sched_syms[][2] = GUEST_SCHEDULER_GLOBALS;
+	static const unsigned int sched_syms[][2] = GUEST_SCHEDULER_GLOBALS;
 
 	for (int i = 0; i < ARRAY_SIZE(sched_syms); i++) {
 		if (addr >= sched_syms[i][0] &&
@@ -101,7 +101,7 @@ bool kern_access_in_scheduler(unsigned int addr)
 	return false;
 }
 
-bool _within_functions(struct ls_state *ls, const int within_functions[][3], unsigned int length)
+bool _within_functions(struct ls_state *ls, const unsigned int within_functions[][3], unsigned int length)
 {
 	/* The array is: { start_addr, end_addr, within ? 1 : 0 }.
 	 * Later ones take precedence, so all of them have to be compared. */
@@ -134,7 +134,7 @@ bool _within_functions(struct ls_state *ls, const int within_functions[][3], uns
 
 bool kern_within_functions(struct ls_state *ls)
 {
-	static const int within_functions[][3] = KERN_WITHIN_FUNCTIONS;
+	static const unsigned int within_functions[][3] = KERN_WITHIN_FUNCTIONS;
 	int length = ARRAY_SIZE(within_functions);
 	return _within_functions(ls, within_functions, length);
 }
