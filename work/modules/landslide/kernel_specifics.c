@@ -139,6 +139,17 @@ bool kern_within_functions(struct ls_state *ls)
 	return _within_functions(ls, within_functions, length);
 }
 
+#define MK_DISK_IO_FN(name, index)					\
+	bool name(unsigned int eip) {					\
+		static const unsigned int disk_io_fns[][2] = DISK_IO_FNS; \
+		for (int i = 0; i < ARRAY_SIZE(disk_io_fns); i++) {	\
+			if (eip == disk_io_fns[i][index]) return true;	\
+		}							\
+		return false;						\
+	}
+MK_DISK_IO_FN(kern_enter_disk_io_fn, 0);
+MK_DISK_IO_FN(kern_exit_disk_io_fn,  1);
+
 #define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
 
 void read_panic_message(conf_object_t *cpu, unsigned int eip, char **buf)

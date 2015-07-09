@@ -138,6 +138,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(action.just_forked);
 	COPY_FIELD(action.lmm_init);
 	COPY_FIELD(action.vm_user_copy);
+	COPY_FIELD(action.disk_io);
 	COPY_FIELD(action.kern_mutex_locking);
 	COPY_FIELD(action.kern_mutex_unlocking);
 	COPY_FIELD(action.kern_mutex_trylocking);

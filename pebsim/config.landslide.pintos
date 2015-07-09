@@ -83,6 +83,10 @@ sched_func schedule
 sched_func switch_threads
 sched_func thread_schedule_tail
 
+disk_io_func ide_read
+disk_io_func ide_write
+disk_io_func identify_ata_device
+
 # ignore_sym URSEoQMeIQvO 4
 # ignore_sym polPBuOi 12
 # sched_func icWfGRQmDQbWa
@@ -143,9 +147,7 @@ without_function palloc_get_multiple
 # by default we let the kernel keep running. If you see an "all threads wedged?"
 # message and your kernel doesn't seem to be making progress, change this to 1.
 
-# FIXME: Add a notion for this to change depending whether a thread is waiting
-# FIXME: for an IDE interrupt. In that case we must let idle run.
-BUG_ON_THREADS_WEDGED=0
+BUG_ON_THREADS_WEDGED=1
 
 # Exploring "backwards" means starting with a forced preemption at every
 # decision point. Exploring "forwards" means letting threads continue running by

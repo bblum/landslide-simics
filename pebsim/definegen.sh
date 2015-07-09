@@ -7,6 +7,9 @@
 #### helper functions ####
 ##########################
 
+function msg {
+	echo -e "\033[01;33m$1\033[00m" >&2
+}
 function err {
 	echo -e "\033[01;31m$1\033[00m" >&2
 }
@@ -159,6 +162,14 @@ function data_race {
 	DATA_RACE_INFO="${DATA_RACE_INFO} { $1, $2 },"
 }
 
+DISK_IO_FNS=
+function disk_io_func {
+	if [ -z "$1" ]; then
+		die "disk_io_func needs an arg: got \"$1\""
+	fi
+	DISK_IO_FNS="${DISK_IO_FNS} { 0x`get_func $1`, 0x`get_func_end $1` },"
+}
+
 STARTING_THREADS=
 function starting_threads {
 	if [ -z "$1" -o -z "$2" ]; then
@@ -199,6 +210,7 @@ EXTRA_VERBOSE=0
 TABULAR_TRACE=0
 ALLOW_LOCK_HANDOFF=0
 OBFUSCATED_KERNEL=0
+BUG_ON_THREADS_WEDGED=1
 PINTOS_KERNEL=
 PINTOS_USERPROG=
 source $CONFIG
@@ -666,6 +678,11 @@ echo -e "#define USER_WITHIN_FUNCTIONS { $WITHIN_USER_FUNCTIONS }"
 echo -e "#define IGNORE_DR_FUNCTIONS   { $IGNORE_DR_FUNCTIONS   }"
 
 echo "#define DATA_RACE_INFO { $DATA_RACE_INFO }"
+echo "#define DISK_IO_FNS { $DISK_IO_FNS }"
+
+if [ "$BUG_ON_THREADS_WEDGED" = "0" -a ! -z "$DISK_IO_FNS" ]; then
+	msg "Warning: disk_io_fn has no effect when BUG_ON_THREADS_WEDGED=0."
+fi
 
 echo "#define BUG_ON_THREADS_WEDGED $BUG_ON_THREADS_WEDGED"
 echo "#define EXPLORE_BACKWARDS $EXPLORE_BACKWARDS"

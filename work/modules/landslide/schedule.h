@@ -54,6 +54,8 @@ struct agent {
 		bool lmm_init;
 		/* special action flag for being in vm_do_user_copy in pathos */
 		bool vm_user_copy;
+		/* special action flag for blocking on disk I/O in pintos */
+		bool disk_io;
 		/* are they taking or releasing a mutex? */
 		bool kern_mutex_locking;
 		bool kern_mutex_unlocking;

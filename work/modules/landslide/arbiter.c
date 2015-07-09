@@ -184,6 +184,37 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	}
 }
 
+static bool report_deadlock(struct ls_state *ls)
+{
+	if (BUG_ON_THREADS_WEDGED == 0) {
+		return false;
+	}
+
+	if (!anybody_alive(ls->cpu0, &ls->test, &ls->sched, true)) {
+		/* No threads exist. Not a deadlock, but rather end of test. */
+		return false;
+	}
+
+	struct agent *a;
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
+		if (BLOCKED(a) && a->action.disk_io) {
+			lsprintf(CHOICE, COLOUR_BOLD COLOUR_YELLOW "Warning, "
+				 "'ad-hoc' yield blocking (mutexes?) is not "
+				 "suitable for disk I/O! (TID %d)\n", a->tid);
+			return false;
+		}
+	);
+	/* Now do for each *non*-runnable agent... */
+	Q_FOREACH(a, &ls->sched.dq, nobe) {
+		if (a->action.disk_io) {
+			lsprintf(CHOICE, "TID %d blocked on disk I/O. "
+				 "Allowing idle to run.\n", a->tid);
+			return false;
+		}
+	}
+	return true;
+}
+
 /* Returns true if a thread was chosen. If true, sets 'target' (to either the
  * current thread or any other thread), and sets 'our_choice' to false if
  * somebody else already made this choice for us, true otherwise. */
@@ -252,12 +283,13 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 		}
 	);
 
+	printf(DEV, "... none?\n");
+
 	/* No runnable threads. Is this a bug, or is it expected? */
-	if (BUG_ON_THREADS_WEDGED != 0 &&
-	    anybody_alive(ls->cpu0, &ls->test, &ls->sched, true)) {
+	if (report_deadlock(ls)) {
 		FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
 	} else {
-		printf(DEV, "Deadlock -- no threads are runnable!\n");
+		lsprintf(DEV, "Deadlock -- no threads are runnable!\n");
 	}
 	return false;
 }

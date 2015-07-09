@@ -73,6 +73,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.just_forked = true;
 	a->action.lmm_init = false;
 	a->action.vm_user_copy = false;
+	a->action.disk_io = false;
 	a->action.kern_mutex_locking = false;
 	a->action.kern_mutex_unlocking = false;
 	a->action.kern_mutex_trylocking = false;
@@ -795,6 +796,14 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	} else if (kern_beginning_vanish_before_unreg_process(ls->eip)) {
 		assert(CURRENT(s, pre_vanish_trace) == NULL);
 		CURRENT(s, pre_vanish_trace) = stack_trace(ls);
+	} else if (kern_enter_disk_io_fn(ls->eip)) {
+		/* Functions declared with disk_io_fn aren't allowed to call
+		 * each other, for simplicity of implementation. */
+		assert(!ACTION(s, disk_io) && "(co)recursive disk_io not supported");
+		ACTION(s, disk_io) = true;
+	} else if (kern_exit_disk_io_fn(ls->eip)) {
+		assert(ACTION(s, disk_io) && "(co)recursive disk_io not supported");
+		ACTION(s, disk_io) = false;
 	} else {
 		sched_check_lmm_init(ls);
 	}

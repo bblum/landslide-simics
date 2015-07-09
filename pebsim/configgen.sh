@@ -27,6 +27,9 @@ function ignore_dr_function {
 function data_race {
 	echo -n
 }
+function disk_io_func {
+	echo -n
+}
 function extra_sym {
 	echo -n
 }
