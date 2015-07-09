@@ -123,7 +123,7 @@ void lockset_add(struct sched_state *s, struct lockset *l,
 	// which share a lock addr, we need to check that type == LOCK_SEM.
 	// I'm not doing it here b/c pintos actually uses LOCK_MUTEX for its sems.
 	if (lockset_contains(&s->known_semaphores, lock_addr, LOCK_SEM)) {
-		lsprintf(DEV, COLOUR_BOLD COLOUR_GREEN "ignoring non-mutex sem_down(0x%x)\n", lock_addr);
+		lsprintf(DEV, "ignoring non-mutex sem_down(0x%x)\n", lock_addr);
 		return;
 	}
 
@@ -176,7 +176,7 @@ void lockset_remove(struct sched_state *s, unsigned int lock_addr,
 	assert(lock_addr != 0);
 
 	if (lockset_contains(&s->known_semaphores, lock_addr, LOCK_SEM)) {
-		lsprintf(DEV, COLOUR_BOLD COLOUR_GREEN "ignoring non-mutex sem_up(0x%x)\n", lock_addr);
+		lsprintf(DEV, "ignoring non-mutex sem_up(0x%x)\n", lock_addr);
 		return;
 	}
 
