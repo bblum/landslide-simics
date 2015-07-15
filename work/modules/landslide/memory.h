@@ -46,7 +46,7 @@ Q_NEW_HEAD(struct mem_locksets, struct mem_lockset);
  * different locations in the code */
 struct mem_access {
 	unsigned int addr; /* byte granularity */
-	bool write;        /* true if any access among locksets is a write */
+	bool any_writes;   /* true if any access among locksets is a write */
 	/* PC is recorded per-lockset, so when there's a data race, the correct
 	 * eip can be reported instead of the first one. */
 	//int eip;         /* what instruction pointer */

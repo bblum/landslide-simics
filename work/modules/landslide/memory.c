@@ -224,15 +224,17 @@ static struct chunk *remove_chunk(struct rb_root *root, unsigned int addr)
 
 static void print_heap(verbosity v, struct rb_node *nobe, bool rightmost)
 {
-	if (nobe == NULL)
+	if (nobe == NULL) {
 		return;
+	}
 
 	struct chunk *c = rb_entry(nobe, struct chunk, nobe);
 
 	print_heap(v, c->nobe.rb_left, false);
 	printf(v, "[0x%x | %d]", c->base, c->len);
-	if (!rightmost || c->nobe.rb_right != NULL)
+	if (!rightmost || c->nobe.rb_right != NULL) {
 		printf(v, ", ");
+	}
 	print_heap(v, c->nobe.rb_right, rightmost);
 }
 
@@ -580,9 +582,10 @@ static bool was_freed_remalloced(struct mem_lockset *l0, struct mem_lockset *l1)
 static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			       struct chunk *c, bool write, bool in_kernel)
 {
-	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
-	                                 &ls->sched.cur_agent->user_locks_held;
-	struct mem_lockset *l;
+	struct lockset *current_locks =
+		in_kernel ? &ls->sched.cur_agent->kern_locks_held :
+		            &ls->sched.cur_agent->user_locks_held;
+	struct mem_lockset *l_old;
 	unsigned int current_syscall = ls->sched.cur_agent->most_recent_syscall;
 
 	bool need_add = true;
@@ -597,44 +600,44 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	enum chunk_id_info any_cids = c == NULL ? NOT_IN_HEAP : HAS_CHUNK_ID;
 	unsigned int cid = c == NULL ? 0x15410de0u : c->id;
 
-	Q_FOREACH(l, &ma->locksets, nobe) {
+	Q_FOREACH(l_old, &ma->locksets, nobe) {
 		if (remove_prev) {
-			struct mem_lockset *l_old = l->nobe.prev;
-			Q_REMOVE(&ma->locksets, l_old, nobe);
+			struct mem_lockset *l_prev = l_old->nobe.prev;
+			Q_REMOVE(&ma->locksets, l_prev, nobe);
 			/* union ITS old chunk id info into OUR current one */
-			merge_chunk_id_info(&any_cids, &cid, l_old->any_chunk_ids,
-					    l_old->chunk_id);
-			lockset_free(&l_old->locks_held);
-			MM_FREE(l_old);
+			merge_chunk_id_info(&any_cids, &cid, l_prev->any_chunk_ids,
+					    l_prev->chunk_id);
+			lockset_free(&l_prev->locks_held);
+			MM_FREE(l_prev);
 			remove_prev = false;
 		}
 
 		/* ensure init/destroy status matches */
-		if (l->during_init != during_init ||
-		    l->during_destroy != during_destroy) {
+		if (l_old->during_init != during_init ||
+		    l_old->during_destroy != during_destroy) {
 			/* it may be possible to establish a subset type of
 			 * relation between these, and mush them together. */
 			continue;
 		}
 
 		/* ensure most recent syscall matches */
-		if (l->most_recent_syscall != current_syscall) {
+		if (l_old->most_recent_syscall != current_syscall) {
 			continue;
 		}
 
 		/* ensure eip matches */
-		if (l->eip != ls->eip) {
+		if (l_old->eip != ls->eip) {
 			continue;
 		}
 
 		/* ensure not merging into differently-interruptible access */
-		if (l->interrupce_enabled != interrupce) {
+		if (l_old->interrupce_enabled != interrupce) {
 			continue;
 		}
 
 		enum lockset_cmp_result r =
-			lockset_compare(l0, &l->locks_held);
-		if (r == LOCKSETS_SUPSET && write && !l->write) {
+			lockset_compare(current_locks, &l_old->locks_held);
+		if (r == LOCKSETS_SUPSET && write && !l_old->write) {
 			/* e.g. current = L1 + L2; past = L2... BUT, current
 			 * access is a write. while the old one with fewer locks
 			 * was a write, so the accesses can't be merged. */
@@ -647,12 +650,12 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			 * add current in addition. */
 			need_add = false;
 			/* union OUR chunk id info into ITS old one */
-			merge_chunk_id_info(&l->any_chunk_ids,
-					    &l->chunk_id, any_cids, cid);
+			merge_chunk_id_info(&l_old->any_chunk_ids,
+					    &l_old->chunk_id, any_cids, cid);
 			/* in case of equal locksets and old being a read */
-			l->write |= write;
+			l_old->write = l_old->write || write;
 			break;
-		} else if (r == LOCKSETS_SUBSET && (write || !l->write)) {
+		} else if (r == LOCKSETS_SUBSET && (write || !l_old->write)) {
 			/* e.g. current = L1; past = L1 + L2. in this case,
 			 * current lockset is a strict upgrade over old (UNLESS
 			 * old is a write and current isn't), so replace old. */
@@ -667,24 +670,24 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 
 	if (remove_prev) {
 		assert(need_add);
-		l = Q_GET_TAIL(&ma->locksets);
-		Q_REMOVE(&ma->locksets, l, nobe);
-		lockset_free(&l->locks_held);
-		MM_FREE(l);
+		l_old = Q_GET_TAIL(&ma->locksets);
+		Q_REMOVE(&ma->locksets, l_old, nobe);
+		lockset_free(&l_old->locks_held);
+		MM_FREE(l_old);
 	}
 
 	if (need_add) {
-		l = MM_XMALLOC(1, struct mem_lockset);
-		l->eip = ls->eip;
-		l->write = write;
-		l->during_init = during_init;
-		l->during_destroy = during_destroy;
-		l->interrupce_enabled = interrupce;
-		l->most_recent_syscall = current_syscall;
-		l->any_chunk_ids = any_cids;
-		l->chunk_id = cid;
-		lockset_clone(&l->locks_held, l0);
-		Q_INSERT_FRONT(&ma->locksets, l, nobe);
+		struct mem_lockset *l_new = MM_XMALLOC(1, struct mem_lockset);
+		l_new->eip = ls->eip;
+		l_new->write = write;
+		l_new->during_init = during_init;
+		l_new->during_destroy = during_destroy;
+		l_new->interrupce_enabled = interrupce;
+		l_new->most_recent_syscall = current_syscall;
+		l_new->any_chunk_ids = any_cids;
+		l_new->chunk_id = cid;
+		lockset_clone(&l_new->locks_held, current_locks);
+		Q_INSERT_FRONT(&ma->locksets, l_new, nobe);
 	}
 }
 
@@ -709,7 +712,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 		} else {
 			/* access already exists */
 			ma->count++;
-			ma->write = ma->write || write;
+			ma->any_writes = ma->any_writes || write;
 			add_lockset_to_shm(ls, ma, c, write, in_kernel);
 			return;
 		}
@@ -717,11 +720,11 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 
 	/* doesn't exist; create a new one */
 	ma = MM_XMALLOC(1, struct mem_access);
-	ma->addr      = addr;
-	ma->write     = write;
-	ma->count     = 1;
-	ma->conflict  = false;
-	ma->other_tid = 0;
+	ma->addr       = addr;
+	ma->any_writes = write;
+	ma->count      = 1;
+	ma->conflict   = false;
+	ma->other_tid  = 0;
 	Q_INIT_HEAD(&ma->locksets);
 	add_lockset_to_shm(ls, ma, c, write, in_kernel);
 
@@ -968,8 +971,9 @@ static void print_shm_conflict(verbosity v, struct mem_state *m0, struct mem_sta
 			symtable_lookup_data(buf, BUF_SIZE, ma0->addr);
 		}
 	} else {
-		if (c0 == NULL)
+		if (c0 == NULL) {
 			c0 = c1; /* default to "later" state if both exist */
+		}
 		/* If this happens, c0 and c1 were both not null and also got
 		 * reallocated in-between. TODO: have better printing code.
 		 * assert(c1 == NULL ||
@@ -977,8 +981,8 @@ static void print_shm_conflict(verbosity v, struct mem_state *m0, struct mem_sta
 		 */
 		print_heap_address(buf, BUF_SIZE, ma0->addr, c0->base, c0->len);
 	}
-	printf(v, "[%s %c%d/%c%d]", buf, ma0->write ? 'w' : 'r', ma0->count,
-	       ma1->write ? 'w' : 'r', ma1->count);
+	printf(v, "[%s %c%d/%c%d]", buf, ma0->any_writes ? 'w' : 'r',
+	       ma0->count, ma1->any_writes ? 'w' : 'r', ma1->count);
 }
 
 #define MAX_CONFLICTS 10
@@ -993,12 +997,13 @@ static void check_stack_conflict(struct mem_access *ma, unsigned int other_tid,
 	 * we have to check every recorded access that doesn't match. */
 	if (ma->other_tid == other_tid) {
 		if (*conflicts < MAX_CONFLICTS) {
-			if (*conflicts > 0)
+			if (*conflicts > 0) {
 				printf(DEV, ", ");
+			}
 			struct mem_lockset *l = Q_GET_HEAD(&ma->locksets);
 			assert(l != NULL);
 			printf(DEV, "[tid%d stack %c%d 0x%x]", other_tid,
-			       ma->write ? 'w' : 'r', ma->count, l->eip);
+			       ma->any_writes ? 'w' : 'r', ma->count, l->eip);
 		}
 		ma->conflict = true;
 		(*conflicts)++;
@@ -1016,10 +1021,11 @@ static void check_freed_conflict(struct mem_access *ma0, struct mem_state *m1,
 		print_heap_address(buf, BUF_SIZE, ma0->addr, c->base, c->len);
 
 		if (*conflicts < MAX_CONFLICTS) {
-			if (*conflicts > 0)
+			if (*conflicts > 0) {
 				printf(DEV, ", ");
-			printf(DEV, "[%s %c%d (tid%d freed)]", buf, ma0->write ? 'w' : 'r',
-			       ma0->count, other_tid);
+			}
+			printf(DEV, "[%s %c%d (tid%d freed)]", buf,
+			       ma0->any_writes ? 'w' : 'r', ma0->count, other_tid);
 		}
 		ma0->conflict = true;
 		(*conflicts)++;
@@ -1264,12 +1270,13 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 		} else {
 			/* found a match; advance both */
-			if (ma0->write || ma1->write) {
+			if (ma0->any_writes || ma1->any_writes) {
 				struct chunk *c0 = find_alloced_chunk(m0, ma0->addr);
 				struct chunk *c1 = find_alloced_chunk(m1, ma1->addr);
 				if (conflicts < MAX_CONFLICTS) {
-					if (conflicts > 0)
+					if (conflicts > 0) {
 						printf(DEV, ", ");
+					}
 					/* the match is also a conflict */
 					print_shm_conflict(DEV, m0, m1,
 							   ma0, ma1, c0, c1);
@@ -1298,8 +1305,9 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		ma1 = MEM_ENTRY(rb_next(&ma1->nobe));
 	}
 
-	if (conflicts > MAX_CONFLICTS)
+	if (conflicts > MAX_CONFLICTS) {
 		printf(DEV, ", and %d more", conflicts - MAX_CONFLICTS);
+	}
 	printf(DEV, "}\n");
 
 	return conflicts > 0;
