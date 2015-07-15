@@ -578,7 +578,7 @@ static bool was_freed_remalloced(struct mem_lockset *l0, struct mem_lockset *l1)
 /* Actually looking for data races cannot happen until we know the
  * happens-before relationship to previous transitions, in save.c. */
 static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
-			       struct chunk *c, bool in_kernel)
+			       struct chunk *c, bool write, bool in_kernel)
 {
 	struct lockset *l0 = in_kernel ? &ls->sched.cur_agent->kern_locks_held :
 	                                 &ls->sched.cur_agent->user_locks_held;
@@ -632,20 +632,36 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			continue;
 		}
 
-		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
-		if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
-			// if l subset l0, then we already have a better lockset
-			// than l0 for finding data races on this access, so no
-			// need to add l0 in addition.
+		enum lockset_cmp_result r =
+			lockset_compare(l0, &l->locks_held);
+		if (r == LOCKSETS_SUPSET && write && !l->write) {
+			/* e.g. current = L1 + L2; past = L2... BUT, current
+			 * access is a write. while the old one with fewer locks
+			 * was a write, so the accesses can't be merged. */
+			continue;
+		} else if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
+			/* if supset, e.g. current == L1 + L2; past == L2; then
+			 * if current access is a write, the old one is too. so
+			 * we already have a better lockset than the current one
+			 * for finding data races on this access, so no need to
+			 * add current in addition. */
 			need_add = false;
 			/* union OUR chunk id info into ITS old one */
-			merge_chunk_id_info(&l->any_chunk_ids, &l->chunk_id,
-					    any_cids, cid);
+			merge_chunk_id_info(&l->any_chunk_ids,
+					    &l->chunk_id, any_cids, cid);
+			/* in case of equal locksets and old being a read */
+			l->write |= write;
 			break;
+		} else if (r == LOCKSETS_SUBSET && (write || !l->write)) {
+			/* e.g. current = L1; past = L1 + L2. in this case,
+			 * current lockset is a strict upgrade over old (UNLESS
+			 * old is a write and current isn't), so replace old. */
+			remove_prev = true;
 		} else {
-			// if subset, then l0 would be a strict upgrade over l,
-			// in terms of finding data races, so we can remove l.
-			remove_prev = (r == LOCKSETS_SUBSET);
+			/* accesses cannot be merged in either direction. either
+			 * LOCKSETS_DIFF, or current subset old but old was a
+			 * write while current is only a read. */
+			continue;
 		}
 	}
 
@@ -660,6 +676,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	if (need_add) {
 		l = MM_XMALLOC(1, struct mem_lockset);
 		l->eip = ls->eip;
+		l->write = write;
 		l->during_init = during_init;
 		l->during_destroy = during_destroy;
 		l->interrupce_enabled = interrupce;
@@ -693,7 +710,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 			/* access already exists */
 			ma->count++;
 			ma->write = ma->write || write;
-			add_lockset_to_shm(ls, ma, c, in_kernel);
+			add_lockset_to_shm(ls, ma, c, write, in_kernel);
 			return;
 		}
 	}
@@ -706,7 +723,7 @@ static void add_shm(struct ls_state *ls, struct mem_state *m, struct chunk *c,
 	ma->conflict  = false;
 	ma->other_tid = 0;
 	Q_INIT_HEAD(&ma->locksets);
-	add_lockset_to_shm(ls, ma, c, in_kernel);
+	add_lockset_to_shm(ls, ma, c, write, in_kernel);
 
 	rb_link_node(&ma->nobe, parent, p);
 	rb_insert_color(&ma->nobe, &m->shm);
@@ -1193,7 +1210,8 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	Q_FOREACH(l0, &ma0->locksets, nobe) {
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			/* Are there any 2 locksets without a lock in common? */
-			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)
+			if ((l0->write || l1->write)
+			    && !lockset_intersect(&l0->locks_held, &l1->locks_held)
 			    && !was_freed_remalloced(l0, l1)
 			    && (l0->interrupce_enabled || l1->interrupce_enabled)
 			    && !ignore_dr_function(l0->eip)

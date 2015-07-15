@@ -26,6 +26,7 @@ enum chunk_id_info { NOT_IN_HEAP, HAS_CHUNK_ID, MULTIPLE_CHUNK_IDS };
 struct mem_lockset {
 	unsigned int eip;
 	unsigned int most_recent_syscall;
+	bool write;
 	bool during_init;
 	bool during_destroy;
 	bool interrupce_enabled;
@@ -45,7 +46,7 @@ Q_NEW_HEAD(struct mem_locksets, struct mem_lockset);
  * different locations in the code */
 struct mem_access {
 	unsigned int addr; /* byte granularity */
-	bool write;        /* false == read; true == write */
+	bool write;        /* true if any access among locksets is a write */
 	/* PC is recorded per-lockset, so when there's a data race, the correct
 	 * eip can be reported instead of the first one. */
 	//int eip;         /* what instruction pointer */
