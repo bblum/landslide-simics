@@ -28,6 +28,7 @@ struct mem_lockset {
 	unsigned int most_recent_syscall;
 	bool during_init;
 	bool during_destroy;
+	bool interrupce_enabled;
 	/* two locksets with existing but different chunk ids are a false
 	 * positive for data race detection (see issues #23 and #170).
 	 * however, since we aggressively combine locksets, multiple chunk

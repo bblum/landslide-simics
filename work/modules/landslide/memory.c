@@ -592,6 +592,8 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	bool during_destroy = DESTROYING_SOMETHING(ls->sched.cur_agent);
 	assert(!(during_init && during_destroy));
 
+	bool interrupce = interrupts_enabled(ls->cpu0);
+
 	enum chunk_id_info any_cids = c == NULL ? NOT_IN_HEAP : HAS_CHUNK_ID;
 	unsigned int cid = c == NULL ? 0x15410de0u : c->id;
 
@@ -625,6 +627,11 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			continue;
 		}
 
+		/* ensure not merging into differently-interruptible access */
+		if (l->interrupce_enabled != interrupce) {
+			continue;
+		}
+
 		enum lockset_cmp_result r = lockset_compare(l0, &l->locks_held);
 		if (r == LOCKSETS_EQ || r == LOCKSETS_SUPSET) {
 			// if l subset l0, then we already have a better lockset
@@ -655,6 +662,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		l->eip = ls->eip;
 		l->during_init = during_init;
 		l->during_destroy = during_destroy;
+		l->interrupce_enabled = interrupce;
 		l->most_recent_syscall = current_syscall;
 		l->any_chunk_ids = any_cids;
 		l->chunk_id = cid;
@@ -1037,16 +1045,17 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	lsprintf(v, "%s", colour);
 	printf(v, "#%d/tid%d at ", h0->depth, h0->chosen_thread);
 	print_eip(v, l0->eip);
+
 	printf(v, " [locks: ");
 	lockset_print(v, &l0->locks_held);
-	printf(v, "] and \n");
+	printf(v, "]%s and \n", l0->interrupce_enabled ? "" : " (cli'd)");
 
 	lsprintf(v, "%s", colour);
 	printf(v, "#%d/tid%d at ", h1->depth, h1->chosen_thread);
 	print_eip(v, l1->eip);
 	printf(v, " [locks: ");
 	lockset_print(v, &l1->locks_held);
-	printf(v, "]\n");
+	printf(v, "]%s\n", l1->interrupce_enabled ? "" : " (cli'd)");
 
 	lsprintf(DEV, "Num data races suspected: %d; confirmed: %d\n",
 		 m->data_races_suspected, m->data_races_confirmed);
@@ -1186,6 +1195,7 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			/* Are there any 2 locksets without a lock in common? */
 			if (!lockset_intersect(&l0->locks_held, &l1->locks_held)
 			    && !was_freed_remalloced(l0, l1)
+			    && (l0->interrupce_enabled || l1->interrupce_enabled)
 			    && !ignore_dr_function(l0->eip)
 			    && !ignore_dr_function(l1->eip)) {
 				/* Data race. Have we seen it reordered? */
