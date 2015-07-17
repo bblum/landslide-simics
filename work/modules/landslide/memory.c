@@ -877,6 +877,9 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 	if (ls->sched.schedule_in_flight != NULL) {
 		assert(ls->sched.schedule_in_flight->tid != ls->sched.cur_agent->tid);
 		assert(ls->save.current != NULL);
+		/* Current tid being the last h->chosen_thread indicates that
+		 * we're still in the thread from the last PP. If the tid is
+		 * still different from that, it's some 3rd unrelated thread. */
 		if (ls->sched.cur_agent->tid != ls->save.current->chosen_thread) {
 			/* Don't record this access at all if this is just an
 			 * "intermediate" thread during a schedule-in-flight,
@@ -887,6 +890,23 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		} else {
 			m = ls->save.current->old_user_mem;
 		}
+	} else if (ls->sched.voluntary_resched_stack != NULL &&
+		   // XXX: can't rely on voluntary_resched_tid, see #178.
+		   ls->sched.cur_agent->tid != ls->save.next_tid) {
+		/* Uh oh, somehow we ran a different thread than the one chosen
+		 * at the last PP. This can happen in Pintos when interrupts
+		 * never get enabled between two yields (in the semaphores),
+		 * but if interrupts are on, we definitely want to be noisy. */
+		if (!TID_IS_IDLE(ls->sched.cur_agent->tid) &&
+		    ls->save.next_tid != -1 && interrupts_enabled(ls->cpu0)) {
+			lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW
+				 "WARNING: ignoring shm by wrong thread(?) "
+				 "(chosen TID %d; current TID %d) to 0x%x @ ",
+				 ls->save.next_tid, ls->sched.cur_agent->tid, addr);
+			print_eip(DEV, ls->eip);
+			printf(DEV, "\n");
+		}
+		return;
 	} else {
 		/* Not a special "access belongs to someone else" situation. */
 		if (in_kernel) {
