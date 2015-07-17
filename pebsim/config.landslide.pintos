@@ -32,7 +32,7 @@ IDLE_TID=2
 # After tell_landslide_sched_init_done(), which thread is the first one to run?
 FIRST_TID=$INIT_TID
 
-EXEC=exec
+EXEC=process_execute
 
 # Call this for each thread that exists in your kernel when it
 # tells_landslide_sched_init_done(). The first argument is the TID; the second
