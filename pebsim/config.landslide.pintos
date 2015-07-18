@@ -87,6 +87,8 @@ disk_io_func ide_read
 disk_io_func ide_write
 disk_io_func identify_ata_device
 
+ignore_dr_function lock_held_by_current_thread 0 # 0 for kernelspace function
+
 # ignore_sym URSEoQMeIQvO 4
 # ignore_sym polPBuOi 12
 # sched_func icWfGRQmDQbWa

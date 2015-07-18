@@ -150,8 +150,15 @@ function without_user_function {
 
 IGNORE_DR_FUNCTIONS=
 function ignore_dr_function {
-	# the 0 parameter is unused (for now; there could be a whitelist later)
-	IGNORE_DR_FUNCTIONS="${IGNORE_DR_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 0 },"
+	USERSPACE_DR_FN=$2
+	if [ "$USERSPACE_DR_FN" = 0 ]; then
+		# kernel
+		# the 0 parameter is unused (for now; there could be a whitelist later)
+		IGNORE_DR_FUNCTIONS="${IGNORE_DR_FUNCTIONS}\\\\\n\t{ 0x`get_func $1`, 0x`get_func_end $1`, 0 },"
+	else
+		# user -- default, including no arg
+		IGNORE_DR_FUNCTIONS="${IGNORE_DR_FUNCTIONS}\\\\\n\t{ 0x`get_user_func $1`, 0x`get_user_func_end $1`, 0 },"
+	fi
 }
 
 DATA_RACE_INFO=
