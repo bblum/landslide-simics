@@ -313,7 +313,8 @@ static bool ensure_progress(struct ls_state *ls)
 		return false;
 	} else if (kern_page_fault_handler_entering(ls->eip)) {
 		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
-		lsprintf(DEV, "page fault from ");
+		unsigned int cr2 = GET_CPU_ATTR(ls->cpu0, cr2);
+		lsprintf(DEV, "page fault on address 0x%x from ", cr2);
 		print_eip(DEV, from_eip);
 		printf(DEV, "\n");
 		/* did it come from kernel-space? */
@@ -324,7 +325,8 @@ static bool ensure_progress(struct ls_state *ls)
 					 "behaviour, unset PAGE_FAULT_WRAPPER "
 					 "in config.landslide.\n");
 			}
-			FOUND_A_BUG(ls, "Kernel page faulted!");
+			FOUND_A_BUG(ls, "Kernel page faulted! Faulting eip: "
+				    "0x%x; address: 0x%x", from_eip, cr2);
 			return false;
 		} else {
 			return true;
