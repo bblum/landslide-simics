@@ -150,7 +150,21 @@ bool kern_within_functions(struct ls_state *ls)
 MK_DISK_IO_FN(kern_enter_disk_io_fn, 0);
 MK_DISK_IO_FN(kern_exit_disk_io_fn,  1);
 
-#define GUEST_ASSERT_MSG "%s:%u: failed assertion `%s'"
+#ifdef PINTOS_KERNEL
+#define PANIC_ASSERT_MSG "assertion `%s' failed."
+#define PANIC_ASSERT_TEMPLATE "%s:%u: assertion `%s' failed."
+#define PANIC_MSG_ARGNUM 4
+#define PANIC_FILE_ARGNUM 1
+#define PANIC_LINE_ARGNUM 2
+#define PANIC_ASSERT_MSG_ARGNUM 5
+#else
+#define PANIC_ASSERT_MSG "%s:%u: failed assertion `%s'"
+#define PANIC_ASSERT_TEMPLATE PANIC_ASSERT_MSG
+#define PANIC_MSG_ARGNUM 1
+#define PANIC_FILE_ARGNUM 2
+#define PANIC_LINE_ARGNUM 3
+#define PANIC_ASSERT_MSG_ARGNUM 4
+#endif
 
 void read_panic_message(conf_object_t *cpu, unsigned int eip, char **buf)
 {
@@ -160,21 +174,21 @@ void read_panic_message(conf_object_t *cpu, unsigned int eip, char **buf)
 	assert(eip == GUEST_PANIC);
 #endif
 
-	*buf = read_string(cpu, READ_STACK(cpu, 1));
+	*buf = read_string(cpu, READ_STACK(cpu, PANIC_MSG_ARGNUM));
 	/* Can't call out to scnprintf in the general case because it
 	 * would need repeated calls to read_string, and would basically
 	 * need to be reimplemented entirely. Instead, special-case. */
-	if (strcmp(*buf, GUEST_ASSERT_MSG) == 0) {
-		char *file_str   = read_string(cpu, READ_STACK(cpu, 2));
-		int line         = READ_STACK(cpu, 3);
-		char *assert_msg = read_string(cpu, READ_STACK(cpu, 4));
+	if (strcmp(*buf, PANIC_ASSERT_MSG) == 0) {
+		char *file_str   = read_string(cpu, READ_STACK(cpu, PANIC_FILE_ARGNUM));
+		int line         = READ_STACK(cpu, PANIC_LINE_ARGNUM);
+		char *assert_msg = read_string(cpu, READ_STACK(cpu, PANIC_ASSERT_MSG_ARGNUM));
 		/* 12 is enough space for any stringified int. This will
 		 * allocate a little extra, but we don't care. */
-		int length = strlen(GUEST_ASSERT_MSG) + strlen(file_str)
+		int length = strlen(PANIC_ASSERT_TEMPLATE) + strlen(file_str)
 			     + strlen(assert_msg) + 12;
 		MM_FREE(*buf);
 		*buf = MM_XMALLOC(length, char);
-		scnprintf(*buf, length, GUEST_ASSERT_MSG, file_str, line,
+		scnprintf(*buf, length, PANIC_ASSERT_TEMPLATE, file_str, line,
 			  assert_msg);
 		MM_FREE(file_str);
 		MM_FREE(assert_msg);
