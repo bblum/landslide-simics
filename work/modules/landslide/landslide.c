@@ -414,18 +414,23 @@ static bool test_ended_safely(struct ls_state *ls)
 {
 	/* Anything that would indicate failure - e.g. return code... */
 
+	// XXX: Check is broken. Can't reenable it meaningfully
+	// XXX: (at least for pintos). See #181.
+	// TODO: Test on pebbles; would "ifndef PINTOS_KERNEL" instead be ok?
+#if 0
 	// TODO: find the blocks that were leaked and print stack traces for them
 	// TODO: the test could copy the heap to indicate which blocks
 	// TODO: do some assert analogous to wrong_panic() for this
-	if (ls->test.start_kern_heap_size > ls->kern_mem.heap_size) {
+	if (ls->test.start_kern_heap_size < ls->kern_mem.heap_size) {
 		FOUND_A_BUG(ls, "KERNEL MEMORY LEAK (%d bytes)!",
-			    ls->test.start_kern_heap_size - ls->kern_mem.heap_size);
+			    ls->kern_mem.heap_size - ls->test.start_kern_heap_size);
 		return false;
-	} else if (ls->test.start_user_heap_size > ls->user_mem.heap_size) {
+	} else if (ls->test.start_user_heap_size < ls->user_mem.heap_size) {
 		FOUND_A_BUG(ls, "USER MEMORY LEAK (%d bytes)!",
-			    ls->test.start_user_heap_size - ls->user_mem.heap_size);
+			    ls->user_mem.heap_size - ls->test.start_user_heap_size);
 		return false;
 	}
+#endif
 
 	return true;
 }
