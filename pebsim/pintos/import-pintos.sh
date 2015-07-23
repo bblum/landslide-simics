@@ -48,6 +48,7 @@ check_subdir src/threads
 check_subdir src/userprog
 check_subdir src/vm
 check_subdir src/devices
+check_subdir src/filesys
 check_subdir src/lib
 check_subdir src/misc
 check_subdir src/utils
@@ -87,6 +88,7 @@ function sync_optional_subdir() {
 sync_subdir src/threads
 sync_subdir src/userprog
 sync_subdir src/vm
+sync_subdir src/filesys # some studence may add fs code helper functions
 # our basecode is missing some files / patches from the uchicago version.
 sync_subdir src/devices
 sync_subdir src/lib
