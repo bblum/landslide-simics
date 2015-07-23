@@ -558,8 +558,11 @@ void landslide_entrypoint(conf_object_t *obj, void *trace_entry)
 			ls->just_jumped = false;
 		}
 
-		sched_update(ls);
+		/* NB. mem update must come first because sched update contains
+		 * the logic to create PPs, and snapshots must include state
+		 * machine changes from mem update (tracking malloc/free). */
 		mem_update(ls);
+		sched_update(ls);
 		check_test_state(ls);
 	}
 }
