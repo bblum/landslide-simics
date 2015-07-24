@@ -220,6 +220,7 @@ OBFUSCATED_KERNEL=0
 BUG_ON_THREADS_WEDGED=1
 PINTOS_KERNEL=
 PINTOS_USERPROG=
+ALLOW_REENTRANT_MALLOC_FREE=0
 source $CONFIG
 
 source ./symbols.sh
@@ -436,6 +437,15 @@ if [ ! -z "$PINTOS_KERNEL" ]; then
 	echo "#define GUEST_PALLOC_FREE_ENTER 0x`get_func palloc_free_multiple`"
 	echo "#define GUEST_PALLOC_FREE_EXIT 0x`get_func_ret palloc_free_multiple`"
 	echo "#define GUEST_PALLOC_FREE_BASE_ARGNUM 1"
+fi
+
+if [ "$ALLOW_REENTRANT_MALLOC_FREE" = "1" ]; then
+	echo "#define ALLOW_REENTRANT_MALLOC_FREE"
+else
+	# Nothing. (This is an ifdef/ifndef over in the c code.)
+	# (Yes, I know the conventions are all over the place. It's a one-person
+	# ph.d. project and not worth cleaning up. Gimme a break.)
+	echo -n
 fi
 
 echo

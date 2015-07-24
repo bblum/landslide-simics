@@ -120,6 +120,17 @@ static void copy_user_yield_state(struct user_yield_state *dest,
 	dest->blocked    = src->blocked;
 }
 
+static void copy_malloc_actions(struct malloc_actions *dest, const struct malloc_actions *src)
+{
+	dest->in_alloc            = src->in_alloc;
+	dest->in_realloc          = src->in_realloc;
+	dest->in_free             = src->in_free;
+	dest->alloc_request_size  = src->alloc_request_size;
+	dest->in_page_alloc       = src->in_page_alloc;
+	dest->in_page_free        = src->in_page_free;
+	dest->palloc_request_size = src->palloc_request_size;
+}
+
 #define COPY_FIELD(name) do { a_dest->name = a_src->name; } while (0)
 static struct agent *copy_agent(struct agent *a_src)
 {
@@ -177,6 +188,10 @@ static struct agent *copy_agent(struct agent *a_src)
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);
+#ifdef ALLOW_REENTRANT_MALLOC_FREE
+	copy_malloc_actions(&a_dest->kern_malloc_flags, &a_src->kern_malloc_flags);
+	copy_malloc_actions(&a_dest->user_malloc_flags, &a_src->user_malloc_flags);
+#endif
 	a_dest->pre_vanish_trace = (a_src->pre_vanish_trace == NULL) ?
 		NULL : copy_stack_trace(a_src->pre_vanish_trace);
 
@@ -313,17 +328,13 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool i
 {
 	dest->guest_init_done     = src->guest_init_done;
 	dest->in_mm_init          = src->in_mm_init;
-	dest->in_alloc            = src->in_alloc;
-	dest->in_realloc          = src->in_realloc;
-	dest->in_free             = src->in_free;
-	dest->alloc_request_size  = src->alloc_request_size;
 	dest->malloc_heap.rb_node = dup_chunk(src->malloc_heap.rb_node, NULL);
 	dest->palloc_heap.rb_node = dup_chunk(src->palloc_heap.rb_node, NULL);
-	dest->in_page_alloc       = src->in_page_alloc;
-	dest->in_page_free        = src->in_page_free;
-	dest->palloc_request_size = src->palloc_request_size;
 	dest->heap_size           = src->heap_size;
 	dest->heap_next_id        = src->heap_next_id;
+#ifndef ALLOW_REENTRANT_MALLOC_FREE
+	copy_malloc_actions(&dest->flags, &src->flags);
+#endif
 	dest->cr3                 = src->cr3;
 	dest->cr3_tid             = src->cr3_tid;
 	dest->user_mutex_size     = src->user_mutex_size;

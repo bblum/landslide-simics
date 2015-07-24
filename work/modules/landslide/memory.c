@@ -35,6 +35,28 @@
 #define USER_CR3_WAITING_FOR_EXEC 1
 #define USER_CR3_EXEC_HAPPENED 2
 
+#ifdef ALLOW_REENTRANT_MALLOC_FREE
+#define KERN_MALLOC_STATE(ls) (&((ls)->sched.cur_agent->kern_malloc_flags))
+#define USER_MALLOC_STATE(ls) (&((ls)->sched.cur_agent->user_malloc_flags))
+#else
+#define KERN_MALLOC_STATE(ls) (&((ls)->kern_mem.flags))
+#define USER_MALLOC_STATE(ls) (&((ls)->user_mem.flags))
+#endif
+
+#define MALLOC_STATE(ls, in_kernel) \
+	((in_kernel) ? KERN_MALLOC_STATE(ls) : USER_MALLOC_STATE(ls))
+
+void init_malloc_actions(struct malloc_actions *flags)
+{
+	flags->in_alloc = false;
+	flags->in_realloc = false;
+	flags->in_free = false;
+	flags->in_page_alloc = false;
+	flags->in_page_free = false;
+	flags->alloc_request_size = 0x1badd00d;
+	flags->palloc_request_size = 0x2badd00d;
+}
+
 static void mem_heap_init(struct mem_state *m)
 {
 	m->malloc_heap.rb_node = NULL;
@@ -42,12 +64,10 @@ static void mem_heap_init(struct mem_state *m)
 	m->heap_next_id = 0;
 	m->guest_init_done = false;
 	m->in_mm_init = false;
-	m->in_alloc = false;
-	m->in_realloc = false;
-	m->in_free = false;
 	m->palloc_heap.rb_node = NULL;
-	m->in_page_alloc = false;
-	m->in_page_free = false;
+#ifndef ALLOW_REENTRANT_MALLOC_FREE
+	init_malloc_actions(&m->flags);
+#endif
 	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
 	m->cr3_tid = 0;
 	m->user_mutex_size = 0;
@@ -329,10 +349,16 @@ static void print_freed_chunk_info(struct chunk *c,
 	MAYBE_UNUSED struct rb_root *heap =					\
 		is_palloc ? &m->palloc_heap : &m->malloc_heap;			\
 	MAYBE_UNUSED bool *init  = &m->in_mm_init; /* gross, but harmless. */	\
-	MAYBE_UNUSED bool *alloc = is_palloc ? &m->in_page_alloc : &m->in_alloc;\
-	MAYBE_UNUSED bool *free  = is_palloc ? &m->in_page_free  : &m->in_free;	\
-	MAYBE_UNUSED unsigned int *reqsize =					\
-		is_palloc ? &m->palloc_request_size : &m->alloc_request_size
+	MAYBE_UNUSED bool *alloc = is_palloc ?					\
+		&(MALLOC_STATE(ls, in_kernel)->in_page_alloc) :			\
+		&(MALLOC_STATE(ls, in_kernel)->in_alloc);			\
+	MAYBE_UNUSED bool *free  = is_palloc ?					\
+		&(MALLOC_STATE(ls, in_kernel)->in_page_free) :			\
+		&(MALLOC_STATE(ls, in_kernel)->in_free);			\
+	MAYBE_UNUSED unsigned int *reqsize = is_palloc ?			\
+		&(MALLOC_STATE(ls, in_kernel)->palloc_request_size) :		\
+		&(MALLOC_STATE(ls, in_kernel)->alloc_request_size);		\
+	assert((in_kernel || !is_palloc) && "user can't have a palloc heap");
 
 /* bad place == mal loc */
 /* so... pal loc == a friendly place? */
@@ -521,30 +547,30 @@ void mem_update(struct ls_state *ls)
 			if (ls->sched.cur_agent->action.user_mutex_initing) {
 				learn_malloced_mutex_structure(&ls->user_sync,
 					ls->sched.cur_agent->user_mutex_initing_addr,
-					base, ls->user_mem.alloc_request_size);
+					base, USER_MALLOC_STATE(ls)->alloc_request_size);
 			}
 		} else if (user_mm_free_entering(ls->cpu0, ls->eip, &base)) {
 			mem_enter_free(ls, false, false, base);
 		} else if (user_mm_free_exiting(ls->eip)) {
 			mem_exit_free(ls, false, false);
 		} else if (user_mm_realloc_entering(ls->cpu0, ls->eip, &_orig_base, &size)) {
-			assert(!ls->user_mem.in_alloc);
-			assert(!ls->user_mem.in_free);
-			assert(!ls->user_mem.in_realloc);
-			ls->user_mem.in_realloc = true;
+			assert(!USER_MALLOC_STATE(ls)->in_alloc);
+			assert(!USER_MALLOC_STATE(ls)->in_free);
+			assert(!USER_MALLOC_STATE(ls)->in_realloc);
+			USER_MALLOC_STATE(ls)->in_realloc = true;
 		} else if (user_mm_realloc_exiting(ls->cpu0, ls->eip, &base)) {
-			assert(!ls->user_mem.in_alloc);
-			assert(!ls->user_mem.in_free);
-			assert(ls->user_mem.in_realloc);
-			ls->user_mem.in_realloc = false;
+			assert(!USER_MALLOC_STATE(ls)->in_alloc);
+			assert(!USER_MALLOC_STATE(ls)->in_free);
+			assert(USER_MALLOC_STATE(ls)->in_realloc);
+			USER_MALLOC_STATE(ls)->in_realloc = false;
 		} else if (user_mm_init_entering(ls->eip)) {
-			assert(!ls->user_mem.in_alloc);
-			assert(!ls->user_mem.in_free);
+			assert(!USER_MALLOC_STATE(ls)->in_alloc);
+			assert(!USER_MALLOC_STATE(ls)->in_free);
 			ls->user_mem.in_mm_init = true;
 		} else if (user_mm_init_exiting(ls->eip)) {
 			assert(ls->user_mem.in_mm_init);
-			assert(!ls->user_mem.in_alloc);
-			assert(!ls->user_mem.in_free);
+			assert(!USER_MALLOC_STATE(ls)->in_alloc);
+			assert(!USER_MALLOC_STATE(ls)->in_free);
 			ls->user_mem.in_mm_init = false;
 		}
 	}
@@ -916,9 +942,11 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		}
 	}
 
+	struct malloc_actions *flags = MALLOC_STATE(ls, in_kernel);
+
 	/* the allocator has a free pass to its own accesses */
-	if (m->in_mm_init || m->in_alloc || m->in_free || m->in_realloc ||
-	    m->in_page_alloc || m->in_page_free) {
+	if (m->in_mm_init || flags->in_alloc || flags->in_free ||
+	    flags->in_realloc || flags->in_page_alloc || flags->in_page_free) {
 		return;
 	}
 

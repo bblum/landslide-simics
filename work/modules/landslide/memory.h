@@ -103,18 +103,21 @@ struct chunk {
 	bool pages_reserved_for_malloc;
 };
 
+struct malloc_actions {
+	bool in_alloc;
+	bool in_realloc;
+	bool in_free;
+	unsigned int alloc_request_size; /* valid iff in_alloc */
+	bool in_page_alloc;
+	bool in_page_free;
+	unsigned int palloc_request_size; /* valid iff in_page_alloc */
+};
+
 struct mem_state {
 	/**** heap state tracking ****/
 	struct rb_root malloc_heap;
 	unsigned int heap_size;
 	unsigned int heap_next_id; /* generation counter for chunks */
-	/* dynamic allocation request state */
-	bool guest_init_done;
-	bool in_mm_init; /* userspace only */
-	bool in_alloc;
-	bool in_realloc;
-	bool in_free;
-	unsigned int alloc_request_size; /* valid iff in_alloc */
 
 	/* Separate from the malloc heap because, in pintos, malloc uses
 	 * palloc'ed pages as its backing arenas (the chunks will overlap).
@@ -122,9 +125,14 @@ struct mem_state {
 	 * simplicity of code, but others need to be duplicated. In pebbles
 	 * this is deadcode. */
 	struct rb_root palloc_heap;
-	bool in_page_alloc;
-	bool in_page_free;
-	unsigned int palloc_request_size; /* valid iff in_alloc */
+
+	/* dynamic allocation request state */
+	bool guest_init_done;
+	bool in_mm_init; /* userspace only */
+#ifndef ALLOW_REENTRANT_MALLOC_FREE
+	/* otherwise, this struct appears per-thread in schedule.h. */
+	struct malloc_actions flags;
+#endif
 
 	/**** userspace information ****/
 	unsigned int cr3; /* 0 == uninitialized or this is for kernel mem */
@@ -149,6 +157,7 @@ struct mem_state {
  ******************************************************************************/
 
 void mem_init(struct ls_state *);
+void init_malloc_actions(struct malloc_actions *);
 
 void mem_update(struct ls_state *);
 

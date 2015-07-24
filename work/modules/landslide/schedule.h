@@ -12,6 +12,7 @@
 #include "common.h"
 #include "kernel_specifics.h"
 #include "lockset.h"
+#include "memory.h"
 #include "stack.h"
 #include "user_sync.h"
 #include "variable_queue.h"
@@ -80,6 +81,14 @@ struct agent {
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
+#ifdef ALLOW_REENTRANT_MALLOC_FREE
+	/* If the dynamic allocator is allowed to reenter itself, such as in
+	 * Pintos, then the action flags for tracking the malloc/free boundaries
+	 * must be stored per-thread. If it's forbidden, you can find these
+	 * flags in the global mem_state instead. */
+	struct malloc_actions kern_malloc_flags;
+	struct malloc_actions user_malloc_flags;
+#endif
 	/* For noob deadlock detection. The pointer might not be set; if it is
 	 * NULL but the tid field is not -1, it should be computed. */
 	struct agent *kern_blocked_on;

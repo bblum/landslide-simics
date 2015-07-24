@@ -107,6 +107,11 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->delayed_data_race_eip = -1;
 	a->most_recent_syscall = 0;
 
+#ifdef ALLOW_REENTRANT_MALLOC_FREE
+	init_malloc_actions(&a->kern_malloc_flags);
+	init_malloc_actions(&a->user_malloc_flags);
+#endif
+
 	lockset_init(&a->kern_locks_held);
 	lockset_init(&a->user_locks_held);
 
