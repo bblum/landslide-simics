@@ -691,7 +691,15 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		assert_no_action(s, "sleeping");
 		ACTION(s, sleeping) = true;
 	} else if (kern_vanishing(ls->eip)) {
+#ifdef PINTOS_KERNEL
+		/* In pintos, for maximum patch compatibility, we put the
+		 * vanishing annotation inside the context switcher instead
+		 * of just before at the call-site. */
+		assert(ACTION(s, context_switch));
+		assert(!ACTION(s, handling_timer));
+#else
 		assert_no_action(s, "vanishing");
+#endif
 		ACTION(s, vanishing) = true;
 	} else if (kern_readline_enter(ls->eip)) {
 		assert_no_action(s, "readlining");

@@ -217,14 +217,14 @@ diff --git a/pintos/src/threads/thread.c b/pintos/src/threads/thread.c
 index 87f22b8..fb88495 100644
 --- a/pintos/src/threads/thread.c
 +++ b/pintos/src/threads/thread.c
-@@ -4,6 +4,7 @@
+@@ -1,6 +1,7 @@
+ #include "threads/thread.h"
+ #include <debug.h>
+ #include <stddef.h>
++#include "threads/tell_landslide.h"
  #include <random.h>
  #include <stdio.h>
  #include <string.h>
-+#include "threads/tell_landslide.h"
- #include "threads/flags.h"
- #include "threads/interrupt.h"
- #include "threads/intr-stubs.h"
 @@ -23,6 +24,7 @@
  /* List of processes in THREAD_READY state, that is, processes
     that are ready to run but not actually running. */
@@ -233,7 +233,7 @@ index 87f22b8..fb88495 100644
  
  /* List of all processes.  Processes are added to this list
     when they are first scheduled and removed when they exit. */
-@@ -199,6 +201,7 @@ thread_create (const char *name, int priority,
+@@ -199,6 +201,7 @@
    sf->ebp = 0;
  
    /* Add to run queue. */
@@ -241,18 +241,12 @@ index 87f22b8..fb88495 100644
    thread_unblock (t);
  
    return tid;
-@@ -292,6 +295,7 @@ thread_exit (void)
-   intr_disable ();
-   list_remove (&thread_current()->allelem);
-   thread_current ()->status = THREAD_DYING;
-+  tell_landslide_vanishing();
-   schedule ();
-   NOT_REACHED ();
- }
-@@ -556,6 +560,9 @@ schedule (void)
+@@ -556,6 +559,11 @@
    struct thread *next = next_thread_to_run ();
    struct thread *prev = NULL;
  
++  if (cur->status == THREAD_DYING)
++    tell_landslide_vanishing();
 +  if (cur != next)
 +    tell_landslide_thread_switch(next->tid);
 +
