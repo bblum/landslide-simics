@@ -89,8 +89,15 @@ bool anybody_alive(conf_object_t *cpu, struct test_state *t,
 		REASON("Somebody's alive -- sleep queue is populated.");
 		return true;
 	} else if (Q_GET_SIZE(&s->dq) != 0) {
-		if (Q_GET_SIZE(&s->dq) == 1 && TID_IS_IDLE(Q_GET_HEAD(&s->dq)->tid)) {
+		struct agent *head = Q_GET_HEAD(&s->dq);
+		struct agent *tail = Q_GET_TAIL(&s->dq);
+		if (Q_GET_SIZE(&s->dq) == 1 && TID_IS_IDLE(head->tid)) {
 			REASON("Nobody's alive -- only idle remains.");
+			return false;
+		} else if (t->test_ended && Q_GET_SIZE(&s->dq) == 2 &&
+			   ((TID_IS_IDLE(head->tid) && TID_IS_INIT(tail->tid)) ||
+			    (TID_IS_IDLE(tail->tid) && TID_IS_INIT(head->tid)))) {
+			REASON("Somebody's alive -- only idle and init remain.");
 			return false;
 		} else {
 			REASON("Somebody's alive -- a non-idle thread exists.");

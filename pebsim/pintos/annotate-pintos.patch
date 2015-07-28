@@ -131,15 +131,22 @@ index cebec2c..1e94ca0 100644
  #ifdef USERPROG
  #include "userprog/process.h"
  #include "userprog/exception.h"
-@@ -128,6 +129,8 @@ main (void)
- #endif
+@@ -129,4 +130,6 @@
  
    printf ("Boot complete.\n");
 +
 +  tell_landslide_sched_init_done();
    
    /* Run actions specified on kernel command line. */
-   run_actions (argv);
+@@ -135,4 +138,8 @@
+   /* Finish up. */
+   shutdown ();
++  intr_disable();
++  while (true) {
++	  thread_block();
++  }
+   thread_exit ();
+ }
 diff --git a/pintos/src/threads/tell_landslide.c b/pintos/src/threads/tell_landslide.c
 new file mode 100644
 index 0000000..ff2bcd7
