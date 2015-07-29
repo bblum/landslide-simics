@@ -3,6 +3,10 @@
 DIR=$1
 USERPROG=$2
 
+function msg {
+	echo -e "\033[01;33m$1\033[00m"
+}
+
 function die() {
 	echo -ne '\033[01;31m'
 	echo "$1"
@@ -98,6 +102,17 @@ sync_subdir src/tests
 # And the makefile. Just clobber, applying patch will take care of rest.
 sync_file src/Makefile.build
 sync_file src/Make.config
+
+# Fix bug in Pintos.pm in berkeley versions of basecode.
+# This can't go in the patch because it's conditional on version...
+PINTOS_PM="./$SUBDIR/src/utils/Pintos.pm"
+if [ ! -f "$PINTOS_PM" ]; then
+	die "Where's $PINTOS_PM?"
+fi
+if grep "source = 'FILE'" "$PINTOS_PM" >/dev/null; then
+	sed -i "s/source = 'FILE'/source = 'file'/" "$PINTOS_PM" || die "couldn't fix $PINTOS_PM"
+	msg "Successfully fixed $PINTOS_PM."
+fi
 
 # Apply tell_landslide annotations.
 
