@@ -50,14 +50,15 @@ make || die "couldn't build id program"
 cd ../pebsim || die "couldn't cd into pebsim"
 
 CONFIG=config.landslide.pintos
+SYMLINK=config.landslide
 
 [ -f $CONFIG ] || die "couldn't find appropriate config: $CONFIG"
 
-rm -f config.landslide
-ln -s $CONFIG config.landslide || die "couldn't create config symlink"
+rm -f "$SYMLINK"
+ln -s "$CONFIG" "$SYMLINK" || die "couldn't create config symlink"
 
-if grep "PINTOS_USERPROG" config.landslide >/dev/null; then
-	sed -i "s/PINTOS_USERPROG.*/PINTOS_USERPROG=$USERPROG/" config.landslide || die "couldn't set PINTOS_USERPROG setting in config.landslide"
+if grep "PINTOS_USERPROG" $CONFIG >/dev/null; then
+	sed -i "s/PINTOS_USERPROG.*/PINTOS_USERPROG=$USERPROG/" "$CONFIG" || die "couldn't set PINTOS_USERPROG setting in $SYMLINK"
 else
 	echo "PINTOS_USERPROG=$USERPROG" >> config.landslide || die "couldn't add PINTOS_USERPROG setting to config.landslide"
 fi
