@@ -211,7 +211,12 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 static long double compute_state_space_size(struct ls_state *ls,
 					    bool *needed_compute /* XXX hack */)
 {
-	assert(ls->save.root != NULL && "Can't FAB before save root inited!");
+	if (ls->save.root == NULL) {
+		lsprintf(DEV, "Warning: FAB before 1st PP established. "
+			 "Can't estimate state space size.\n");
+		*needed_compute = false;
+		return 1.0L;
+	}
 
 	/* How can our estimate be accurate when we are possibly aborting this
 	 * branch early due to a bug? If we run the estimation algorithm with
