@@ -332,7 +332,11 @@ static bool ensure_progress(struct ls_state *ls)
 			return true;
 		}
 	} else if (kern_killed_faulting_user_thread(ls->cpu0, ls->eip)) {
+#ifdef PINTOS_KERNEL
+		if (true) {
+#else
 		if (testing_userspace()) {
+#endif
 			int exn_num = ls->sched.cur_agent->most_recent_syscall;
 			if (exn_num == 0) {
 				lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW

@@ -68,6 +68,7 @@ PAGE_FAULT_WRAPPER=intr0e_stub # IDT entry 14
 ## THREAD_KILLED_FUNC=ZLWPHNFLFUQ
 ## THREAD_KILLED_ARG_VAL=1
 
+THREAD_KILLED_FUNC="kill"
 #######################################
 #### Scheduler/globals information ####
 #######################################
@@ -76,6 +77,16 @@ ignore_sym yield_on_return 4
 ignore_sym in_external_intr 4
 ignore_sym ticks 4
 # ignore_sym ready_list ## NO (for now). Want to test parts of sched impl itself..
+
+# device drivers
+# size of lock = holder (4) + value (4) + waiters (16) = 24
+ignore_sym use_console_lock 4
+ignore_sym console_lock 24
+ignore_sym write_cnt 8
+ignore_sym cx 4
+ignore_sym cy 4
+# txq = lock(24) + 2x thread ptrs (8) + buf (64) + hd tail ptrs (8)
+ignore_sym txq 104
 
 sched_func intr_handler
 sched_func timer_interrupt
@@ -177,7 +188,7 @@ TABULAR_TRACE=1
 
 OBFUSCATED_KERNEL=0
 
-ALLOW_LOCK_HANDOFF=0
+ALLOW_LOCK_HANDOFF=1
 
 ALLOW_REENTRANT_MALLOC_FREE=1
 

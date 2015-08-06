@@ -474,11 +474,9 @@ if [ ! -z "$PAGE_FAULT_WRAPPER" ];  then
 fi
 
 if [ ! -z "$THREAD_KILLED_FUNC" ]; then
-	if [ ! -z "THREAD_KILLED_ARG_VAL" ]; then
-		echo "#define GUEST_THREAD_KILLED 0x`get_func $THREAD_KILLED_FUNC`"
+	echo "#define GUEST_THREAD_KILLED 0x`get_func $THREAD_KILLED_FUNC`"
+	if [ ! -z "$THREAD_KILLED_ARG_VAL" ]; then
 		echo "#define GUEST_THREAD_KILLED_ARG $THREAD_KILLED_ARG_VAL"
-	else
-		die "config option THREAD_KILLED_FUNC defined ($THREAD_KILLED_FUNC) but associated THREAD_KILLED_ARG_VAL is missing."
 	fi
 fi
 
