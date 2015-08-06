@@ -103,16 +103,41 @@ sync_subdir src/tests
 sync_file src/Makefile.build
 sync_file src/Make.config
 
+# Patch source codez.
+
+function check_file() {
+	if [ ! -f "$1" ]; then
+		die "Where's $1?"
+	fi
+}
+
 # Fix bug in Pintos.pm in berkeley versions of basecode.
 # This can't go in the patch because it's conditional on version...
 PINTOS_PM="./$SUBDIR/src/utils/Pintos.pm"
-if [ ! -f "$PINTOS_PM" ]; then
-	die "Where's $PINTOS_PM?"
-fi
+check_file "$PINTOS_PM"
 if grep "source = 'FILE'" "$PINTOS_PM" >/dev/null; then
 	sed -i "s/source = 'FILE'/source = 'file'/" "$PINTOS_PM" || die "couldn't fix $PINTOS_PM"
 	msg "Successfully fixed $PINTOS_PM."
 fi
+
+# Fix CFLAGS and apply part of patch manually. Needs to be sed instead of patch
+# to compensate for variance among studence implementations.
+MAKE_CONFIG="./$SUBDIR/src/Make.config"
+check_file "$MAKE_CONFIG"
+if grep "^CFLAGS =" "$MAKE_CONFIG" >/dev/null; then
+	sed -i "s/^CFLAGS =/CFLAGS = -fno-omit-frame-pointer/" "$MAKE_CONFIG" || die "couldn't fix CFLAGS in $MAKE_CONFIG"
+else
+	die "$MAKE_CONFIG doesn't contain CFLAGS?"
+fi
+
+THREAD_H="./$SUBDIR/src/threads/thread.h"
+THREAD_C="./$SUBDIR/src/threads/thread.c"
+check_file "$THREAD_H"
+check_file "$THREAD_C"
+
+echo "struct list *get_rq_addr() { return &ready_list; }" >> "$THREAD_C"
+# It's ok for a function decl to go outside the ifdef.
+echo "struct list *get_rq_addr(void);" >> "$THREAD_H"
 
 # Apply tell_landslide annotations.
 
