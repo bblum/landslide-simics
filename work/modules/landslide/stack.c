@@ -182,6 +182,21 @@ static bool splice_pre_vanish_trace(struct ls_state *ls, struct stack_trace *st,
 	return found_eip;
 }
 
+/* Usually stack trace eips are the pushed return address; i.e., the instruction
+ * after the "call". But when a 'noreturn' function's last instruction is a call
+ * this will result in the subsequent function being shown in the trace, which
+ * is of course very confusing. So we special case here... */
+static unsigned int check_noreturn_function(conf_object_t *cpu, unsigned int eip)
+{
+	unsigned int eip_offset;
+	if (function_eip_offset(eip, &eip_offset) && eip_offset == 0 &&
+	    READ_BYTE(cpu, eip - 5) == OPCODE_CALL) {
+		return eip - 5;
+	} else {
+		return eip;
+	}
+}
+
 /******************************************************************************
  * actual logic
  ******************************************************************************/
@@ -290,6 +305,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			}
 			if (extra_frame) {
 				eip = READ_MEMORY(cpu, stack_ptr);
+				eip = check_noreturn_function(cpu, eip);
 				if (splice_pre_vanish_trace(ls, st, eip)) {
 					return st;
 				} else if (!SUPPRESS_FRAME(eip)) {
@@ -323,6 +339,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 
 		/* Find pushed return address behind the base pointer. */
 		eip = READ_MEMORY(cpu, ebp + WORD_SIZE);
+		eip = check_noreturn_function(cpu, eip);
 		if (eip == 0) {
 			break;
 		}

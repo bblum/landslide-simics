@@ -45,6 +45,7 @@ static inline unsigned int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_PUSH_EBP 0x55
 #define OPCODE_RET  0xc3
 #define OPCODE_IRET 0xcf
+#define OPCODE_CALL 0xe8
 #define IRET_BLOCK_WORDS 3
 #define OPCODE_HLT 0xf4
 #define OPCODE_INT 0xcd
