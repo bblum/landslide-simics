@@ -92,3 +92,5 @@ echo "Note: Your Pintos was imported into '$PINTOSDIR'. If you wish to make chan
 echo -ne '\033[01;32m'
 echo "Setup successful. Can now run ./landslide."
 echo -ne '\033[00m'
+rm -f current-pintos-group.txt
+echo "$1" >> current-pintos-group.txt
