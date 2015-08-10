@@ -277,6 +277,13 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			 * frame, but a return address is still on the stack. */
 			if (function_eip_offset(eip, &eip_offset)) {
 				if (eip_offset == 0) {
+					if (kern_page_fault_handler_entering(eip)) {
+						/* Special case because an error
+						 * code will appear on the stack
+						 * in front of our eip. */
+						stack_ptr += WORD_SIZE;
+						iret_block = true;
+					}
 					extra_frame = true;
 				} else if (eip_offset == 1 &&
 				           READ_BYTE(cpu, eip - 1)
