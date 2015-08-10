@@ -35,11 +35,13 @@ void print_stack_frame(verbosity v, struct stack_frame *f)
 {
 	printf(v, "0x%.8x in ", f->eip);
 	if (f->name == NULL) {
-		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<unknown");
-		if (USER_MEMORY(f->eip)) {
-			printf(v, " in userspace");
+		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<");
+		if (f->eip < PAGE_SIZE) {
+			printf(v, "zero-town");
+		} else if (USER_MEMORY(f->eip)) {
+			printf(v, "unknown in userspace");
 		} else if (f->eip > GUEST_DATA_START) {
-			printf(v, " in kernel");
+			printf(v, "unknown in kernel");
 		}
 		printf(v, ">" COLOUR_DEFAULT);
 	} else {
@@ -99,8 +101,10 @@ unsigned int html_stack_trace(char *buf, unsigned int maxlen, struct stack_trace
 		PRINT("0x%.8x in ", f->eip);
 		if (f->name == NULL) {
 			PRINT(HTML_COLOUR_START(HTML_COLOUR_MAGENTA)
-			      "&lt;unknown in %s&gt;" HTML_COLOUR_END,
-			      KERNEL_MEMORY(f->eip) ? "kernel" : "user");
+			      "&lt;%s&gt;" HTML_COLOUR_END,
+			      f->eip < PAGE_SIZE ? "zero-town"
+			      : KERNEL_MEMORY(f->eip) ? "unknown in kernel"
+			      : "unknown in userspace");
 		} else {
 			PRINT(HTML_COLOUR_START(HTML_COLOUR_CYAN) "<b>%s</b>"
 			      HTML_COLOUR_END " "
