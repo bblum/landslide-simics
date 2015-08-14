@@ -13,12 +13,8 @@ fi
 #[ -z $SIMENV ] && SIMENV=$SIMHOMES/pebsim
 [ -z $SIMENV ] && SIMENV=/afs/andrew/usr12/bblum/masters/pebsim
 
-if [ -z "$KERNEL_SOURCE_DIR" ]; then
-	echo "warning; KERNEL_SOURCE_DIR undefined; symbolic debugging may not work"
-	export OS_PROJ_PATH=$PWD
-else
-	export OS_PROJ_PATH=$PWD/$KERNEL_SOURCE_DIR
-fi
+export OS_PROJ_PATH=$PWD
+#export OS_PROJ_PATH=$PWD/$KERNEL_SOURCE_DIR
 
 cd $SIMENV
 nice -n 5 $SIMBINPATH $SIMENV/config.simics

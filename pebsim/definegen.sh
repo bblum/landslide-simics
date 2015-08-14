@@ -103,16 +103,28 @@ function get_test_file {
 # As above functions but objdumps the userspace program binary instead.
 # However, might emit the empty string if not present.
 function get_user_sym {
-	_get_sym $1 `get_test_file`
+	TF=`get_test_file`
+	if [ -f "$TF" -a "$TF" != "/dev/null" ]; then
+		_get_sym $1 $TF
+	fi
 }
 function get_user_func {
-	_get_func $1 `get_test_file`
+	TF=`get_test_file`
+	if [ -f "$TF" -a "$TF" != "/dev/null" ]; then
+		_get_func $1 $TF
+	fi
 }
 function get_user_func_end {
-	_get_func_end $1 `get_test_file`
+	TF=`get_test_file`
+	if [ -f "$TF" -a "$TF" != "/dev/null" ]; then
+		_get_func_end $1 $TF
+	fi
 }
 function get_user_func_ret {
-	_get_func_ret $1 `get_test_file`
+	TF=`get_test_file`
+	if [ -f "$TF" -a "$TF" != "/dev/null" ]; then
+		_get_func_ret $1 $TF
+	fi
 }
 
 SCHED_FUNCS=

@@ -175,10 +175,12 @@ if [ -z "$PINTOS_KERNEL" ]; then
 		die "Missing test program: $KERNEL_IMG isn't built with '$TEST_CASE'!"
 	fi
 else
-	# Pintos
-	# TODO - verify test case
-	err "PINTOS_KERNEL is enabled. I'll do what I can, but all bets are off!"
-	msg "$TEST_CASE, huh? Just gonna trust you on this one for now."
+	# Pintos. Verify
+	msg "Verifying bootfd built to run $TEST_CASE."
+	cd pintos || die "couldn't cd pintos"
+	./make-bootfd.sh "$TEST_CASE" || die "couldn't remake bootfd"
+	cp bootfd.img .. || die "made bootfd but failed cp"
+	cd .. || die "?????.... ?"
 fi
 
 MISSING_ANNOTATIONS=

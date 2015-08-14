@@ -24,14 +24,6 @@ else
 	PROJECT=userprog
 fi
 
-FILESYS=./filesys.dsk
-if [ ! -f "$FILESYS" ]; then
-	msg "Filesystem disk image ($FILESYS) missing. Building pintos without, but userspace won't work."
-	FILESYS_ARG=""
-else
-	FILESYS_ARG="--filesys-from=$FILESYS"
-fi
-
 msg "20th century pintos, $PROJECT edition."
 
 cd pintos/src/$PROJECT
@@ -45,19 +37,16 @@ if [ -f kernel.o.strip ]; then
 fi
 cp pintos/src/$PROJECT/build/kernel.o kernel.o || die "failed cp kernel.o"
 ./fix-symbols.sh kernel.o || die "failed fix symbols"
-rm -f bootfd.img
-# TODO: change run priority-sema into run something else (parameterize)
-TEST_CASE="wait-simple"
-./pintos/src/utils/pintos-mkdisk --kernel=pintos/src/$PROJECT/build/kernel.bin --format=partitioned --loader=pintos/src/$PROJECT/build/loader.bin $FILESYS_ARG bootfd.img -- run $TEST_CASE || die "failed pintos mkdisk"
 
-#### Filesystem incantation:
-#### Run this command on vipassana (or otherwise w/ bochs installation):
-# cd ~/berkeley/group0/pintos/src/userprog/build
-# ../../utils/pintos-mkdisk filesys.dsk --filesys-size=2
-# ../../utils/pintos -p tests/userprog/wait-simple -a wait-simple -- -f -q
-# scp filesys.dsk ...
-# # TODO: put multiple programs
+# Put stuff in the right place for make-bootfd script
+cp pintos/src/$PROJECT/build/kernel.bin kernel.bin || die "failed cp kernel.bin"
+cp pintos/src/$PROJECT/build/loader.bin loader.bin || die "failed cp loader.bin"
 
+./make-bootfd.sh || die "couldn't make boot disk image"
+
+msg "Pintos images built successfully."
+
+# Put final product in parent pebsim directory
 cp bootfd.img ../bootfd.img || die "failed cp bootfd.img"
 cp kernel.o.strip ../kernel-pintos || die "failed cp kernel.o.strip"
 rm -f ../kernel

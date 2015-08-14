@@ -58,7 +58,7 @@ rm -f "$SYMLINK"
 ln -s "$CONFIG" "$SYMLINK" || die "couldn't create config symlink"
 
 if grep "PINTOS_USERPROG" $CONFIG >/dev/null; then
-	sed -i "s/PINTOS_USERPROG.*/PINTOS_USERPROG=$USERPROG/" "$CONFIG" || die "couldn't set PINTOS_USERPROG setting in $SYMLINK"
+	sed -i "s/^PINTOS_USERPROG.*/PINTOS_USERPROG=$USERPROG/" "$CONFIG" || die "couldn't set PINTOS_USERPROG setting in $SYMLINK"
 else
 	echo "PINTOS_USERPROG=$USERPROG" >> config.landslide || die "couldn't add PINTOS_USERPROG setting to config.landslide"
 fi

@@ -8,7 +8,13 @@ KERNEL_SOURCE_DIR=pintos/pintos/src
 PINTOS_KERNEL=1
 PINTOS_USERPROG=1
 
-TEST_CASE="wait-simple"
+if [ "$PINTOS_USERPROG" = 1 ]; then
+	EXEC=process_execute
+	THREAD_KILLED_FUNC="kill"
+	TEST_CASE="wait-simple"
+else
+	TEST_CASE="priority-sema"
+fi
 
 ######################
 #### Simple stuff ####
@@ -31,8 +37,6 @@ IDLE_TID=2
 
 # After tell_landslide_sched_init_done(), which thread is the first one to run?
 FIRST_TID=$INIT_TID
-
-EXEC=process_execute
 
 # Call this for each thread that exists in your kernel when it
 # tells_landslide_sched_init_done(). The first argument is the TID; the second
@@ -68,7 +72,6 @@ PAGE_FAULT_WRAPPER=intr0e_stub # IDT entry 14
 ## THREAD_KILLED_FUNC=ZLWPHNFLFUQ
 ## THREAD_KILLED_ARG_VAL=1
 
-THREAD_KILLED_FUNC="kill"
 #######################################
 #### Scheduler/globals information ####
 #######################################
