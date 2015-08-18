@@ -53,13 +53,13 @@ index 316d9ef..6bd41bb 100644
    ASSERT (is_interior (before) || is_tail (before));
    if (first == last)
      return;
-+  if (is_runqueue(before)) {
++  if (is_runqueue(before) && !is_runqueue(first)) {
 +    struct list_elem *e;
 +    /* exclude 'last' which is why this is before the list_prev call below  */
 +    for (e = first; e != NULL && e != last; e = list_next(first)) {
 +      tell_landslide_thread_on_rq(list_entry(e, struct thread, elem)->tid);
 +    }
-+  }
++  } // XXX: Add "else if (!is_runqueue(before) && is_runqueue(first)) ... tl_OFF_rq...". But no kernel seems to need dis.
    last = list_prev (last);
  
    ASSERT (is_interior (first));
@@ -77,17 +77,19 @@ diff --git a/pintos/src/tests/threads/priority-sema.c b/pintos/src/tests/threads
 index 2834a88..5f75e11 100644
 --- a/pintos/src/tests/threads/priority-sema.c
 +++ b/pintos/src/tests/threads/priority-sema.c
-@@ -22,7 +22,7 @@ test_priority_sema (void)
+@@ -22,8 +22,8 @@
  
    sema_init (&sema, 0);
-   thread_set_priority (PRI_MIN);
+-  thread_set_priority (PRI_MIN);
 -  for (i = 0; i < 10; i++) 
++  thread_set_priority (PRI_DEFAULT);
 +  for (i = 0; i < 2; i++)
      {
-       int priority = PRI_DEFAULT - (i + 3) % 10 - 1;
+-      int priority = PRI_DEFAULT - (i + 3) % 10 - 1;
++      int priority = PRI_DEFAULT ;//- (i + 3) % 10 - 1;
        char name[16];
-@@ -30,10 +30,10 @@ test_priority_sema (void)
-       thread_create (name, priority, priority_sema_thread, NULL);
+       snprintf (name, sizeof name, "priority %d", priority);
+@@ -31,8 +31,8 @@
      }
  
 -  for (i = 0; i < 10; i++) 
@@ -98,9 +100,7 @@ index 2834a88..5f75e11 100644
 +      //msg ("Back in main thread.");
      }
  }
- 
-@@ -41,5 +41,5 @@ static void
- priority_sema_thread (void *aux UNUSED) 
+@@ -42,4 +42,4 @@
  {
    sema_down (&sema);
 -  msg ("Thread %s woke up.", thread_name ());

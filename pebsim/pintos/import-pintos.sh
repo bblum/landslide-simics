@@ -135,6 +135,9 @@ THREAD_C="./$SUBDIR/src/threads/thread.c"
 check_file "$THREAD_H"
 check_file "$THREAD_C"
 
+# Fix TIME_SLICE issue causing landslide's tick mechanism letting instructions leak.
+sed -i "s/define TIME_SLICE 4/define TIME_SLICE 1/" "$THREAD_C" || die "couldn't fix TIME_SLICE"
+
 echo "struct list *get_rq_addr() { return &ready_list; }" >> "$THREAD_C"
 # It's ok for a function decl to go outside the ifdef.
 echo "struct list *get_rq_addr(void);" >> "$THREAD_H"
