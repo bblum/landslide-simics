@@ -46,7 +46,8 @@ struct job {
 	pthread_mutex_t lifecycle_lock;
 };
 
-void set_job_options(char *test_name, bool verbose, bool leave_logs);
+void set_job_options(char *test_name, bool verbose, bool leave_logs, bool pintos);
+bool testing_pintos();
 
 struct job *new_job(struct pp_set *config, bool should_reproduce);
 void start_job(struct job *j);

@@ -72,12 +72,6 @@ function output_pipe {
 }
 
 # Doesn't work without the "./". Everything is awful forever.
-if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
-	if [ ! -f "./$LANDSLIDE_ID_CONFIG" ]; then
-		die "Where's ID config $LANDSLIDE_ID_CONFIG?"
-	fi
-	source "$LANDSLIDE_ID_CONFIG"
-fi
 if [ ! -f "./$LANDSLIDE_CONFIG" ]; then
 	die "Where's $LANDSLIDE_CONFIG?"
 fi
@@ -92,6 +86,13 @@ TABULAR_TRACE=0
 OBFUSCATED_KERNEL=0
 PINTOS_KERNEL=
 source ./$LANDSLIDE_CONFIG
+
+if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
+	if [ ! -f "./$LANDSLIDE_ID_CONFIG" ]; then
+		die "Where's ID config $LANDSLIDE_ID_CONFIG?"
+	fi
+	source "$LANDSLIDE_ID_CONFIG"
+fi
 
 #### Check environment ####
 

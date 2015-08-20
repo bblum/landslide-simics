@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "common.h"
+#include "job.h"
 #include "pp.h"
 #include "sync.h"
 #include "xcalls.h"
@@ -72,14 +73,20 @@ static void check_init() {
 			next_id = 0;
 			registry = XMALLOC(registry_capacity, struct pp *);
 			struct pp *pp = pp_append(
-				XSTRDUP("within_user_function mutex_lock"),
-				XSTRDUP("mutex_lock"),
+				XSTRDUP(testing_pintos() ?
+					"within_function sema_down" :
+					"within_user_function mutex_lock"),
+				XSTRDUP(testing_pintos() ?
+					"sema_down" : "mutex_lock"),
 				XSTRDUP("<at beginning of mutex_lock>"),
 				PRIORITY_MUTEX_LOCK, max_generation);
 			assert(pp->id == 0);
 			pp = pp_append(
-				XSTRDUP("within_user_function mutex_unlock"),
-				XSTRDUP("mutex_unlock"),
+				XSTRDUP(testing_pintos() ?
+					"within_function sema_up" :
+					"within_user_function mutex_unlock"),
+				XSTRDUP(testing_pintos() ?
+					"sema_up" : "mutex_unlock"),
 				XSTRDUP("<at end of mutex_unlock>"),
 				PRIORITY_MUTEX_UNLOCK, max_generation);
 			assert(pp->id == 1);

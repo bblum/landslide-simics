@@ -37,13 +37,18 @@ extern char **environ;
 char *test_name = NULL;
 bool verbose = false;
 bool leave_logs = false;
+bool pintos = false;
 
-void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs)
+void set_job_options(char *arg_test_name, bool arg_verbose,
+		     bool arg_leave_logs, bool arg_pintos)
 {
 	test_name = XSTRDUP(arg_test_name);
 	verbose = arg_verbose;
 	leave_logs = arg_leave_logs;
+	pintos = arg_pintos;
 }
+
+bool testing_pintos() { return pintos; }
 
 struct job *new_job(struct pp_set *config, bool should_reproduce)
 {
@@ -83,14 +88,18 @@ static void *run_job(void *arg)
 	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("setup"));
 	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("output"));
 
+	const char *without   = pintos ? "without_function" : "without_user_function";
+	const char *mx_lock   = pintos ? "sema_down" : "mutex_lock";
+	const char *mx_unlock = pintos ? "sema_up"   : "mutex_unlock";
+
 	/* write config file */
 
 	// XXX(#120): TEST_CASE must be defined before PPs are specified.
 	XWRITE(&j->config_file, "TEST_CASE=%s\n", test_name);
 	XWRITE(&j->config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
 	// FIXME: Make this more principled instead of a gross hack
-	XWRITE(&j->config_file, "without_user_function mutex_lock\n");
-	XWRITE(&j->config_file, "without_user_function mutex_unlock\n");
+	XWRITE(&j->config_file, "%s %s\n", without, mx_lock);
+	XWRITE(&j->config_file, "%s %s\n", without, mx_unlock);
 
 	struct pp *pp;
 	FOR_EACH_PP(pp, j->config) {
@@ -98,10 +107,17 @@ static void *run_job(void *arg)
 	}
 	assert(test_name != NULL);
 	// FIXME: Make this principled, as above
-	XWRITE(&j->config_file, "without_user_function malloc\n");
-	XWRITE(&j->config_file, "without_user_function realloc\n");
-	XWRITE(&j->config_file, "without_user_function calloc\n");
-	XWRITE(&j->config_file, "without_user_function free\n");
+	XWRITE(&j->config_file, "%s malloc\n", without);
+	XWRITE(&j->config_file, "%s realloc\n", without);
+	XWRITE(&j->config_file, "%s calloc\n", without);
+	XWRITE(&j->config_file, "%s free\n", without);
+	if (pintos) {
+		XWRITE(&j->config_file, "%s block_read\n", without);
+		XWRITE(&j->config_file, "%s block_write\n", without);
+		XWRITE(&j->config_file, "%s acquire_console\n", without);
+		XWRITE(&j->config_file, "%s release_console\n", without);
+		XWRITE(&j->config_file, "%s palloc_get_multiple\n", without);
+	}
 
 	messaging_init(&mess, &j->config_file, j->id);
 
