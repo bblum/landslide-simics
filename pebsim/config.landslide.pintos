@@ -5,15 +5,31 @@ KERNEL_IMG=kernel
 # Relative to the pebsim/ directory.
 KERNEL_SOURCE_DIR=pintos/pintos/src
 
+# To avoid a bunch of extraneous git diffs when pintos-setup.sh edits this file
+CONFIG_EXTRA=config-extra.landslide.pintos
+if [ ! -f "$CONFIG_EXTRA" ]; then
+	echo -e "\033[01;31merror: missing $CONFIG_EXTRA"
+	echo -e "you need to run pintos-setup.sh\033[00m"
+	kill $$
+fi
+TEST_CASE=
+source $CONFIG_EXTRA
+
 PINTOS_KERNEL=1
-PINTOS_USERPROG=1
+# defined in config-extra
+# PINTOS_USERPROG=0
 
 if [ "$PINTOS_USERPROG" = 1 ]; then
 	EXEC=process_execute
 	THREAD_KILLED_FUNC="kill"
-	TEST_CASE="wait-simple"
+	# Allow TEST_CASE to be set in config-extra. But have some defaults.
+	if [ -z "$TEST_CASE" ]; then
+		TEST_CASE="wait-simple"
+	fi
 else
-	TEST_CASE="priority-sema"
+	if [ -z "$TEST_CASE" ]; then
+		TEST_CASE="priority-sema"
+	fi
 fi
 
 ######################
@@ -83,7 +99,9 @@ ignore_sym ticks 4
 
 # device drivers
 # size of lock = holder (4) + value (4) + waiters (16) = 24
-CONSOLE_LOCK_SIZE=24 # changed by pintos-setup.sh
+
+# defined in config-extra
+# CONSOLE_LOCK_SIZE=24
 ignore_sym use_console_lock 4
 ignore_sym console_lock $CONSOLE_LOCK_SIZE
 ignore_sym write_cnt 8
