@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function msg() {
-	echo -ne '\033[01;36m'
+	echo -ne '\033[01;33m'
 	echo "$1"
 	echo -ne '\033[00m'
 }
@@ -81,6 +81,17 @@ msg "Importing your Pintos into '$PINTOSDIR' - look there if something goes wron
 #cp kernel ../../pebsim/ || die "couldn't move kernel binary (from '$PWD')"
 
 cd ../../pebsim/ || die "couldn't cd into pebsim"
+
+# Fix size of console lock in config, which varies across ze studence.
+if grep "CONSOLE_LOCK_SIZE" $CONFIG >/dev/null; then
+	# compute size of console lock
+	CONSOLE_LOCK_NUMS=`objdump -t kernel | sort | grep -A1 '\<console_lock\>' | cut -d' ' -f1`
+	CONSOLE_LOCK_BASE=`echo $CONSOLE_LOCK_NUMS | cut -d' ' -f1`
+	CONSOLE_LOCK_END=`echo $CONSOLE_LOCK_NUMS | cut -d' ' -f2`
+	CONSOLE_LOCK_SIZE=$((0x$CONSOLE_LOCK_END - 0x$CONSOLE_LOCK_BASE))
+	msg "This kernel's locks are $CONSOLE_LOCK_SIZE bytes."
+	sed -i "s/CONSOLE_LOCK_SIZE=.*/CONSOLE_LOCK_SIZE=$CONSOLE_LOCK_SIZE/" "$CONFIG" || die "couldn't sed console lock size"
+fi
 
 msg "Setting up Landslide..."
 

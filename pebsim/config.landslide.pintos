@@ -83,13 +83,14 @@ ignore_sym ticks 4
 
 # device drivers
 # size of lock = holder (4) + value (4) + waiters (16) = 24
+CONSOLE_LOCK_SIZE=24 # changed by pintos-setup.sh
 ignore_sym use_console_lock 4
-ignore_sym console_lock 24
+ignore_sym console_lock $CONSOLE_LOCK_SIZE
 ignore_sym write_cnt 8
 ignore_sym cx 4
 ignore_sym cy 4
 # txq = lock(24) + 2x thread ptrs (8) + buf (64) + hd tail ptrs (8)
-ignore_sym txq 104
+ignore_sym txq `echo "80+$CONSOLE_LOCK_SIZE" | bc`
 
 sched_func intr_handler
 sched_func timer_interrupt
