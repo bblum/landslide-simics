@@ -56,13 +56,19 @@ static bool suspected_data_race(struct ls_state *ls)
 	 * most_recent_syscall value recorded when the race was observed. */
 	static const unsigned int data_race_info[][2] = DATA_RACE_INFO;
 
+#ifndef PINTOS_KERNEL
+	// FIXME: Make this work for Pebbles kernel-space testing too.
+	// Make the condition more precise (include testing_userspace() at least).
 	if (!check_user_address_space(ls)) {
 		return false;
 	}
+#endif
 
 	for (int i = 0; i < ARRAY_SIZE(data_race_info); i++) {
 		if (KERNEL_MEMORY(data_race_info[i][0])) {
+#ifndef PINTOS_KERNEL
 			assert(data_race_info[i][1] != 0);
+#endif
 		} else {
 			assert(data_race_info[i][1] == 0);
 		}

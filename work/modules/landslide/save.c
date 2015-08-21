@@ -744,7 +744,9 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 			/* First/root choice. */
 			assert(ss->current == NULL);
 			assert(end_of_test || ss->next_tid == -1);
-			assert(is_preemption_point);
+
+			/* No, not necessarily... (only true for pathos) */
+			//assert(is_preemption_point);
 
 			h->parent = NULL;
 			h->depth  = 0;
