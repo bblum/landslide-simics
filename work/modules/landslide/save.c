@@ -185,6 +185,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(just_delayed_for_data_race);
 	COPY_FIELD(delayed_data_race_eip);
 	COPY_FIELD(most_recent_syscall);
+	COPY_FIELD(last_call);
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
 	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);

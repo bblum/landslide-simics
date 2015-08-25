@@ -562,6 +562,18 @@ void landslide_entrypoint(conf_object_t *obj, void *trace_entry)
 			ls->just_jumped = false;
 		}
 
+		// FIXME: Move this to scheduler logic.
+		/* Keep track of the last "call" instruction each TID executed
+		 * for the sake of pruning/qualifying data race reports. In a
+		 * perfect world we'd have a full stack trace but that's too
+		 * expensive to freshly capture on each memory access. */
+		if (entry->value.text[0] == OPCODE_CALL &&
+		    ls->sched.cur_agent != NULL &&
+		    (!ls->sched.cur_agent->action.handling_timer) &&
+		    (!ls->sched.cur_agent->action.context_switch)) {
+			ls->sched.cur_agent->last_call = ls->eip;
+		}
+
 		/* NB. mem update must come first because sched update contains
 		 * the logic to create PPs, and snapshots must include state
 		 * machine changes from mem update (tracking malloc/free). */

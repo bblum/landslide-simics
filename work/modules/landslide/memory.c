@@ -613,6 +613,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		            &ls->sched.cur_agent->user_locks_held;
 	struct mem_lockset *l_old;
 	unsigned int current_syscall = ls->sched.cur_agent->most_recent_syscall;
+	unsigned int called_from     = ls->sched.cur_agent->last_call;
 
 	bool need_add = true;
 	bool remove_prev = false;
@@ -648,6 +649,11 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 
 		/* ensure most recent syscall matches */
 		if (l_old->most_recent_syscall != current_syscall) {
+			continue;
+		}
+
+		/* FIXME: is needed? is it too expensive to not merge these? */
+		if (l_old->last_call != called_from) {
 			continue;
 		}
 
@@ -709,6 +715,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		l_new->during_init = during_init;
 		l_new->during_destroy = during_destroy;
 		l_new->interrupce_enabled = interrupce;
+		l_new->last_call = called_from;
 		l_new->most_recent_syscall = current_syscall;
 		l_new->any_chunk_ids = any_cids;
 		l_new->chunk_id = cid;

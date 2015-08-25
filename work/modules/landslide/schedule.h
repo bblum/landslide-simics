@@ -110,6 +110,7 @@ struct agent {
 	unsigned int delayed_data_race_eip; /* ...and if so, where was it */
 	/* used to narrow down data race candidates based on eip */
 	unsigned int most_recent_syscall;
+	unsigned int last_call; /* like a mini (much faster) stack trace */
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;

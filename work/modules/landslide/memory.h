@@ -25,6 +25,7 @@ enum chunk_id_info { NOT_IN_HEAP, HAS_CHUNK_ID, MULTIPLE_CHUNK_IDS };
 /* represents a single instance of accessing a shared memory location */
 struct mem_lockset {
 	unsigned int eip;
+	unsigned int last_call;
 	unsigned int most_recent_syscall;
 	bool write;
 	bool during_init;
