@@ -175,10 +175,10 @@ function ignore_dr_function {
 
 DATA_RACE_INFO=
 function data_race {
-	if [ -z "$1" -o -z "$2" ]; then
-		die "data_race needs two args: got \"$1\" and \"$2\""
+	if [ -z "$1" -o -z "$2" -o -z "$3" ]; then
+		die "data_race needs three args: got \"$1\" and \"$2\" and \"$3\""
 	fi
-	DATA_RACE_INFO="${DATA_RACE_INFO} { $1, $2 },"
+	DATA_RACE_INFO="${DATA_RACE_INFO} { $1, $2, $3 },"
 }
 
 DISK_IO_FNS=

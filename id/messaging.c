@@ -39,6 +39,7 @@ struct input_message {
 	union {
 		struct {
 			unsigned int eip;
+			unsigned int tid;
 			unsigned int most_recent_syscall;
 			bool confirmed;
 			char pretty_printed[MESSAGE_BUF_SIZE];
@@ -99,15 +100,15 @@ static bool recv(int input_fd, struct input_message *m)
 extern bool control_experiment;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
-			     unsigned int eip, bool confirmed,
+			     unsigned int eip, unsigned int tid, bool confirmed,
 			     unsigned int most_recent_syscall, char *pretty)
 {
 	/* register a (possibly) new PP based on the data race */
 	bool duplicate;
 	char config_str[BUF_SIZE];
 	char short_str[BUF_SIZE];
-	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, most_recent_syscall);
-	scnprintf(short_str, BUF_SIZE, "data race @ 0x%x", eip);
+	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, tid, most_recent_syscall);
+	scnprintf(short_str, BUF_SIZE, "data race %u@ 0x%x", tid, eip);
 
 	unsigned int priority = confirmed ?
 		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
@@ -333,7 +334,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 			assert(false && "recvd duplicate thunderbirds message");
 		} else if (m.tag == DATA_RACE) {
 			handle_data_race(j, &discovered_pps, m.content.dr.eip,
-					 m.content.dr.confirmed,
+					 m.content.dr.tid, m.content.dr.confirmed,
 					 m.content.dr.most_recent_syscall,
 					 m.content.dr.pretty_printed);
 		} else if (m.tag == ESTIMATE) {

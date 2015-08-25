@@ -38,6 +38,7 @@ struct output_message {
 	union {
 		struct {
 			unsigned int eip;
+			unsigned int tid;
 			unsigned int most_recent_syscall;
 			bool confirmed;
 			char pretty_printed[MESSAGE_BUF_SIZE];
@@ -142,12 +143,14 @@ void messaging_init(struct messaging_state *state)
 #endif
 }
 
-void message_data_race(struct messaging_state *state, unsigned int eip,
+void message_data_race(struct messaging_state *state,
+		       unsigned int eip, unsigned int tid,
 		       unsigned int most_recent_syscall, bool confirmed)
 {
 	struct output_message m;
 	m.tag = DATA_RACE;
 	m.content.dr.eip = eip;
+	m.content.dr.tid = tid;
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;
 	/* pretty print the data race addr to propagate to master program */

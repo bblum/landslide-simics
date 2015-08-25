@@ -52,9 +52,10 @@ bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
 // TODO: move this to a data_race.c when that factor is done
 static bool suspected_data_race(struct ls_state *ls)
 {
-	/* [i][0] is instruction pointer of the data race, and [i][1] is the
-	 * most_recent_syscall value recorded when the race was observed. */
-	static const unsigned int data_race_info[][2] = DATA_RACE_INFO;
+	/* [i][0] is instruction pointer of the data race, [i][1] is the current
+	 * TID when the race was observed, and [i][2] is the most_recent_syscall
+	 * value recorded when the race was observed. */
+	static const unsigned int data_race_info[][3] = DATA_RACE_INFO;
 
 #ifndef PINTOS_KERNEL
 	// FIXME: Make this work for Pebbles kernel-space testing too.
@@ -67,15 +68,15 @@ static bool suspected_data_race(struct ls_state *ls)
 	for (int i = 0; i < ARRAY_SIZE(data_race_info); i++) {
 		if (KERNEL_MEMORY(data_race_info[i][0])) {
 #ifndef PINTOS_KERNEL
-			assert(data_race_info[i][1] != 0);
+			assert(data_race_info[i][2] != 0);
 #endif
 		} else {
-			assert(data_race_info[i][1] == 0);
+			assert(data_race_info[i][2] == 0);
 		}
 
-		if (ls->eip == data_race_info[i][0] &&
-		    ls->sched.cur_agent->most_recent_syscall ==
-		    data_race_info[i][1]) {
+		if (data_race_info[i][0] == ls->eip &&
+		    data_race_info[i][1] == ls->sched.cur_agent->tid &&
+		    data_race_info[i][2] == ls->sched.cur_agent->most_recent_syscall) {
 			return true;
 		}
 	}

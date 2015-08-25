@@ -14,7 +14,7 @@ struct messaging_state {
 
 void messaging_init(struct messaging_state *m);
 
-void message_data_race(struct messaging_state *m, unsigned int eip,
+void message_data_race(struct messaging_state *m, unsigned int eip, unsigned int tid,
 		       unsigned int most_recent_syscall, bool confirmed);
 
 /* returns the # of useconds that landslide was put to sleep for */
