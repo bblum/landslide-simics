@@ -39,6 +39,7 @@ struct output_message {
 		struct {
 			unsigned int eip;
 			unsigned int tid;
+			unsigned int last_call;
 			unsigned int most_recent_syscall;
 			bool confirmed;
 			char pretty_printed[MESSAGE_BUF_SIZE];
@@ -143,14 +144,15 @@ void messaging_init(struct messaging_state *state)
 #endif
 }
 
-void message_data_race(struct messaging_state *state,
-		       unsigned int eip, unsigned int tid,
+void message_data_race(struct messaging_state *state, unsigned int eip,
+		       unsigned int tid, unsigned int last_call,
 		       unsigned int most_recent_syscall, bool confirmed)
 {
 	struct output_message m;
 	m.tag = DATA_RACE;
 	m.content.dr.eip = eip;
 	m.content.dr.tid = tid;
+	m.content.dr.last_call = last_call;
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;
 	/* pretty print the data race addr to propagate to master program */
@@ -158,6 +160,7 @@ void message_data_race(struct messaging_state *state,
 	char *file;
 	int line;
 	bool res = symtable_lookup(eip, &func, &file, &line);
+	// TODO: Include last_call value and TID here
 	if (!res || func == NULL) {
 		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
 			  "0x%.8x <unknown>", eip);

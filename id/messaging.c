@@ -40,6 +40,7 @@ struct input_message {
 		struct {
 			unsigned int eip;
 			unsigned int tid;
+			unsigned int last_call;
 			unsigned int most_recent_syscall;
 			bool confirmed;
 			char pretty_printed[MESSAGE_BUF_SIZE];
@@ -98,17 +99,24 @@ static bool recv(int input_fd, struct input_message *m)
 /* event handling logic */
 
 extern bool control_experiment;
+extern bool verbose;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			     unsigned int eip, unsigned int tid, bool confirmed,
+			     unsigned int last_call,
 			     unsigned int most_recent_syscall, char *pretty)
 {
 	/* register a (possibly) new PP based on the data race */
 	bool duplicate;
 	char config_str[BUF_SIZE];
 	char short_str[BUF_SIZE];
-	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, tid, most_recent_syscall);
-	scnprintf(short_str, BUF_SIZE, "data race %u@ 0x%x", tid, eip);
+	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, tid, last_call, most_recent_syscall);
+	if (verbose) {
+		scnprintf(short_str, BUF_SIZE, "data race %u@ 0x%x(0x%x)",
+			  tid, eip, last_call);
+	} else {
+		scnprintf(short_str, BUF_SIZE, "data race %u@ 0x%x", tid, eip);
+	}
 
 	unsigned int priority = confirmed ?
 		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
@@ -260,7 +268,7 @@ static void handle_crash(struct job *j, struct input_message *m)
 		    pp->priority == PRIORITY_DR_CONFIRMED) {
 			if (!any_drs) {
 				any_drs = true;
-				ERR("[JOB %d] However, you may wish to manually"
+				ERR("[JOB %d] However, you may wish to manually "
 				    "inspect the following data race(s):\n", j->id);
 			}
 			ERR("[JOB %d] %s\n", j->id, pp->config_str);
@@ -335,6 +343,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 		} else if (m.tag == DATA_RACE) {
 			handle_data_race(j, &discovered_pps, m.content.dr.eip,
 					 m.content.dr.tid, m.content.dr.confirmed,
+					 m.content.dr.last_call,
 					 m.content.dr.most_recent_syscall,
 					 m.content.dr.pretty_printed);
 		} else if (m.tag == ESTIMATE) {

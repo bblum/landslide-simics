@@ -175,10 +175,14 @@ function ignore_dr_function {
 
 DATA_RACE_INFO=
 function data_race {
-	if [ -z "$1" -o -z "$2" -o -z "$3" ]; then
-		die "data_race needs three args: got \"$1\" and \"$2\" and \"$3\""
+	# 1 = racing eip value
+	# 2 = current TID
+	# 3 = eip of last "call" instruction
+	# 4 = most_recent_syscall
+	if [ -z "$1" -o -z "$2" -o -z "$3" -o -z "$4" ]; then
+		die "data_race needs four args: got \"$1\" and \"$2\" and \"$3\" and \"$4\""
 	fi
-	DATA_RACE_INFO="${DATA_RACE_INFO} { $1, $2, $3 },"
+	DATA_RACE_INFO="${DATA_RACE_INFO} { $1, $2, $3, $4 },"
 }
 
 DISK_IO_FNS=

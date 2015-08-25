@@ -65,8 +65,9 @@ unsigned int unexplored_priority(struct pp_set *set);
 	for (pp = pp_next((set), NULL); pp != NULL;	\
 	     pp = pp_next((set), (pp)))
 
-#define MAKE_DR_PP_STR(buf, maxlen, eip, tid, mrs)	\
-	scnprintf((buf), (maxlen), "data_race 0x%x %u 0x%x", (eip), (tid), (mrs))
+#define MAKE_DR_PP_STR(buf, maxlen, eip, tid, lc, mrs)			\
+	scnprintf((buf), (maxlen), "data_race 0x%x %u 0x%x 0x%x",	\
+		  (eip), (tid), (lc), (mrs))
 
 #define IS_DATA_RACE(priority) \
 	((priority) == PRIORITY_DR_CONFIRMED || (priority) == PRIORITY_DR_SUSPECTED)
