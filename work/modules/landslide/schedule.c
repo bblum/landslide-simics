@@ -1306,6 +1306,8 @@ void sched_update(struct ls_state *ls)
 				lskprintf(INFO, "Delayed in-flight timer tick "
 				          "at 0x%x\n", ls->eip);
 				keep_schedule_inflight(ls);
+				/* Don't let the instruction "leak". CC #77. */
+				ls->eip = delay_instruction(ls->cpu0);
 			} else {
 				/* they'd better not have "escaped" */
 				assert(ACTION(s, cs_free_pass) ||
@@ -1415,6 +1417,17 @@ void sched_update(struct ls_state *ls)
 				 * occurs in the transition *after* that PP. */
 				CURRENT(s, just_delayed_for_data_race) = true;
 				CURRENT(s, delayed_data_race_eip) = ls->eip;
+				ls->eip = delay_instruction(ls->cpu0);
+			} else if (voluntary) {
+				/* Also insert a dummy right after a voluntary
+				 * context-switch returns, to avoid "leaking" a
+				 * single instruction on every VR PP (bug #77).
+				 * NB that unlike with DR PPs, we don't need to
+				 * track any just_delayed state, because with
+				 * VRs the arbiter's interest depends on past
+				 * instructions, not the one to be delayed. */
+				lsprintf(DEV, "VR PP, delaying execution of "
+					 "0x%x to after PP.\n", ls->eip);
 				ls->eip = delay_instruction(ls->cpu0);
 			}
 			/* Effect the choice that was made... */
