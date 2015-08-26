@@ -69,6 +69,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->cancelled = false;
 	j->complete = false;
 	j->timed_out = false;
+	j->kill_job = false;
 	j->log_filename = NULL;
 	j->trace_filename = NULL;
 

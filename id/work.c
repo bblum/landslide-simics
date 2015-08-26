@@ -9,6 +9,7 @@
 
 #include <pthread.h>
 #include <sys/time.h>
+#include <sys/sysinfo.h>
 
 #include "array_list.h"
 #include "bug.h"
@@ -237,6 +238,58 @@ static void *workqueue_thread(void *arg)
 	return NULL;
 }
 
+#define RAM_USAGE_DANGERZONE 90 /* percent */
+#define KILL_DEFERRED_JOBS   50 /* percent */
+
+static void cant_swap() /* called with workqueue lock held */
+{
+	/* Too many suspended deferred jobs can hog memory. If the machine is in
+	 * danger of swapping, kill off half the */
+	struct sysinfo info;
+	int ret = sysinfo(&info);
+	if (ret != 0) {
+		WARN("can't swap, making bad decisions\n");
+		return;
+	}
+
+	/* i know, i know, check for overflow */
+	if (info.freeram > info.totalram * (100 - RAM_USAGE_DANGERZONE) / 100) {
+		return;
+	}
+
+	WARN("Killing %d%% of deferred jobs to avoid swapping...\n",
+	     KILL_DEFERRED_JOBS);
+
+	unsigned int num_to_kill =
+		ARRAY_LIST_SIZE(&blocked_jobs) * KILL_DEFERRED_JOBS / 100;
+
+	for (unsigned int i = 0; i < num_to_kill; i++) {
+		/* check for race with all blocked jobs waking */
+		if (ARRAY_LIST_SIZE(&blocked_jobs) == 0) {
+			break;
+		}
+		/* jobs with the worst ETAs live at the front of the queue;
+		 * we're least likely to ever resume those ngrmadly. */
+		struct job *victim = *ARRAY_LIST_GET(&blocked_jobs, 0);
+		ARRAY_LIST_REMOVE(&blocked_jobs, 0);
+		ARRAY_LIST_APPEND(&running_or_done_jobs, victim);
+
+		UNLOCK(&workqueue_lock);
+
+		/* wake the job but set its kill flag so its next should_abort
+		 * message returns true before any more branches execute. */
+		WRITE_LOCK(&victim->stats_lock);
+		victim->kill_job = true;
+		RW_UNLOCK(&victim->stats_lock);
+		resume_job(victim);
+		if (wait_on_job(victim)) {
+			assert(0 && "can't swap, eating stuff you make me chew");
+		}
+
+		LOCK(&workqueue_lock);
+	}
+}
+
 extern bool verbose;
 #define TOO_MANY_PENDING_JOBS 5
 
@@ -316,6 +369,7 @@ static void *progress_report_thread(void *arg)
 							 &workqueue_lock,
 							 &wait_time);
 			if (ret == ETIMEDOUT) {
+				cant_swap(); /* x100 */
 				print_all_job_stats();
 			} else {
 				/* Signalled; execution is done. Go around the

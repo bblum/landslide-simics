@@ -236,7 +236,18 @@ static bool handle_should_continue(struct job *j)
 		RW_UNLOCK(&j->stats_lock);
 		return false;
 	} else {
-		return true;
+		READ_LOCK(&j->stats_lock);
+		bool should_kill_job = j->kill_job;
+		RW_UNLOCK(&j->stats_lock);
+		if (should_kill_job) {
+			DBG("Aborting -- can't swap!\n");
+			WRITE_LOCK(&j->stats_lock);
+			j->cancelled = true;
+			RW_UNLOCK(&j->stats_lock);
+			return false;
+		} else {
+			return true;
+		}
 	}
 }
 

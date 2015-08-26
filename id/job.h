@@ -36,6 +36,7 @@ struct job {
 	bool cancelled;
 	bool complete; /* same as 'done' just under different lock */
 	bool timed_out;
+	bool kill_job;
 	char *log_filename;
 	char *trace_filename;
 
