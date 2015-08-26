@@ -343,17 +343,20 @@ char *read_string(conf_object_t *cpu, unsigned int addr)
 	return buf;
 }
 
-bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
-	unsigned int op = READ_BYTE(cpu, eip);
-	if (op == 0xf0) {
+/* will read at most 3 opcodes */
+bool opcodes_are_atomic_swap(uint8_t *ops) {
+	unsigned int offset = 0;
+	if (ops[offset] == 0xf0) {
 		/* lock prefix */
-		return instruction_is_atomic_swap(cpu, eip + 1);
-	} else if (op == 0x86 || op == 0x87 || op == 0x90) {
+		offset++;
+	}
+
+	if (ops[offset] == 0x86 || ops[offset] == 0x87 || ops[offset] == 0x90) {
 		/* xchg */
 		return true;
-	} else if (op == 0x0f) {
-		unsigned int op2 = READ_BYTE(cpu, eip + 1);
-		if (op2 == 0xb0 || op2 == 0xb1) {
+	} else if (ops[offset] == 0x0f) {
+		offset++;
+		if (ops[offset] == 0xb0 || ops[offset] == 0xb1) {
 			/* cmpxchg */
 			return true;
 		} else {
@@ -362,6 +365,14 @@ bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
 	} else {
 		return false;
 	}
+}
+
+bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
+	uint8_t opcodes[3];
+	opcodes[0] = READ_BYTE(cpu, eip);
+	opcodes[1] = READ_BYTE(cpu, eip + 1);
+	opcodes[2] = READ_BYTE(cpu, eip + 2);
+	return opcodes_are_atomic_swap(opcodes);
 }
 
 /* a similar trick to avoid timer interrupt, but delays by just 1 instruction. */

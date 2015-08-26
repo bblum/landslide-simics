@@ -129,7 +129,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		*voluntary = true;
 		return true;
 	/* is the kernel idling, e.g. waiting for keyboard input? */
-	} else if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_HLT) {
+	} else if (ls->instruction_text[0] == OPCODE_HLT) {
 		lskprintf(INFO, "What are you waiting for? (HLT state)\n");
 		*need_handle_sleep = true;
 		ASSERT_ONE_THREAD_PER_PP(ls);
@@ -142,7 +142,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	/* check for data races */
 	} else if (suspected_data_race(ls)) {
 		// FIXME: #88
-		assert(!instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
+		assert(!opcodes_are_atomic_swap(ls->instruction_text) &&
 		       "Data races on xchg/atomic instructions is unsupported "
 		       "-- see issue #88. Sorry!");
 		*data_race = true;
@@ -153,7 +153,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		unsigned int mutex_addr;
 		if (KERNEL_MEMORY(ls->eip)) {
 			return false;
-		} else if (instruction_is_atomic_swap(ls->cpu0, ls->eip) &&
+		} else if (opcodes_are_atomic_swap(ls->instruction_text) &&
 			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {
 			/* User thread is blocked on an "xchg-continue" mutex.
 			 * Analogous to HLT state -- need to preempt it. */

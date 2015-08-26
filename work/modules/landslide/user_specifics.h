@@ -11,6 +11,8 @@
 
 #include "student_specifics.h"
 
+struct ls_state;
+
 /* Userspace */
 
 bool testing_userspace();
@@ -18,7 +20,7 @@ bool user_within_functions(struct ls_state *ls);
 bool ignore_dr_function(unsigned int eip);
 /* syscalls / misc */
 bool user_report_end_fail(conf_object_t *cpu, unsigned int eip);
-bool user_yielding(conf_object_t *cpu, unsigned int eip);
+bool user_yielding(struct ls_state *ls);
 bool user_make_runnable_entering(unsigned int eip);
 bool user_sleep_entering(unsigned int eip);
 /* malloc */

@@ -651,7 +651,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 				free_stack_trace(s->voluntary_resched_stack);
 			s->voluntary_resched_stack = stack_trace(ls);
 		}
-		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_INT) {
+		if (ls->instruction_text[0] == OPCODE_INT) {
 			/* I'm not actually sure if this is where an INT would
 			 * happen in a hurdle-violationg context switcher...? */
 			HURDLE_VIOLATION("The context switch entry path seems "
@@ -664,7 +664,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		lskprintf(DEV, "exiting context switch (TID %d)\n", CURRENT(s, tid));
 		/* the MZ memorial condition -- "some" context switchers might
 		 * also return from the timer interrupt handler. Attempt to cope. */
-		if (READ_BYTE(ls->cpu0, ls->eip) == OPCODE_IRET) {
+		if (ls->instruction_text[0] == OPCODE_IRET) {
 			if (!kern_timer_exiting(READ_STACK(ls->cpu0, 0))) {
 				ACTION(s, handling_timer) = false;
                                 lskprintf(DEV, "JFR site #1b\n");
@@ -898,7 +898,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			lockset_add(s, &CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
 		}
 		record_user_mutex_activity(&ls->user_sync);
-	} else if (user_yielding(ls->cpu0, ls->eip)) {
+	} else if (user_yielding(ls)) {
 		if (ACTION(s, user_mutex_locking)) {
 			/* "Probably" blocked on the mutex. */
 			assert(!ACTION(s, user_mutex_unlocking));

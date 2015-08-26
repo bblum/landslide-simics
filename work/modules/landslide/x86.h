@@ -62,7 +62,8 @@ bool interrupts_enabled(conf_object_t *cpu);
 unsigned int read_memory(conf_object_t *cpu, unsigned int addr, unsigned int width);
 bool write_memory(conf_object_t *cpu, unsigned int addr, unsigned int val, unsigned int width);
 char *read_string(conf_object_t *cpu, unsigned int eip);
-bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip);
+bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip); /* slower; uses READ_MEMORY */
+bool opcodes_are_atomic_swap(uint8_t *opcodes); /* faster; ok to use every instruction */
 unsigned int delay_instruction(conf_object_t *cpu);
 
 #define READ_BYTE(cpu, addr) \

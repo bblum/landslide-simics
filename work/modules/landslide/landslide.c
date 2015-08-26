@@ -91,7 +91,7 @@ struct ls_state *new_landslide()
 
 static void check_user_syscall(struct ls_state *ls)
 {
-	if (READ_BYTE(ls->cpu0, ls->eip) != OPCODE_INT) {
+	if (ls->instruction_text[0] != OPCODE_INT) {
 		ls->sched.cur_agent->most_recent_syscall = 0;
 		return;
 	}
