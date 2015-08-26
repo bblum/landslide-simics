@@ -22,8 +22,9 @@ static void handle_sigint(int MAYBE_UNUSED signum)
 	pid_t me = syscall(SYS_gettid);
 	DBG("ctrl-C press handled by thread %u\n", me);
 	ERR("ctrl-C pressed, aborting...\n");
-	WARN("some landslide processes may be left hanging; please 'killall simics-common'.\n");
 	try_print_live_data_race_pps();
+	WARN("\n");
+	WARN("some landslide processes may be left hanging; please 'killall simics-common'.\n");
 	exit(ID_EXIT_CRASH);
 }
 
