@@ -2,8 +2,8 @@ CC=gcc
 CFLAGS=-Wall -Wextra -Werror -std=c99 -g
 LDFLAGS=-lpthread
 
-DEPS = common.h sync.h io.h pp.h job.h messaging.h xcalls.h time.h option.h array_list.h bug.h work.h signals.h signals.c
-OBJ = main.o io.o pp.o job.o messaging.o time.o option.o bug.o work.c signals.c
+DEPS = common.h sync.h io.h pp.h job.h messaging.h xcalls.h time.h option.h array_list.h bug.h work.h signals.h
+OBJ = main.o io.o pp.o job.o messaging.o time.o option.o bug.o work.o signals.o
 
 all: landslide-id
 
