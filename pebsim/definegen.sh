@@ -237,6 +237,7 @@ BUG_ON_THREADS_WEDGED=1
 PINTOS_KERNEL=
 PINTOS_USERPROG=
 ALLOW_REENTRANT_MALLOC_FREE=0
+FILTER_DRS_BY_LAST_CALL=0
 source $CONFIG
 
 source ./symbols.sh
@@ -462,6 +463,10 @@ else
 	# (Yes, I know the conventions are all over the place. It's a one-person
 	# ph.d. project and not worth cleaning up. Gimme a break.)
 	echo -n
+fi
+
+if [ "$FILTER_DRS_BY_LAST_CALL" = "1" ]; then
+	echo "#define FILTER_DRS_BY_LAST_CALL"
 fi
 
 echo

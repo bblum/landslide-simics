@@ -160,16 +160,15 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	char *file;
 	int line;
 	bool res = symtable_lookup(eip, &func, &file, &line);
-	// TODO: Include last_call value and TID here
 	if (!res || func == NULL) {
 		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
-			  "0x%.8x <unknown>", eip);
+			  "TID%d 0x%.8x <unknown>", tid, eip);
 	} else if (file == NULL) {
 		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
-			  "0x%.8x in %s <source unknown>", eip, func);
+			  "TID%d 0x%.8x in %s <source unknown>", tid, eip, func);
 	} else {
 		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
-			  "0x%.8x in %s (%s:%d)", eip, func, file, line);
+			  "TID%d 0x%.8x in %s (%s:%d)", tid, eip, func, file, line);
 	}
 	if (res) {
 		if (func != NULL) MM_FREE(func);

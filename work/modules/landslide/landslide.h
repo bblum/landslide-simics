@@ -29,6 +29,7 @@ struct ls_state {
 	conf_object_t *cpu0;
 	conf_object_t *kbd0;
 	unsigned int eip;
+	uint8_t instruction_text[16];
 
 	struct sched_state sched;
 	struct arbiter_state arbiter;

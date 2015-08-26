@@ -77,7 +77,8 @@ static bool suspected_data_race(struct ls_state *ls)
 
 		if (data_race_info[i][0] == ls->eip &&
 		    data_race_info[i][1] == ls->sched.cur_agent->tid &&
-		    data_race_info[i][2] == ls->sched.cur_agent->last_call &&
+		    (data_race_info[i][2] == 0 || /* last_call=0 -> anything */
+		     data_race_info[i][2] == ls->sched.cur_agent->last_call) &&
 		    data_race_info[i][3] == ls->sched.cur_agent->most_recent_syscall) {
 			return true;
 		}

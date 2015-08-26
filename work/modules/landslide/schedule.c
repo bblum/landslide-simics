@@ -1227,6 +1227,17 @@ void sched_update(struct ls_state *ls)
 		}
 	}
 
+#ifdef FILTER_DRS_BY_LAST_CALL
+	/* Keep track of the last "call" instruction each TID executed
+	 * for the sake of pruning/qualifying data race reports. In a
+	 * perfect world we'd have a full stack trace but that's too
+	 * expensive to freshly capture on each memory access. */
+	if (ls->instruction_text[0] == OPCODE_CALL &&
+	    !ACTION(s, handling_timer) && !ACTION(s, context_switch)) {
+		CURRENT(s, last_call) = ls->eip;
+	}
+#endif
+
 	/**********************************************************************
 	 * Exercise our will upon the guest kernel
 	 **********************************************************************/
