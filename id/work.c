@@ -85,7 +85,7 @@ bool should_work_block(struct job *j)
 }
 
 /* returns NULL if no work is available */
-static struct job *get_work(bool *was_blocked)
+static struct job *get_work(unsigned long wq_id, bool *was_blocked)
 {
 	struct job *best_job = NULL;
 	unsigned int best_index;
@@ -100,7 +100,25 @@ static struct job *get_work(bool *was_blocked)
 	 * do immediately -- see messaging.c). Otherwise, during normal time,
 	 * prioritize "fresh" jobs from the pending queue. */
 	if (!TIME_UP()) {
+		unsigned int num_skipped = 0;
 		ARRAY_LIST_FOREACH(&workqueue, i, j) {
+			/* Don't ever start new pending jobs if they're strict
+			 * supersets of already deferred ones. */
+			struct job **j2;
+			unsigned int i2;
+			bool any_deferred_subsets = false;
+			ARRAY_LIST_FOREACH(&blocked_jobs, i2, j2) {
+				if (pp_subset((*j2)->config, (*j)->config)) {
+					any_deferred_subsets = true;
+					break;
+				}
+			}
+			if (any_deferred_subsets) {
+				num_skipped++;
+				continue;
+			}
+
+			/* Is the pending job the best one so far? */
 			unsigned int priority = unexplored_priority((*j)->config);
 			unsigned int size = (*j)->config->size;
 			if (best_job == NULL || priority < best_priority ||
@@ -110,6 +128,10 @@ static struct job *get_work(bool *was_blocked)
 				best_priority = priority;
 				best_size = size;
 			}
+		}
+		if (num_skipped > 0) {
+			DBG("WQ thread %lu skipped %u pending jobs, each "
+			    "bigger than one deferred.\n", wq_id, num_skipped);
 		}
 	}
 
@@ -203,7 +225,7 @@ static void *workqueue_thread(void *arg)
 	LOCK(&workqueue_lock);
 	while (true) {
 		bool was_blocked;
-		struct job *j = get_work(&was_blocked);
+		struct job *j = get_work(id, &was_blocked);
 		if (j != NULL) {
 			UNLOCK(&workqueue_lock);
 			DBG("WQ thread %lu got work: job %u\n", id, j->id);
