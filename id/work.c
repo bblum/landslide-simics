@@ -62,24 +62,39 @@ void signal_work()
 
 bool should_work_block(struct job *j)
 {
-	bool result;
+	bool result = false;
+
 	LOCK(&workqueue_lock);
-	if (ARRAY_LIST_SIZE(&workqueue) != 0) {
-		/* A fresh job exists. Switch to it. */
-		result = true;
-	} else {
-		unsigned int num_blocked_jobs = ARRAY_LIST_SIZE(&blocked_jobs);
-		if (num_blocked_jobs != 0) {
-			/* A different blocked job exists. Switch to it,
-			 * but only if its ETA is better. */
-			struct job *j2 = *ARRAY_LIST_GET(&blocked_jobs,
-							 num_blocked_jobs-1);
-			result = compare_job_eta(j, j2) > 0;
-		} else {
-			/* No other possible jobs to switch to. */
-			result = false;
+
+	/* Are there any pending jobs to run instead? Skip jobs that are strict
+	 * supersets of our PP set as we know in advance they'll take longer. */
+	struct job **j_pending;
+	unsigned int i_pending;
+	ARRAY_LIST_FOREACH(&workqueue, i_pending, j_pending) {
+		if (!pp_subset(j->config, (*j_pending)->config)) {
+			/* Pending job is smaller or different. Switch to it. */
+			result = true;
+			break;
 		}
 	}
+
+	if (!result) {
+		/* Is there another blocked job with better ETA? As before, make
+		 * sure it's known in advance to be smaller or different. */
+		unsigned int i_blocked = ARRAY_LIST_SIZE(&blocked_jobs);
+		while (i_blocked > 0) {
+			i_blocked--;
+			struct job *j_blocked =
+				*ARRAY_LIST_GET(&blocked_jobs, i_blocked);
+			if (!pp_subset(j->config, j_blocked->config) &&
+			    compare_job_eta(j, j_blocked) > 0) {
+				/* Blocked job is smaller with better ETA. */
+				result = true;
+				break;
+			}
+		}
+	}
+
 	UNLOCK(&workqueue_lock);
 	return result;
 }

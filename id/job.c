@@ -332,6 +332,9 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 	RW_UNLOCK(&j->stats_lock);
 }
 
+/* Positive result = j0's ETA bigger. Negative result = j1's ETA bigger.
+ * Positive result = j1's ETA better. Negative result = j0's ETA better.
+ * Smaller is better. */
 int compare_job_eta(struct job *j0, struct job *j1)
 {
 	READ_LOCK(&j0->stats_lock);
