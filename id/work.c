@@ -157,13 +157,39 @@ static struct job *get_work(unsigned long wq_id, bool *was_blocked)
 		*was_blocked = false;
 		/* Notionally asserting this. Of course it could race and trip.
 		 * assert(!TIME_UP()); */
-	} else if (ARRAY_LIST_SIZE(&blocked_jobs) > 0) {
-		/* No fresh jobs. Take the blocked job with the best ETA. */
-		best_index = ARRAY_LIST_SIZE(&blocked_jobs) - 1;
-		best_job = *ARRAY_LIST_GET(&blocked_jobs, best_index);
-		ARRAY_LIST_REMOVE(&blocked_jobs, best_index);
-		ARRAY_LIST_APPEND(&running_or_done_jobs, best_job);
-		*was_blocked = true;
+	} else {
+		/* No fresh job. Find the blocked job with the best ETA.
+		 * However, if a job's ETA looks good but it has a strict subset
+		 * job farther up the list with way worse ETA, we'll trust that
+		 * bad ETA instead. At the very least, we'll prefer to resume
+		 * the subset job instead. But even better still would be a 3rd
+		 * unrelated job with better ETA than that subset job. (Compare
+		 * this reasoning to the 2nd half of should-work-block().) */
+		best_index = ARRAY_LIST_SIZE(&blocked_jobs);
+		while (best_index > 0) {
+			best_index--;
+			best_job = *ARRAY_LIST_GET(&blocked_jobs, best_index);
+			/* Check for a subset job with bigger (worse) ETA. */
+			bool subset_has_worse_eta = false;
+			for (i = 0; i < best_index; i++) {
+				j = ARRAY_LIST_GET(&blocked_jobs, i);
+				if (pp_subset((*j)->config, best_job->config)) {
+					/* This blocked job is unacceptable. */
+					subset_has_worse_eta = true;
+					break;
+				}
+			}
+			if (!subset_has_worse_eta) {
+				/* No matches, above. This job is acceptable. */
+				break;
+			}
+		}
+		/* Was a best blocked job found? (The list can be empty ofc.) */
+		if (best_job != NULL) {
+			ARRAY_LIST_REMOVE(&blocked_jobs, best_index);
+			ARRAY_LIST_APPEND(&running_or_done_jobs, best_job);
+			*was_blocked = true;
+		}
 	}
 	return best_job;
 }
