@@ -340,6 +340,13 @@ void sched_init(struct sched_state *s)
 
 void print_agent(verbosity v, const struct agent *a)
 {
+	if (a == NULL) {
+		/* edge case, can happen sometimes when looking at the
+		 * last-agent after backtracking all the way to the root. */
+		printf(v, "<none>");
+		return;
+	}
+
 	printf(v, "%d", a->tid);
 	if (MAX_VERBOSITY >= DEV) {
 		if (a->action.handling_timer)  printf(v, "t");
