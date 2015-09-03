@@ -61,6 +61,14 @@ static struct hax *pp_parent(struct hax *h)
 	do {
 		h = h->parent;
 		assert(h != NULL);
+		/* If the root PP is a non-enabled speculative DR, we can get
+		 * a bit stuck in a corner if we need to tag a child. FIXME:
+		 * Really what we want is the oldest non-speculative ancestor,
+		 * and to change the condition at the fixme in explore() to see
+		 * if ancestor has no non-speculative parent. */
+		if (h->parent == NULL) {
+			h->is_preemption_point = true;
+		}
 	} while (!h->is_preemption_point);
 	return h;
 }
@@ -165,6 +173,7 @@ struct hax *explore(struct save_state *ss, unsigned int *new_tid)
 		 * to reorder them before conflicting ancestors if needed... */
 		for (struct hax *ancestor = h->parent; ancestor != NULL;
 		     ancestor = ancestor->parent) {
+			// FIXME: see fixme in pp_parent
 			if (ancestor->parent == NULL) {
 				continue;
 			/* ...however, in this inner loop, we never consider
