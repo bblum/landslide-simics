@@ -30,6 +30,12 @@ bool eip_to_frame(unsigned int eip, struct stack_frame *f)
 	return symtable_lookup(eip, &f->name, &f->file, &f->line);
 }
 
+void destroy_frame(struct stack_frame *f)
+{
+	if (f->name != NULL) MM_FREE(f->name);
+	if (f->file != NULL) MM_FREE(f->file);
+}
+
 /* Emits a "0xADDR in NAME (FILE:LINE)" line with pretty colours. */
 void print_stack_frame(verbosity v, struct stack_frame *f)
 {
@@ -62,6 +68,7 @@ void print_eip(verbosity v, unsigned int eip)
 	struct stack_frame f;
 	eip_to_frame(eip, &f);
 	print_stack_frame(v, &f);
+	destroy_frame(&f);
 }
 
 /* Prints a stack trace to the console. Uses printf, not lsprintf, separates
@@ -148,12 +155,7 @@ void free_stack_trace(struct stack_trace *st)
 		struct stack_frame *f = Q_GET_HEAD(&st->frames);
 		assert(f != NULL);
 		Q_REMOVE(&st->frames, f, nobe);
-		if (f->name != NULL) {
-			MM_FREE(f->name);
-		}
-		if (f->file != NULL) {
-			MM_FREE(f->file);
-		}
+		destroy_frame(f);
 		MM_FREE(f);
 	}
 	MM_FREE(st);

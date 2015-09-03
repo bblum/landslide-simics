@@ -797,6 +797,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 				struct stack_frame *first_frame =
 					Q_GET_HEAD(&h->stack_trace->frames);
 				assert(first_frame != NULL);
+				destroy_frame(first_frame);
 				eip_to_frame(data_race_eip, first_frame);
 			}
 		}
