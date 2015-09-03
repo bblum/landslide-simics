@@ -17,7 +17,7 @@
 #include "estimate.h"
 #include "messaging.h"
 #include "student_specifics.h"
-#include "symtable.h"
+#include "stack.h"
 
 /* Spec. */
 
@@ -155,25 +155,23 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	m.content.dr.last_call = last_call;
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;
-	/* pretty print the data race addr to propagate to master program */
-	char *func;
-	char *file;
-	int line;
-	bool res = symtable_lookup(eip, &func, &file, &line);
-	if (!res || func == NULL) {
-		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
-			  "TID%d 0x%.8x <unknown>", tid, eip);
-	} else if (file == NULL) {
-		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
-			  "TID%d 0x%.8x in %s <source unknown>", tid, eip, func);
-	} else {
-		scnprintf(m.content.dr.pretty_printed, MESSAGE_BUF_SIZE,
-			  "TID%d 0x%.8x in %s (%s:%d)", tid, eip, func, file, line);
+
+	char *buf = &m.content.dr.pretty_printed[0];
+	struct stack_frame f;
+	unsigned int pos = 0;
+
+	eip_to_frame(eip, &f);
+	pos += sprint_frame(buf + pos, MESSAGE_BUF_SIZE - pos, &f, false);
+	destroy_frame(&f);
+
+	if (last_call != 0) {
+		eip_to_frame(last_call, &f);
+		pos += scnprintf(buf + pos, MESSAGE_BUF_SIZE - pos, " [called @ ");
+		pos += sprint_frame(buf + pos, MESSAGE_BUF_SIZE - pos, &f, false);
+		pos += scnprintf(buf + pos, MESSAGE_BUF_SIZE - pos, "]");
+		destroy_frame(&f);
 	}
-	if (res) {
-		if (func != NULL) MM_FREE(func);
-		if (file != NULL) MM_FREE(file);
-	}
+
 	send(state, &m);
 }
 

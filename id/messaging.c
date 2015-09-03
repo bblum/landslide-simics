@@ -111,11 +111,12 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	char config_str[BUF_SIZE];
 	char short_str[BUF_SIZE];
 	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, tid, last_call, most_recent_syscall);
+	const char *dr_str = verbose ? "DR" : "data race";
 	if (verbose && last_call != 0) {
-		scnprintf(short_str, BUF_SIZE, "data race %u@ 0x%x(0x%x)",
+		scnprintf(short_str, BUF_SIZE, "%s %u@ 0x%x(0x%x)", dr_str,
 			  tid, eip, last_call);
 	} else {
-		scnprintf(short_str, BUF_SIZE, "data race %u@ 0x%x", tid, eip);
+		scnprintf(short_str, BUF_SIZE, "%s %u@ 0x%x", dr_str, tid, eip);
 	}
 
 	unsigned int priority = confirmed ?

@@ -31,6 +31,7 @@ struct stack_trace {
 /* interface */
 
 /* utilities / glue */
+unsigned int sprint_frame(char *buf, unsigned int maxlen, struct stack_frame *f, bool colours);
 bool eip_to_frame(unsigned int eip, struct stack_frame *f);
 void destroy_frame(struct stack_frame *f);
 void print_stack_frame(verbosity v, struct stack_frame *f);

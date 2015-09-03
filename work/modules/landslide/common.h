@@ -92,6 +92,7 @@ extern void landslide_assert_fail(const char *message, const char *file,
 	} } while (0)
 
 /* you couldn't make this shit up if you tried */
+/* note to self: snprintf will at least *ALWAYS* terminate with \0. */
 #define scnprintf(buf, maxlen, ...) ({								\
 	int __snprintf_ret = snprintf((buf), (maxlen), __VA_ARGS__);	\
 	if (__snprintf_ret > (maxlen)) { __snprintf_ret = (maxlen); }	\

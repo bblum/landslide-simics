@@ -21,6 +21,8 @@
  * printing utilities / glue
  ******************************************************************************/
 
+#define FRAME_BUF_LEN 256
+
 /* guaranteed not to clobber nobe. */
 bool eip_to_frame(unsigned int eip, struct stack_frame *f)
 {
@@ -36,30 +38,55 @@ void destroy_frame(struct stack_frame *f)
 	if (f->file != NULL) MM_FREE(f->file);
 }
 
-/* Emits a "0xADDR in NAME (FILE:LINE)" line with pretty colours. */
+/* Emits a "0xADDR in NAME (FILE:LINE)" line with optional pretty colours. */
+unsigned int sprint_frame(char *buf, unsigned int maxlen,
+			  struct stack_frame *f, bool colours)
+{
+#define PRINT(...) do { pos += scnprintf(buf + pos, maxlen - pos, __VA_ARGS__); } while (0)
+	unsigned int pos = 0;
+	PRINT("0x%.8x in ", f->eip);
+	if (f->name == NULL) {
+		if (colours) {
+			PRINT(COLOUR_BOLD COLOUR_MAGENTA);
+		}
+		PRINT("<");
+		if (f->eip < PAGE_SIZE) {
+			PRINT("zero-town");
+		} else if (USER_MEMORY(f->eip)) {
+			PRINT("unknown in userspace");
+		} else if (f->eip > GUEST_DATA_START) {
+			PRINT("unknown in kernel");
+		}
+		PRINT(">");
+		if (colours) {
+			PRINT(COLOUR_DEFAULT);
+		}
+	} else {
+		if (colours) {
+			PRINT(COLOUR_BOLD COLOUR_CYAN);
+		}
+		PRINT("%s ", f->name);
+		if (colours) {
+			PRINT(COLOUR_DARK COLOUR_GREY);
+		}
+		if (f->file == NULL) {
+			PRINT("<unknown assembly>");
+		} else {
+			PRINT("(%s:%d)", f->file, f->line);
+		}
+		if (colours) {
+			PRINT(COLOUR_DEFAULT);
+		}
+	}
+	return pos;
+#undef PRINT
+}
+
 void print_stack_frame(verbosity v, struct stack_frame *f)
 {
-	printf(v, "0x%.8x in ", f->eip);
-	if (f->name == NULL) {
-		printf(v, COLOUR_BOLD COLOUR_MAGENTA "<");
-		if (f->eip < PAGE_SIZE) {
-			printf(v, "zero-town");
-		} else if (USER_MEMORY(f->eip)) {
-			printf(v, "unknown in userspace");
-		} else if (f->eip > GUEST_DATA_START) {
-			printf(v, "unknown in kernel");
-		}
-		printf(v, ">" COLOUR_DEFAULT);
-	} else {
-		printf(v, COLOUR_BOLD COLOUR_CYAN "%s "
-		       COLOUR_DARK COLOUR_GREY, f->name);
-		if (f->file == NULL) {
-			printf(v, "<unknown assembly>");
-		} else {
-			printf(v, "(%s:%d)", f->file, f->line);
-		}
-		printf(v, COLOUR_DEFAULT);
-	}
+	char buf[FRAME_BUF_LEN];
+	sprint_frame(buf, FRAME_BUF_LEN, f, true);
+	printf(v, "%s", buf);
 }
 
 /* Same as print_stack_frame but includes the symbol table lookup. */
