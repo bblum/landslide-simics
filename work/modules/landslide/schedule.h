@@ -108,6 +108,9 @@ struct agent {
 	 * race instruction (to delay its access until after the save point). */
 	bool just_delayed_for_data_race;
 	unsigned int delayed_data_race_eip; /* ...and if so, where was it */
+	/* Same as above but used when exiting a VR yield to a new thread. */
+	bool just_delayed_for_vr_exit;
+	unsigned int delayed_vr_exit_eip; /* ...and if so, where was it */
 	/* used to narrow down data race candidates based on eip */
 	unsigned int most_recent_syscall;
 	unsigned int last_call; /* like a mini (much faster) stack trace */

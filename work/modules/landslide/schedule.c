@@ -105,6 +105,8 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->user_rwlock_locking_addr = -1;
 	a->just_delayed_for_data_race = false;
 	a->delayed_data_race_eip = -1;
+	a->just_delayed_for_vr_exit = false;
+	a->delayed_vr_exit_eip = -1;
 	a->most_recent_syscall = 0;
 	a->last_call = 0;
 
@@ -1225,8 +1227,13 @@ void sched_update(struct ls_state *ls)
 	// XXX: updating the state machine to reflect changes (e.g. in mutex
 	// XXX: ownership) that might not have happened before a context
 	// XXX: switch to another thread.
-	if (!(CURRENT(s, just_delayed_for_data_race) &&
-	      CURRENT(s, delayed_data_race_eip == ls->eip))) {
+	bool skip_for_dr = CURRENT(s, just_delayed_for_data_race) &&
+	                   CURRENT(s, delayed_data_race_eip == ls->eip);
+	bool skip_for_vr = CURRENT(s, just_delayed_for_vr_exit) &&
+	                   CURRENT(s, delayed_vr_exit_eip == ls->eip);
+	/* Don't assert this. This can happen, and it's fine. */
+	//assert(!(skip_for_dr && skip_for_vr));
+	if (!(skip_for_dr || skip_for_vr)) {
 		if (KERNEL_MEMORY(ls->eip)) {
 			sched_update_kern_state_machine(ls);
 		} else {
@@ -1251,7 +1258,7 @@ void sched_update(struct ls_state *ls)
 
 	/* Some checks before invoking the arbiter. First see if an operation of
 	 * ours is already in-flight. */
-	if (s->schedule_in_flight) {
+	if (s->schedule_in_flight != NULL) {
 		if (s->schedule_in_flight == s->cur_agent) {
 			/* the in-flight schedule operation is cleared for
 			 * landing. note that this may cause another one to
@@ -1343,6 +1350,22 @@ void sched_update(struct ls_state *ls)
 	}
 	assert(!s->schedule_in_flight);
 
+	/* Allow state machine updates after a delayed instruction from
+	 * exiting voluntary reschedule. Unlike delayed data-race sites,
+	 * VRs are dependent on the last thread to context switch rather
+	 * than the current thread's state, so we don't need to stop the
+	 * arbiter from getting stuck always preempting on these. Note
+	 * however this must be after the s-i-f logic above, so we don't
+	 * prematurely unset these during an "undesirable" thread case. */
+	if (CURRENT(s, just_delayed_for_vr_exit)) {
+		assert(CURRENT(s, delayed_vr_exit_eip) != -1);
+		if (ls->eip == CURRENT(s, delayed_vr_exit_eip)) {
+			CURRENT(s, just_delayed_for_vr_exit) = false;
+			CURRENT(s, delayed_vr_exit_eip) = -1;
+		}
+	}
+
+
 	/* Can't do anything before the test actually starts. */
 	if (ls->test.current_test == NULL) {
 		return;
@@ -1391,10 +1414,10 @@ void sched_update(struct ls_state *ls)
 
 		/* Avoid infinite stuckness if we just inserted a DR PP. */
 		if (data_race && CURRENT(s, just_delayed_for_data_race)) {
-			lsprintf(ALWAYS, "just delayed @ %x\n", ls->eip);
+			lsprintf(ALWAYS, "just delayed DR @ %x\n", ls->eip);
 			assert(CURRENT(s, delayed_data_race_eip) != -1);
 			if (ls->eip == CURRENT(s, delayed_data_race_eip)) {
-				lsprintf(ALWAYS, "just delayed ends\n");
+				lsprintf(ALWAYS, "just delayed DR ends\n");
 				/* Delayed data race instruction was reached.
 				 * Allow arbiter to insert new PPs again. */
 				CURRENT(s, just_delayed_for_data_race) = false;
@@ -1446,6 +1469,8 @@ void sched_update(struct ls_state *ls)
 				 * instructions, not the one to be delayed. */
 				lsprintf(DEV, "VR PP, delaying execution of "
 					 "0x%x to after PP.\n", ls->eip);
+				CURRENT(s, just_delayed_for_vr_exit) = true;
+				CURRENT(s, delayed_vr_exit_eip) = ls->eip;
 				ls->eip = delay_instruction(ls->cpu0);
 			}
 			/* Effect the choice that was made... */

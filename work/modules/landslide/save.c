@@ -184,6 +184,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(user_rwlock_locking_addr);
 	COPY_FIELD(just_delayed_for_data_race);
 	COPY_FIELD(delayed_data_race_eip);
+	COPY_FIELD(just_delayed_for_vr_exit);
+	COPY_FIELD(delayed_vr_exit_eip);
 	COPY_FIELD(most_recent_syscall);
 	COPY_FIELD(last_call);
 	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
