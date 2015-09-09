@@ -132,17 +132,22 @@ static void *run_job(void *arg)
 	 * we get a message from the child that it's up and running. */
 	LOCK(&compile_landslide_lock);
 
-	if (bug_already_found(j->config)) {
-		DBG("[JOB %d] bug already found; aborting compilation.\n", j->id);
+	bool bug_in_subspace = bug_already_found(j->config);
+	bool too_late = TIME_UP();
+	if (bug_in_subspace || too_late) {
+		DBG("[JOB %d] %s; aborting compilation.\n", j->id,
+		    bug_in_subspace ? "bug already found" : "time ran out");
 		UNLOCK(&compile_landslide_lock);
 		messaging_abort(&mess);
 		delete_file(&j->config_file, true);
 		delete_file(&j->log_stdout, true);
 		delete_file(&j->log_stderr, true);
-		WRITE_LOCK(&j->stats_lock);
-		j->complete = true;
-		j->cancelled = true;
-		RW_UNLOCK(&j->stats_lock);
+		if (bug_in_subspace) {
+			WRITE_LOCK(&j->stats_lock);
+			j->complete = true;
+			j->cancelled = true;
+			RW_UNLOCK(&j->stats_lock);
+		}
 		LOCK(&j->lifecycle_lock);
 		j->status = JOB_DONE;
 		BROADCAST(&j->done_cvar);
