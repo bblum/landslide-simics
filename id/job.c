@@ -74,6 +74,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->trace_filename = NULL;
 
 	COND_INIT(&j->done_cvar);
+	COND_INIT(&j->blocking_cvar);
 	MUTEX_INIT(&j->lifecycle_lock);
 
 	return j;
