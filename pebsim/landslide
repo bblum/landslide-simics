@@ -13,7 +13,7 @@ fi
 
 export LANDSLIDE_CONFIG=config.landslide
 
-export VTECH_LICENSE_FILE=/afs/cs.cmu.edu/academic/class/15410-s15/simics-4.0.60/simics-4.0.60/licenses/1license.lic
+export VTECH_LICENSE_FILE=/afs/cs.cmu.edu/academic/class/15410-f15/simics-4.0.60/simics-4.0.60/licenses/1license.lic
 
 export DISPLAY=
 ./build.sh && time ./simics4
