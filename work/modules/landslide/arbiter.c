@@ -69,10 +69,10 @@ static bool suspected_data_race(struct ls_state *ls)
 	for (int i = 0; i < ARRAY_SIZE(data_race_info); i++) {
 		if (KERNEL_MEMORY(data_race_info[i][0])) {
 #ifndef PINTOS_KERNEL
-			assert(data_race_info[i][2] != 0);
+			assert(data_race_info[i][3] != 0);
 #endif
 		} else {
-			assert(data_race_info[i][2] == 0);
+			assert(data_race_info[i][3] == 0);
 		}
 
 		if (data_race_info[i][0] == ls->eip &&
