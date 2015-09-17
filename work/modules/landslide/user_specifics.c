@@ -12,6 +12,7 @@
 #include "compiler.h"
 #include "kernel_specifics.h"
 #include "kspec.h"
+#include "landslide.h"
 #include "user_specifics.h"
 #include "x86.h"
 
