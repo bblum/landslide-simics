@@ -43,6 +43,7 @@ struct cmdline_option {
 	char *default_value; /* iff requires arg */
 	char **value_ptr; /* iff requires_arg */
 	bool *bool_ptr; /* iff NOT requires_arg */
+	bool is_secret; /* skip this option when printing help text */
 };
 
 static ARRAY_LIST(struct cmdline_option) cmdline_options;
@@ -55,21 +56,27 @@ void usage(char *execname)
 	unsigned int i;
 	struct cmdline_option *optp;
 	ARRAY_LIST_FOREACH(&cmdline_options, i, optp) {
-		if (optp->requires_arg) {
-			printf("[-%c %s] ", optp->flag, optp->name);
-		} else {
-			printf("[-%c] ", optp->flag);
+		if (!optp->is_secret) {
+			if (optp->requires_arg) {
+				printf("[-%c %s] ", optp->flag, optp->name);
+			} else {
+				printf("[-%c] ", optp->flag);
+			}
 		}
 	}
 	printf("\n");
 
 	ARRAY_LIST_FOREACH(&cmdline_options, i, optp) {
-		if (optp->requires_arg) {
-			printf("\t-%c %s:\t%s (default %s)\n", optp->flag,
-			       optp->name, optp->description,
-			       optp->default_value == NULL ? "<none>" : optp->default_value);
-		} else {
-			printf("\t-%c:\t\t%s\n", optp->flag, optp->description);
+		if (!optp->is_secret) {
+			if (optp->requires_arg) {
+				printf("\t-%c %s:\t%s (default %s)\n", optp->flag,
+				       optp->name, optp->description,
+				       optp->default_value == NULL ? "<none>"
+				       : optp->default_value);
+			} else {
+				printf("\t-%c:\t\t%s\n", optp->flag,
+				       optp->description);
+			}
 		}
 	}
 	printf(COLOUR_DEFAULT);
@@ -128,7 +135,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	char getopt_buf[BUF_SIZE];
 	getopt_buf[0] = '\0';
 
-#define DEF_CMDLINE_FLAG(flagname, varname, descr)			\
+#define DEF_CMDLINE_FLAG(flagname, secret, varname, descr)		\
 	bool arg_##varname = false;					\
 	/* define global option struct */				\
 	struct cmdline_option __arg_##varname##_struct;			\
@@ -139,6 +146,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	__arg_##varname##_struct.description   = XSTRDUP(descr);	\
 	__arg_##varname##_struct.value_ptr     = NULL;			\
 	__arg_##varname##_struct.bool_ptr      = &arg_##varname;	\
+	__arg_##varname##_struct.is_secret     = secret;		\
 	ARRAY_LIST_APPEND(&cmdline_options, __arg_##varname##_struct);	\
 	/* append getopt_buf with flagname */				\
 	unsigned int __buf_index_##varname = strlen(getopt_buf);	\
@@ -146,14 +154,14 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	getopt_buf[__buf_index_##varname] = flagname;			\
 	getopt_buf[__buf_index_##varname + 1] = '\0';			\
 
-	DEF_CMDLINE_FLAG('v', verbose, "Verbose output");
-	DEF_CMDLINE_FLAG('h', help, "Print this help text and exit");
-	DEF_CMDLINE_FLAG('l', leave_logs, "Don't delete log files from bug-free state spaces");
-	DEF_CMDLINE_FLAG('C', control_experiment, "Control mode, i.e., test only 1 state space");
-	DEF_CMDLINE_FLAG('P', pintos, "Pintos (not for 15-410 use)");
+	DEF_CMDLINE_FLAG('v', false, verbose, "Verbose output");
+	DEF_CMDLINE_FLAG('h', false, help, "Print this help text and exit");
+	DEF_CMDLINE_FLAG('l', false, leave_logs, "Don't delete log files from bug-free state spaces");
+	DEF_CMDLINE_FLAG('C', true, control_experiment, "Control mode, i.e., test only 1 maximal state space");
+	DEF_CMDLINE_FLAG('P', true, pintos, "Pintos (not for 15-410 use)");
 #undef DEF_CMDLINE_FLAG
 
-#define DEF_CMDLINE_OPTION(flagname, varname, descr, value)		\
+#define DEF_CMDLINE_OPTION(flagname, secret, varname, descr, value)	\
 	char *arg_##varname = value;					\
 	/* define global option struct */				\
 	struct cmdline_option __arg_##varname##_struct;			\
@@ -164,6 +172,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	__arg_##varname##_struct.description   = XSTRDUP(descr);	\
 	__arg_##varname##_struct.value_ptr     = &arg_##varname;	\
 	__arg_##varname##_struct.bool_ptr      = NULL;			\
+	__arg_##varname##_struct.is_secret     = secret;		\
 	ARRAY_LIST_APPEND(&cmdline_options, __arg_##varname##_struct);	\
 	/* append getopt_buf with flagname (and a ":") */		\
 	unsigned int __buf_index_##varname = strlen(getopt_buf);	\
@@ -172,16 +181,16 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	getopt_buf[__buf_index_##varname + 1] = ':';			\
 	getopt_buf[__buf_index_##varname + 2] = '\0';			\
 
-	DEF_CMDLINE_OPTION('p', test_name, "Userspace test program name", DEFAULT_TEST_CASE);
-	DEF_CMDLINE_OPTION('t', max_time, "Total CPU time budget (suffix s/m/d/h/y)", DEFAULT_TIME);
-	DEF_CMDLINE_OPTION('c', num_cpus, "Max parallelism factor", half_the_cpus);
-	DEF_CMDLINE_OPTION('i', interval, "Progress report interval", DEFAULT_PROGRESS_INTERVAL);
-	DEF_CMDLINE_OPTION('e', eta_factor, "ETA factor heuristic (see comments in source code)", DEFAULT_ETA_FACTOR);
-	DEF_CMDLINE_OPTION('E', eta_thresh, "ETA threshold heuristic (see source code)", DEFAULT_ETA_STABILITY_THRESHOLD);
+	DEF_CMDLINE_OPTION('p', false, test_name, "Userspace test program name", DEFAULT_TEST_CASE);
+	DEF_CMDLINE_OPTION('t', false, max_time, "Total time budget (suffix s/m/d/h/y)", DEFAULT_TIME);
+	DEF_CMDLINE_OPTION('c', false, num_cpus, "How many CPUs to use", half_the_cpus);
+	DEF_CMDLINE_OPTION('i', false, interval, "Progress report interval", DEFAULT_PROGRESS_INTERVAL);
+	DEF_CMDLINE_OPTION('e', true, eta_factor, "ETA factor heuristic", DEFAULT_ETA_FACTOR);
+	DEF_CMDLINE_OPTION('E', true, eta_thresh, "ETA threshold heuristic", DEFAULT_ETA_STABILITY_THRESHOLD);
 	/* Log file to output PRINT/DBG messages to in addition to console.
 	 * Used by wrapper file to tie together which bug traces go where, etc.,
 	 * for purpose of snapshotting. */
-	DEF_CMDLINE_OPTION('L', log_name, "(Logging; internal use)", NULL);
+	DEF_CMDLINE_OPTION('L', true, log_name, "Log filename", NULL);
 #undef DEF_CMDLINE_OPTION
 
 	ready = true;
