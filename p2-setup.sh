@@ -34,6 +34,9 @@ make || die "couldn't build id program"
 
 cd ../pebsim || die "couldn't cd into pebsim"
 
+rm -f current-p2-group.txt
+echo "$1" > current-p2-group.txt
+
 CONFIG=config.landslide.pathos-p2
 
 [ -f $CONFIG ] || die "couldn't find appropriate config: $CONFIG"

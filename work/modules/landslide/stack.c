@@ -56,6 +56,8 @@ unsigned int sprint_frame(char *buf, unsigned int maxlen,
 			PRINT("unknown in userspace");
 		} else if (f->eip > GUEST_DATA_START) {
 			PRINT("unknown in kernel");
+		} else {
+			PRINT("almost certainly bogus");
 		}
 		PRINT(">");
 		if (colours) {
