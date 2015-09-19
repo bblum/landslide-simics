@@ -73,7 +73,7 @@ run-python-file "410mods.py"
 #### bblum was here ####
 ########################
 
-add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
+add-module-directory /afs/andrew.cmu.edu/usr12/bblum/masters/work/amd64-linux/lib
 
 # Get the kernel image name, source path, test case name.
 @SIM_source_python("landslide-config.py")
