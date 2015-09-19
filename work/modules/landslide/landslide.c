@@ -505,9 +505,12 @@ void landslide_assert_fail(const char *message, const char *file,
 		 "Assertion '%s' failed.\n", file, line, function, message);
 	SIM_quit(LS_ASSERTION_FAILED);
 #else
+	lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "%s:%u: %s: "
+		 "Assertion '%s' failed.\n", file, line, function, message);
+	SIM_quit(LS_ASSERTION_FAILED);
 	/* Don't send SIGABRT to simics if running under the iterative deepening
 	 * wrapper -- simics should quit, not drop into a prompt. */
-	__assert_fail(message, file, line, function);
+	//__assert_fail(message, file, line, function);
 #endif
 }
 

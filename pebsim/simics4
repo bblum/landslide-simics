@@ -11,7 +11,7 @@ fi
 [ -z $SIMBINPATH] && SIMBINPATH=$SIMROOT/simics-4.0.60/bin/$SIMBIN
 [ -z $SIMHOMES ] && SIMHOMES=$SIMROOT/home
 #[ -z $SIMENV ] && SIMENV=$SIMHOMES/pebsim
-[ -z $SIMENV ] && SIMENV=/afs/andrew/usr12/bblum/masters/pebsim
+[ -z $SIMENV ] && SIMENV=/afs/andrew.cmu.edu/usr12/bblum/masters/pebsim
 
 if [ -z "$KERNEL_SOURCE_DIR" ]; then
 	export OS_PROJ_PATH=$PWD
