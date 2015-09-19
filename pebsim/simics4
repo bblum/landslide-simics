@@ -13,8 +13,11 @@ fi
 #[ -z $SIMENV ] && SIMENV=$SIMHOMES/pebsim
 [ -z $SIMENV ] && SIMENV=/afs/andrew/usr12/bblum/masters/pebsim
 
-export OS_PROJ_PATH=$PWD
-#export OS_PROJ_PATH=$PWD/$KERNEL_SOURCE_DIR
+if [ -z "$KERNEL_SOURCE_DIR" ]; then
+	export OS_PROJ_PATH=$PWD
+else
+	export OS_PROJ_PATH=$PWD/$KERNEL_SOURCE_DIR
+fi
 
 cd $SIMENV
 nice -n 5 $SIMBINPATH $SIMENV/config.simics
