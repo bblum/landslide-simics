@@ -91,5 +91,6 @@ void fatal_on_err(const char *exp, int line, int v) {
     report_on_err(exp, line, v);
     if (v >= 0) { return; }
     report_end(END_FAIL);
+    panic("test program crashed: %s", exp);
     exit(v);
 }

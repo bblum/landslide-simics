@@ -85,7 +85,7 @@ UPDATE_METHOD = offline
 # A list of the test programs you want compiled in from the 410user/progs
 # directory
 #
-410TESTS = thr_join_exit thr_exit_join paraguay rwlock_downgrade_read_test broadcast_test
+410TESTS = thr_join_exit thr_exit_join paraguay rwlock_downgrade_read_test broadcast_test mutex_test
 
 ###########################################################################
 # Test programs you have written which you wish to run
