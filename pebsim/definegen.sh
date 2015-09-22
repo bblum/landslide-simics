@@ -239,6 +239,7 @@ PINTOS_USERPROG=
 ALLOW_REENTRANT_MALLOC_FREE=0
 FILTER_DRS_BY_LAST_CALL=0
 TESTING_MUTEXES=0
+FIX_BROKEN_YIELDS=0
 source $CONFIG
 
 source ./symbols.sh
@@ -472,6 +473,10 @@ fi
 
 if [ "$TESTING_MUTEXES" = "1" ]; then
 	echo "#define TESTING_MUTEXES"
+fi
+
+if [ "$FIX_BROKEN_YIELDS" = "1" ]; then
+	echo "#define FIX_BROKEN_YIELDS"
 fi
 
 echo

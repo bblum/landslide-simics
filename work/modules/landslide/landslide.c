@@ -86,6 +86,34 @@ struct ls_state *new_landslide()
  * pebbles system calls
  ******************************************************************************/
 
+#ifdef FIX_BROKEN_YIELDS
+static void check_fix_broken_yield(struct ls_state *ls)
+{
+	/* Certain arguments to yield() would cause Pathos to return without
+	 * actually going into the context switcher. This can screw up the logic
+	 * for user-yield/xchg-blocking detection, making us FAB (inf loop) on
+	 * "while(ticket!=now_serving) yield(0)" which should just block. */
+	unsigned int esi = GET_CPU_ATTR(ls->cpu0, esi);
+	if (esi == -1) return;
+
+	struct agent *a;
+	Q_FOREACH(a, &ls->sched.rq, nobe) {
+		if (a->tid == esi) { lsprintf(DEV, "dbg: yield(%d) is ok rq\n", esi); return; }
+	}
+	Q_FOREACH(a, &ls->sched.sq, nobe) {
+		if (a->tid == esi) { lsprintf(DEV, "dbg: yield(%d) is ok sq\n", esi); return; }
+		//if (a->tid == esi) return;
+	}
+	/* Don't bother with DQ. Some threads there are runnable from kernel's
+	 * POV, while some are not. All told, it's ok for us to have false
+	 * positives here because landslide doesn't care what TID is yielded to
+	 * as long as it actually triggers a context switch. */
+
+	SET_CPU_ATTR(ls->cpu0, esi, (unsigned int)-1);
+	lsprintf(DEV, "yield(%d) would fail... FTFY.\n", esi);
+}
+#endif
+
 #define CASE_SYSCALL(num, name) \
 	case (num): printf(CHOICE, "%s()\n", (name)); break
 
@@ -98,7 +126,7 @@ static void check_user_syscall(struct ls_state *ls)
 
 	lsprintf(CHOICE, "TID %d makes syscall ", ls->sched.cur_agent->tid);
 
-	int number = OPCODE_INT_ARG(ls->cpu0, ls->eip);
+	unsigned int number = OPCODE_INT_ARG(ls->cpu0, ls->eip);
 	switch(number) {
 		CASE_SYSCALL(FORK_INT, "fork");
 		CASE_SYSCALL(EXEC_INT, "exec");
@@ -130,6 +158,12 @@ static void check_user_syscall(struct ls_state *ls)
 			printf(CHOICE, "((unknown 0x%x))\n", number);
 			break;
 	}
+
+#ifdef FIX_BROKEN_YIELDS
+	if (number == YIELD_INT) {
+		check_fix_broken_yield(ls);
+	}
+#endif
 
 	ls->sched.cur_agent->most_recent_syscall = number;
 }
