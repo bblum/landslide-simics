@@ -98,6 +98,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->kern_blocked_on_tid = -1;
 	a->kern_blocked_on_addr = -1;
 	a->kern_mutex_unlocking_addr = -1;
+	a->user_mutex_recently_unblocked = false;
 	a->user_blocked_on_addr = -1;
 	a->user_mutex_initing_addr = -1;
 	a->user_mutex_locking_addr = -1;
@@ -299,14 +300,22 @@ static void user_mutex_block_others(struct agent_q *q, unsigned int mutex_addr, 
 	Q_FOREACH(a, q, nobe) {
 		/* slightly different than for kernel mutexes, since we
 		 * don't have the first tid a contender gets blocked on */
-		if (a->action.user_mutex_yielding &&
-		    a->user_mutex_locking_addr == mutex_addr) {
-			if (mutex_held) {
+		if (a->user_mutex_locking_addr == mutex_addr) {
+			/* Be CONSERVATIVE about when to forcibly change another
+			 * thread's status to blocked. Better to miss one here;
+			 * one that isn't yielding yet can run a bit, start to
+			 * yield, and then mark itself blocked. */
+			if (mutex_held && a->action.user_mutex_yielding) {
 				/* lock was taken; the contender becomes blocked. */
 				a->user_blocked_on_addr = mutex_addr;
-			} else {
+				dump_stack();
+			/* On the other hand, be LIBERAL about when to unblock
+			 * contenders. Ones that haven't gotten to yield yet
+			 * might still have raced to see xchg=LOCKED already. */
+			} else if (!mutex_held && a->action.user_mutex_locking) {
 				/* lock available; the contender becomes unblocked. */
 				a->user_blocked_on_addr = -1;
+				a->user_mutex_recently_unblocked = true;
 			}
 		}
 	}
@@ -901,6 +910,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;
 		CURRENT(s, user_mutex_locking_addr) = lock_addr;
+		CURRENT(s, user_mutex_recently_unblocked) = false;
 #ifndef TESTING_MUTEXES
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
@@ -919,8 +929,17 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			/* Could have been yielding before; gotten kicked awake but
 			 * didn't get the lock, have to yield again. */
 			ACTION(s, user_mutex_yielding) = true;
-			CURRENT(s, user_blocked_on_addr) =
-				CURRENT(s, user_mutex_locking_addr);
+			/* On the other hand, could have raced to see a held
+			 * mutex but not actually yield on it until after it
+			 * got unlocked. In this case this flag will be true
+			 * more recently than mutex_lock_entering would have
+			 * cleared it, so give a "free pass" to this yield. */
+			if (CURRENT(s, user_mutex_recently_unblocked)) {
+				CURRENT(s, user_mutex_recently_unblocked) = false;
+			} else {
+				CURRENT(s, user_blocked_on_addr) =
+					CURRENT(s, user_mutex_locking_addr);
+			}
 			record_user_mutex_activity(&ls->user_sync);
 		} else {
 			/* User yield outside of a mutex access. */
@@ -944,6 +963,12 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 #endif
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
+		/* Got the lock. Therefore blocked on no mutex. In most cases,
+		 * this will have been unset by the block_others logic. But the
+		 * mutex-recently-unblocked logic isn't quite sound, so if e.g.
+		 * a spurious yield call sets blocked but doesn't actually
+		 * switch away we can get here with blocked still set. */
+		CURRENT(s, user_blocked_on_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_trylock_exiting(ls->cpu0, ls->eip, &succeeded)) {
 		unsigned int lock_addr = CURRENT(s, user_mutex_locking_addr);

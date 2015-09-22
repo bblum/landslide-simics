@@ -178,6 +178,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(kern_blocked_on_addr);
 	COPY_FIELD(kern_mutex_unlocking_addr);
 	COPY_FIELD(user_blocked_on_addr);
+	COPY_FIELD(user_mutex_recently_unblocked);
 	COPY_FIELD(user_mutex_initing_addr);
 	COPY_FIELD(user_mutex_locking_addr);
 	COPY_FIELD(user_mutex_unlocking_addr);

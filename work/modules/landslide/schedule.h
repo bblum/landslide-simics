@@ -98,6 +98,7 @@ struct agent {
 	unsigned int kern_blocked_on_addr;
 	unsigned int kern_mutex_unlocking_addr;
 	/* similar for userspace */
+	bool user_mutex_recently_unblocked; /* tricky_disco.ogg */
 	unsigned int user_blocked_on_addr;
 	unsigned int user_mutex_initing_addr;
 	unsigned int user_mutex_locking_addr;
