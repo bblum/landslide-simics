@@ -119,6 +119,17 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_file, "%s acquire_console\n", without);
 		XWRITE(&j->config_file, "%s release_console\n", without);
 		XWRITE(&j->config_file, "%s palloc_get_multiple\n", without);
+	} else if (0 == strcmp(test_name, "mutex_test")) {
+		// XXX: Hack. This is special cased here, instead of being a
+		// cmdline option, so the studence don't have to worry about
+		// setting the special flag when they run this test.
+		/* When testing mutexes, add some special case config options.
+		 * Ignore the innards of thr_*, and tell landslide to subject
+		 * the mutex internals themselves to data race analysis. */
+		XWRITE(&j->config_file, "TESTING_MUTEXES=1\n");
+		XWRITE(&j->config_file, "%s thr_init\n", without);
+		XWRITE(&j->config_file, "%s thr_create\n", without);
+		XWRITE(&j->config_file, "%s thr_exit\n", without);
 	}
 
 	messaging_init(&mess, &j->config_file, j->id);

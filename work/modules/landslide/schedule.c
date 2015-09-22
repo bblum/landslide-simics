@@ -901,11 +901,14 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;
 		CURRENT(s, user_mutex_locking_addr) = lock_addr;
+#ifndef TESTING_MUTEXES
 		/* Add to lockset AROUND lock implementation, to forgive atomic
 		 * ops inside of being data races. */
 		if (lock_addr != 0) {
-			lockset_add(s, &CURRENT(s, user_locks_held), lock_addr, LOCK_MUTEX);
+			lockset_add(s, &CURRENT(s, user_locks_held),
+				    lock_addr, LOCK_MUTEX);
 		}
+#endif
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_yielding(ls)) {
 		if (ACTION(s, user_mutex_locking)) {
@@ -933,6 +936,12 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		lsprintf(DEV, "tid %d locked mutex 0x%x\n", CURRENT(s, tid), lock_addr);
 		if (lock_addr != 0) {
 			user_mutex_block_others(&s->rq, lock_addr, true);
+#ifdef TESTING_MUTEXES
+			/* Add to lockset at inner boundaries of lock logic,
+			 * so the mutex internals are fair game for DR PPs. */
+			lockset_add(s, &CURRENT(s, user_locks_held),
+				    lock_addr, LOCK_MUTEX);
+#endif
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
@@ -952,7 +961,9 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		} else {
 			lsprintf(DEV, "tid %d failed to trylock mutex 0x%x\n",
 				 CURRENT(s, tid), lock_addr);
+#ifndef TESTING_MUTEXES
 			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
+#endif
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
@@ -963,6 +974,9 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_mutex_unlocking) = true;
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
+#ifdef TESTING_MUTEXES
+		lockset_remove(s, lock_addr, LOCK_MUTEX, false);
+#endif
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
 		unsigned int lock_addr = CURRENT(s, user_mutex_unlocking_addr);
@@ -973,7 +987,9 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_mutex_unlocking) = false;
 		lsprintf(DEV, "tid %d unlocked mutex 0x%x\n", CURRENT(s, tid), lock_addr);
 		if (lock_addr != 0) {
+#ifndef TESTING_MUTEXES
 			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
+#endif
 			user_mutex_block_others(&s->rq, lock_addr, false);
 		}
 		CURRENT(s, user_mutex_unlocking_addr) = -1;

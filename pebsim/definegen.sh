@@ -238,6 +238,7 @@ PINTOS_KERNEL=
 PINTOS_USERPROG=
 ALLOW_REENTRANT_MALLOC_FREE=0
 FILTER_DRS_BY_LAST_CALL=0
+TESTING_MUTEXES=0
 source $CONFIG
 
 source ./symbols.sh
@@ -467,6 +468,10 @@ fi
 
 if [ "$FILTER_DRS_BY_LAST_CALL" = "1" ]; then
 	echo "#define FILTER_DRS_BY_LAST_CALL"
+fi
+
+if [ "$TESTING_MUTEXES" = "1" ]; then
+	echo "#define TESTING_MUTEXES"
 fi
 
 echo
