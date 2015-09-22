@@ -410,7 +410,10 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			 * "junk values". Sometimes these are very small values.
 			 * We can avoid emitting simics errors in these cases. */
 			ebp = 0;
-		} else if (KERNEL_MEMORY(stack_ptr) && USER_MEMORY(ebp)) {
+		} else if (KERNEL_MEMORY(stack_ptr) && USER_MEMORY(ebp) &&
+			   // XXX: Hack to work around #194. Just hardcoding the
+			   // most common values the crash was observed with.
+			   ebp != 0x41414141 && ebp != 0xffff7000) {
 			/* Base pointer chain crossed over into userspace,
 			 * leaving stack pointer behind. This happens in pathos,
 			 * whose syscall wrappers craft fake frames to help
