@@ -7,6 +7,7 @@
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -180,12 +181,14 @@ static void handle_estimate(struct messaging_state *state, struct job *j,
 {
 	unsigned int total_branches =
 	    (unsigned int)((long double)elapsed_branches / proportion);
+	long double remaining_usecs = total_usecs - elapsed_usecs;
+
 	WRITE_LOCK(&j->stats_lock);
 	j->elapsed_branches = elapsed_branches;
 	j->estimate_proportion = proportion;
 	human_friendly_time(elapsed_usecs, &j->estimate_elapsed);
-	j->estimate_eta_numeric = total_usecs - elapsed_usecs;
-	human_friendly_time(j->estimate_eta_numeric, &j->estimate_eta);
+	j->estimate_eta_numeric = remaining_usecs;
+	human_friendly_time(remaining_usecs, &j->estimate_eta);
 	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ETA ", j->id,
 	    elapsed_branches, total_branches, proportion * 100);
 	dbg_human_friendly_time(&j->estimate_eta);
@@ -195,7 +198,8 @@ static void handle_estimate(struct messaging_state *state, struct job *j,
 	RW_UNLOCK(&j->stats_lock);
 
 	/* Does this ETA suck? (note all numbers here are in usecs) */
-	unsigned long eta = (long double)total_usecs - elapsed_usecs;
+	bool eta_overflow = remaining_usecs > (long double)ULONG_MAX;
+	unsigned long eta = (unsigned long)remaining_usecs;
 	unsigned long time_left = time_remaining();
 
 	struct output_message reply;
@@ -203,7 +207,8 @@ static void handle_estimate(struct messaging_state *state, struct job *j,
 
 	assert(eta_factor >= 1);
 	if (elapsed_branches >= eta_threshold && time_left > HOMESTRETCH &&
-	    time_left * eta_factor < eta && should_work_block(j)) {
+	    (eta_overflow || time_left * eta_factor < eta) &&
+	    should_work_block(j)) {
 		WARN("[JOB %d] State space too big (%u brs elapsed, "
 		     "time rem %lu, eta %lu) -- blocking!\n", j->id,
 		     elapsed_branches, time_left / 1000000, eta / 1000000);
