@@ -241,6 +241,7 @@ FILTER_DRS_BY_LAST_CALL=0
 FILTER_DRS_BY_TID=1 # Note unusual default
 TESTING_MUTEXES=0
 FIX_BROKEN_YIELDS=0
+DR_PPS_RESPECT_WITHIN_FUNCTIONS=0
 source $CONFIG
 
 source ./symbols.sh
@@ -482,6 +483,10 @@ fi
 
 if [ "$FIX_BROKEN_YIELDS" = "1" ]; then
 	echo "#define FIX_BROKEN_YIELDS"
+fi
+
+if [ "$DR_PPS_RESPECT_WITHIN_FUNCTIONS" = "1" ]; then
+	echo "#define DR_PPS_RESPECT_WITHIN_FUNCTIONS"
 fi
 
 echo

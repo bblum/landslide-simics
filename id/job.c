@@ -128,6 +128,7 @@ static void *run_job(void *arg)
 		 * the mutex internals themselves to data race analysis. */
 		XWRITE(&j->config_file, "TESTING_MUTEXES=1\n");
 		XWRITE(&j->config_file, "FILTER_DRS_BY_TID=0\n");
+		XWRITE(&j->config_file, "DR_PPS_RESPECT_WITHIN_FUNCTIONS=1\n");
 		XWRITE(&j->config_file, "%s thr_init\n", without);
 		XWRITE(&j->config_file, "%s thr_create\n", without);
 		XWRITE(&j->config_file, "%s thr_exit\n", without);

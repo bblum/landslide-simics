@@ -141,7 +141,12 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		   ls->test.start_population == ls->sched.most_agents_ever) {
 		return false;
 	/* check for data races */
-	} else if (suspected_data_race(ls)) {
+	} else if (suspected_data_race(ls)
+#ifdef DR_PPS_RESPECT_WITHIN_FUNCTIONS
+		   && ((testing_userspace() && user_within_functions(ls)) ||
+		      (!testing_userspace() && kern_within_functions(ls)))
+#endif
+		   ) {
 		// FIXME: #88
 		assert(!opcodes_are_atomic_swap(ls->instruction_text) &&
 		       "Data races on xchg/atomic instructions is unsupported "
