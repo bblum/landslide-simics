@@ -72,7 +72,7 @@ unsigned int sprint_frame(char *buf, unsigned int maxlen,
 			PRINT(COLOUR_DARK COLOUR_GREY);
 		}
 		if (f->file == NULL) {
-			PRINT("<unknown assembly>");
+			PRINT("<unknown>");
 		} else {
 			PRINT("(%s:%d)", f->file, f->line);
 		}
@@ -147,7 +147,7 @@ unsigned int html_stack_trace(char *buf, unsigned int maxlen, struct stack_trace
 			      HTML_COLOUR_START(HTML_COLOUR_GREY) "<small>",
 			      f->name);
 			if (f->file == NULL) {
-				PRINT("&lt;unknown assembly&gt;");
+				PRINT("&lt;unknown&gt;");
 			} else {
 				PRINT("(%s:%d)", f->file, f->line);
 			}
