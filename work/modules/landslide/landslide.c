@@ -308,7 +308,11 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 	unsigned int average_depth =
 		ls->save.depth_total / (1 + ls->save.total_jumps);
 	unsigned long depth_thresh = average_depth * depth_factor;
-	if (ls->save.current->depth > depth_thresh) {
+	/* we're right on top of the PP; if it's a DR PP, avoid emitting a bogus
+	 * stack-address value as current eip (see dr eip logic in save.c). */
+	bool during_dr_delay = ls->save.current->eip == ls->eip &&
+	                       ls->save.current->data_race_eip != -1;
+	if (ls->save.current->depth > depth_thresh && !during_dr_delay) {
 		scnprintf(message, maxlen, "This interleaving has at least %d "
 			  "preemption-points; but past branches on average were "
 			  "only %d deep -- I think you're stuck in an infinite "
