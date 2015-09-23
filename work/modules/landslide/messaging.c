@@ -151,7 +151,11 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	struct output_message m;
 	m.tag = DATA_RACE;
 	m.content.dr.eip = eip;
+#ifdef FILTER_DRS_BY_TID
 	m.content.dr.tid = tid;
+#else
+	m.content.dr.tid = DR_TID_WILDCARD;
+#endif
 	m.content.dr.last_call = last_call;
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;

@@ -238,6 +238,7 @@ PINTOS_KERNEL=
 PINTOS_USERPROG=
 ALLOW_REENTRANT_MALLOC_FREE=0
 FILTER_DRS_BY_LAST_CALL=0
+FILTER_DRS_BY_TID=1 # Note unusual default
 TESTING_MUTEXES=0
 FIX_BROKEN_YIELDS=0
 source $CONFIG
@@ -469,6 +470,10 @@ fi
 
 if [ "$FILTER_DRS_BY_LAST_CALL" = "1" ]; then
 	echo "#define FILTER_DRS_BY_LAST_CALL"
+fi
+
+if [ "$FILTER_DRS_BY_TID" = "1" ]; then
+	echo "#define FILTER_DRS_BY_TID"
 fi
 
 if [ "$TESTING_MUTEXES" = "1" ]; then

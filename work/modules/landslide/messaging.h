@@ -14,6 +14,7 @@ struct messaging_state {
 
 void messaging_init(struct messaging_state *m);
 
+#define DR_TID_WILDCARD 0x15410de0u /* 0 could be a valid tid */
 void message_data_race(struct messaging_state *m, unsigned int eip,
 		       unsigned int last_call, unsigned int tid,
 		       unsigned int most_recent_syscall, bool confirmed);

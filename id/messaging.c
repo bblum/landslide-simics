@@ -22,6 +22,7 @@
 #include "xcalls.h"
 
 #define MESSAGING_MAGIC 0x15410de0u
+#define DR_TID_WILDCARD 0x15410de0u /* 0 could be a valid tid */
 
 #define MESSAGE_BUF_SIZE 256
 
@@ -114,10 +115,20 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	MAKE_DR_PP_STR(config_str, BUF_SIZE, eip, tid, last_call, most_recent_syscall);
 	const char *dr_str = verbose ? "DR" : "data race";
 	if (verbose && last_call != 0) {
-		scnprintf(short_str, BUF_SIZE, "%s %u@ 0x%x(0x%x)", dr_str,
-			  tid, eip, last_call);
+		if (tid == DR_TID_WILDCARD) {
+			scnprintf(short_str, BUF_SIZE, "%s @ 0x%x(0x%x)",
+				  dr_str, eip, last_call);
+		} else {
+			scnprintf(short_str, BUF_SIZE, "%s %u@ 0x%x(0x%x)",
+				  dr_str, tid, eip, last_call);
+		}
 	} else {
-		scnprintf(short_str, BUF_SIZE, "%s %u@ 0x%x", dr_str, tid, eip);
+		if (tid == DR_TID_WILDCARD) {
+			scnprintf(short_str, BUF_SIZE, "%s @ 0x%x", dr_str, eip);
+		} else {
+			scnprintf(short_str, BUF_SIZE, "%s %u@ 0x%x",
+				  dr_str, tid, eip);
+		}
 	}
 
 	unsigned int priority = confirmed ?
