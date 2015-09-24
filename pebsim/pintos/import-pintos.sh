@@ -81,7 +81,7 @@ function sync_file() {
 }
 function sync_subdir() {
 	mkdir -p "./$SUBDIR/$1"
-	rsync -av --delete "$DIR/$1/" "./$SUBDIR/$1/" || die "rsync failed."
+	rsync -rlpvgoD --delete "$DIR/$1/" "./$SUBDIR/$1/" || die "rsync failed."
 }
 function sync_optional_subdir() {
 	if [ -d "$DIR/$1" ]; then
