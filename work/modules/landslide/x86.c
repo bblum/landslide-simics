@@ -351,7 +351,7 @@ bool opcodes_are_atomic_swap(uint8_t *ops) {
 		offset++;
 	}
 
-	if (ops[offset] == 0x86 || ops[offset] == 0x87 || ops[offset] == 0x90) {
+	if (ops[offset] == 0x86 || ops[offset] == 0x87) {
 		/* xchg */
 		return true;
 	} else if (ops[offset] == 0x0f) {
