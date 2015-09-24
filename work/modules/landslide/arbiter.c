@@ -142,15 +142,13 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		return false;
 	/* check for data races */
 	} else if (suspected_data_race(ls)
+		   /* if xchg-blocked, need NOT set DR PP. other case below. */
+		   && !XCHG_BLOCKED(&ls->sched.cur_agent->user_yield)
 #ifdef DR_PPS_RESPECT_WITHIN_FUNCTIONS
 		   && ((testing_userspace() && user_within_functions(ls)) ||
 		      (!testing_userspace() && kern_within_functions(ls)))
 #endif
 		   ) {
-		// FIXME: #88
-		assert(!opcodes_are_atomic_swap(ls->instruction_text) &&
-		       "Data races on xchg/atomic instructions is unsupported "
-		       "-- see issue #88. Sorry!");
 		*data_race = true;
 		ASSERT_ONE_THREAD_PER_PP(ls);
 		return true;
@@ -159,24 +157,11 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		unsigned int mutex_addr;
 		if (KERNEL_MEMORY(ls->eip)) {
 			return false;
-		} else if (opcodes_are_atomic_swap(ls->instruction_text) &&
-			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {
+		} else if (XCHG_BLOCKED(&ls->sched.cur_agent->user_yield)) {
 			/* User thread is blocked on an "xchg-continue" mutex.
 			 * Analogous to HLT state -- need to preempt it. */
 			ASSERT_ONE_THREAD_PER_PP(ls);
 			return true;
-		// FIXME Non-atomic busy loops should be handled more generally,
-		// with the infinite loop detector, as detailed in #96.
-		// This is a hack to make make_runnable work as a special case.
-		} else if (user_make_runnable_entering(ls->eip) &&
-			   check_user_xchg(&ls->user_sync, ls->sched.cur_agent)) {
-			/* treat busy make-runnable loop same as xchg loop, in
-			 * case of a misbehave mode that makes make-runnable NOT
-			 * yield. if it does yield, NBD - the pp that arises
-			 * will cause this spurious increment to get cleared. */
-			ASSERT_ONE_THREAD_PER_PP(ls);
-			return true;
-		// TODO
 		} else if ((user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
 			    user_mutex_unlock_exiting(ls->eip)) &&
 			   user_within_functions(ls)) {
@@ -263,8 +248,6 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 	);
 
 //#define CHOOSE_RANDOMLY
-#define KEEP_RUNNING_YIELDING_THREADS
-
 #ifdef CHOOSE_RANDOMLY
 	// with given odds, will make the "forwards" choice.
 	const int numerator   = 19;
@@ -278,14 +261,14 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 	}
 #endif
 
-#ifdef KEEP_RUNNING_YIELDING_THREADS
-	if (current_is_legal_choice && agent_has_yielded(&current->user_yield)) {
+	if (current_is_legal_choice &&
+	    (agent_has_yielded(&current->user_yield) ||
+	     agent_has_xchged(&ls->user_sync))) {
 		printf(DEV, "- Must run yielding thread %d\n", current->tid);
 		*result = current;
 		*our_choice = true;
 		return true;
 	}
-#endif
 
 	/* Find the count-th thread. */
 	unsigned int i = 0;

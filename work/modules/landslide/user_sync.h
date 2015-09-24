@@ -46,6 +46,7 @@ struct user_sync_state {
 	/* extra bonus part of the state machine for detecting tight spin-loops
 	 * around xchg (or cmpxchg). */
 	unsigned int xchg_count;
+	bool xchg_loop_has_pps;
 };
 
 struct user_yield_state {
@@ -63,18 +64,31 @@ struct user_yield_state {
 #define TOO_MANY_YIELDS 10
 
 /* how many times spinning around xchg/cmpxchg means a thread is blocked? */
-#define TOO_MANY_XCHGS 100
+#define TOO_MANY_XCHGS_TIGHT_LOOP 100
+/* in case of a DR PP on the xchg, avoid O(n^2) PP comparisons with huge n */
+#define TOO_MANY_XCHGS_WITH_PPS 20
+#define TOO_MANY_XCHGS(u) ((u)->xchg_loop_has_pps ? TOO_MANY_XCHGS_WITH_PPS \
+                                                  : TOO_MANY_XCHGS_TIGHT_LOOP)
+#define XCHG_BLOCKED(y) \
+	({ const struct user_yield_state *____y = (y); /* don't shadow __y */ \
+	   ____y->loop_count == TOO_MANY_XCHGS_TIGHT_LOOP || \
+	   ____y->loop_count == TOO_MANY_XCHGS_WITH_PPS; })
 
 #define agent_is_user_yield_blocked(y) \
-	 ({ assert((y)->loop_count <= TOO_MANY_YIELDS || \
-	           (y)->loop_count == TOO_MANY_XCHGS); \
-	    (y)->loop_count == TOO_MANY_YIELDS || \
-	    (y)->loop_count == TOO_MANY_XCHGS || (y)->blocked; })
+	 ({ const struct user_yield_state *__y = (y); \
+	    assert(__y->loop_count <= TOO_MANY_YIELDS || XCHG_BLOCKED(__y)); \
+	    __y->loop_count == TOO_MANY_YIELDS || \
+	    XCHG_BLOCKED(__y) || __y->blocked; })
 
 #define agent_has_yielded(y) \
-	 ({ assert((y)->loop_count <= TOO_MANY_YIELDS || \
-	           (y)->loop_count == TOO_MANY_XCHGS); \
-	    (y)->loop_count > 0 || (y)->blocked; })
+	 ({ const struct user_yield_state *__y = (y); \
+	    assert(__y->loop_count <= TOO_MANY_YIELDS || XCHG_BLOCKED(__y)); \
+	    __y->loop_count > 0 || __y->blocked; })
+
+#define agent_has_xchged(u) \
+	({ assert((u)->xchg_count <= TOO_MANY_XCHGS_TIGHT_LOOP); \
+	   STATIC_ASSERT(TOO_MANY_XCHGS_TIGHT_LOOP > TOO_MANY_XCHGS_WITH_PPS); \
+	   (u)->xchg_count > 0; })
 
 void user_sync_init(struct user_sync_state *u);
 void user_yield_state_init(struct user_yield_state *y);
@@ -93,9 +107,10 @@ void update_user_yield_blocked_transitions(struct hax *h);
 bool is_user_yield_blocked(struct hax *h);
 /* scheduler-related */
 void check_user_yield_activity(struct user_sync_state *u, struct agent *a);
-bool check_user_xchg(struct user_sync_state *u, struct agent *a);
+void check_user_xchg(struct user_sync_state *u, struct agent *a);
 void record_user_yield_activity(struct user_sync_state *u);
 void record_user_mutex_activity(struct user_sync_state *u);
+void record_user_xchg_activity(struct user_sync_state *u);
 void record_user_yield(struct user_sync_state *u);
 /* memory-related */
 void check_unblock_yield_loop(struct ls_state *ls, unsigned int addr);

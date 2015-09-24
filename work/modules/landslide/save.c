@@ -391,9 +391,9 @@ static void copy_user_sync(struct user_sync_state *dest,
 
 	assert(src->yield_progress == NOTHING_INTERESTING &&
 	       "user yield progress flag wasn't reset before checkpoint");
-	assert(src->xchg_count == 0 && "user xchg count wasn't reset");
 	dest->yield_progress = NOTHING_INTERESTING;
-	dest->xchg_count = 0;
+	dest->xchg_count = src->xchg_count;
+	dest->xchg_loop_has_pps = src->xchg_loop_has_pps;
 }
 
 /* To free copied state data structures. None of these free the arg pointer. */

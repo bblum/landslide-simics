@@ -868,6 +868,17 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		// CURRENT(s, pre_vanish_trace) = NULL;
 	}
 
+	/* Check for a "tight" loop around xchg as ad-hoc synchronization.
+	 * This should be associated with the user state machine because if a
+	 * DR PP gets placed on this xchg we need to avoid double-counting it.
+	 * Also treat busy make-runnable loop same as xchg loop, in case of a
+	 * misbehave mode that makes m_r NOT yield (if it does yield, NBD; the
+	 * PP that arises will cause this spurious increment to get cleared. */
+	if (opcodes_are_atomic_swap(ls->instruction_text) ||
+	     user_make_runnable_entering(ls->eip)) {
+		check_user_xchg(&ls->user_sync, s->cur_agent);
+	}
+
 	/* mutexes (and yielding) */
 	if (user_mutex_init_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_initing));
@@ -1212,6 +1223,8 @@ void sched_update(struct ls_state *ls)
 		handle_sleep(s);
 		handle_vanish(s);
 		handle_unsleep(s, new_tid);
+
+		record_user_xchg_activity(&ls->user_sync);
 
 		/* Careful! On some kernels, the trigger for a new agent forking
 		 * (where it first gets added to the RQ) may happen AFTER its

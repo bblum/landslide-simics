@@ -1152,18 +1152,12 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	/* Report to master process. If unconfirmed, it only helps to set a PP
 	 * on the earlier one, so we don't send the later of suspected pairs. */
 	if (confirmed) {
-		// FIXME: #88
-		if (!instruction_is_atomic_swap(ls->cpu0, l0->eip)) {
-			message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
-				l0->last_call, l0->most_recent_syscall, confirmed);
-		}
+		message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
+			l0->last_call, l0->most_recent_syscall, confirmed);
 	}
 	if (confirmed || !too_suspicious) {
-		// FIXME: #88
-		if (!instruction_is_atomic_swap(ls->cpu0, l0->eip)) {
-			message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
-				l1->last_call, l1->most_recent_syscall, confirmed);
-		}
+		message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
+			l1->last_call, l1->most_recent_syscall, confirmed);
 	}
 }
 

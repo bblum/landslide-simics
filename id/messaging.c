@@ -274,15 +274,6 @@ static void handle_crash(struct job *j, struct input_message *m)
 	j->cancelled = true;
 	RW_UNLOCK(&j->stats_lock);
 
-	// XXX (issue #88): Support this properly.
-	char *is_atomic_dr_issue =
-		strstr(m->content.crash_report.assert_message,
-		       "Data races on xchg/atomic instructions is unsupported");
-	if (is_atomic_dr_issue != NULL) {
-		DBG("[JOB %d] Cancelling job due to atomic-DR-PP issue #88.\n", j->id);
-		return;
-	}
-
 	ERR("[JOB %d] Landslide crashed. The assert message was: %s\n",
 	    j->id, m->content.crash_report.assert_message);
 	ERR("[JOB %d] For more detail see stderr log file: %s\n",

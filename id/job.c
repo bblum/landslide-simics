@@ -308,7 +308,7 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 	}
 	PRINT("[JOB %d] ", j->id);
 	if (j->cancelled) {
-		PRINT(COLOUR_DARK COLOUR_RED "CANCELLED\n");
+		PRINT(COLOUR_DARK COLOUR_YELLOW "CANCELLED\n");
 	} else if (j->trace_filename != NULL) {
 		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
 		PRINT("(%u interleaving%s tested)\n", j->elapsed_branches,
