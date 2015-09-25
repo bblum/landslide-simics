@@ -170,6 +170,111 @@ void check_user_mutex_access(struct ls_state *ls, unsigned int addr)
 
 /******************** DPOR-related ********************/
 
+static void update_blocked_transition(struct hax *h0, struct hax *h, struct agent *a)
+{
+	unsigned int expected_count = a->user_yield.loop_count;
+	struct hax *previous_h2 = NULL;
+	/* If an ancestor's yield count has the special value indicating
+	 * xchg loop with PPs in between, we will switch to counting the
+	 * xchg counter instead of the yield loop counter. */
+	bool xchg_blocked = false;
+
+	assert(h->parent != NULL);
+	assert(a->user_yield.loop_count == TOO_MANY_YIELDS ||
+	       XCHG_BLOCKED(&a->user_yield));
+
+	lsprintf(DEV, "scanning ylc for #%d/tid%d, ylc after was %d\n",
+		 h->depth, h->chosen_thread, a->user_yield.loop_count);
+
+	/* Propagate backwards in time the fact that this sequence of yields
+	 * reached the max number and is considered blocked. Start at h, not
+	 * h->parent, to include the one we just saw. */
+	for (struct hax *h2 = h; expected_count > 0; h2 = h2->parent) {
+		assert(h2 != NULL && "nonzero yield count at root");
+
+		/* Find the past version of the yield-blocked thread. */
+		struct agent *a2 = find_runnable_agent(h2->oldsched, a->tid);
+		assert(a2 != NULL && "yielding thread vanished in the past");
+
+		/* Its count must have incremented between the end of this
+		 * (old) transition and the more recent one. */
+		unsigned int ylc = a2->user_yield.loop_count;
+		assert(expected_count ==
+		       (xchg_blocked ? h2->old_user_sync->xchg_count : ylc));
+
+		/* Skip marking the "first" yield-blocked transition. */
+		if (expected_count > 1) {
+			lsprintf(DEV, "#%d/tid%d is %s (ylc %d), from #%d/tid%d\n",
+				 h2->depth, h2->chosen_thread,
+				 xchg_blocked ? "XCB" : "YLB",
+				 ylc, h->depth, h->chosen_thread);
+			a2->user_yield.blocked = true;
+			/* Before we knew this thread was yield-blocked, we
+			 * might have tagged it during DPOR. Undo that. */
+			if (a2->do_explore) {
+				assert(previous_h2 != NULL);
+				/* are we currently inside that thread
+				 * transition's subtree? */
+				bool was_ancestor =
+					(a2->tid == previous_h2->chosen_thread);
+				untag_blocked_branch(h2, h0, a2, was_ancestor);
+			}
+		}
+
+		/* Also, if that thread actually ran during this (old)
+		 * transition, expect its count to have increased. */
+		struct agent *a3 =
+			find_runnable_agent(h2->parent->oldsched, a->tid);
+		assert(a3 != NULL && "yielding thread vanished in the past");
+		if (xchg_blocked) {
+			/* A descendant was xchg-blocked, and changed
+			 * modes (see 1st case below). So track expected
+			 * count based on old xchg count instead. */
+			assert(h2->chosen_thread == a->tid &&
+			       "different thread ran during xchg loop");
+			if (h2->chosen_thread != h2->parent->chosen_thread) {
+				/* first transition of this thread after
+				 * a context switch -- stop counting. */
+				assert(expected_count == 1);
+				expected_count = 0;
+			} else if (h2->old_user_sync->xchg_count ==
+				   h2->parent->old_user_sync->xchg_count + 1) {
+				/* xchg occurred during transition. */
+				expected_count--;
+			} else {
+				/* thread did "nothing interesting" */
+				assert(h2->old_user_sync->xchg_count ==
+				       h2->parent->old_user_sync->xchg_count);
+			}
+		} else if (h2->chosen_thread == a->tid) {
+			/* Thread ran. Did count increment?. */
+			if (ylc == TOO_MANY_XCHGS_TIGHT_LOOP) {
+				/* No telling what count was before this
+				 * transition. Stop checking. */
+				break;
+			} else if (ylc == TOO_MANY_XCHGS_WITH_PPS) {
+				/* Thread was xchg-blocked, rather than
+				 * yield-blocked. Switch "modes". */
+				expected_count--;
+				xchg_blocked = true;
+			} else if (ylc == a3->user_yield.loop_count + 1) {
+				/* Yield occurred during transition.
+				 * Update expected "past" count. */
+				expected_count--;
+			} else {
+				/* Thread did "nothing interesting"; yield
+				 * count was unchanged. */
+				assert(ylc == a3->user_yield.loop_count);
+			}
+		} else {
+			/* Thread did not run; count should not have changed. */
+			assert(ylc == a3->user_yield.loop_count);
+		}
+
+		previous_h2 = h2;
+	}
+}
+
 /* Scans the history of the branch ending in 'h0' and sets the yield-blocked
  * flag for branches "preceding" one where we realized a thread was blocked. */
 void update_user_yield_blocked_transitions(struct hax *h0)
@@ -207,106 +312,8 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 				 "(already did)\n", h->depth, h->chosen_thread);
 			continue;
 		}
-		unsigned int expected_count = a->user_yield.loop_count;
-		struct hax *previous_h2 = NULL;
-		/* If an ancestor's yield count has the special value indicating
-		 * xchg loop with PPs in between, we will switch to counting the
-		 * xchg counter instead of the yield loop counter. */
-		bool xchg_blocked = false;
 
-		lsprintf(DEV, "scanning ylc for #%d/tid%d, ylc after was %d\n",
-			 h->depth, h->chosen_thread, a->user_yield.loop_count);
-
-		/* Propagate backwards in time the fact that this sequence of
-		 * yields reached the max number and is considered blocked.
-		 * Start at h, not h->parent, to include the one we just saw. */
-		for (struct hax *h2 = h; expected_count > 0; h2 = h2->parent) {
-			assert(h2 != NULL && "nonzero yield count at root");
-
-			/* Find the past version of the yield-blocked thread. */
-			struct agent *a2 = find_runnable_agent(h2->oldsched, a->tid);
-			assert(a2 != NULL && "yielding thread vanished in the past");
-
-			/* Its count must have incremented between the end of
-			 * this (old) transition and the more recent one. */
-			unsigned int ylc = a2->user_yield.loop_count;
-			assert(expected_count ==
-			       (xchg_blocked ? h2->old_user_sync->xchg_count : ylc));
-
-			/* Skip marking the "first" yield-blocked transition. */
-			if (expected_count > 1) {
-				lsprintf(DEV, "#%d/tid%d is %s (ylc %d), "
-					 "from #%d/tid%d\n",
-					 h2->depth, h2->chosen_thread,
-					 xchg_blocked ? "XCB" : "YLB",
-					 ylc, h->depth, h->chosen_thread);
-				a2->user_yield.blocked = true;
-				/* In past branches, before we knew this thread
-				 * was yield-blocked, we might have tagged it
-				 * during DPOR. Undo that. */
-				if (a2->do_explore) {
-					assert(previous_h2 != NULL);
-					/* are we currently inside that thread
-					 * transition's subtree? */
-					bool was_ancestor = (a2->tid ==
-						previous_h2->chosen_thread);
-					untag_blocked_branch(h2, h0, a2,
-							     was_ancestor);
-				}
-			}
-
-			/* Also, if that thread actually ran during this (old)
-			 * transition, expect its count to have increased. */
-			struct agent *a3 =
-				find_runnable_agent(h2->parent->oldsched, a->tid);
-			assert(a3 != NULL && "yielding thread vanished in the past");
-			if (xchg_blocked) {
-				/* A descendant was xchg-blocked, and changed
-				 * modes (see 1st case below). So track expected
-				 * count based on old xchg count instead. */
-				assert(h2->chosen_thread == a->tid &&
-				       "different thread ran during xchg loop");
-				if (h2->chosen_thread != h2->parent->chosen_thread) {
-					/* first transition of this thread after
-					 * a context switch -- stop counting. */
-					assert(expected_count == 1);
-					expected_count = 0;
-				} else if (h2->old_user_sync->xchg_count ==
-					   h2->parent->old_user_sync->xchg_count + 1) {
-					/* xchg occurred during transition. */
-					expected_count--;
-				} else {
-					/* thread did "nothing interesting" */
-					assert(h2->old_user_sync->xchg_count ==
-					       h2->parent->old_user_sync->xchg_count);
-				}
-			} else if (h2->chosen_thread == a->tid) {
-				/* Thread ran. Did count increment?. */
-				if (ylc == TOO_MANY_XCHGS_TIGHT_LOOP) {
-					/* No telling what count was before
-					 * this transition. Stop checking. */
-					break;
-				} else if (ylc == TOO_MANY_XCHGS_WITH_PPS) {
-					/* Thread was xchg-blocked, rather than
-					 * yield-blocked. Switch "modes". */
-					expected_count--;
-					xchg_blocked = true;
-				} else if (ylc == a3->user_yield.loop_count + 1) {
-					/* Yield occurred during transition.
-					 * Update expected "past" count. */
-					expected_count--;
-				} else {
-					/* Thread did "nothing interesting";
-					 * yield count was unchanged. */
-					assert(ylc == a3->user_yield.loop_count);
-				}
-			} else {
-				/* Thread did not run; count should not have changed. */
-				assert(ylc == a3->user_yield.loop_count);
-			}
-
-			previous_h2 = h2;
-		}
+		update_blocked_transition(h0, h, a);
 	}
 }
 
