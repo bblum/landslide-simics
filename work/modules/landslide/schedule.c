@@ -13,6 +13,7 @@
 #include "arbiter.h"
 #include "common.h"
 #include "found_a_bug.h"
+#include "html.h"
 #include "landslide.h"
 #include "kernel_specifics.h"
 #include "kspec.h"
@@ -611,6 +612,26 @@ static void keep_schedule_inflight(struct ls_state *ls)
 	}
 }
 
+#ifdef TESTING_MUTEXES
+static void report_recursive_mutex_bug(struct ls_state *ls)
+{
+	const char *headline = "WARNING: Recursive call of mutex_lock/unlock";
+	FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
+		HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
+		HTML_PRINTF(html_env, "<b><h3>NOTE: This is NOT NECESSARILY a "
+			    "bug. This may be a FALSE POSITIVE.</h3>");
+		HTML_PRINTF(html_env, "Landslide is not smart enough to keep "
+			    "track of your threads beyond this " HTML_NEWLINE);
+		HTML_PRINTF(html_env, "point; but the above stack trace is "
+			    "VERY SUSPICIOUS at any rate." HTML_NEWLINE);
+		HTML_PRINTF(html_env, "Please use your brain instead of a "
+			    "computer to verify this interleaving.</b>"
+			    HTML_NEWLINE HTML_NEWLINE);
+		HTML_PRINTF(html_env, HTML_BOX_END HTML_NEWLINE);
+	);
+}
+#endif
+
 static void sched_update_kern_state_machine(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
@@ -917,7 +938,13 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		/* note: we don't assert on mutex_initing because mutex_init may
 		 * call mutex_lock for malloc mutexes, on a static heap mutex */
+#ifdef TESTING_MUTEXES
+		if (ACTION(s, user_mutex_locking)) {
+			report_recursive_mutex_bug(ls);
+		}
+#else
 		assert(!ACTION(s, user_mutex_locking));
+#endif
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;
 		CURRENT(s, user_mutex_locking_addr) = lock_addr;
@@ -1006,7 +1033,13 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
+#ifdef TESTING_MUTEXES
+		if (ACTION(s, user_mutex_unlocking)) {
+			report_recursive_mutex_bug(ls);
+		}
+#else
 		assert(!ACTION(s, user_mutex_unlocking));
+#endif
 		ACTION(s, user_mutex_unlocking) = true;
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
