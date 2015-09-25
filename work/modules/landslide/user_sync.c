@@ -266,8 +266,13 @@ void update_user_yield_blocked_transitions(struct hax *h0)
 				 * count based on old xchg count instead. */
 				assert(h2->chosen_thread == a->tid &&
 				       "different thread ran during xchg loop");
-				if (h2->old_user_sync->xchg_count ==
-				    h2->parent->old_user_sync->xchg_count + 1) {
+				if (h2->chosen_thread != h2->parent->chosen_thread) {
+					/* first transition of this thread after
+					 * a context switch -- stop counting. */
+					assert(expected_count == 1);
+					expected_count = 0;
+				} else if (h2->old_user_sync->xchg_count ==
+					   h2->parent->old_user_sync->xchg_count + 1) {
 					/* xchg occurred during transition. */
 					expected_count--;
 				} else {
@@ -388,6 +393,7 @@ void check_user_xchg(struct user_sync_state *u, struct agent *a)
 		y->loop_count = u->xchg_count;
 		/* Transition ends. Reset global counter for the next one. */
 		u->xchg_count = 0;
+		u->xchg_loop_has_pps = false;
 	}
 }
 
@@ -399,6 +405,7 @@ void record_user_yield_activity(struct user_sync_state *u)
 	 * start doing nothing but yielding before counting it as blocked. */
 	u->yield_progress = ACTIVITY;
 	u->xchg_count = 0;
+	u->xchg_loop_has_pps = false;
 }
 
 /* Should user mutex lock/unlock be considered "interesting" for the purpose of
@@ -414,11 +421,13 @@ void record_user_mutex_activity(struct user_sync_state *u)
 	u->yield_progress = ACTIVITY;
 #endif
 	u->xchg_count = 0;
+	u->xchg_loop_has_pps = false;
 }
 
 void record_user_xchg_activity(struct user_sync_state *u)
 {
 	u->xchg_count = 0;
+	u->xchg_loop_has_pps = false;
 }
 
 /* Called whenever the user makes a yield syscall. */
