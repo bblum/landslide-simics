@@ -104,6 +104,9 @@ struct agent {
 	unsigned int user_mutex_locking_addr;
 	unsigned int user_mutex_unlocking_addr;
 	unsigned int user_rwlock_locking_addr;
+	/* for helpful debug info on user page faults */
+	unsigned int last_pf_eip;
+	unsigned int last_pf_cr2; /* valid iff eip above != -1 */
 	// int user_rwlock_unlocking_addr; // not needed
 	/* Whether we just inserted a dummy instruction before a suspected data
 	 * race instruction (to delay its access until after the save point). */

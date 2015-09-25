@@ -183,6 +183,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(user_mutex_locking_addr);
 	COPY_FIELD(user_mutex_unlocking_addr);
 	COPY_FIELD(user_rwlock_locking_addr);
+	COPY_FIELD(last_pf_eip);
+	COPY_FIELD(last_pf_cr2);
 	COPY_FIELD(just_delayed_for_data_race);
 	COPY_FIELD(delayed_data_race_eip);
 	COPY_FIELD(just_delayed_for_vr_exit);

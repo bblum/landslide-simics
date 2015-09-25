@@ -105,6 +105,8 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->user_mutex_locking_addr = -1;
 	a->user_mutex_unlocking_addr = -1;
 	a->user_rwlock_locking_addr = -1;
+	a->last_pf_eip = -1;
+	a->last_pf_cr2 = 0x15410de0u;
 	a->just_delayed_for_data_race = false;
 	a->delayed_data_race_eip = -1;
 	a->just_delayed_for_vr_exit = false;

@@ -367,6 +367,8 @@ static bool ensure_progress(struct ls_state *ls)
 				    "0x%x; address: 0x%x", from_eip, cr2);
 			return false;
 		} else {
+			ls->sched.cur_agent->last_pf_eip = from_eip;
+			ls->sched.cur_agent->last_pf_cr2 = cr2;
 			return true;
 		}
 	} else if (kern_killed_faulting_user_thread(ls->cpu0, ls->eip)) {
@@ -377,11 +379,24 @@ static bool ensure_progress(struct ls_state *ls)
 #endif
 			int exn_num = ls->sched.cur_agent->most_recent_syscall;
 			if (exn_num == 0) {
-				lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW
-					 "Warning: MRS = 0 during CAUSE_FAULT. "
-					 "Probably bug or annotation error?\n");
-				FOUND_A_BUG(ls, "TID %d was killed by a fault!\n",
-					    ls->sched.cur_agent->tid);
+				unsigned int pf_eip =
+					ls->sched.cur_agent->last_pf_eip;
+				if (pf_eip == -1) {
+					lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW
+						 "Warning: MRS = 0 during "
+						 "CAUSE_FAULT. Probably bug or "
+						 "annotation error?\n");
+					FOUND_A_BUG(ls, "TID %d was killed!\n",
+						    ls->sched.cur_agent->tid);
+				} else {
+					unsigned int pf_cr2 =
+						ls->sched.cur_agent->last_pf_cr2;
+					FOUND_A_BUG(ls, "TID %d was killed by "
+						    "a page fault! (Faulting "
+						    "eip: 0x%x; addr: 0x%x)\n",
+						    ls->sched.cur_agent->tid,
+						    pf_eip, pf_cr2);
+				}
 			} if (exn_num >= ARRAY_SIZE(exception_names)) {
 				FOUND_A_BUG(ls, "TID %d was killed by a fault! "
 					    "(unknown exception #%u)\n",
