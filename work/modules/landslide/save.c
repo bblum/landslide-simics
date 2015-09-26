@@ -278,6 +278,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 		(src->voluntary_resched_stack == NULL) ? NULL :
 			copy_stack_trace(src->voluntary_resched_stack);
 	copy_lockset(&dest->known_semaphores, &src->known_semaphores);
+	dest->deadlock_fp_avoidance_count = src->deadlock_fp_avoidance_count;
 }
 
 static void copy_test(struct test_state *dest, const struct test_state *src)

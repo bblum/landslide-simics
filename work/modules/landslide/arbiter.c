@@ -216,13 +216,57 @@ static bool report_deadlock(struct ls_state *ls)
 	return true;
 }
 
-/* Returns true if a thread was chosen. If true, sets 'target' (to either the
- * current thread or any other thread), and sets 'our_choice' to false if
- * somebody else already made this choice for us, true otherwise. */
 #define IS_IDLE(ls, a)							\
 	(TID_IS_IDLE((a)->tid) &&					\
 	 BUG_ON_THREADS_WEDGED != 0 && (ls)->test.test_ever_caused &&	\
 	 (ls)->test.start_population != (ls)->sched.most_agents_ever)
+
+/* Attempting to track whether threads are "blocked" based on when they call
+ * yield() while inside mutex_lock() is great for avoiding the expensive
+ * yield-loop-counting heuristic, it can produce some false positive deadlocks
+ * when a thread's blocked-on-addr doesn't get unset at the right time. A good
+ * example is when mutex_lock actually deschedule()s, and has a little-lock
+ * inside that yields. We can't know (without annotations) that we need to
+ * unset contenders' blocked-on-addrs when e.g. little_lock_unlock() is called
+ * at the end of mutex_lock().
+ *
+ * The tradeoff with this knob is how long FAB traces are for deadlock reports,
+ * versus how many benign repetitions an adversarial program must contain in
+ * order to trigger a false positive report despite this cleverness. */
+#define DEADLOCK_FP_MAX_ATTEMPTS 16
+static bool try_avoid_fp_deadlock(struct ls_state *ls, struct agent **result) {
+	/* The counter is reset every time we backtrack, but it's never reset
+	 * during a single branch. This gives some notion of progress, so we
+	 * won't just try this strategy forever in a real deadlock situation. */
+	if (ls->sched.deadlock_fp_avoidance_count == DEADLOCK_FP_MAX_ATTEMPTS) {
+		return false;
+	}
+
+	ls->sched.deadlock_fp_avoidance_count++;
+
+	bool found_one = false;
+	struct agent *a;
+	/* Doesn't matter which thread we choose; take whichever is latest in
+	 * this loop. But we need to wake all of them, not knowing which was
+	 * "faking it". If it's truly deadlocked, they'll all block again. */
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
+		// TODO: Also support yield-loop blocking here (issue #75).
+		if (a->user_blocked_on_addr != -1) {
+			assert(!IS_IDLE(ls, a) && "That's weird.");
+			lsprintf(DEV, "I thought TID %d was blocked on 0x%x, "
+				 "but I could be wrong!\n",
+				 a->tid, a->user_blocked_on_addr);
+			a->user_blocked_on_addr = -1;
+			*result = a;
+			found_one = true;
+		}
+	);
+	return found_one;
+}
+
+/* Returns true if a thread was chosen. If true, sets 'target' (to either the
+ * current thread or any other thread), and sets 'our_choice' to false if
+ * somebody else already made this choice for us, true otherwise. */
 bool arbiter_choose(struct ls_state *ls, struct agent *current,
 		    struct agent **result, bool *our_choice)
 {
@@ -286,9 +330,18 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 
 	/* No runnable threads. Is this a bug, or is it expected? */
 	if (report_deadlock(ls)) {
-		FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
+		if (try_avoid_fp_deadlock(ls, result)) {
+			lsprintf(CHOICE, COLOUR_BOLD COLOUR_YELLOW
+				 "WARNING: System is apparently deadlocked! "
+				 "Let me just try one thing. See you soon.\n");
+			*our_choice = true;
+			return true;
+		} else {
+			FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
+			return false;
+		}
 	} else {
 		lsprintf(DEV, "Deadlock -- no threads are runnable!\n");
+		return false;
 	}
-	return false;
 }

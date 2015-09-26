@@ -350,6 +350,7 @@ void sched_init(struct sched_state *s)
 	s->voluntary_resched_tid = -1;
 	s->voluntary_resched_stack = NULL;
 	lockset_init(&s->known_semaphores);
+	s->deadlock_fp_avoidance_count = 0;
 }
 
 void print_agent(verbosity v, const struct agent *a)

@@ -104,10 +104,10 @@ struct agent {
 	unsigned int user_mutex_locking_addr;
 	unsigned int user_mutex_unlocking_addr;
 	unsigned int user_rwlock_locking_addr;
+	// int user_rwlock_unlocking_addr; // not needed
 	/* for helpful debug info on user page faults */
 	unsigned int last_pf_eip;
 	unsigned int last_pf_cr2; /* valid iff eip above != -1 */
-	// int user_rwlock_unlocking_addr; // not needed
 	/* Whether we just inserted a dummy instruction before a suspected data
 	 * race instruction (to delay its access until after the save point). */
 	bool just_delayed_for_data_race;
@@ -190,6 +190,8 @@ struct sched_state {
 	/* List of known semaphores that were initialized with values other than
 	 * 1 (i.e., ones that don't behave like mutexes for sake of locksets). */
 	struct lockset known_semaphores;
+	/* Avoid false positive deadlocks caused by ad-hoc yield-blocking. */
+	unsigned int deadlock_fp_avoidance_count;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
 	/* It does take many instructions for us to switch, after all. This is
