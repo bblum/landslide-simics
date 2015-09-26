@@ -147,7 +147,7 @@ BUG_ON_THREADS_WEDGED=1
 # longer, more difficult to understand debug trace.
 # !!!   Backwards is the recommended default! Only change this if you've   !!!
 # !!!     already found a bug and are trying to understand it better!      !!!
-EXPLORE_BACKWARDS=0
+EXPLORE_BACKWARDS=1
 
 # Set this to 1 if you want Landslide not to explore the tree, but to stop after
 # the first branch and print out the set of decision points that it found using
