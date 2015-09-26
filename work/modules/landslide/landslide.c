@@ -98,11 +98,10 @@ static void check_fix_broken_yield(struct ls_state *ls)
 
 	struct agent *a;
 	Q_FOREACH(a, &ls->sched.rq, nobe) {
-		if (a->tid == esi) { lsprintf(DEV, "dbg: yield(%d) is ok rq\n", esi); return; }
+		if (a->tid == esi) return;
 	}
 	Q_FOREACH(a, &ls->sched.sq, nobe) {
-		if (a->tid == esi) { lsprintf(DEV, "dbg: yield(%d) is ok sq\n", esi); return; }
-		//if (a->tid == esi) return;
+		if (a->tid == esi) return;
 	}
 	/* Don't bother with DQ. Some threads there are runnable from kernel's
 	 * POV, while some are not. All told, it's ok for us to have false
