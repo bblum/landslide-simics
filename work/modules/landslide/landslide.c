@@ -419,15 +419,18 @@ static bool ensure_progress(struct ls_state *ls)
 			HTML_PRINTF(html_env, "%s" HTML_NEWLINE, message);
 			if (IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent)) {
 				HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
-				HTML_PRINTF(html_env, "<b>NOTE: Infinite loop was "
-					    "encountered during %s()." HTML_NEWLINE,
+				HTML_PRINTF(html_env, "<b>NOTE: I have run a loop "
+					    "in %s() an alarming number of times."
+					    HTML_NEWLINE,
 					    USER_SYNC_ACTION_STR(ls->sched.cur_agent));
-				HTML_PRINTF(html_env, "This means you may have "
-					    "a loop of the form 'while (!flag) "
-					    "continue;'." HTML_NEWLINE);
+				HTML_PRINTF(html_env, "This version of "
+					    "Landslide cannot distinguish "
+					    "between this loop " HTML_NEWLINE);
+				HTML_PRINTF(html_env, "being infinite versus "
+					    "merely undesirable." HTML_NEWLINE);
 				HTML_PRINTF(html_env, "Please refer to the "
-					    "Synchronization lectures to see "
-					    "why this is wrong.</b>" HTML_NEWLINE);
+					    "\"Synchronization (2)\" lecture."
+					    HTML_NEWLINE);
 				HTML_PRINTF(html_env, HTML_BOX_END HTML_NEWLINE);
 			}
 		);

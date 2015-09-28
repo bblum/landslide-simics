@@ -621,14 +621,11 @@ static void report_recursive_mutex_bug(struct ls_state *ls)
 	const char *headline = "WARNING: Recursive call of mutex_lock/unlock";
 	FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
 		HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
-		HTML_PRINTF(html_env, "<b><h3>NOTE: This is NOT NECESSARILY a "
-			    "bug. This may be a FALSE POSITIVE.</h3>");
-		HTML_PRINTF(html_env, "Landslide is not smart enough to keep "
-			    "track of your threads beyond this " HTML_NEWLINE);
-		HTML_PRINTF(html_env, "point; but the above stack trace is "
-			    "VERY SUSPICIOUS at any rate." HTML_NEWLINE);
-		HTML_PRINTF(html_env, "Please use your brain instead of a "
-			    "computer to verify this interleaving.</b>"
+		HTML_PRINTF(html_env, "NOTE: This version of Landslide cannot "
+			    "debug recursive implementations of mutex_lock."
+			    HTML_NEWLINE);
+		HTML_PRINTF(html_env, "Please examine this stack trace and "
+			    "determine for yourself whether it indicates a bug."
 			    HTML_NEWLINE HTML_NEWLINE);
 		HTML_PRINTF(html_env, HTML_BOX_END HTML_NEWLINE);
 	);
