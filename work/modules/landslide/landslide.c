@@ -252,14 +252,16 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 	/* Condition for stricter check. Less likely long-running non-infinite
 	 * loops within user sync primitives, so be more aggressive checking
 	 * there. However, the past instruction average must be non-0. */
-	bool more_aggressive_check = ls->save.current != NULL &&
-		ls->save.total_triggers != 0 &&
-		IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent);
+	bool possible_to_check = ls->save.current != NULL &&
+		ls->save.total_triggers != 0;
+	bool more_aggressive_check = possible_to_check &&
+		(ls->save.total_jumps == 0 || /* don't get owned on 0th branch */
+		 IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent));
 
 	/* Can't check for tight loops 0th branch. If one transition has an
 	 * expensive operation like vm_free_pagedir() we don't want to trip on
 	 * it; we want to incorporate it into the average. */
-	if (ls->save.total_jumps == 0 && !more_aggressive_check) {
+	if (ls->save.total_jumps == 0 && !possible_to_check) {
 		return false;
 	}
 
