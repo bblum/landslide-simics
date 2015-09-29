@@ -136,6 +136,7 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_file, "%s thr_init\n", without);
 		XWRITE(&j->config_file, "%s thr_create\n", without);
 		XWRITE(&j->config_file, "%s thr_exit\n", without);
+		XWRITE(&j->config_file, "%s critical_section\n", without);
 	}
 
 	messaging_init(&mess, &j->config_file, j->id);
