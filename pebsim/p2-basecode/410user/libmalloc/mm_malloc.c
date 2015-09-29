@@ -239,36 +239,18 @@ static void place(void *bp, int asize)
  */
 /* $begin mmfirstfit */
 /* $begin mmfirstfit-proto */
-static void *_find_fit(int asize, void *bp)
-{
-	void *result;
-	if (GET_SIZE(HDRP(bp)) <= 0) {
-		/* end of list */
-		return NULL;
-	} else if ((result = _find_fit(asize, NEXT_BLKP(bp))) != NULL) {
-		/* recurse; prioritize results from later in the list */
-		return result;
-	} else if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
-		/* this case - is the block free? is size appropriate? */
-		return bp;
-	} else {
-		/* no luck*/
-		return NULL;
-	}
-}
 static void *find_fit(int asize)
 /* $end mmfirstfit-proto */
 {
-    return _find_fit(asize, heap_listp);
-    //void *bp;
+    void *bp;
 
-    ///* first fit search */
-    //for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
-    //    if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
-    //        return bp;
-    //    }
-    //}
-    //return NULL; /* no fit */
+    /* first fit search */
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
+            return bp;
+        }
+    }
+    return NULL; /* no fit */
 }
 /* $end mmfirstfit */
 
