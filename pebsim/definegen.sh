@@ -218,6 +218,7 @@ SHELL_TID=
 CONTEXT_SWITCH_RETURN=
 CONTEXT_SWITCH_2=
 EXEC=
+YIELD=
 TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
 PAGE_FAULT_WRAPPER=
@@ -240,7 +241,6 @@ ALLOW_REENTRANT_MALLOC_FREE=0
 FILTER_DRS_BY_LAST_CALL=0
 FILTER_DRS_BY_TID=1 # Note unusual default
 TESTING_MUTEXES=0
-FIX_BROKEN_YIELDS=0
 DR_PPS_RESPECT_WITHIN_FUNCTIONS=0
 source $CONFIG
 
@@ -396,6 +396,11 @@ if [ ! -z "$EXEC" ]; then
 	echo "#define GUEST_EXEC_ENTER 0x`get_func $EXEC`"
 fi
 
+if [ ! -z "$YIELD" ]; then
+	echo "#define GUEST_YIELD_ENTER 0x`get_func $YIELD`"
+	echo "#define GUEST_YIELD_EXIT  0x`get_func_ret $YIELD`"
+fi
+
 echo
 
 # XXX HACK. pathos-only, for userspace data race optimization.
@@ -479,10 +484,6 @@ fi
 
 if [ "$TESTING_MUTEXES" = "1" ]; then
 	echo "#define TESTING_MUTEXES"
-fi
-
-if [ "$FIX_BROKEN_YIELDS" = "1" ]; then
-	echo "#define FIX_BROKEN_YIELDS"
 fi
 
 if [ "$DR_PPS_RESPECT_WITHIN_FUNCTIONS" = "1" ]; then

@@ -73,6 +73,8 @@ PAGE_FAULT_WRAPPER=JeEZAsscFUBi
 VM_USER_COPY=cXTnLzDKw # safe_copy()
 VM_USER_COPY_TAIL=rNoobcQrDzQLjXj # safe_copy_fixup()
 
+YIELD=lehqrDSzk
+
 # obscure annotation for pathos syscall wrappers.
 # this == sizeof(ureg_t) - sizeof(<iret frame>). see issue #117.
 PATHOS_SYSCALL_IRET_DISTANCE=60
@@ -167,8 +169,6 @@ TABULAR_TRACE=1
 OBFUSCATED_KERNEL=1
 
 ALLOW_LOCK_HANDOFF=1
-
-FIX_BROKEN_YIELDS=1
 
 VERBOSE=1
 

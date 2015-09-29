@@ -156,6 +156,19 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	} else if (testing_userspace()) {
 		unsigned int mutex_addr;
 		if (KERNEL_MEMORY(ls->eip)) {
+#ifdef GUEST_YIELD_ENTER
+#ifndef GUEST_YIELD_EXIT
+			STATIC_ASSERT(false && "missing guest yield exit");
+#endif
+			if ((ls->eip == GUEST_YIELD_ENTER &&
+			     READ_STACK(ls->cpu0, 1) == ls->sched.cur_agent->tid) ||
+			    (ls->eip == GUEST_YIELD_EXIT &&
+			     ((signed int)GET_CPU_ATTR(ls->cpu0, eax)) < 0)) {
+				/* Busted yield. Pretend it was yield -1. */
+				ASSERT_ONE_THREAD_PER_PP(ls);
+				return true;
+			}
+#endif
 			return false;
 		} else if (XCHG_BLOCKED(&ls->sched.cur_agent->user_yield)) {
 			/* User thread is blocked on an "xchg-continue" mutex.
