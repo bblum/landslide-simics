@@ -245,8 +245,7 @@ static long double compute_state_space_size(struct ls_state *ls,
 		assert(ls->save.root->proportion == 0.0L);
 		bool voluntary = ls->save.next_tid != 1 &&
 		                 ls->save.next_tid != ls->sched.cur_agent->tid;
-		check_user_yield_activity(&ls->user_sync, voluntary ?
-			ls->sched.last_agent : ls->sched.cur_agent);
+		ls->user_sync.yield_progress = NOTHING_INTERESTING;
 		save_setjmp(&ls->save, ls, -1, true, true, true, -1, voluntary);
 		unsigned int _tid;
 		explore(&ls->save, &_tid);
