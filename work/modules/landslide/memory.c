@@ -770,13 +770,12 @@ static void use_after_free(struct ls_state *ls, unsigned int addr,
 {
 	struct mem_state *m = in_kernel ? &ls->kern_mem : &ls->user_mem;
 
-#define FORGET_ABOUT_SWEXN
-#ifdef FORGET_ABOUT_SWEXN
+#ifndef PINTOS_KERNEL
 	/* Students, if you are reading this, and you are interested in
 	 * checking your libautostack implementation for use-after-free
 	 * bugs, delete this check. This is a VERY COMMON bug. */
 	if (testing_userspace() && KERNEL_MEMORY(ls->eip) &&
-	    within_function(ls, 0x1084be, 0x108580)) { /* sys_swexn */
+	    ls->sched.cur_agent->most_recent_syscall == SWEXN_INT) {
 		return;
 	}
 #endif
