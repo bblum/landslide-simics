@@ -64,12 +64,12 @@ void mb_util_cmdline(mbinfo_t *mbi, int *argc, char ***argv, char ***envp)
 		if (!*argv) panic("No memory to parse command line");
 
 		memcpy(*argv, targ, sizeof(char*) * narg);
-		*argv[narg] = 0;
+		(*argv)[narg] = 0;
 		*argc = narg;
 
-		*envp = &*argv[narg+1];
+		*envp = &((*argv)[narg+1]);
 		memcpy(*envp, tvar, sizeof(char*) * nvar);
-		*envp[nvar] = 0;
+		(*envp)[nvar] = 0;
 	}
 	else
 	{

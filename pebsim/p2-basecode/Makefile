@@ -168,16 +168,24 @@ CRT0 = $(410UDIR)/crt0.o
 # 410kern/inc, kern/, kern/inc, then the 410kern/lib/* entries according to
 # 410KERNEL_LIBS, which is under external control.
 
-KCFLAGS = -nostdinc -fno-strict-aliasing -fno-builtin -Wall -gdwarf-2 -Werror -O1 -m32
+KCFLAGS = -nostdinc \
+	-fno-strict-aliasing -fno-builtin -fno-stack-protector -fno-omit-frame-pointer \
+	-fno-aggressive-loop-optimizations \
+	-Wall -gstabs+ -Werror -O0 -m32
 KLDFLAGS = -static -Ttext 100000 --fatal-warnings -melf_i386
 KINCLUDES = -I$(410KDIR) -I$(410KDIR)/inc \
 			-I$(410SDIR) \
 			-I$(STUKDIR) -I$(STUKDIR)/inc \
 			$(patsubst lib%.a,-I$(410KDIR)/%,$(410KERNEL_LIBS))
 
-UCFLAGS = -nostdinc -fno-strict-aliasing -fno-builtin -Wall -gdwarf-2 -Werror -Wno-error=address -Wno-error=unused-but-set-variable -O0 -m32
+UCFLAGS = -nostdinc \
+	-fno-strict-aliasing -fno-builtin -fno-stack-protector -fno-omit-frame-pointer \
+	-fno-aggressive-loop-optimizations \
+	-Wall -gstabs+ -Werror -O0 -m32
 # This prevents the gcc4 "hurr durr I'm aligning main()'s stack"
 UCFLAGS += -mpreferred-stack-boundary=2
+# bblum wuz hear
+UCFLAGS += Wno-error=address -Wno-error=unused-but-set-variable
 ULDFLAGS = -static -Ttext 1000000 --fatal-warnings -melf_i386 --entry=_main
 UINCLUDES = -I$(410SDIR) -I$(410UDIR) -I$(410UDIR)/inc \
 						-I$(STUUDIR)/inc \

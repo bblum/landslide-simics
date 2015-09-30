@@ -21,6 +21,8 @@
 #define SIM_FR_PROG         0x04108006
 #define SIM_FR_HERE         0x04108007
 
+#define SIM_TEST_REPORT     0x0410800B
+
 #ifdef ASSEMBLER
 
 /* Now *this* is a fun macro. It expands into a simics call to 'num' with
@@ -67,6 +69,8 @@ extern void sim_printf(const char *fmt, ...) __attribute__((__format__ (__printf
 
 /** @brief readline(), but wrapped in "magic" */
 int magic_readline(int size, char *buf);
+
+void sim_update_scoreboard(char *testname, int success);
 
 /* "Compatibility mode" for old code */
 #define MAGIC_BREAK sim_breakpoint()

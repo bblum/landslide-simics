@@ -46,6 +46,10 @@ void sim_printf(const char *fmt, ...) {
     sim_puts(str);
 }
 
+void sim_update_scoreboard(char *testname, int success) {
+    sim_call(SIM_TEST_REPORT, testname, success);
+}
+
 int magic_readline(int size, char *buf) {
     sim_call(SIM_FR_INKEYS);
     return readline(size, buf);

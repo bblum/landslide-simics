@@ -38,8 +38,10 @@ int thrgrp_init_group(thrgrp_group_t *eg){
   eg->zombie_out=NULL;
   if((ret=mutex_init(&(eg->lock))))
     return ret; 
-  if((ret=cond_init(&(eg->cv))))
+  if((ret=cond_init(&(eg->cv)))) {
+    mutex_destroy(&(eg->lock));
     return ret;
+  }
   return 0;
 }
 
@@ -61,8 +63,10 @@ int thrgrp_destroy_group(thrgrp_group_t *eg){
   if(eg->zombie_in || eg->zombie_out)
     ret = 1;
   mutex_unlock(&(eg->lock));
-  mutex_destroy(&(eg->lock)); 
-  cond_destroy(&(eg->cv)); 
+  if(ret == 0) {
+    mutex_destroy(&(eg->lock)); 
+    cond_destroy(&(eg->cv)); 
+  }
   return ret;
 }
 
@@ -131,8 +135,10 @@ int thrgrp_create(thrgrp_group_t *tg, void *(*func)(void *),void *arg){
   tid = thr_create(thrgrp_bottom, data);
 
   /* tid<0 indicates error */
-  if(tid < 0)
+  if(tid < 0) {
+    free(data);
     return tid;
+  }
   
   /* we don't return the tid, because your not supposed to join on it 
     must be joined with thrgrp_join(), not thr_join() */

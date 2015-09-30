@@ -49,6 +49,10 @@ void report_end(int type) {
     char buf[256];
     format_end(buf, sizeof(buf), type);
     sim_puts(buf);
+
+    //hahaha don't do this in landslide.
+    //int success = (type == END_SUCCESS) ? 1 : 0;
+    //sim_update_scoreboard((char *)test_name, success);
 }
 
 void report_misc(const char *msg) {

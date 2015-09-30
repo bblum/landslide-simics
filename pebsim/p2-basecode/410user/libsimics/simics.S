@@ -1,4 +1,5 @@
 /* simics.S - Simics interface (user side) */
+/* Copyright (c) 2014 Carnegie Mellon University */
 
 /* sim_call(ebx, ecx, edx) */
 .global sim_call

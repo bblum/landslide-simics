@@ -43,6 +43,8 @@ $(410KDIR)/menu.lst:
 	@echo file $(410KDIR)/menu.lst missing
 	@false
 
+ifeq (,$(INFRASTRUCTURE_OVERRIDE_BOOTFDIMG))
 bootfd.img: $(FINALTARGETS:%=%.gz) $(410KDIR)/bootfd.img.gz $(410KDIR)/menu.lst
 	gzip -cd $(410KDIR)/bootfd.img.gz > $(PROJROOT)/bootfd.img
 	mcopy -o -i "$(PROJROOT)/bootfd.img" $(FINALTARGETS:%=%.gz) $(410KDIR)/menu.lst ::/boot/
+endif
