@@ -37,6 +37,12 @@ elif [ "$RV" = "$ID_EXIT_CTRL_C" ]; then
 	echo
 fi
 
+echo -e "\033[01;33mSaving results. Please be patient.\033[00m"
+
+for logfile in id/ls*log*; do
+	gzip -q $logfile
+done
+
 SNAPSHOT_DIR="/afs/cs.cmu.edu/academic/class/15410-f15/user/$USER/mygroup/landslide/"
 TEMP_SNAP_DIR="/dev/shm"
 SNAPSHOT_NAME="ls-snap-$USER-$SUFFIX.tar.bz2"
