@@ -185,7 +185,7 @@ UCFLAGS = -nostdinc \
 # This prevents the gcc4 "hurr durr I'm aligning main()'s stack"
 UCFLAGS += -mpreferred-stack-boundary=2
 # bblum wuz hear
-UCFLAGS += Wno-error=address -Wno-error=unused-but-set-variable
+UCFLAGS += -Wno-error=address -Wno-error=unused-but-set-variable
 ULDFLAGS = -static -Ttext 1000000 --fatal-warnings -melf_i386 --entry=_main
 UINCLUDES = -I$(410SDIR) -I$(410UDIR) -I$(410UDIR)/inc \
 						-I$(STUUDIR)/inc \
