@@ -219,6 +219,8 @@ CONTEXT_SWITCH_RETURN=
 CONTEXT_SWITCH_2=
 EXEC=
 YIELD=
+SFREE=
+MEMSET=
 TESTING_USERSPACE=0
 PREEMPT_ENABLE_FLAG=
 PAGE_FAULT_WRAPPER=
@@ -399,6 +401,16 @@ fi
 if [ ! -z "$YIELD" ]; then
 	echo "#define GUEST_YIELD_ENTER 0x`get_func $YIELD`"
 	echo "#define GUEST_YIELD_EXIT  0x`get_func_ret $YIELD`"
+fi
+
+# Don't poison freed blocks
+if [ ! -z "$SFREE" ]; then
+	if [ ! -z "$MEMSET" ]; then
+		POISON_FREE_CALL_ADDR=`objdump -d "$KERNEL_IMG" | grep -A10000 "<$SFREE>:" | grep -m 1 -B10000 "^$" | grep -m 1 "call.*<$MEMSET>" | cut -d":" -f1 | sed 's/ //g'`
+		if [ ! -z "$POISON_FREE_CALL_ADDR" ]; then
+			echo "#define POISON_FREE_CALL_ADDR 0x$POISON_FREE_CALL_ADDR"
+		fi
+	fi
 fi
 
 echo

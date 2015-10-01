@@ -1233,6 +1233,14 @@ void sched_update(struct ls_state *ls)
 		}
 	}
 
+#ifdef POISON_FREE_CALL_ADDR
+	/* Don't poison freed mem, as the memset is expensive while tracing. */
+	if (testing_userspace() && ls->eip == POISON_FREE_CALL_ADDR) {
+		assert(READ_BYTE(ls->cpu0, ls->eip) == OPCODE_CALL);
+		SET_CPU_ATTR(ls->cpu0, eip, POISON_FREE_CALL_ADDR + 5);
+	}
+#endif
+
 	/**********************************************************************
 	 * Update scheduler state.
 	 **********************************************************************/
