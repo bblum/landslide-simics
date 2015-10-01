@@ -232,8 +232,6 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 		return false;
 	}
 
-	// TODO: incorporate userspace sync actions to change threshholds.
-
 	/* Have we been spinning since the last choice point? */
 	unsigned long most_recent =
 		ls->trigger_count - ls->save.current->trigger_count;
