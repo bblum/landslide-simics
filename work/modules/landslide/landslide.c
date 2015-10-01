@@ -317,12 +317,13 @@ static bool ensure_progress(struct ls_state *ls)
 		return false;
 	} else if (kern_page_fault_handler_entering(ls->eip)) {
 		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
+		unsigned int from_cs  = READ_STACK(ls->cpu0, 2);
 		unsigned int cr2 = GET_CPU_ATTR(ls->cpu0, cr2);
 		lsprintf(DEV, "page fault on address 0x%x from ", cr2);
 		print_eip(DEV, from_eip);
 		printf(DEV, "\n");
 		/* did it come from kernel-space? */
-		if (KERNEL_MEMORY(from_eip)) {
+		if (from_cs == SEGSEL_KERNEL_CS) {
 			if (!testing_userspace()) {
 				lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "Note: "
 					 "If kernel page faults are expected "
