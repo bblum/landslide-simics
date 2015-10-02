@@ -25,21 +25,25 @@ static struct pp **registry = NULL; /* NULL means not yet initialized */
 
 #define INITIAL_CAPACITY 16
 
+extern bool verbose;
+
 /******************************************************************************
  * PP registry
  ******************************************************************************/
 
 static struct pp *pp_append(char *config_str, char *short_str, char *long_str,
-			    unsigned int priority, unsigned int generation)
+			    unsigned int priority, bool deterministic,
+			    unsigned int generation)
 {
 	struct pp *pp = XMALLOC(1, struct pp);
-	pp->config_str = config_str;
-	pp->short_str  = short_str;
-	pp->long_str   = long_str;
-	pp->priority   = priority;
-	pp->id         = next_id;
-	pp->generation = generation;
-	pp->explored   = false;
+	pp->config_str    = config_str;
+	pp->short_str     = short_str;
+	pp->long_str      = long_str;
+	pp->priority      = priority;
+	pp->id            = next_id;
+	pp->generation    = generation;
+	pp->deterministic = deterministic;
+	pp->explored      = false;
 
 	assert(pp->priority != 0);
 
@@ -79,7 +83,7 @@ static void check_init() {
 				XSTRDUP(testing_pintos() ?
 					"sema_down" : "mutex_lock"),
 				XSTRDUP("<at beginning of mutex_lock>"),
-				PRIORITY_MUTEX_LOCK, max_generation);
+				PRIORITY_MUTEX_LOCK, true, max_generation);
 			assert(pp->id == 0);
 			pp = pp_append(
 				XSTRDUP(testing_pintos() ?
@@ -88,7 +92,7 @@ static void check_init() {
 				XSTRDUP(testing_pintos() ?
 					"sema_up" : "mutex_unlock"),
 				XSTRDUP("<at end of mutex_unlock>"),
-				PRIORITY_MUTEX_UNLOCK, max_generation);
+				PRIORITY_MUTEX_UNLOCK, true, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
 			if (testing_pintos()) {
@@ -96,13 +100,13 @@ static void check_init() {
 					XSTRDUP("within_function intr_disable"),
 					XSTRDUP("cli"),
 					XSTRDUP("<just before cli>"),
-					PRIORITY_CLI, max_generation);
+					PRIORITY_CLI, true, max_generation);
 				assert(pp->id == 2);
 				pp = pp_append(
 					XSTRDUP("within_function intr_enable"),
 					XSTRDUP("sti"),
 					XSTRDUP("<just after sti>"),
-					PRIORITY_STI, max_generation);
+					PRIORITY_STI, true, max_generation);
 				assert(pp->id == 3);
 				assert(next_id == 4);
 			}
@@ -112,7 +116,8 @@ static void check_init() {
 }
 
 struct pp *pp_new(char *config_str, char *short_str, char *long_str,
-		  unsigned int priority, unsigned int generation, bool *duplicate)
+		  unsigned int priority, bool deterministic,
+		  unsigned int generation, bool *duplicate)
 {
 	struct pp *result;
 	bool already_present = false;
@@ -132,6 +137,11 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 				result->priority = priority;
 				result->generation = generation;
 			}
+			if (deterministic && !result->deterministic) {
+				DBG("updating '%s' to be a deterministic DR\n",
+				    config_str);
+				result->deterministic = true;
+			}
 			break;
 		}
 	}
@@ -142,7 +152,8 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 			WARN("Found a potentially-racy access at %s\n", long_str);
 		}
 		result = pp_append(XSTRDUP(config_str), XSTRDUP(short_str),
-				   XSTRDUP(long_str), priority, generation);
+				   XSTRDUP(long_str), priority, deterministic,
+				   generation);
 	}
 	RW_UNLOCK(&pp_registry_lock);
 	return result;
@@ -273,8 +284,11 @@ void print_pp_set(struct pp_set *set, bool short_strs)
 	printf("{ ");
 	log_msg(NULL, "{ ");
 	FOR_EACH_PP(pp, set) {
-		printf("'%s' ", short_strs ? pp->short_str : pp->config_str);
-		log_msg(NULL, "'%s' ", short_strs ? pp->short_str : pp->config_str);
+		bool print_nondet = verbose && !pp->deterministic;
+		printf("'%s' %s", short_strs ? pp->short_str : pp->config_str,
+		       print_nondet ? "[NONDET] " : "");
+		log_msg(NULL, "'%s' %s", short_strs ? pp->short_str : pp->config_str,
+		        print_nondet ? "[NONDET] " : "");
 	}
 	printf("}");
 	log_msg(NULL, "}");
