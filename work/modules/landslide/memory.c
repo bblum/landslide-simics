@@ -1179,15 +1179,28 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	}
 #endif
 #endif
+	/* Figure out if this data race was "deterministic"; i.e., it was found
+	 * without any artificial preemptions. IOW, if we needed to preempt to
+	 * get this DR report to begin with, it would have been a false NEGATIVE
+	 * for a single-pass DR detector. (Note that if we already started with
+	 * other DR PPs in this state space, we assume all DRs are *not*
+	 * deterministic; if they were, they would have been found in the subset
+	 * state space that generated the other DR to begin with.) */
+	static const unsigned int data_race_info[][4] = DATA_RACE_INFO;
+	bool deterministic = ARRAY_SIZE(data_race_info) == 0 &&
+		ls->save.total_jumps == 0;
+
 	/* Report to master process. If unconfirmed, it only helps to set a PP
 	 * on the earlier one, so we don't send the later of suspected pairs. */
 	if (confirmed) {
 		message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
-			l0->last_call, l0->most_recent_syscall, confirmed);
+			l0->last_call, l0->most_recent_syscall, confirmed,
+			deterministic);
 	}
 	if (confirmed || !too_suspicious) {
 		message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
-			l1->last_call, l1->most_recent_syscall, confirmed);
+			l1->last_call, l1->most_recent_syscall, confirmed,
+			deterministic);
 	}
 }
 
