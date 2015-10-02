@@ -400,6 +400,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 				       "bug already found same job?");
 				j->trace_filename =
 					XSTRDUP(m.content.bug.trace_filename);
+				j->fab_timestamp = time_elapsed();
 				j->elapsed_branches++;
 				j->icb_fab_preemptions =
 					m.content.bug.icb_preemption_count;
