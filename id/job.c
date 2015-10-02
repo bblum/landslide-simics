@@ -73,6 +73,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->kill_job = false;
 	j->log_filename = NULL;
 	j->trace_filename = NULL;
+	j->fab_timestamp = 0;
 
 	COND_INIT(&j->done_cvar);
 	COND_INIT(&j->blocking_cvar);
@@ -334,8 +335,16 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 		PRINT(COLOUR_DARK COLOUR_YELLOW "CANCELLED\n");
 	} else if (j->trace_filename != NULL) {
 		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
-		PRINT("(%u interleaving%s tested)\n", j->elapsed_branches,
+		PRINT("(%u interleaving%s tested", j->elapsed_branches,
 		      j->elapsed_branches == 1 ? "" : "s");
+		if (verbose) {
+			PRINT("; job time ");
+			print_human_friendly_time(&j->estimate_elapsed);
+			/* Time between start of any statespaces whatsoever
+			 * until a bug was found in this one. */
+			PRINT("; pldi time %lu usecs", j->fab_timestamp);
+		}
+		PRINT(")\n");
 	} else if (j->timed_out) {
 		PRINT(COLOUR_BOLD COLOUR_YELLOW "TIMED OUT ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);

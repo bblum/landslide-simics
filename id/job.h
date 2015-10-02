@@ -44,6 +44,7 @@ struct job {
 	bool kill_job;
 	char *log_filename;
 	char *trace_filename;
+	unsigned long fab_timestamp;
 
 	/* misc shared state */
 	enum { JOB_NORMAL, JOB_BLOCKED, JOB_DONE } status;
