@@ -46,6 +46,7 @@ struct job {
 	/* associated files */
 	char *log_filename;
 	char *trace_filename;
+	unsigned long fab_timestamp;
 	/* used iff -C option (control_experiment) is provided */
 	unsigned int icb_current_bound; /* last completed bound = this - 1 */
 	unsigned int icb_fab_preemptions; /* used only when FAB */
