@@ -19,7 +19,8 @@ void messaging_open_pipes(struct messaging_state *m, const char *i, const char *
 #define DR_TID_WILDCARD 0x15410de0u /* 0 could be a valid tid */
 void message_data_race(struct messaging_state *m, unsigned int eip,
 		       unsigned int last_call, unsigned int tid,
-		       unsigned int most_recent_syscall, bool confirmed);
+		       unsigned int most_recent_syscall, bool confirmed,
+		       bool deterministic);
 
 /* returns the # of useconds that landslide was put to sleep for */
 uint64_t message_estimate(struct messaging_state *m, long double proportion,

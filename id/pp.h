@@ -30,6 +30,7 @@ struct pp {
 	unsigned int priority;
 	unsigned int id; /* global unique identifier among PPs */
 	unsigned int generation;
+	bool deterministic; /* for data race PPs */
 	/* write-able, protected by global registry lock */
 	bool explored; /* was a state space including this pp completed? */
 };
@@ -42,7 +43,8 @@ struct pp_set {
 
 /* pp registry functions */
 struct pp *pp_new(char *config_str, char *short_str, char *long_str,
-		  unsigned int priority, unsigned int generation, bool *duplicate);
+		  unsigned int priority, bool deterministic,
+		  unsigned int generation, bool *duplicate);
 struct pp *pp_get(unsigned int id);
 
 void print_live_data_race_pps();

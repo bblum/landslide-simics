@@ -45,6 +45,7 @@ struct input_message {
 			unsigned int last_call;
 			unsigned int most_recent_syscall;
 			bool confirmed;
+			bool deterministic;
 			char pretty_printed[MESSAGE_BUF_SIZE];
 		} dr;
 
@@ -105,7 +106,7 @@ extern bool verbose;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			     unsigned int eip, unsigned int tid, bool confirmed,
-			     unsigned int last_call,
+			     bool deterministic, unsigned int last_call,
 			     unsigned int most_recent_syscall, char *pretty)
 {
 	/* register a (possibly) new PP based on the data race */
@@ -134,7 +135,7 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	unsigned int priority = confirmed ?
 		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
 	struct pp *pp = pp_new(config_str, short_str, pretty, priority,
-			       j->generation, &duplicate);
+			       deterministic, j->generation, &duplicate);
 
 	/* If the data race PP is not already enabled in this job's config,
 	 * create a new job based on this one. */
@@ -364,6 +365,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 		} else if (m.tag == DATA_RACE) {
 			handle_data_race(j, &discovered_pps, m.content.dr.eip,
 					 m.content.dr.tid, m.content.dr.confirmed,
+					 m.content.dr.deterministic,
 					 m.content.dr.last_call,
 					 m.content.dr.most_recent_syscall,
 					 m.content.dr.pretty_printed);

@@ -42,6 +42,7 @@ struct output_message {
 			unsigned int last_call;
 			unsigned int most_recent_syscall;
 			bool confirmed;
+			bool deterministic;
 			char pretty_printed[MESSAGE_BUF_SIZE];
 		} dr;
 
@@ -153,7 +154,8 @@ void messaging_open_pipes(struct messaging_state *state,
 
 void message_data_race(struct messaging_state *state, unsigned int eip,
 		       unsigned int tid, unsigned int last_call,
-		       unsigned int most_recent_syscall, bool confirmed)
+		       unsigned int most_recent_syscall, bool confirmed,
+		       bool deterministic)
 {
 	struct output_message m;
 	m.tag = DATA_RACE;
@@ -166,6 +168,7 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	m.content.dr.last_call = last_call;
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;
+	m.content.dr.deterministic = deterministic;
 
 	char *buf = &m.content.dr.pretty_printed[0];
 	struct stack_frame f;
