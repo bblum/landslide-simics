@@ -272,6 +272,15 @@ static bool try_avoid_fp_deadlock(struct ls_state *ls, struct agent **result) {
 			a->user_blocked_on_addr = -1;
 			*result = a;
 			found_one = true;
+		} else if (agent_is_user_yield_blocked(&a->user_yield)) {
+			assert(!IS_IDLE(ls, a) && "That's weird.");
+			lsprintf(DEV, "I thought TID %d was blocked yielding "
+				 "(ylc %u), but I could be wrong!\n",
+				 a->tid, a->user_yield.loop_count);
+			a->user_yield.loop_count = 0;
+			a->user_yield.blocked = false;
+			*result = a;
+			found_one = true;
 		}
 	);
 	return found_one;
