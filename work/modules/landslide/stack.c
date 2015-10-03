@@ -421,7 +421,9 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 #ifdef PATHOS_SYSCALL_IRET_DISTANCE
 			/* Find iret frame. */
 			stack_ptr += PATHOS_SYSCALL_IRET_DISTANCE;
-			assert(USER_MEMORY(READ_MEMORY(cpu, stack_ptr)));
+			/* Not necessarily true. User thread could fault trying
+			 * to call a kernel-space address. */
+			//assert(USER_MEMORY(READ_MEMORY(cpu, stack_ptr)));
 			assert(READ_MEMORY(cpu, stack_ptr + WORD_SIZE)
 			       == SEGSEL_USER_CS);
 			stack_ptr = READ_MEMORY(cpu, stack_ptr + (3 * WORD_SIZE));
