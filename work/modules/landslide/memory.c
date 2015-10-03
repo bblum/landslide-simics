@@ -1189,12 +1189,24 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 
 	/* Report to master process. If unconfirmed, it only helps to set a PP
 	 * on the earlier one, so we don't send the later of suspected pairs. */
+//#define DR_FALSE_NEGATIVE_EXPERIMENT
+#ifdef DR_FALSE_NEGATIVE_EXPERIMENT
+	STATIC_ASSERT(EXPLORE_BACKWARDS == 0 && "Hey, no fair!");
+	/* a 1-pass dr analysis would report this on 1st branch w/o "waiting to
+	 * reorder it"; it's not fair to count as a potential false negative */
+	if (true) {
+#else
 	if (confirmed) {
+#endif
 		message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
 			l0->last_call, l0->most_recent_syscall, confirmed,
 			deterministic);
 	}
+#ifdef DR_FALSE_NEGATIVE_EXPERIMENT
+	if (true) {
+#else
 	if (confirmed || !too_suspicious) {
+#endif
 		message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
 			l1->last_call, l1->most_recent_syscall, confirmed,
 			deterministic);
@@ -1307,7 +1319,12 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			/* Are there any 2 locksets without a lock in common? */
 			if ((l0->write || l1->write)
 			    && !lockset_intersect(&l0->locks_held, &l1->locks_held)
+#ifndef DR_FALSE_NEGATIVE_EXPERIMENT
+			    // TODO: If this is the case, message quicksand anyway,
+			    // but tell it never explore this, just report it at the end.
+			    //  for a FALSE POSITIVE experiment.
 			    && !was_freed_remalloced(l0, l1)
+#endif
 			    && (l0->interrupce_enabled || l1->interrupce_enabled)
 			    && !ignore_dr_function(l0->eip)
 			    && !ignore_dr_function(l1->eip)) {
