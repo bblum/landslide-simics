@@ -327,13 +327,23 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 	}
 #endif
 
-	if (current_is_legal_choice &&
-	    (agent_has_yielded(&current->user_yield) ||
-	     agent_has_xchged(&ls->user_sync))) {
-		printf(DEV, "- Must run yielding thread %d\n", current->tid);
-		*result = current;
-		*our_choice = true;
-		return true;
+	if (agent_has_yielded(&current->user_yield) ||
+	    agent_has_xchged(&ls->user_sync)) {
+		if (current_is_legal_choice) {
+			printf(DEV, "- Must run yielding thread %d\n",
+			       current->tid);
+			*result = current;
+			*our_choice = true;
+			return true;
+		} else if (!agent_is_user_yield_blocked(&current->user_yield)) {
+			/* Something funny happened, causing the thread to get
+			 * ACTUALLY blocked before finishing yield-blocking. Any
+			 * false-positive yield senario could trigger this. */
+			assert(!current->user_yield.blocked);
+			current->user_yield.loop_count = 0;
+		} else {
+			/* Normal case of blocking with TOO MANY YIELDS. */
+		}
 	}
 
 	/* Find the count-th thread. */
