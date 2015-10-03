@@ -378,34 +378,41 @@ bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
 /* a similar trick to avoid timer interrupt, but delays by just 1 instruction. */
 unsigned int delay_instruction(conf_object_t *cpu)
 {
-	/* Insert a relative jump, "e9 XXXXXXXX"; 5 bytes, just below stack. */
-	unsigned int buf = GET_CPU_ATTR(cpu, esp) - 8;
+	/* Insert a relative jump, "e9 XXXXXXXX"; 5 bytes. Try to put it just
+	 * after _end, but if _end is page-aligned, use some space just below
+	 * the stack pointer as a fallback (XXX: this has issue #201). */
+	unsigned int buf =
+#ifdef PINTOS_KERNEL
+		PAGE_SIZE - 1 : /* dummy value to trigger backup plan */
+#else
+		GET_SEGSEL(cpu, cs) == SEGSEL_USER_CS ?
+			USER_IMG_END : /* use spare .bss in user image */
+			PAGE_SIZE - 1 /* FIXME #201 */;
+#endif
+
+	bool need_backup_location = buf % PAGE_SIZE > PAGE_SIZE - 8;
 
 	/* Translate buf's virtual location to physical address. */
-	if (buf % PAGE_SIZE > PAGE_SIZE - 8) {
-		buf -= 8;
-	}
 	unsigned int phys_buf;
-	bool mapping_present = mem_translate(cpu, buf, &phys_buf);
-	if (!mapping_present) {
-		if (testing_userspace()) {
-#ifdef PINTOS_KERNEL
-			// TODO
-			assert(false && "Unimplemented");
-#else
-			buf = USER_IMG_END;
-#endif
-		} else {
-			buf = GUEST_IMG_END;
+	if (!need_backup_location) {
+		if (!mem_translate(cpu, buf, &phys_buf)) {
+			assert(0);
+			need_backup_location = true;
 		}
-		lsprintf(DEV, "Need to delay instruction, but the stack is "
-			 "unmapped. Using `_end' instead -- 0x%x.\n", buf);
-		assert(buf % PAGE_SIZE <= PAGE_SIZE - 8 && "Not enough room!");
-		mapping_present = mem_translate(cpu, buf, &phys_buf);
-		assert(mapping_present && "could not delay instruction");
+	}
+	if (need_backup_location) {
+		// XXX: See issue #201. This is only safe 99% of the time.
+		buf = GET_CPU_ATTR(cpu, esp);
+		assert(buf % PAGE_SIZE >= 8 &&
+		       "no spare room under stack; can't delay instruction");
+		buf -= 8;
+		lsprintf(INFO, "Need to delay instruction, but no spare .bss. "
+			 "Using stack instead -- 0x%x.\n", buf);
+		bool mapping_present = mem_translate(cpu, buf, &phys_buf);
+		assert(mapping_present && "stack unmapped; can't delay ");
 	}
 
-	/* Compute relative offset. Note "e9 00000000 would jump to buf+5. */
+	/* Compute relative offset. Note "e9 00000000" would jump to buf+5. */
 	unsigned int offset = GET_CPU_ATTR(cpu, eip) - (buf + 5);
 
 	lsprintf(INFO, "Be back in a jiffy...\n");
