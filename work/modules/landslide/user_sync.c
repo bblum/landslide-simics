@@ -199,8 +199,14 @@ static void update_blocked_transition(struct hax *h0, struct hax *h, struct agen
 		/* Its count must have incremented between the end of this
 		 * (old) transition and the more recent one. */
 		unsigned int ylc = a2->user_yield.loop_count;
-		assert(expected_count ==
-		       (xchg_blocked ? h2->old_user_sync->xchg_count : ylc));
+		if (xchg_blocked) {
+			/* Some xchgs may be DR PPs; others may not. The count
+			 * may increase multiple times, but at least once. */
+			assert(expected_count >= h2->old_user_sync->xchg_count);
+			expected_count = h2->old_user_sync->xchg_count;
+		} else {
+			assert(expected_count == ylc);
+		}
 
 		/* Skip marking the "first" yield-blocked transition. */
 		if (expected_count > 1) {
@@ -235,16 +241,19 @@ static void update_blocked_transition(struct hax *h0, struct hax *h, struct agen
 			if (h2->chosen_thread != h2->parent->chosen_thread) {
 				/* first transition of this thread after
 				 * a context switch -- stop counting. */
+				assert(expected_count > 0); /* obvious */
+				expected_count = 0;
+			} else if (h2->old_user_sync->xchg_count == 1 &&
+				   h2->parent->old_user_sync->xchg_count != 1) {
+				/* xchg count was reset during parent */
 				assert(expected_count == 1);
 				expected_count = 0;
-			} else if (h2->old_user_sync->xchg_count ==
-				   h2->parent->old_user_sync->xchg_count + 1) {
-				/* xchg occurred during transition. */
-				expected_count--;
 			} else {
-				/* thread did "nothing interesting" */
-				assert(h2->old_user_sync->xchg_count ==
+				/* one (or more!) xchgs occurred. */
+				assert(h2->old_user_sync->xchg_count >=
 				       h2->parent->old_user_sync->xchg_count);
+				expected_count =
+					h2->parent->old_user_sync->xchg_count;
 			}
 		} else if (h2->chosen_thread == a->tid) {
 			/* Thread ran. Did count increment?. */
