@@ -154,6 +154,10 @@ static const char custom_assembly_codes[] = {
 
 unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu)
 {
+	// XXX: This mechanism is vulnerable to the twilight zone bug that's
+	// fixed in delay_instruction; as well as the stack-clobber bug from
+	// issue #201. It's just 10000x less likely to trigger because of how
+	// infrequently simics timer ticks happen.
 	unsigned int buf = GET_CPU_ATTR(cpu, esp) -
 		(ARRAY_SIZE(custom_assembly_codes) + CUSTOM_ASSEMBLY_CODES_STACK);
 
@@ -375,6 +379,16 @@ bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip) {
 	return opcodes_are_atomic_swap(opcodes);
 }
 
+/* I figured this out between 3 and 5 AM on a sunday morning. Could have been
+ * playing Netrunner instead. Even just writing the PLDI paper would have been
+ * more pleasurable. It was a real "twilight zone" bug. Aaaargh. */
+static void flush_instruction_cache(lang_void *x)
+{
+	/* I tried using SIM_flush_I_STC_logical here, and even the supposedly
+	 * universal SIM_STC_flush_cache, but the make sucked. h8rs gon h8. */
+	SIM_flush_all_caches();
+}
+
 /* a similar trick to avoid timer interrupt, but delays by just 1 instruction. */
 unsigned int delay_instruction(conf_object_t *cpu)
 {
@@ -421,6 +435,8 @@ unsigned int delay_instruction(conf_object_t *cpu)
 	SIM_write_phys_memory(cpu, phys_buf + 1, offset, 4);
 
 	SET_CPU_ATTR(cpu, eip, buf);
+
+	SIM_run_alone(flush_instruction_cache, NULL);
 
 	return buf;
 }
