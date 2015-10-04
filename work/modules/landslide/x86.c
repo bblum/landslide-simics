@@ -396,18 +396,18 @@ unsigned int delay_instruction(conf_object_t *cpu)
 	unsigned int phys_buf;
 	if (!need_backup_location) {
 		if (!mem_translate(cpu, buf, &phys_buf)) {
-			assert(0);
 			need_backup_location = true;
 		}
 	}
 	if (need_backup_location) {
 		// XXX: See issue #201. This is only safe 99% of the time.
+		// To properly fix, need hack the reference kernel.
 		buf = GET_CPU_ATTR(cpu, esp);
 		assert(buf % PAGE_SIZE >= 8 &&
 		       "no spare room under stack; can't delay instruction");
 		buf -= 8;
-		lsprintf(INFO, "Need to delay instruction, but no spare .bss. "
-			 "Using stack instead -- 0x%x.\n", buf);
+		lsprintf(CHOICE, "WARNING: Need to delay instruction, but no "
+			 "spare .bss. Using stack instead -- 0x%x.\n", buf);
 		bool mapping_present = mem_translate(cpu, buf, &phys_buf);
 		assert(mapping_present && "stack unmapped; can't delay ");
 	}
