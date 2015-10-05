@@ -321,6 +321,26 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 				           == OPCODE_PUSH_EBP) {
 					stack_ptr += WORD_SIZE;
 					extra_frame = true;
+				} else if (eip_offset % 4 == 0) {
+					/* Look for assembly such as,
+					 * foo: mov 0x4(%esp),bar
+					 *      mov 0x8(%esp),baz
+					 *      swizzle bar, baz # you are here
+					 *      ...
+					 * to find the caller. movs such as this
+					 * are always 4 bytes, "8B XX XX XX". */
+					bool all_movs = true;
+					while (eip_offset > 0) {
+						if (READ_BYTE(cpu, eip - eip_offset)
+						    != OPCODE_MOV_R32_M32) {
+							all_movs = false;
+							break;
+						}
+						eip_offset -= 4;
+					}
+					if (all_movs) {
+						extra_frame = true;
+					}
 				}
 			}
 			if (!extra_frame) {

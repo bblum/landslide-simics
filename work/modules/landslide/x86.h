@@ -53,6 +53,7 @@ static inline unsigned int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_POPA 0x61
 #define POPA_WORDS 8
 #define OPCODE_INT_ARG(cpu, eip) READ_BYTE(cpu, eip + 1)
+#define OPCODE_MOV_R32_M32 0x8b
 
 void cause_timer_interrupt(conf_object_t *cpu);
 unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu);
