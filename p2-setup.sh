@@ -25,6 +25,10 @@ fi
 
 ./prepare-workspace.sh || die "couldn't prepare workspace"
 
+VERSION_FILE=current-git-commit.txt
+rm -f "$VERSION_FILE"
+git show | head -n 1 > "$VERSION_FILE"
+
 # Build iterative deepening wrapper.
 
 cd id || die "couldn't cd into id"
@@ -62,6 +66,7 @@ cd ../../pebsim/ || die "couldn't cd into pebsim"
 
 msg "Setting up Landslide..."
 
+rm -f ../work/modules/landslide/student_specifics.h
 export LANDSLIDE_CONFIG=config.landslide
 ./build.sh || die "Failed to compile landslide. Please send a tarball of this directory to Ben for assistance."
 
