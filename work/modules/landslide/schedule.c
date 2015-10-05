@@ -1509,10 +1509,10 @@ void sched_update(struct ls_state *ls)
 
 		/* Avoid infinite stuckness if we just inserted a DR PP. */
 		if (data_race && CURRENT(s, just_delayed_for_data_race)) {
-			lsprintf(ALWAYS, "just delayed DR @ %x\n", ls->eip);
+			lsprintf(CHOICE, "just delayed DR @ %x\n", ls->eip);
 			assert(CURRENT(s, delayed_data_race_eip) != -1);
 			if (ls->eip == CURRENT(s, delayed_data_race_eip)) {
-				lsprintf(ALWAYS, "just delayed DR ends\n");
+				lsprintf(CHOICE, "just delayed DR ends\n");
 				/* Delayed data race instruction was reached.
 				 * Allow arbiter to insert new PPs again. */
 				CURRENT(s, just_delayed_for_data_race) = false;
@@ -1601,9 +1601,23 @@ void sched_update(struct ls_state *ls)
 			printf(DEV, "\n");
 		}
 	} else if (CURRENT(s, just_delayed_for_data_race)) {
+#ifndef DR_PPS_RESPECT_WITHIN_FUNCTIONS
 		/* ensure arbiter is consistently interested in data race
 		 * locations (otherwise just-delayed won't be properly unset) */
 		assert(ls->eip != CURRENT(s, delayed_data_race_eip));
+#else
+		/* stack traces are unreliable, so if we use within-function to
+		 * restrict DR PPs, the arbiter might not be consistently
+		 * interested. for example, testing thread_create, a child's
+		 * stack trace might cross over onto the parent's stack, making
+		 * the result of within-function nondeterministic. */
+		if (ls->eip == CURRENT(s, delayed_data_race_eip)) {
+			/* try to cope. this-is-fine.jpg */
+			lsprintf(CHOICE, "just delayed DR (tricky disco)\n");
+			CURRENT(s, just_delayed_for_data_race) = false;
+			CURRENT(s, delayed_data_race_eip) = -1;
+		}
+#endif
 	}
 	/* XXX TODO: it may be that not every timer interrupt triggers a context
 	 * switch, so we should watch out if a handler doesn't enter the c-s. */
