@@ -111,6 +111,8 @@ bool _within_functions(struct ls_state *ls, const unsigned int within_functions[
 	bool any_withins = false;
 	bool answer = true;
 
+	struct stack_trace *st = stack_trace(ls);
+
 	for (int i = 0; i < length; i++) {
 		if (within_functions[i][2] == 1) {
 			/* Must be within this function to allow. */
@@ -118,17 +120,19 @@ bool _within_functions(struct ls_state *ls, const unsigned int within_functions[
 				any_withins = true;
 				answer = false;
 			}
-			if (within_function(ls, within_functions[i][0],
+			if (within_function_st(st, within_functions[i][0],
 					    within_functions[i][1])) {
 				answer = true;
 			}
 		} else {
-			if (within_function(ls, within_functions[i][0],
+			if (within_function_st(st, within_functions[i][0],
 					    within_functions[i][1])) {
 				answer = false;
 			}
 		}
 	}
+
+	free_stack_trace(st);
 	return answer;
 }
 
