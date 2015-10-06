@@ -181,7 +181,7 @@ struct hax *explore(struct save_state *ss, unsigned int *new_tid)
 			 * to interleave around. */
 			} else if (is_user_yield_blocked(ancestor)) {
 				if (h->chosen_thread != ancestor->chosen_thread) {
-					lsprintf(DEV, "not comparing #%d/tid%d "
+					lsprintf(INFO, "not comparing #%d/tid%d "
 						 "to #%d/tid%d; the latter is "
 						 "yield-blocked\n", h->depth,
 						 h->chosen_thread, ancestor->depth,
