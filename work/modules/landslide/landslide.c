@@ -183,8 +183,8 @@ static void check_exception(struct ls_state *ls, int number)
 #define PROGRESS_DEPTH_FACTOR 20
 /* Before this many branches are explored, we are less confident in the above
  * number, and will scale it up by this exponent for each lacking branch. */
-#define PROGRESS_CONFIDENT_BRANCHES 20
-#define PROGRESS_BRANCH_UNCERTAINTY_EXPONENT 1.2
+#define PROGRESS_CONFIDENT_BRANCHES 10
+#define PROGRESS_BRANCH_UNCERTAINTY_EXPONENT 1.1
 /* How many times more instructions should a given transition be than the
  * average previous transition before we proclaim it stuck? */
 #define PROGRESS_TRIGGER_FACTOR 2000
