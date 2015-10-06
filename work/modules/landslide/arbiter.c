@@ -175,6 +175,10 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			 * Analogous to HLT state -- need to preempt it. */
 			ASSERT_ONE_THREAD_PER_PP(ls);
 			return true;
+#ifndef PINTOS_KERNEL
+		} else if (!check_user_address_space(ls)) {
+			return false;
+#endif
 		} else if ((user_mutex_lock_entering(ls->cpu0, ls->eip, &mutex_addr) ||
 			    user_mutex_unlock_exiting(ls->eip)) &&
 			   user_within_functions(ls)) {
