@@ -615,10 +615,10 @@ static void keep_schedule_inflight(struct ls_state *ls)
 	}
 }
 
-#ifdef TESTING_MUTEXES
-static void report_recursive_mutex_bug(struct ls_state *ls)
+static void report_recursive_mutex_bug(struct ls_state *ls, const char *what)
 {
-	const char *headline = "WARNING: Recursive call of mutex_lock/unlock";
+	char headline[BUF_SIZE];
+	scnprintf(headline, BUF_SIZE, "WARNING: Recursive call of %s", what);
 	FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
 		HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
 		HTML_PRINTF(html_env, "NOTE: This version of Landslide cannot "
@@ -630,7 +630,6 @@ static void report_recursive_mutex_bug(struct ls_state *ls)
 		HTML_PRINTF(html_env, HTML_BOX_END HTML_NEWLINE);
 	);
 }
-#endif
 
 static void sched_update_kern_state_machine(struct ls_state *ls)
 {
@@ -862,6 +861,12 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	}
 }
 
+#define CHECK_NO_RECURSION(s, action, msg) do {			\
+		if (ACTION(s, action)) {			\
+			report_recursive_mutex_bug(ls, msg);	\
+		}						\
+	} while (0)
+
 static void sched_update_user_state_machine(struct ls_state *ls)
 {
 	/* Tracking events in userspace. One thing to note about this section
@@ -938,13 +943,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	           user_mutex_trylock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		/* note: we don't assert on mutex_initing because mutex_init may
 		 * call mutex_lock for malloc mutexes, on a static heap mutex */
-#ifdef TESTING_MUTEXES
-		if (ACTION(s, user_mutex_locking)) {
-			report_recursive_mutex_bug(ls);
-		}
-#else
-		assert(!ACTION(s, user_mutex_locking));
-#endif
+		CHECK_NO_RECURSION(s, user_mutex_locking, "mutex_lock");
 		assert(!ACTION(s, user_mutex_unlocking));
 		ACTION(s, user_mutex_locking) = true;
 		CURRENT(s, user_mutex_locking_addr) = lock_addr;
@@ -1033,13 +1032,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	} else if (user_mutex_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
 		assert(!ACTION(s, user_mutex_locking));
 		assert(!ACTION(s, user_mutex_yielding));
-#ifdef TESTING_MUTEXES
-		if (ACTION(s, user_mutex_unlocking)) {
-			report_recursive_mutex_bug(ls);
-		}
-#else
-		assert(!ACTION(s, user_mutex_unlocking));
-#endif
+		CHECK_NO_RECURSION(s, user_mutex_unlocking, "mutex_unlock");
 		ACTION(s, user_mutex_unlocking) = true;
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
@@ -1065,7 +1058,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_mutex_activity(&ls->user_sync);
 	/* cvars */
 	} else if (user_cond_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, user_cond_waiting));
+		CHECK_NO_RECURSION(s, user_cond_waiting, "cond_wait");
 		ACTION(s, user_cond_waiting) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_wait_exiting(ls->eip)) {
@@ -1073,7 +1066,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_cond_waiting) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_signal_entering(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, user_cond_signalling));
+		CHECK_NO_RECURSION(s, user_cond_signalling, "cond_signal");
 		ACTION(s, user_cond_signalling) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_signal_exiting(ls->eip)) {
@@ -1081,7 +1074,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_cond_signalling) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_broadcast_entering(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, user_cond_broadcasting));
+		CHECK_NO_RECURSION(s, user_cond_broadcasting, "cond_broadcast");
 		ACTION(s, user_cond_broadcasting) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_cond_broadcast_exiting(ls->eip)) {
@@ -1090,7 +1083,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	/* semaphores (TODO: model logic for these) */
 	} else if (user_sem_wait_entering(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, user_sem_proberen));
+		CHECK_NO_RECURSION(s, user_sem_proberen, "sem_wait");
 		ACTION(s, user_sem_proberen) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_sem_wait_exiting(ls->eip)) {
@@ -1098,7 +1091,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_sem_proberen) = false;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_sem_signal_entering(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, user_sem_verhogen));
+		CHECK_NO_RECURSION(s, user_sem_verhogen, "sem_signal");
 		ACTION(s, user_sem_verhogen) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_sem_signal_exiting(ls->eip)) {
@@ -1107,8 +1100,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	/* rwlocks */
 	} else if (user_rwlock_lock_entering(ls->cpu0, ls->eip, &lock_addr, &write_mode)) {
-		assert(!ACTION(s, user_rwlock_locking));
-		assert(!ACTION(s, user_rwlock_unlocking));
+		CHECK_NO_RECURSION(s, user_rwlock_locking, "rwlock_lock");
 		ACTION(s, user_rwlock_locking) = true;
 		/* use low bit of addr to store mode */
 		assert((lock_addr & 0x1) == 0);
@@ -1118,7 +1110,6 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_rwlock_lock_exiting(ls->eip)) {
 		assert(ACTION(s, user_rwlock_locking));
-		assert(!ACTION(s, user_rwlock_unlocking));
 		assert(CURRENT(s, user_rwlock_locking_addr) != -1);
 		unsigned int lock_addr = CURRENT(s, user_rwlock_locking_addr) & ~0x1;
 		bool write_mode = (CURRENT(s, user_rwlock_locking_addr) & 0x1) == 1;
@@ -1132,14 +1123,12 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			    write_mode ? LOCK_RWLOCK : LOCK_RWLOCK_READ);
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_rwlock_unlock_entering(ls->cpu0, ls->eip, &lock_addr)) {
-		assert(!ACTION(s, user_rwlock_locking));
-		assert(!ACTION(s, user_rwlock_unlocking));
+		CHECK_NO_RECURSION(s, user_rwlock_unlocking, "rwlock_unlock");
 		ACTION(s, user_rwlock_unlocking) = true;
 		lsprintf(DEV, "tid %d unlocks rwlock 0x%x\n", CURRENT(s, tid), lock_addr);
 		lockset_remove(s, lock_addr, LOCK_RWLOCK, false);
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_rwlock_unlock_exiting(ls->eip)) {
-		assert(!ACTION(s, user_rwlock_locking));
 		assert(ACTION(s, user_rwlock_unlocking));
 		ACTION(s, user_rwlock_unlocking) = false;
 		lsprintf(DEV, "tid %d unlocked rwlock\n", CURRENT(s, tid));
