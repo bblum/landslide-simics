@@ -190,6 +190,8 @@ static void check_exception(struct ls_state *ls, int number)
 #define PROGRESS_TRIGGER_FACTOR 2000
 #define PROGRESS_AGGRESSIVE_TRIGGER_FACTOR 100
 
+#define TOO_DEEP_0TH_BRANCH 1000
+
 static void wrong_panic(struct ls_state *ls, const char *panicked, const char *expected)
 {
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "********************************\n");
@@ -256,10 +258,17 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 		return true;
 	}
 
-	/* FIXME: The one remaining case is an infinite loop around PPs during
-	 * the 0th branch. Need a more conservative, dumber heuristic there. */
-	if (ls->save.total_jumps == 0)
+	if (ls->save.total_jumps == 0) {
+		/* We can't confidently FAB infinite loop here because we don't
+		 * know how long a branch is supposed to be. But we can't make
+		 * progress either because 1000 simics snapshots is swapping
+		 * danger zone on the GHCXX (experimentally determined). */
+		if (ls->save.current != NULL) {
+			assert(ls->save.current->depth < TOO_DEEP_0TH_BRANCH &&
+			       "0th branch too deep! Aborting to avoid swapping.");
+		}
 		return false;
+	}
 
 	/* Have we been spinning around a choice point (so this branch would
 	 * end up being infinitely deep)? Compute a "depth factor" that
