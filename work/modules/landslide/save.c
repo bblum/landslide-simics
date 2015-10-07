@@ -345,6 +345,8 @@ static void copy_mem(struct mem_state *dest, const struct mem_state *src, bool i
 	dest->cr3                 = src->cr3;
 	dest->cr3_tid             = src->cr3_tid;
 	dest->user_mutex_size     = src->user_mutex_size;
+	dest->during_xchg         = src->during_xchg;
+	dest->last_xchg_read      = src->last_xchg_read;
 	/* NB: The shm and freed heaps are copied below, in shimsham_shm,
 	 * because this function is also used to restore when time travelling,
 	 * and we want it to reset the shm and freed heap to empty. But,

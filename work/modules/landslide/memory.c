@@ -71,6 +71,7 @@ static void mem_heap_init(struct mem_state *m)
 	m->cr3 = USER_CR3_WAITING_FOR_THUNDERBIRDS;
 	m->cr3_tid = 0;
 	m->user_mutex_size = 0;
+	m->during_xchg = false;
 	m->shm.rb_node = NULL;
 	m->freed.rb_node = NULL;
 	m->data_races.rb_node = NULL;
@@ -844,6 +845,22 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		ls->sched.cur_agent->action.vm_user_copy &&
 		check_user_address_space(ls);
 
+	/* Check for an xchg of a same value, to avoid too-liberally unblocking
+	 * another xchg-blocked thread when this thread is blocked too. */
+	bool xchg_wont_modify_the_data = false;
+	if (opcodes_are_atomic_swap(ls->instruction_text)) {
+		unsigned int val = READ_MEMORY(ls->cpu0, virt_addr);
+		if (write) {
+			/* all atomix ought read something before writing */
+			assert(ls->user_mem.during_xchg);
+			xchg_wont_modify_the_data =
+				ls->user_mem.last_xchg_read == val;
+		} else {
+			ls->user_mem.during_xchg = true;
+			ls->user_mem.last_xchg_read = val;
+		}
+	}
+
 	/* Determine which heap - kernel or user - to reason about.
 	 * Note: Need to case on eip's value, not addr's, since the
 	 * kernel may access user memory for e.g. page tables. */
@@ -878,7 +895,7 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 				 * conflicts as desired, it will also show up in
 				 * DRs, which we must filter out later. */
 				in_kernel = false;
-				if (write) {
+				if (write && !xchg_wont_modify_the_data) {
 					check_unblock_yield_loop(ls, addr);
 				}
 			} else {
@@ -905,7 +922,7 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 			in_kernel = false;
 			/* Use VA, not PA, for obviously important reasons. */
 			addr = virt_addr;
-			if (write) {
+			if (write && !xchg_wont_modify_the_data) {
 				check_user_mutex_access(ls, addr);
 				check_unblock_yield_loop(ls, addr);
 			}

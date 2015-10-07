@@ -566,7 +566,6 @@ void landslide_entrypoint(conf_object_t *obj, void *trace_entry)
 	trace_entry_t *entry = (trace_entry_t *)trace_entry;
 
 	ls->eip = GET_CPU_ATTR(ls->cpu0, eip);
-	memcpy(ls->instruction_text, entry->value.text, 16);
 
 	if (entry->trace_type == TR_Data) {
 		if (ls->just_jumped) {
@@ -584,6 +583,8 @@ void landslide_entrypoint(conf_object_t *obj, void *trace_entry)
 	} else if (entry->trace_type != TR_Instruction) {
 		/* other event (TR_Execute?) - don't care */
 	} else {
+		memcpy(ls->instruction_text, entry->value.text, 16);
+
 		if (USER_MEMORY(ls->eip)) {
 			check_user_syscall(ls);
 		}

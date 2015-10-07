@@ -364,6 +364,7 @@ bool opcodes_are_atomic_swap(uint8_t *ops) {
 			/* cmpxchg */
 			return true;
 		} else {
+			// FIXME: Shouldn't 0F C0 and 0F C1 (xadd) be here?
 			return false;
 		}
 	} else {

@@ -139,7 +139,10 @@ struct mem_state {
 	unsigned int cr3; /* 0 == uninitialized or this is for kernel mem */
 	unsigned int cr3_tid; /* tid for which cr3 was registered (main tid of process) */
 	unsigned int user_mutex_size; /* 0 == uninitialized or kernel mem as above */
-
+	/* tracks the values read/written by xchgs, so we can decide when an
+	 * xchg couldn't possibly unblock another xchg-looping thread. */
+	bool during_xchg; /* wtb option types */
+	unsigned int last_xchg_read;
 	/**** shared memory conflict detection ****/
 	/* set of all shared accesses that happened during this transition;
 	 * cleared after each save point - done in save.c */
