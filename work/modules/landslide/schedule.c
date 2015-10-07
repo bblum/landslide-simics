@@ -1531,11 +1531,20 @@ void sched_update(struct ls_state *ls)
 				/* Is this a "fake" preemption point? If so we
 				 * are not to forcibly preempt, only to record
 				 * a save point. */
-				lsprintf(DEV, "data race PP; overriding arbiter"
-					 " choice %d with current %d\n",
-					 chosen->tid, current->tid);
+				if (!agent_is_user_yield_blocked(&current->user_yield)) {
+					lsprintf(DEV, "DR PP; overriding arb "
+						 "choice %d with current %d\n",
+						 chosen->tid, current->tid);
+					chosen = current;
+				} else {
+					/* Woops. Current is yield-blocked. The
+					 * speculative PP becomes real now. */
+					lsprintf(DEV, "DR PP; but TID %d is "
+						 "yield-blocked. Using arb's "
+						 "choice TID %d after all.\n",
+						 chosen->tid, current->tid);
+				}
 				dump_stack();
-				chosen = current;
 				data_race_eip = ls->eip;
 				/* Insert a dummy instruction before creating
 				 * the save point, so the racing instruction
