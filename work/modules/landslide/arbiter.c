@@ -256,7 +256,7 @@ static bool try_avoid_fp_deadlock(struct ls_state *ls, struct agent **result) {
 /* Returns true if a thread was chosen. If true, sets 'target' (to either the
  * current thread or any other thread), and sets 'our_choice' to false if
  * somebody else already made this choice for us, true otherwise. */
-bool arbiter_choose(struct ls_state *ls, struct agent *current,
+bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 		    struct agent **result, bool *our_choice)
 {
 	struct agent *a;
@@ -336,6 +336,10 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current,
 			*our_choice = true;
 			return true;
 		} else {
+			if (voluntary) {
+				save_setjmp(&ls->save, ls, -1, true,
+					    true, true, -1, true);
+			}
 			FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
 			return false;
 		}

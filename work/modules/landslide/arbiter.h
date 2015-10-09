@@ -31,7 +31,7 @@ bool arbiter_pop_choice(struct arbiter_state *, unsigned int *tid);
 /* scheduling interface */
 bool arbiter_interested(struct ls_state *, bool just_finished_reschedule,
 			bool *voluntary, bool *need_handle_sleep, bool *data_race);
-bool arbiter_choose(struct ls_state *, struct agent *current,
+bool arbiter_choose(struct ls_state *, struct agent *current, bool voluntary,
 		    struct agent **result, bool *our_choice);
 
 #endif

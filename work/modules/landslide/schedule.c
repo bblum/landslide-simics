@@ -1525,7 +1525,7 @@ void sched_update(struct ls_state *ls)
 		 * must not choose it). */
 		check_user_yield_activity(&ls->user_sync, current);
 
-		if (arbiter_choose(ls, current, &chosen, &our_choice)) {
+		if (arbiter_choose(ls, current, voluntary, &chosen, &our_choice)) {
 			int data_race_eip = -1;
 			if (data_race) {
 				/* Is this a "fake" preemption point? If so we
