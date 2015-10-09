@@ -21,13 +21,6 @@ bool testing_userspace()
 	return TESTING_USERSPACE == 1;
 }
 
-bool user_within_functions(struct ls_state *ls)
-{
-	static const unsigned int within_functions[][3] = USER_WITHIN_FUNCTIONS;
-	int length = ARRAY_SIZE(within_functions);
-	return _within_functions(ls, within_functions, length);
-}
-
 bool ignore_dr_function(unsigned int eip)
 {
 	/* true = suppress data race report; false = emit report. we can't use

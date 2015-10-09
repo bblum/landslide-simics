@@ -21,7 +21,12 @@ struct job {
 	unsigned int id;
 	unsigned int generation; /* max among generations of pps + 1 */
 	bool should_reproduce;
-	struct file config_file;
+	/* static config should not change between jobs, and defines cpp macros
+	 * that cause landslide recompiles. dynamic config defines pps and such
+	 * and is interpreted more "at runtime" by the build glue, to avoid
+	 * costly recompiles each time a new job starts. */
+	struct file config_static;
+	struct file config_dynamic;
 	struct file log_stdout;
 	struct file log_stderr;
 

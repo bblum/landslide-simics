@@ -65,12 +65,12 @@ IDLE_TID=
 PINTOS_KERNEL=
 source $CONFIG
 
-if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
-	# Get master-wrapper-supplied test case from supplemental config.
-	if [ ! -f "$LANDSLIDE_ID_CONFIG" ]; then
-		die "Where's $LANDSLIDE_ID_CONFIG?"
+if [ ! -z "$QUICKSAND_CONFIG_STATIC" ]; then
+	# Get quicksand-supplied test case from supplemental config.
+	if [ ! -f "$QUICKSAND_CONFIG_STATIC" ]; then
+		die "Where's $QUICKSAND_CONFIG_STATIC?"
 	fi
-	source $LANDSLIDE_ID_CONFIG
+	source $QUICKSAND_CONFIG_STATIC
 fi
 
 # Check sanity

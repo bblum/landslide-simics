@@ -4,26 +4,7 @@
 # @brief Outermost wrapper for the landslide build process.
 # @author Ben Blum
 
-function success {
-	echo -e "\033[01;32m$1\033[00m"
-}
-function msg {
-	echo -e "\033[01;33m$1\033[00m"
-}
-function err {
-	echo -e "\033[01;31m$1\033[00m" >&2
-}
-
-# If some part of the setup process fails before landslide can send the
-# thunderbirds message, we need to not leave the master hanging (literally).
-OUTPUT_PIPE=
-function die {
-	err "$1"
-	if [ ! -z "$OUTPUT_PIPE" ]; then
-		echo -n > $OUTPUT_PIPE
-	fi
-	kill $$ # may be called in backticks; exit won't work
-}
+source ./getfunc.sh
 
 function sched_func {
 	echo -n
@@ -31,6 +12,8 @@ function sched_func {
 function ignore_sym {
 	echo -n
 }
+# pp-related functions will be redefined later, but for now we ignore any pps
+# defined in the static config file, which definegen will take care of
 function within_function {
 	echo -n
 }
@@ -63,11 +46,17 @@ function id_magic {
 }
 INPUT_PIPE=
 function input_pipe {
+	if [ ! -z "$INPUT_PIPE" ]; then
+		die "input_pipe called more than once; oldval $INPUT_PIPE, newval $1"
+	fi
 	INPUT_PIPE=$1
 }
 
 OUTPUT_PIPE=
 function output_pipe {
+	if [ ! -z "$OUTPUT_PIPE" ]; then
+		die "output_pipe called more than once; oldval $OUTPUT_PIPE, newval $1"
+	fi
 	OUTPUT_PIPE=$1
 }
 
@@ -87,11 +76,11 @@ OBFUSCATED_KERNEL=0
 PINTOS_KERNEL=
 source ./$LANDSLIDE_CONFIG
 
-if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
-	if [ ! -f "./$LANDSLIDE_ID_CONFIG" ]; then
-		die "Where's ID config $LANDSLIDE_ID_CONFIG?"
+if [ ! -z "$QUICKSAND_CONFIG_STATIC" ]; then
+	if [ ! -f "./$QUICKSAND_CONFIG_STATIC" ]; then
+		die "Where's ID config $QUICKSAND_CONFIG_STATIC?"
 	fi
-	source "$LANDSLIDE_ID_CONFIG"
+	source "$QUICKSAND_CONFIG_STATIC"
 fi
 
 #### Check environment ####
@@ -219,8 +208,8 @@ elif [ -f $HEADER ]; then
 		MD5SUM_ID=`grep 'deepening md5sum' $HEADER | sed 's/.*md5sum //' | cut -d' ' -f1`
 		MY_MD5SUM=`md5sum $KERNEL_IMG | cut -d' ' -f1`
 		MY_MD5SUM_C=`md5sum ./$LANDSLIDE_CONFIG | cut -d' ' -f1`
-		if [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
-			MY_MD5SUM_ID=`md5sum ./$LANDSLIDE_ID_CONFIG | cut -d' ' -f1`
+		if [ ! -z "$QUICKSAND_CONFIG_STATIC" ]; then
+			MY_MD5SUM_ID=`md5sum ./$QUICKSAND_CONFIG_STATIC | cut -d' ' -f1`
 		else
 			MY_MD5SUM_ID="NONE"
 		fi
@@ -229,13 +218,50 @@ elif [ -f $HEADER ]; then
 		else
 			rm -f $HEADER || die "Couldn't overwrite existing header $HEADER"
 		fi
-	elif [ ! -z "$LANDSLIDE_ID_CONFIG" ]; then
-		# Run from ID wrapper. Attempt to silently clobber the existing header.
+	elif [ ! -z "$QUICKSAND_CONFIG_STATIC" ]; then
+		# Run from QS. Attempt to silently clobber the existing header.
 		rm -f "$HEADER" || die "Attempted to silently clobber $HEADER but failed!"
 	else
 		# Run in manual mode. Let user know about header problem.
 		die "$HEADER exists, would be clobbered; please remove/relocate it."
 	fi
+fi
+
+# generate dynamic pp config file independently of definegen
+
+if [ ! -z "$QUICKSAND_CONFIG_DYNAMIC" ]; then
+	if [ ! -f "$QUICKSAND_CONFIG_DYNAMIC" ]; then
+		die "Where's $QUICKSAND_CONFIG_DYNAMIC?"
+	fi
+	# ./landslide defines QUICKSAND_CONFIG_TEMP as a temp file to use here
+	[ ! -z "$QUICKSAND_CONFIG_TEMP" ] || die "failed make temp file for PP config"
+
+	# commands are K, U, DR, I, and O.
+	function within_function {
+		echo "K 0x`get_func $1` 0x`get_func_end $1` 1" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	function without_function {
+		echo "K 0x`get_func $1` 0x`get_func_end $1` 0" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	function within_user_function {
+		echo "U 0x`get_user_func $1` 0x`get_user_func_end $1` 1" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	function without_user_function {
+		echo "U 0x`get_user_func $1` 0x`get_user_func_end $1` 0" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	function data_race {
+		if [ -z "$1" -o -z "$2" -o -z "$3" -o -z "$4" ]; then
+			die "data_race needs four args: got \"$1\" and \"$2\" and \"$3\" and \"$4\""
+		fi
+		echo "DR $1 $2 $3 $4" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	function input_pipe {
+		echo "I $1" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	function output_pipe {
+		echo "O $1" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
+	}
+	source "$QUICKSAND_CONFIG_DYNAMIC"
 fi
 
 #### Accept simics-4.0 license if not already ####

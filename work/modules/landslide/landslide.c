@@ -72,6 +72,7 @@ struct ls_state *new_landslide()
 	user_sync_init(&ls->user_sync);
 	rand_init(&ls->rand);
 	messaging_init(&ls->mess);
+	pps_init(&ls->pps);
 
 	ls->cmd_file = NULL;
 	ls->html_file = NULL;

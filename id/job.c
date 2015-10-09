@@ -31,7 +31,8 @@ static pthread_mutex_t compile_landslide_lock = PTHREAD_MUTEX_INITIALIZER;
 extern char **environ;
 
 // TODO-FIXME: Insert timestamps so log files are sorted chronologically.
-#define CONFIG_FILE_TEMPLATE "config-id.landslide.XXXXXX"
+#define CONFIG_STATIC_TEMPLATE  "config.quicksand.XXXXXX"
+#define CONFIG_DYNAMIC_TEMPLATE "pps-and-such.quicksand.XXXXXX"
 #define LOG_FILE_TEMPLATE(x) "ls-" x ".log.XXXXXX"
 
 char *test_name = NULL;
@@ -86,7 +87,8 @@ static void *run_job(void *arg)
 	struct job *j = (struct job *)arg;
 	struct messaging_state mess;
 
-	create_file(&j->config_file, CONFIG_FILE_TEMPLATE);
+	create_file(&j->config_static,  CONFIG_STATIC_TEMPLATE);
+	create_file(&j->config_dynamic, CONFIG_DYNAMIC_TEMPLATE);
 	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("setup"));
 	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("output"));
 
@@ -96,29 +98,30 @@ static void *run_job(void *arg)
 
 	/* write config file */
 
+	XWRITE(&j->config_static, "TEST_CASE=%s\n", test_name);
+	XWRITE(&j->config_static, "VERBOSE=%d\n", verbose ? 1 : 0);
+
 	// XXX(#120): TEST_CASE must be defined before PPs are specified.
-	XWRITE(&j->config_file, "TEST_CASE=%s\n", test_name);
-	XWRITE(&j->config_file, "VERBOSE=%d\n", verbose ? 1 : 0);
-	// FIXME: Make this more principled instead of a gross hack
-	XWRITE(&j->config_file, "%s %s\n", without, mx_lock);
-	XWRITE(&j->config_file, "%s %s\n", without, mx_unlock);
+	XWRITE(&j->config_dynamic, "TEST_CASE=%s\n", test_name);
+	XWRITE(&j->config_dynamic, "%s %s\n", without, mx_lock);
+	XWRITE(&j->config_dynamic, "%s %s\n", without, mx_unlock);
 
 	struct pp *pp;
 	FOR_EACH_PP(pp, j->config) {
-		XWRITE(&j->config_file, "%s\n", pp->config_str);
+		XWRITE(&j->config_dynamic, "%s\n", pp->config_str);
 	}
 	assert(test_name != NULL);
 	// FIXME: Make this principled, as above
-	XWRITE(&j->config_file, "%s malloc\n", without);
-	XWRITE(&j->config_file, "%s realloc\n", without);
-	XWRITE(&j->config_file, "%s calloc\n", without);
-	XWRITE(&j->config_file, "%s free\n", without);
+	XWRITE(&j->config_dynamic, "%s malloc\n", without);
+	XWRITE(&j->config_dynamic, "%s realloc\n", without);
+	XWRITE(&j->config_dynamic, "%s calloc\n", without);
+	XWRITE(&j->config_dynamic, "%s free\n", without);
 	if (pintos) {
-		XWRITE(&j->config_file, "%s block_read\n", without);
-		XWRITE(&j->config_file, "%s block_write\n", without);
-		XWRITE(&j->config_file, "%s acquire_console\n", without);
-		XWRITE(&j->config_file, "%s release_console\n", without);
-		XWRITE(&j->config_file, "%s palloc_get_multiple\n", without);
+		XWRITE(&j->config_dynamic, "%s block_read\n", without);
+		XWRITE(&j->config_dynamic, "%s block_write\n", without);
+		XWRITE(&j->config_dynamic, "%s acquire_console\n", without);
+		XWRITE(&j->config_dynamic, "%s release_console\n", without);
+		XWRITE(&j->config_dynamic, "%s palloc_get_multiple\n", without);
 	} else if (0 == strcmp(test_name, "mutex_test")) {
 		// XXX: Hack. This is special cased here, instead of being a
 		// cmdline option, so the studence don't have to worry about
@@ -126,25 +129,27 @@ static void *run_job(void *arg)
 		/* When testing mutexes, add some special case config options.
 		 * Ignore the innards of thr_*, and tell landslide to subject
 		 * the mutex internals themselves to data race analysis. */
-		XWRITE(&j->config_file, "TESTING_MUTEXES=1\n");
-		XWRITE(&j->config_file, "FILTER_DRS_BY_TID=0\n");
-		XWRITE(&j->config_file, "DR_PPS_RESPECT_WITHIN_FUNCTIONS=1\n");
-		XWRITE(&j->config_file, "%s thr_init\n", without);
-		XWRITE(&j->config_file, "%s thr_create\n", without);
-		XWRITE(&j->config_file, "%s thr_exit\n", without);
+		XWRITE(&j->config_static, "TESTING_MUTEXES=1\n");
+		XWRITE(&j->config_static, "FILTER_DRS_BY_TID=0\n");
+		XWRITE(&j->config_static, "DR_PPS_RESPECT_WITHIN_FUNCTIONS=1\n");
+		XWRITE(&j->config_dynamic, "%s thr_init\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_create\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
 	} else if (0 == strcmp(test_name, "paradise_lost")) {
-		XWRITE(&j->config_file, "%s thr_init\n", without);
-		XWRITE(&j->config_file, "%s thr_create\n", without);
-		XWRITE(&j->config_file, "%s thr_exit\n", without);
-		XWRITE(&j->config_file, "%s critical_section\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_init\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_create\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
+		/* this may look strange, but see the test case */
+		XWRITE(&j->config_dynamic, "%s critical_section\n", without);
 	}
 
-	messaging_init(&mess, &j->config_file, j->id);
+	messaging_init(&mess, &j->config_static, &j->config_dynamic, j->id);
 
 	// XXX: Need to do this here so the parent can have the path into pebsim
 	// to properly delete the file, but it brittle-ly causes the child's
 	// exec args to have "../pebsim/"s in them that only "happen to work".
-	move_file_to(&j->config_file, LANDSLIDE_PATH);
+	move_file_to(&j->config_static,  LANDSLIDE_PATH);
+	move_file_to(&j->config_dynamic, LANDSLIDE_PATH);
 
 	/* while multiple landslides can run at once, compiling each one from a
 	 * different config is mutually exclusive. we'll release this as soon as
@@ -158,7 +163,8 @@ static void *run_job(void *arg)
 		    bug_in_subspace ? "bug already found" : "time ran out");
 		UNLOCK(&compile_landslide_lock);
 		messaging_abort(&mess);
-		delete_file(&j->config_file, true);
+		delete_file(&j->config_static, true);
+		delete_file(&j->config_dynamic, true);
 		delete_file(&j->log_stdout, true);
 		delete_file(&j->log_stderr, true);
 		if (bug_in_subspace) {
@@ -185,13 +191,14 @@ static void *run_job(void *arg)
 		char *execname = "./" LANDSLIDE_PROGNAME;
 		char *const argv[4] = {
 			[0] = execname,
-			[1] = j->config_file.filename,
-			[2] = NULL,
+			[1] = j->config_static.filename,
+			[2] = j->config_dynamic.filename,
+			[3] = NULL,
 		};
 
-		DBG("[JOB %d] '%s %s > %s 2> %s'\n", j->id, execname,
-		       j->config_file.filename, j->log_stdout.filename,
-		       j->log_stderr.filename);
+		DBG("[JOB %d] '%s %s %s > %s 2> %s'\n", j->id, execname,
+		       j->config_static.filename, j->config_dynamic.filename,
+		       j->log_stdout.filename, j->log_stderr.filename);
 
 		/* unsetting cloexec not necessary for these */
 		XDUP2(j->log_stdout.fd, STDOUT_FILENO);
@@ -207,7 +214,7 @@ static void *run_job(void *arg)
 
 	/* parent */
 
-	/* should take ~6 seconds for child to come alive */
+	/* should take 1 to 4 seconds for child to come alive */
 	bool child_alive = wait_for_child(&mess);
 
 	UNLOCK(&compile_landslide_lock);
@@ -232,7 +239,8 @@ static void *run_job(void *arg)
 
 	finish_messaging(&mess);
 
-	delete_file(&j->config_file, true);
+	delete_file(&j->config_static, true);
+	delete_file(&j->config_dynamic, true);
 	bool should_delete = !leave_logs && WEXITSTATUS(child_status) == 0;
 	delete_file(&j->log_stdout, should_delete);
 	delete_file(&j->log_stderr, should_delete);

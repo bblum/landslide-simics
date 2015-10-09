@@ -5,10 +5,14 @@ if [ "`pwd | sed 's/.*\///'`" != "pebsim" ]; then
 	exit 1
 fi
 
-if [ ! -z "$1" ]; then
-	export LANDSLIDE_ID_CONFIG="$1"
+export QUICKSAND_CONFIG_STATIC="$1"
+if [ ! -z "$2" ]; then
+	export QUICKSAND_CONFIG_DYNAMIC="$2"
+	# must be an absolute path for c code to see it
+	# it will be removed by c code after the attribute is set
+	export QUICKSAND_CONFIG_TEMP=`mktemp /dev/shm/landslide-dynamic-pps.XXXXXXXX`
 else
-	export LANDSLIDE_ID_CONFIG=
+	export QUICKSAND_CONFIG_DYNAMIC=
 fi
 
 export LANDSLIDE_CONFIG=config.landslide

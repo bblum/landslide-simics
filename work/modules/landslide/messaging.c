@@ -80,6 +80,7 @@ struct input_message {
 
 static void send(struct messaging_state *state, struct output_message *m)
 {
+	assert(state->pipes_opened);
 	m->magic = ID_WRAPPER_MAGIC;
 	int ret = write(state->output_fd, m, sizeof(struct output_message));
 	assert(ret == sizeof(struct output_message) && "write failed");
@@ -87,6 +88,7 @@ static void send(struct messaging_state *state, struct output_message *m)
 
 static void recv(struct messaging_state *state, struct input_message *m)
 {
+	assert(state->pipes_opened);
 	int ret = read(state->input_fd, m, sizeof(struct input_message));
 	if (ret == 0) {
 		/* pipe closed */
@@ -116,31 +118,36 @@ static void recv(struct messaging_state *state, struct input_message *m) {
 
 void messaging_init(struct messaging_state *state)
 {
+	state->pipes_opened = false;
+}
+
+void messaging_open_pipes(struct messaging_state *state,
+			  const char *input_name, const char *output_name)
+{
 #ifdef ID_WRAPPER_MAGIC
+	assert(!state->pipes_opened && "double call of messaging open pipes");
+	state->pipes_opened = true;
+
+	assert(input_name != NULL && output_name != NULL &&
+	       "have magic quicksand cookie but how do i get to warp zone?");
+
 	/* See run_job() in id/job.c for the protocol. Order is important. */
-#ifdef OUTPUT_PIPE
-	lsprintf(INFO, "opening output pipe %s\n", OUTPUT_PIPE);
-	state->output_fd = open(OUTPUT_PIPE, O_WRONLY);
+	lsprintf(INFO, "opening output pipe %s\n", output_name);
+	state->output_fd = open(output_name, O_WRONLY);
 	lsprintf(INFO, "the hatches are open\n");
 	assert(state->output_fd >= 0 && "opening output pipe failed");
-#else
-	STATIC_ASSERT(false && "ID magic but OUTPUT_PIPE not defined");
-#endif
 
 	struct output_message m;
 	m.tag = THUNDERBIRDS_ARE_GO;
 	send(state, &m);
 
-#ifdef INPUT_PIPE
-	lsprintf(INFO, "opening input pipe %s\n", INPUT_PIPE);
-	state->input_fd = open(INPUT_PIPE, O_RDONLY);
+	lsprintf(INFO, "opening input pipe %s\n", input_name);
+	state->input_fd = open(input_name, O_RDONLY);
 	lsprintf(INFO, "aim for the open spot\n");
 	assert(state->input_fd >= 0 && "opening input pipe failed");
 #else
-	STATIC_ASSERT(false && "ID magic but INPUT_PIPE not defined");
-#endif
-#else
-	/* Not running in ID wrapper. Nothing to initialize. */
+	assert(input_name == NULL && output_name == NULL &&
+	       "can't use messaging pipes without the magic quicksand cookie!");
 #endif
 }
 

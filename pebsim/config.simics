@@ -101,6 +101,10 @@ load-module landslide
 @html_file = "landslide-trace-" + str(time.time()) + ".html"
 @SIM_set_attribute(landslide, "html_file", html_file)
 
+@if os.environ["QUICKSAND_CONFIG_TEMP"] != "" :
+	SIM_set_attribute(landslide, "quicksand_pps", os.environ["QUICKSAND_CONFIG_TEMP"])
+	print "loaded some dynamic pps from quicksand"
+
 if $ls_pintos == "yes" {
 	# Bit of a hack. But "start" doesn't work... in pintos, start() is
 	# called still in some real mode bizarro world. The "mov $SEL_KDSEG,

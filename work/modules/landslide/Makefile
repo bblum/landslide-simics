@@ -28,6 +28,7 @@ SRC_FILES = landslide.h landslide.c \
 	    stack.c stack.h \
 	    symtable.c symtable.h \
 	    messaging.c messaging.h \
+	    pp.c pp.h \
 	    html.h \
 	    array_list.h \
 	    variable_queue.h

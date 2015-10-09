@@ -12,6 +12,7 @@
 #include "kernel_specifics.h"
 #include "kspec.h"
 #include "stack.h"
+#include "pp.h"
 #include "x86.h"
 
 /******************************************************************************
@@ -99,48 +100,6 @@ bool kern_access_in_scheduler(unsigned int addr)
 	}
 
 	return false;
-}
-
-bool _within_functions(struct ls_state *ls, const unsigned int within_functions[][3], unsigned int length)
-{
-	/* The array is: { start_addr, end_addr, within ? 1 : 0 }.
-	 * Later ones take precedence, so all of them have to be compared. */
-
-	/* If there are no within_functions, the default answer is yes.
-	 * Otherwise the default answer is no. */
-	bool any_withins = false;
-	bool answer = true;
-
-	struct stack_trace *st = stack_trace(ls);
-
-	for (int i = 0; i < length; i++) {
-		if (within_functions[i][2] == 1) {
-			/* Must be within this function to allow. */
-			if (!any_withins) {
-				any_withins = true;
-				answer = false;
-			}
-			if (within_function_st(st, within_functions[i][0],
-					    within_functions[i][1])) {
-				answer = true;
-			}
-		} else {
-			if (within_function_st(st, within_functions[i][0],
-					    within_functions[i][1])) {
-				answer = false;
-			}
-		}
-	}
-
-	free_stack_trace(st);
-	return answer;
-}
-
-bool kern_within_functions(struct ls_state *ls)
-{
-	static const unsigned int within_functions[][3] = KERN_WITHIN_FUNCTIONS;
-	int length = ARRAY_SIZE(within_functions);
-	return _within_functions(ls, within_functions, length);
 }
 
 #define MK_DISK_IO_FN(name, index)					\

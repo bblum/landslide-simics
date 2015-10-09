@@ -16,6 +16,7 @@
 #include "kspec.h"
 #include "landslide.h"
 #include "memory.h"
+#include "pp.h"
 #include "rand.h"
 #include "schedule.h"
 #include "user_specifics.h"
@@ -47,44 +48,6 @@ bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
 	} else {
 		return false;
 	}
-}
-
-// TODO: move this to a data_race.c when that factor is done
-static bool suspected_data_race(struct ls_state *ls)
-{
-	/* [i][0] is instruction pointer of the data race;
-	 * [i][1] is the current TID when the race was observed;
-	 * [i][2] is the last_call'ing eip value, if any;
-	 * [i][3] is the most_recent_syscall when the race was observed. */
-	static const unsigned int data_race_info[][4] = DATA_RACE_INFO;
-
-#ifndef PINTOS_KERNEL
-	// FIXME: Make this work for Pebbles kernel-space testing too.
-	// Make the condition more precise (include testing_userspace() at least).
-	if (!check_user_address_space(ls)) {
-		return false;
-	}
-#endif
-
-	for (int i = 0; i < ARRAY_SIZE(data_race_info); i++) {
-		if (KERNEL_MEMORY(data_race_info[i][0])) {
-#ifndef PINTOS_KERNEL
-			assert(data_race_info[i][3] != 0);
-#endif
-		} else {
-			assert(data_race_info[i][3] == 0);
-		}
-
-		if (data_race_info[i][0] == ls->eip &&
-		    (data_race_info[i][1] == DR_TID_WILDCARD ||
-		     data_race_info[i][1] == ls->sched.cur_agent->tid) &&
-		    (data_race_info[i][2] == 0 || /* last_call=0 -> anything */
-		     data_race_info[i][2] == ls->sched.cur_agent->last_call) &&
-		    data_race_info[i][3] == ls->sched.cur_agent->most_recent_syscall) {
-			return true;
-		}
-	}
-	return false;
 }
 
 #define ASSERT_ONE_THREAD_PER_PP(ls) do {					\

@@ -145,6 +145,22 @@ static attr_value_t get_ls_test_case_attribute(
 	return SIM_make_attr_string(path);
 }
 
+static set_error_t set_ls_quicksand_pps_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
+{
+	struct ls_state *ls = (struct ls_state *)obj;
+	if (load_dynamic_pps(ls, SIM_attr_string(*val))) {
+		return Sim_Set_Ok;
+	} else {
+		return Sim_Set_Not_Writable;
+	}
+}
+static attr_value_t get_ls_quicksand_pps_attribute(
+	void *arg, conf_object_t *obj, attr_value_t *idx)
+{
+	return SIM_make_attr_string("/dev/null");
+}
+
 /* init_local() is called once when the device module is loaded into Simics */
 void init_local(void)
 {
@@ -178,4 +194,6 @@ void init_local(void)
 			 "Filename to use for communication with the wrapper");
 	LS_ATTR_REGISTER(conf_class, html_file, "s",
 			 "Filename to use for HTML preemption trace output");
+	LS_ATTR_REGISTER(conf_class, quicksand_pps, "s",
+			 "Filename for dynamic Quicksand-supplied PP config");
 }

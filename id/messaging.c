@@ -314,17 +314,17 @@ static void move_trace_file(const char *trace_filename)
 /* messaging logic */
 
 /* creates the fifo files on the filesystem, but does not block on them yet. */
-void messaging_init(struct messaging_state *state, struct file *config_file,
-		    unsigned int job_id)
+void messaging_init(struct messaging_state *state, struct file *config_static,
+		    struct file *config_dynamic, unsigned int job_id)
 {
 	state->input_pipe_name  = create_fifo("id-input-pipe",  job_id);
 	state->output_pipe_name = create_fifo("id-output-pipe", job_id);
 	state->ready = false;
 
 	/* our output is the child's input and V. V. */
-	XWRITE(config_file, "output_pipe %s\n", state->input_pipe_name);
-	XWRITE(config_file, "input_pipe %s\n", state->output_pipe_name);
-	XWRITE(config_file, "id_magic %u\n", MESSAGING_MAGIC);
+	XWRITE(config_dynamic, "output_pipe %s\n", state->input_pipe_name);
+	XWRITE(config_dynamic, "input_pipe %s\n", state->output_pipe_name);
+	XWRITE(config_static, "id_magic %u\n", MESSAGING_MAGIC);
 }
 
 bool wait_for_child(struct messaging_state *state)

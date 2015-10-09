@@ -21,8 +21,8 @@ struct messaging_state {
 	bool ready;
 };
 
-void messaging_init(struct messaging_state *state, struct file *config_file,
-		    unsigned int job_id);
+void messaging_init(struct messaging_state *state, struct file *config_static,
+		    struct file *config_dynamic, unsigned int job_id);
 bool wait_for_child(struct messaging_state *state);
 void talk_to_child(struct messaging_state *state, struct job *j);
 void finish_messaging(struct messaging_state *state);
