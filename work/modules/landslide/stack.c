@@ -447,7 +447,7 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			assert(READ_MEMORY(cpu, stack_ptr + WORD_SIZE)
 			       == SEGSEL_USER_CS);
 			stack_ptr = READ_MEMORY(cpu, stack_ptr + (3 * WORD_SIZE));
-			ASSERT(USER_MEMORY(stack_ptr));
+			assert(USER_MEMORY(stack_ptr));
 			// TODO: Decide what to do if pathos annotation missing?
 			// Most likely, set some "skip_extra_frame" flag.
 #endif

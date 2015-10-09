@@ -355,9 +355,8 @@ static bool ensure_progress(struct ls_state *ls)
 		if (testing_userspace()) {
 #endif
 			int exn_num = ls->sched.cur_agent->most_recent_syscall;
-			if (exn_num == 0) {
-				unsigned int pf_eip =
-					ls->sched.cur_agent->last_pf_eip;
+			unsigned int pf_eip = ls->sched.cur_agent->last_pf_eip;
+			if (exn_num == 0 || pf_eip != -1) {
 				if (pf_eip == -1) {
 					lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW
 						 "Warning: MRS = 0 during "
