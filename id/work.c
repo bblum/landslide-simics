@@ -21,14 +21,15 @@
 
 /* lock order note: PP registry lock taken inside of workqueue_lock */
 
+typedef ARRAY_LIST(struct job *) job_list_t;
 static bool inited = false;
 static bool started = false;
 static bool work_done = false;
 static bool progress_done = false;
 static unsigned int nonblocked_threads;
-static ARRAY_LIST(struct job *) workqueue; /* unordered set */
-static ARRAY_LIST(struct job *) running_or_done_jobs; /* unordered set */
-static ARRAY_LIST(struct job *) blocked_jobs; /* unordered set */
+static job_list_t workqueue; /* unordered set */
+static job_list_t running_or_done_jobs; /* unordered set */
+static job_list_t blocked_jobs; /* unordered set */
 static pthread_mutex_t workqueue_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t workqueue_cond = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t work_done_cond = PTHREAD_COND_INITIALIZER;
@@ -110,6 +111,31 @@ bool should_work_block(struct job *j)
 	}
 
 	UNLOCK(&workqueue_lock);
+	return result;
+}
+
+static bool work_already_exists_on(struct pp_set *new_set, job_list_t *q)
+{
+	struct job **j;
+	unsigned int i;
+	ARRAY_LIST_FOREACH(q, i, j) {
+		if (pp_set_equals(new_set, (*j)->config)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool work_already_exists(struct pp_set *new_set)
+{
+	bool result = false;
+
+	LOCK(&workqueue_lock);
+	if (!result) result = work_already_exists_on(new_set, &workqueue);
+	if (!result) result = work_already_exists_on(new_set, &running_or_done_jobs);
+	if (!result) result = work_already_exists_on(new_set, &blocked_jobs);
+	UNLOCK(&workqueue_lock);
+
 	return result;
 }
 

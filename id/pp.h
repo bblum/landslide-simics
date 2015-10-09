@@ -52,6 +52,7 @@ struct pp_set *clone_pp_set(struct pp_set *set);
 struct pp_set *add_pp_to_set(struct pp_set *set, struct pp *pp);
 void free_pp_set(struct pp_set *set);
 void print_pp_set(struct pp_set *set, bool short_strs);
+bool pp_set_equals(struct pp_set *x, struct pp_set *y);
 bool pp_subset(struct pp_set *sub, struct pp_set *super);
 struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
 bool pp_set_contains(struct pp_set *set, struct pp *pp);

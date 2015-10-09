@@ -270,6 +270,22 @@ bool pp_set_contains(struct pp_set *set, struct pp *pp)
 	return pp->id < set->capacity && set->array[pp->id];
 }
 
+bool pp_set_equals(struct pp_set *x, struct pp_set *y)
+{
+	for (unsigned int i = 0; i < MAX(x->capacity, y->capacity); i++) {
+		if (i >= x->capacity && y->array[i]) {
+			/* y is bigger than x and has some new pp in it */
+			return false;
+		} else if (i >= y->capacity && x->array[i]) {
+			/* x is bigger than y and has some new pp in it */
+			return false;
+		} else if (x->array[i] ^ y->array[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool pp_subset(struct pp_set *sub, struct pp_set *super)
 {
 	/* Does 'sub' have any PPs in it that 'super' doesn't? */
