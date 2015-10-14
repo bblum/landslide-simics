@@ -1121,7 +1121,7 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			    struct mem_access *ma0, struct mem_access *ma1,
 			    struct chunk *c0, struct chunk *c1,
 			    struct mem_lockset *l0, struct mem_lockset *l1,
-			    bool in_kernel, bool confirmed)
+			    bool in_kernel, bool confirmed, bool free_re_malloc)
 {
 	/* a heuristic for distinguishing, among 'suspected' data races, those
 	 * that are extra-suspicious by virtue of (a) the later access happening
@@ -1203,7 +1203,7 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 #endif
 		message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
 			l0->last_call, l0->most_recent_syscall, confirmed,
-			deterministic);
+			deterministic, free_re_malloc);
 	}
 #ifdef DR_FALSE_NEGATIVE_EXPERIMENT
 	if (true) {
@@ -1212,7 +1212,7 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 #endif
 		message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
 			l1->last_call, l1->most_recent_syscall, confirmed,
-			deterministic);
+			deterministic, free_re_malloc);
 	}
 }
 
@@ -1322,19 +1322,14 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			/* Are there any 2 locksets without a lock in common? */
 			if ((l0->write || l1->write)
 			    && !lockset_intersect(&l0->locks_held, &l1->locks_held)
-#ifndef DR_FALSE_NEGATIVE_EXPERIMENT
-			    // TODO: If this is the case, message quicksand anyway,
-			    // but tell it never explore this, just report it at the end.
-			    //  for a FALSE POSITIVE experiment.
-			    && !was_freed_remalloced(l0, l1)
-#endif
 			    && (l0->interrupce_enabled || l1->interrupce_enabled)
 			    && !ignore_dr_function(l0->eip)
 			    && !ignore_dr_function(l1->eip)) {
 				/* Data race. Have we seen it reordered? */
 				bool confirmed = check_data_race(m, l0->eip, l1->eip);
 				print_data_race(ls, h0, h1, ma0, ma1, c0, c1,
-						l0, l1, in_kernel, confirmed);
+						l0, l1, in_kernel, confirmed,
+						was_freed_remalloced(l0, l1));
 				/* Whether or not we saw it reordered, check if
 				 * it enables a speculative DR save point. */
 				check_enable_speculative_pp(h1->parent, l1->eip);
