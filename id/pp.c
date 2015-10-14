@@ -33,17 +33,18 @@ extern bool verbose;
 
 static struct pp *pp_append(char *config_str, char *short_str, char *long_str,
 			    unsigned int priority, bool deterministic,
-			    unsigned int generation)
+			    bool free_re_malloc, unsigned int generation)
 {
 	struct pp *pp = XMALLOC(1, struct pp);
-	pp->config_str    = config_str;
-	pp->short_str     = short_str;
-	pp->long_str      = long_str;
-	pp->priority      = priority;
-	pp->id            = next_id;
-	pp->generation    = generation;
-	pp->deterministic = deterministic;
-	pp->explored      = false;
+	pp->config_str     = config_str;
+	pp->short_str      = short_str;
+	pp->long_str       = long_str;
+	pp->priority       = priority;
+	pp->id             = next_id;
+	pp->generation     = generation;
+	pp->deterministic  = deterministic;
+	pp->free_re_malloc = free_re_malloc;
+	pp->explored       = false;
 
 	assert(pp->priority != 0);
 
@@ -83,7 +84,7 @@ static void check_init() {
 				XSTRDUP(testing_pintos() ?
 					"sema_down" : "mutex_lock"),
 				XSTRDUP("<at beginning of mutex_lock>"),
-				PRIORITY_MUTEX_LOCK, true, max_generation);
+				PRIORITY_MUTEX_LOCK, true, false, max_generation);
 			assert(pp->id == 0);
 			pp = pp_append(
 				XSTRDUP(testing_pintos() ?
@@ -92,7 +93,7 @@ static void check_init() {
 				XSTRDUP(testing_pintos() ?
 					"sema_up" : "mutex_unlock"),
 				XSTRDUP("<at end of mutex_unlock>"),
-				PRIORITY_MUTEX_UNLOCK, true, max_generation);
+				PRIORITY_MUTEX_UNLOCK, true, false, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
 			if (testing_pintos()) {
@@ -100,13 +101,13 @@ static void check_init() {
 					XSTRDUP("within_function intr_disable"),
 					XSTRDUP("cli"),
 					XSTRDUP("<just before cli>"),
-					PRIORITY_CLI, true, max_generation);
+					PRIORITY_CLI, true, false, max_generation);
 				assert(pp->id == 2);
 				pp = pp_append(
 					XSTRDUP("within_function intr_enable"),
 					XSTRDUP("sti"),
 					XSTRDUP("<just after sti>"),
-					PRIORITY_STI, true, max_generation);
+					PRIORITY_STI, true, false, max_generation);
 				assert(pp->id == 3);
 				assert(next_id == 4);
 			}
@@ -116,7 +117,7 @@ static void check_init() {
 }
 
 struct pp *pp_new(char *config_str, char *short_str, char *long_str,
-		  unsigned int priority, bool deterministic,
+		  unsigned int priority, bool deterministic, bool free_re_malloc,
 		  unsigned int generation, bool *duplicate)
 {
 	struct pp *result;
@@ -142,6 +143,12 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 				    config_str);
 				result->deterministic = true;
 			}
+			if (!free_re_malloc && result->free_re_malloc) {
+				DBG("updating '%s' to NOT be a free-re-malloc "
+				    "FP DR (it was found for realsies\n",
+				    config_str);
+				result->free_re_malloc = false;
+			}
 			break;
 		}
 	}
@@ -153,7 +160,7 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 		}
 		result = pp_append(XSTRDUP(config_str), XSTRDUP(short_str),
 				   XSTRDUP(long_str), priority, deterministic,
-				   generation);
+				   free_re_malloc, generation);
 	}
 	RW_UNLOCK(&pp_registry_lock);
 	return result;
@@ -214,6 +221,30 @@ void try_print_live_data_race_pps()
 		RW_UNLOCK(&pp_registry_lock);
 	} else {
 		DBG("Couldn't get PP registry lock to print DR PPs.\n");
+	}
+}
+
+void print_free_re_malloc_false_positives()
+{
+	bool any_exist = false;
+
+	READ_LOCK(&pp_registry_lock);
+	for (unsigned int i = 0; i < next_id; i++) {
+		struct pp *pp = registry[i];
+		if (pp->free_re_malloc) {
+			assert(IS_DATA_RACE(pp->priority));
+			if (!any_exist) {
+				any_exist = true;
+				WARN("NOTE: I avoided the following "
+				     "free-re-malloc false positives.\n");
+			}
+			WARN("FP free-re-malloc race %sat %s\n", pp->deterministic ? "" : "[NONDET] ", pp->long_str);
+		}
+	}
+	RW_UNLOCK(&pp_registry_lock);
+
+	if (!any_exist) {
+		WARN("No free-re-malloc false positives were avoided.\n");
 	}
 }
 
@@ -284,11 +315,17 @@ void print_pp_set(struct pp_set *set, bool short_strs)
 	printf("{ ");
 	log_msg(NULL, "{ ");
 	FOR_EACH_PP(pp, set) {
-		bool print_nondet = verbose && !pp->deterministic;
-		printf("'%s' %s", short_strs ? pp->short_str : pp->config_str,
-		       print_nondet ? "[NONDET] " : "");
-		log_msg(NULL, "'%s' %s", short_strs ? pp->short_str : pp->config_str,
-		        print_nondet ? "[NONDET] " : "");
+		printf("'%s' ", short_strs ? pp->short_str : pp->config_str);
+		log_msg(NULL, "'%s' ", short_strs ? pp->short_str : pp->config_str);
+
+		if (verbose && !pp->deterministic) {
+			printf("[NONDET] ");
+			log_msg(NULL, "[NONDET] ");
+		}
+		if (verbose && pp->free_re_malloc) {
+			printf("[FRM-FP] ");
+			log_msg(NULL, "[FRM-FP] ");
+		}
 	}
 	printf("}");
 	log_msg(NULL, "}");
