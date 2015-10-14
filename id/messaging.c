@@ -46,6 +46,7 @@ struct input_message {
 			unsigned int most_recent_syscall;
 			bool confirmed;
 			bool deterministic;
+			bool free_re_malloc;
 			char pretty_printed[MESSAGE_BUF_SIZE];
 		} dr;
 
@@ -109,7 +110,7 @@ extern bool verbose;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			     unsigned int eip, unsigned int tid, bool confirmed,
-			     bool deterministic, unsigned int last_call,
+			     bool deterministic, bool free_re_malloc, unsigned int last_call,
 			     unsigned int most_recent_syscall, char *pretty)
 {
 	/* register a (possibly) new PP based on the data race */
@@ -138,7 +139,21 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 	unsigned int priority = confirmed ?
 		PRIORITY_DR_CONFIRMED : PRIORITY_DR_SUSPECTED;
 	struct pp *pp = pp_new(config_str, short_str, pretty, priority,
-			       deterministic, j->generation, &duplicate);
+			       deterministic, free_re_malloc, j->generation, &duplicate);
+	// Uncomment this to make LS/QS more comparable to 1-pass DR.
+	// Free-re-malloc PPs will be recorded as deterministic, so we don't
+	// unfairly classify them as false negatives.
+//#define DR_FALSE_NEGATIVE_EXPERIMENT
+#ifdef DR_FALSE_NEGATIVE_EXPERIMENT
+	// Cripple-myself mode. Add the free remalloc DR as a PP (so long as it
+	// was discovered on the 0th branch).
+	// (But don't cripple myself TOO much, if it would be a nondet DR PP anyway)
+	if (free_re_malloc && !deterministic) return;
+#else
+	// Normal mode. Never add the free remalloc DR as a PP. (At least until
+	// the same DR is observed in future branch w/o free-remalloc pattern.)
+	if (free_re_malloc) return;
+#endif
 
 	/* If the data race PP is not already enabled in this job's config,
 	 * create a new job based on this one. */
@@ -375,6 +390,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 			handle_data_race(j, &discovered_pps, m.content.dr.eip,
 					 m.content.dr.tid, m.content.dr.confirmed,
 					 m.content.dr.deterministic,
+					 m.content.dr.free_re_malloc,
 					 m.content.dr.last_call,
 					 m.content.dr.most_recent_syscall,
 					 m.content.dr.pretty_printed);

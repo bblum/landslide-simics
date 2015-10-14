@@ -457,6 +457,7 @@ static void print_all_job_stats()
 		PRINT("And %d more pending jobs should time allow.\n",
 		      ARRAY_LIST_SIZE(&workqueue));
 	}
+	print_free_re_malloc_false_positives();
 	for (unsigned int i = 0; i < strlen(header); i++) {
 		PRINT("=");
 	}

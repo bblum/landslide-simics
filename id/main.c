@@ -65,6 +65,7 @@ int main(int argc, char **argv)
 	start_work(num_cpus, progress_interval);
 	wait_to_finish_work();
 	print_live_data_race_pps();
+	print_free_re_malloc_false_positives();
 
 	return found_any_bugs() ? ID_EXIT_BUG_FOUND : ID_EXIT_SUCCESS;
 }

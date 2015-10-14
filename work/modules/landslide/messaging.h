@@ -20,7 +20,7 @@ void messaging_open_pipes(struct messaging_state *m, const char *i, const char *
 void message_data_race(struct messaging_state *m, unsigned int eip,
 		       unsigned int last_call, unsigned int tid,
 		       unsigned int most_recent_syscall, bool confirmed,
-		       bool deterministic);
+		       bool deterministic, bool free_re_malloc);
 
 /* returns the # of useconds that landslide was put to sleep for */
 uint64_t message_estimate(struct messaging_state *m, long double proportion,
