@@ -43,6 +43,7 @@ struct output_message {
 			unsigned int most_recent_syscall;
 			bool confirmed;
 			bool deterministic;
+			bool free_re_malloc; // for pldi experimence; means dont use as PP
 			char pretty_printed[MESSAGE_BUF_SIZE];
 		} dr;
 
@@ -155,7 +156,7 @@ void messaging_open_pipes(struct messaging_state *state,
 void message_data_race(struct messaging_state *state, unsigned int eip,
 		       unsigned int tid, unsigned int last_call,
 		       unsigned int most_recent_syscall, bool confirmed,
-		       bool deterministic)
+		       bool deterministic, bool free_re_malloc)
 {
 	struct output_message m;
 	m.tag = DATA_RACE;
@@ -169,6 +170,7 @@ void message_data_race(struct messaging_state *state, unsigned int eip,
 	m.content.dr.most_recent_syscall = most_recent_syscall;
 	m.content.dr.confirmed = confirmed;
 	m.content.dr.deterministic = deterministic;
+	m.content.dr.free_re_malloc = free_re_malloc;
 
 	char *buf = &m.content.dr.pretty_printed[0];
 	struct stack_frame f;

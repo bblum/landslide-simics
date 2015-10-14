@@ -31,6 +31,7 @@ struct pp {
 	unsigned int id; /* global unique identifier among PPs */
 	unsigned int generation;
 	bool deterministic; /* for data race PPs */
+	bool free_re_malloc;
 	/* write-able, protected by global registry lock */
 	bool explored; /* was a state space including this pp completed? */
 };
@@ -43,12 +44,14 @@ struct pp_set {
 
 /* pp registry functions */
 struct pp *pp_new(char *config_str, char *short_str, char *long_str,
-		  unsigned int priority, bool deterministic,
+		  unsigned int priority, bool deterministic, bool free_re_malloc,
 		  unsigned int generation, bool *duplicate);
 struct pp *pp_get(unsigned int id);
 
 void print_live_data_race_pps();
 void try_print_live_data_race_pps(); /* signal handler safe; may do nothing. */
+
+void print_free_re_malloc_false_positives();
 
 /* pp set manipulation functions */
 struct pp_set *create_pp_set(unsigned int pp_mask);
