@@ -1037,7 +1037,9 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
 #ifdef TESTING_MUTEXES
-		lockset_remove(s, lock_addr, LOCK_MUTEX, false);
+		if (lock_addr != 0) {
+			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
+		}
 #endif
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
