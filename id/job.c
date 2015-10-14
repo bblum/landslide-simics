@@ -146,6 +146,10 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_dynamic, "%s thr_init\n", without);
 		XWRITE(&j->config_dynamic, "%s thr_create\n", without);
 		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
+	} else if (0 == strcmp(test_name, "paraguay")) {
+		XWRITE(&j->config_dynamic, "%s thr_init\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_create\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
 	} else if (0 == strcmp(test_name, "paradise_lost")) {
 		XWRITE(&j->config_dynamic, "%s thr_init\n", without);
 		XWRITE(&j->config_dynamic, "%s thr_create\n", without);
