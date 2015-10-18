@@ -90,21 +90,21 @@ bool load_dynamic_pps(struct ls_state *ls, const char *filename)
 			assert(p->input_pipe_filename == NULL);
 			p->input_pipe_filename = MM_XSTRDUP(buf + 2);
 			lsprintf(DEV, "input %s\n", p->input_pipe_filename);
-		} else if ((ret = sscanf(buf, "K %x %x %x", &x, &y, &z)) != 0) {
+		} else if ((ret = sscanf(buf, "K %x %x %i", &x, &y, &z)) != 0) {
 			/* kernel within function directive */
 			assert(ret == 3 && "invalid kernel within PP");
 			lsprintf(DEV, "new PP: kernel %x %x %x\n", x, y, z);
 			struct pp_within pp = { .func_start = x, .func_end = y,
 			                        .within = (z != 0) };
 			ARRAY_LIST_APPEND(&p->kern_withins, pp);
-		} else if ((ret = sscanf(buf, "U %x %x %x", &x, &y, &z)) != 0) {
+		} else if ((ret = sscanf(buf, "U %x %x %i", &x, &y, &z)) != 0) {
 			/* user within function directive */
 			assert(ret == 3 && "invalid user within PP");
 			lsprintf(DEV, "new PP: user %x %x %x\n", x, y, z);
 			struct pp_within pp = { .func_start = x, .func_end = y,
 			                        .within = (z != 0) };
 			ARRAY_LIST_APPEND(&p->user_withins, pp);
-		} else if ((ret = sscanf(buf, "DR %x %x %x %x", &x, &y, &z, &w)) != 0) {
+		} else if ((ret = sscanf(buf, "DR %x %i %i %i", &x, &y, &z, &w)) != 0) {
 			/* data race preemption poince */
 			assert(ret == 4 && "invalid data race PP");
 			lsprintf(DEV, "new PP: dr %x %x %x %x\n", x, y, z, w);
