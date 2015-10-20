@@ -246,7 +246,12 @@ static long double compute_state_space_size(struct ls_state *ls,
 		bool voluntary = ls->save.next_tid != 1 &&
 		                 ls->save.next_tid != ls->sched.cur_agent->tid;
 		ls->user_sync.yield_progress = NOTHING_INTERESTING;
-		save_setjmp(&ls->save, ls, -1, true, true, true, -1, voluntary);
+		// XXX: Gross hack. If arbiter FAB deadlock on this branch, it
+		// will call setjmp on its own. Avoid double call in that case.
+		if (!voluntary || ls->sched.voluntary_resched_stack != NULL) {
+			save_setjmp(&ls->save, ls, -1, true, true, true,
+				    -1, voluntary);
+		}
 		unsigned int _tid;
 		explore(&ls->save, &_tid);
 		*needed_compute = true;
