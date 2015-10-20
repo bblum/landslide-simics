@@ -103,7 +103,7 @@ int main(void)
 	cond_signal(&cvar1);
 	report_misc("cvar1 signaled");
 
-	sleep(10);
+	//sleep(10);
 	
 	/* Now do it all again for the second set of things. */
 	/* Wait for thread1 to get to sleep on cvar2. */
