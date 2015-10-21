@@ -399,7 +399,7 @@ unsigned int compute_generation(struct pp_set *set)
 	return max_generation;
 }
 
-void record_explored_pps(struct pp_set *set, unsigned int elapsed_branches)
+void record_explored_pps(struct pp_set *set)
 {
 	struct pp *pp;
 	/* nb. iteration takes the read lock */
@@ -407,12 +407,7 @@ void record_explored_pps(struct pp_set *set, unsigned int elapsed_branches)
 		/* strictly speaking the lock is not needed to protect the
 		 * explored flag, as it's write-once. */
 		WRITE_LOCK(&pp_registry_lock);
-		/* If a data race PP was supposedly "all explored" in a state
-		 * space with only 1 branch, most likely it didn't show up
-		 * at all. So don't listen to that state space; keep it live. */
-		if (!IS_DATA_RACE(pp->priority) || elapsed_branches > 1) {
-			pp->explored = true;
-		}
+		pp->explored = true;
 		RW_UNLOCK(&pp_registry_lock);
 	}
 }
