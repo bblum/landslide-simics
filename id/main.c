@@ -68,11 +68,12 @@ int main(int argc, char **argv)
 	print_free_re_malloc_false_positives();
 
 	unsigned long cputime = total_cpu_time();
+	unsigned long saturation = (cputime / num_cpus) * 100 / time_elapsed();
 	struct human_friendly_time cputime_hft;
 	human_friendly_time(cputime, &cputime_hft);
 	PRINT("total CPU time consumed: ");
 	print_human_friendly_time(&cputime_hft);
-	PRINT(" (%lu usecs)\n", cputime);
+	PRINT(" (%lu usecs) (core saturation: %lu%%)\n", cputime, saturation);
 
 	return found_any_bugs() ? ID_EXIT_BUG_FOUND : ID_EXIT_SUCCESS;
 }
