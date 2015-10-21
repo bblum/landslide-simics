@@ -65,7 +65,7 @@ struct pp *pp_next(struct pp_set *set, struct pp *current); /* for iteration */
 bool pp_set_contains(struct pp_set *set, struct pp *pp);
 
 unsigned int compute_generation(struct pp_set *set);
-void record_explored_pps(struct pp_set *set, unsigned int elapsed_branches);
+void record_explored_pps(struct pp_set *set);
 struct pp_set *filter_unexplored_pps(struct pp_set *set);
 unsigned int unexplored_priority(struct pp_set *set);
 
