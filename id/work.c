@@ -288,11 +288,12 @@ static void process_work(struct job *j, bool was_blocked)
 			move_job_to_blocked_queue(j);
 		} else {
 			/* Job ran to completion. */
-			// DBG("[JOB %d] process(): after waiting, job complete\n", j->id);
-			READ_LOCK(&j->stats_lock);
-			unsigned int elapsed_branches = j->elapsed_branches;
-			RW_UNLOCK(&j->stats_lock);
-			record_explored_pps(j->config, elapsed_branches);
+			/* Don't let "small" jobs mark DRs as verified: they're
+			 * not likely to explore the interleavings we care about
+			 * without the other PPs enabled as well. */
+			if (j->should_reproduce) {
+				record_explored_pps(j->config);
+			}
 		}
 	}
 }
