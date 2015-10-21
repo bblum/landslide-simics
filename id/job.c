@@ -74,6 +74,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->log_filename = NULL;
 	j->trace_filename = NULL;
 	j->fab_timestamp = 0;
+	j->fab_cputime = 0;
 
 	COND_INIT(&j->done_cvar);
 	COND_INIT(&j->blocking_cvar);
@@ -346,7 +347,8 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 			print_human_friendly_time(&j->estimate_elapsed);
 			/* Time between start of any statespaces whatsoever
 			 * until a bug was found in this one. */
-			PRINT("; pldi time %lu usecs", j->fab_timestamp);
+			PRINT("; pldi time %lu; pldi cputime %lu",
+			      j->fab_timestamp, j->fab_cputime);
 		}
 		PRINT(")\n");
 	} else if (j->timed_out) {

@@ -409,6 +409,7 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 				j->trace_filename =
 					XSTRDUP(m.content.bug.trace_filename);
 				j->fab_timestamp = time_elapsed();
+				j->fab_cputime = total_cpu_time();
 				j->elapsed_branches++;
 				RW_UNLOCK(&j->stats_lock);
 			}

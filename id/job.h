@@ -45,6 +45,7 @@ struct job {
 	char *log_filename;
 	char *trace_filename;
 	unsigned long fab_timestamp;
+	unsigned long fab_cputime;
 
 	/* misc shared state */
 	enum { JOB_NORMAL, JOB_BLOCKED, JOB_DONE } status;

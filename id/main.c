@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 
 	set_job_options(test_name, verbose, leave_logs, pintos);
 	init_signal_handling();
-	start_time(max_time * 1000000);
+	start_time(max_time * 1000000, num_cpus);
 
 	if (!control_experiment) {
 		add_work(new_job(create_pp_set(PRIORITY_NONE), true));
@@ -65,6 +65,13 @@ int main(int argc, char **argv)
 	wait_to_finish_work();
 	print_live_data_race_pps();
 	print_free_re_malloc_false_positives();
+
+	unsigned long cputime = total_cpu_time();
+	struct human_friendly_time cputime_hft;
+	human_friendly_time(cputime, &cputime_hft);
+	PRINT("total CPU time consumed: ");
+	print_human_friendly_time(&cputime_hft);
+	PRINT(" (%lu usecs)\n", cputime);
 
 	return found_any_bugs() ? ID_EXIT_BUG_FOUND : ID_EXIT_SUCCESS;
 }
