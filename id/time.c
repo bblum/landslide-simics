@@ -4,15 +4,28 @@
  * @author Ben Blum <bblum@andrew.cmu.edu>
  */
 
+#include <pthread.h>
 #include <sys/time.h>
 
 #include "common.h"
+#include "sync.h"
 #include "time.h"
 #include "xcalls.h"
 
 /* end time = start_timestamp + budget */
 unsigned long start_timestamp = 0;
 unsigned long budget = 0;
+
+/* recording time spent actively using the cpu, rather than waiting for work */
+struct cpu_time {
+	unsigned long previous_total;
+	/* wtb option types */
+	bool running_now;
+	unsigned long running_since;
+};
+static struct cpu_time *cpu_times = NULL;
+static unsigned int num_cpus = 0;
+static pthread_mutex_t cpu_time_lock = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned long timestamp()
 {
@@ -21,12 +34,18 @@ unsigned long timestamp()
 	return (unsigned long)((tv.tv_sec * 1000000) + tv.tv_usec);
 }
 
-void start_time(unsigned long usecs)
+void start_time(unsigned long usecs, unsigned int cpus)
 {
 	assert(start_timestamp == 0);
 	assert(budget == 0);
 	start_timestamp = timestamp();
 	budget = usecs;
+	cpu_times = XMALLOC(cpus, struct cpu_time);
+	num_cpus = cpus;
+	for (unsigned int i = 0; i < cpus; i++) {
+		cpu_times[i].previous_total = 0;
+		cpu_times[i].running_now = false;
+	}
 }
 
 unsigned long time_elapsed()
@@ -43,6 +62,45 @@ unsigned long time_remaining()
 	unsigned long now = timestamp();
 	unsigned long end_time = start_timestamp + budget;
 	return end_time < now ? 0 : end_time - now;
+}
+
+void start_using_cpu(unsigned int which)
+{
+	LOCK(&cpu_time_lock);
+	assert(cpu_times != NULL);
+	assert(which < num_cpus);
+	assert(!cpu_times[which].running_now);
+	cpu_times[which].running_since = timestamp();
+	cpu_times[which].running_now = true;
+	UNLOCK(&cpu_time_lock);
+}
+
+void stop_using_cpu(unsigned int which)
+{
+	LOCK(&cpu_time_lock);
+	assert(cpu_times != NULL);
+	assert(which < num_cpus);
+	assert(cpu_times[which].running_now);
+	cpu_times[which].previous_total +=
+		timestamp() - cpu_times[which].running_since;
+	cpu_times[which].running_now = false;
+	UNLOCK(&cpu_time_lock);
+}
+
+unsigned long total_cpu_time()
+{
+	LOCK(&cpu_time_lock);
+	assert(cpu_times != NULL);
+	unsigned long now = timestamp();
+	unsigned long total = 0;
+	for (unsigned int i = 0; i < num_cpus; i++) {
+		total += cpu_times[i].previous_total;
+		if (cpu_times[i].running_now) {
+			total += now - cpu_times[i].running_since;
+		}
+	}
+	UNLOCK(&cpu_time_lock);
+	return total;
 }
 
 void human_friendly_time(long double usecs, struct human_friendly_time *hft)
