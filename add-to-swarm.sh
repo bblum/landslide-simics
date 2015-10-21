@@ -26,7 +26,7 @@ mkdir -p /tmp/shit || die "fail mkdir"
 chmod go-rx /tmp/shit || die "fail chmod"
 cd /tmp/shit || die "fail cd"
 
-tar xvjf /afs/andrew.cmu.edu/usr12/bblum/p2s-fixed-new.tar.bz2 || die "fail untar p2s"
+tar xvjf /afs/andrew.cmu.edu/usr12/bblum/p2s-fixed-newerest.tar.bz2 || die "fail untar p2s"
 
 warn "getting repo"
 cp -r /afs/andrew.cmu.edu/usr12/bblum/masters . || die "fail cp masters"
