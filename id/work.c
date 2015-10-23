@@ -341,6 +341,37 @@ static void *workqueue_thread(void *arg)
 	return NULL;
 }
 
+static bool get_ram_usage(unsigned long *totalram, unsigned long *availram)
+{
+	bool have_memavail = false;
+	FILE *proc_meminfo = fopen("/proc/meminfo", "r");
+	if (proc_meminfo != NULL) {
+		char buf[BUF_SIZE];
+		while (fgets(buf, BUF_SIZE, proc_meminfo) != NULL) {
+			if (sscanf(buf, "MemAvailable: %lu kB", availram) == 1) {
+				have_memavail = true;
+				*availram *= 1024;
+				break;
+			}
+		}
+		fclose(proc_meminfo);
+	}
+
+	struct sysinfo info;
+	int ret = sysinfo(&info);
+	if (ret == 0) {
+		*totalram = info.totalram;
+		if (!have_memavail) {
+			WARN("MemAvailable not supported, "
+			     "falling back to sysinfo to check ram usage\n");
+			*availram = info.freeram;
+		}
+		return true;
+	}
+
+	return false;
+}
+
 #define RAM_USAGE_DANGERZONE 90 /* percent */
 #define KILL_DEFERRED_JOBS   50 /* percent */
 
@@ -348,15 +379,14 @@ static void cant_swap() /* called with workqueue lock held */
 {
 	/* Too many suspended deferred jobs can hog memory. If the machine is in
 	 * danger of swapping, kill off half the */
-	struct sysinfo info;
-	int ret = sysinfo(&info);
-	if (ret != 0) {
+	unsigned long totalram, availram;
+	if (!get_ram_usage(&totalram, &availram)) {
 		WARN("can't swap, making bad decisions\n");
 		return;
 	}
 
 	/* i know, i know, check for overflow */
-	if (info.freeram > info.totalram * (100 - RAM_USAGE_DANGERZONE) / 100) {
+	if (availram > totalram * (100 - RAM_USAGE_DANGERZONE) / 100) {
 		return;
 	}
 
