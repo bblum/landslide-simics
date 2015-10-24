@@ -76,7 +76,7 @@ int main(void)
 {
 	report_start(START_CMPLT);
 
-	assuredly_misbehave((rand() % 521) % MISBEHAVE_MAX);
+	//assuredly_misbehave((rand() % 521) % MISBEHAVE_MAX);
 
 	ERR(thr_init(STACK_SIZE));
 	ERR(mutex_init(&lock1));
