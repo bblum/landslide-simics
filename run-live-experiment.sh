@@ -14,7 +14,7 @@ if [ "$(($MACHINE_CPUS<10))" = "1" ]; then
 	exit 1
 fi
 
-TRY=live-gamma
+TRY=live-delta-goodcputime
 
 function runtest {
 	echo -e "\033[01;32mTesting $semestername $groupname on $TEST_CASE\033[00m"
