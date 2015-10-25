@@ -266,15 +266,15 @@ fi
 
 #### Accept simics-4.0 license if not already ####
 
-SIMICS_PREFS_DIR="$HOME/.simics/4.0"
-SIMICS_PREFS="$SIMICS_PREFS_DIR/prefs"
-mkdir -p $SIMICS_PREFS_DIR
-touch "$SIMICS_PREFS" || die "can't access simics-4.0 prefs file @ $SIMICS_PREFS??"
-
-if ! grep "acad_sla_accepted: TRUE" "$SIMICS_PREFS" >/dev/null 2>/dev/null; then
-	msg "Automatically accepting Simics 4.0 SLA for you..."
-	cp ./simics-4.0-prefs "$SIMICS_PREFS" || die "couldn't copy over simics prefs to $SIMICS_PREFS??"
-fi
+#SIMICS_PREFS_DIR="$HOME/.simics/4.0"
+#SIMICS_PREFS="$SIMICS_PREFS_DIR/prefs"
+#mkdir -p $SIMICS_PREFS_DIR
+#touch "$SIMICS_PREFS" || die "can't access simics-4.0 prefs file @ $SIMICS_PREFS??"
+#
+#if ! grep "acad_sla_accepted: TRUE" "$SIMICS_PREFS" >/dev/null 2>/dev/null; then
+#	msg "Automatically accepting Simics 4.0 SLA for you..."
+#	cp ./simics-4.0-prefs "$SIMICS_PREFS" || die "couldn't copy over simics prefs to $SIMICS_PREFS??"
+#fi
 
 #### Do the needful ####
 
