@@ -311,7 +311,9 @@ static void *workqueue_thread(void *arg)
 			UNLOCK(&workqueue_lock);
 			DBG("WQ thread %lu got work: job %u\n", id, j->id);
 			start_using_cpu(id);
+			j->current_cpu = id;
 			process_work(j, was_blocked);
+			j->current_cpu = (unsigned long)-1;
 			stop_using_cpu(id);
 			LOCK(&workqueue_lock);
 		} else {
