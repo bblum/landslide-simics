@@ -75,6 +75,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->trace_filename = NULL;
 	j->fab_timestamp = 0;
 	j->fab_cputime = 0;
+	j->current_cpu = (unsigned long)-1;
 
 	COND_INIT(&j->done_cvar);
 	COND_INIT(&j->blocking_cvar);
@@ -170,7 +171,10 @@ static void *run_job(void *arg)
 	/* while multiple landslides can run at once, compiling each one from a
 	 * different config is mutually exclusive. we'll release this as soon as
 	 * we get a message from the child that it's up and running. */
+	assert(j->current_cpu != (unsigned long)-1);
+	stop_using_cpu(j->current_cpu);
 	LOCK(&compile_landslide_lock);
+	start_using_cpu(j->current_cpu);
 
 	bool bug_in_subspace = bug_already_found(j->config);
 	bool too_late = TIME_UP();
@@ -347,7 +351,7 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 			print_human_friendly_time(&j->estimate_elapsed);
 			/* Time between start of any statespaces whatsoever
 			 * until a bug was found in this one. */
-			PRINT("; pldi time %lu; pldi cputime %lu",
+			PRINT("; pldi time %lu; new-fixed pldi cputime %lu",
 			      j->fab_timestamp, j->fab_cputime);
 		}
 		PRINT(")\n");
