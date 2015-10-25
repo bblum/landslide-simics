@@ -441,8 +441,8 @@ static void print_all_job_stats()
 	print_human_friendly_time(&time_since_start);
 	PRINT("\n");
 
-	bool summarize_pending = !verbose &&
-		ARRAY_LIST_SIZE(&workqueue) >= TOO_MANY_PENDING_JOBS;
+	bool summarize_pending = true;
+		// !verbose && ARRAY_LIST_SIZE(&workqueue) >= TOO_MANY_PENDING_JOBS;
 
 	struct job **j;
 	unsigned int i;
