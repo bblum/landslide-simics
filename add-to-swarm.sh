@@ -19,7 +19,7 @@ if [ -d "/tmp/shit/masters" ]; then
 	die "already in swarm"
 fi
 
-cd masters || die "fail cd masters"
+cd $HOME/masters || die "fail cd masters"
 git branch | grep '*' | grep dr-experimence >/dev/null || die "masters not on right git branch"
 
 mkdir -p /tmp/shit || die "fail mkdir"
