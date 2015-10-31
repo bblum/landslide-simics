@@ -44,7 +44,7 @@ function runtest {
 			gzip "$logpath"
 			mv "$logpath".gz "$DESTDIR"
 			rv=$?
-			if [ "$rv" != "0" ] then
+			if [ "$rv" != "0" ]; then
 				echo "warning, AFS seems to be full. this log belonged to $semestername $groupname running $TEST_CASE."
 				touch "${logpath}-afsfull-belongsto-$semestername-$groupname-$TEST_CASE"
 			fi
