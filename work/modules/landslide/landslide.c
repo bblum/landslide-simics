@@ -188,8 +188,8 @@ static void check_exception(struct ls_state *ls, int number)
 #define PROGRESS_BRANCH_UNCERTAINTY_EXPONENT 1.1
 /* How many times more instructions should a given transition be than the
  * average previous transition before we proclaim it stuck? */
-#define PROGRESS_TRIGGER_FACTOR 2000
-#define PROGRESS_AGGRESSIVE_TRIGGER_FACTOR 100
+#define PROGRESS_TRIGGER_FACTOR 4000
+#define PROGRESS_AGGRESSIVE_TRIGGER_FACTOR 2000
 
 #define TOO_DEEP_0TH_BRANCH 1000
 

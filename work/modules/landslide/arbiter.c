@@ -219,7 +219,7 @@ static bool report_deadlock(struct ls_state *ls)
  * The tradeoff with this knob is how long FAB traces are for deadlock reports,
  * versus how many benign repetitions an adversarial program must contain in
  * order to trigger a false positive report despite this cleverness. */
-#define DEADLOCK_FP_MAX_ATTEMPTS 16
+#define DEADLOCK_FP_MAX_ATTEMPTS 128
 static bool try_avoid_fp_deadlock(struct ls_state *ls, struct agent **result) {
 	/* The counter is reset every time we backtrack, but it's never reset
 	 * during a single branch. This gives some notion of progress, so we
