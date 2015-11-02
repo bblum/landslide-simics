@@ -105,6 +105,10 @@ static void *run_job(void *arg)
 	XWRITE(&j->config_dynamic, "TEST_CASE=%s\n", test_name);
 	XWRITE(&j->config_dynamic, "%s %s\n", without, mx_lock);
 	XWRITE(&j->config_dynamic, "%s %s\n", without, mx_unlock);
+	if (pintos) {
+		XWRITE(&j->config_dynamic, "%s %s\n", without, "intr_disable");
+		XWRITE(&j->config_dynamic, "%s %s\n", without, "intr_enable");
+	}
 
 	struct pp *pp;
 	FOR_EACH_PP(pp, j->config) {
@@ -117,11 +121,15 @@ static void *run_job(void *arg)
 	XWRITE(&j->config_dynamic, "%s calloc\n", without);
 	XWRITE(&j->config_dynamic, "%s free\n", without);
 	if (pintos) {
+		/* basecode sema ups/downs */
 		XWRITE(&j->config_dynamic, "%s block_read\n", without);
 		XWRITE(&j->config_dynamic, "%s block_write\n", without);
 		XWRITE(&j->config_dynamic, "%s acquire_console\n", without);
 		XWRITE(&j->config_dynamic, "%s release_console\n", without);
 		XWRITE(&j->config_dynamic, "%s palloc_get_multiple\n", without);
+		/* basecode clis/stis */
+		XWRITE(&j->config_dynamic, "%s serial_putc\n", without);
+		XWRITE(&j->config_dynamic, "%s vga_putc\n", without);
 	} else if (0 == strcmp(test_name, "mutex_test")) {
 		// XXX: Hack. This is special cased here, instead of being a
 		// cmdline option, so the studence don't have to worry about

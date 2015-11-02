@@ -155,6 +155,12 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 	} else if ((ls->eip == GUEST_SEMA_DOWN_ENTER || ls->eip == GUEST_SEMA_UP_EXIT) && kern_within_functions(ls)) {
 		ASSERT_ONE_THREAD_PER_PP(ls);
 		return true;
+	} else if ((ls->eip == GUEST_CLI_ENTER || ls->eip == GUEST_STI_EXIT) &&
+		   !ls->sched.cur_agent->action.kern_mutex_locking &&
+		   !ls->sched.cur_agent->action.kern_mutex_unlocking &&
+		   kern_within_functions(ls)) {
+		ASSERT_ONE_THREAD_PER_PP(ls);
+		return true;
 #endif
 	} else if (kern_decision_point(ls->eip) &&
 		   kern_within_functions(ls)) {

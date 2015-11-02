@@ -17,7 +17,9 @@
 #define PRIORITY_DR_SUSPECTED ((unsigned int)0x02)
 #define PRIORITY_MUTEX_LOCK   ((unsigned int)0x04)
 #define PRIORITY_MUTEX_UNLOCK ((unsigned int)0x08)
-#define PRIORITY_OTHER        ((unsigned int)0x10)
+#define PRIORITY_CLI          ((unsigned int)0x10)
+#define PRIORITY_STI          ((unsigned int)0x20)
+#define PRIORITY_OTHER        ((unsigned int)0x40)
 #define PRIORITY_ALL          ((unsigned int)~0x0)
 
 struct pp {

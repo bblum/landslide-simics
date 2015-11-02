@@ -55,8 +55,12 @@ int main(int argc, char **argv)
 		add_work(new_job(create_pp_set(PRIORITY_NONE), true));
 		add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK), true));
 		add_work(new_job(create_pp_set(PRIORITY_MUTEX_UNLOCK), true));
+		if (testing_pintos()) {
+			add_work(new_job(create_pp_set(PRIORITY_CLI), true));
+			add_work(new_job(create_pp_set(PRIORITY_STI), true));
+		}
 	}
-	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK), true));
+	add_work(new_job(create_pp_set(PRIORITY_MUTEX_LOCK | PRIORITY_MUTEX_UNLOCK | PRIORITY_CLI | PRIORITY_STI), true));
 	start_work(num_cpus, progress_interval);
 	wait_to_finish_work();
 	print_live_data_race_pps();

@@ -436,6 +436,8 @@ if [ ! -z "$PINTOS_KERNEL" ]; then
 	# In pebbles, CONSOLE_MEM_BASE is below .text. In pintos, it's above.
 	echo "#define GUEST_VGA_CONSOLE_BASE 0xc00b8000"
 	echo "#define GUEST_VGA_CONSOLE_END (0xc00b8000 + (80*25*2))"
+	echo "#define GUEST_CLI_ENTER 0x`get_func intr_disable`"
+	echo "#define GUEST_STI_EXIT 0x`get_func_end intr_enable`" # intr_set_level calls intr_enable
 fi
 
 echo

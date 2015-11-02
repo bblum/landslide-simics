@@ -91,6 +91,21 @@ static void check_init() {
 				PRIORITY_MUTEX_UNLOCK, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
+			if (testing_pintos()) {
+				pp = pp_append(
+					XSTRDUP("within_function intr_disable"),
+					XSTRDUP("cli"),
+					XSTRDUP("<just before cli>"),
+					PRIORITY_CLI, max_generation);
+				assert(pp->id == 2);
+				pp = pp_append(
+					XSTRDUP("within_function intr_enable"),
+					XSTRDUP("sti"),
+					XSTRDUP("<just after sti>"),
+					PRIORITY_STI, max_generation);
+				assert(pp->id == 3);
+				assert(next_id == 4);
+			}
 		}
 		RW_UNLOCK(&pp_registry_lock);
 	}
