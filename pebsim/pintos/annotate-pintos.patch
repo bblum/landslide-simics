@@ -14,31 +14,36 @@ diff --git a/pintos/src/lib/kernel/list.c b/pintos/src/lib/kernel/list.c
 index 316d9ef..6bd41bb 100644
 --- a/pintos/src/lib/kernel/list.c
 +++ b/pintos/src/lib/kernel/list.c
-@@ -34,6 +34,23 @@
+@@ -34,6 +34,28 @@
  static bool is_sorted (struct list_elem *a, struct list_elem *b,
                         list_less_func *less, void *aux) UNUSED;
  
 +/* for landslide annotations */
 +#include "threads/thread.h" // for get_rq_addr(), list_entry(struct thread) and thread->tid
 +#include "threads/tell_landslide.h"
++#include "threads/interrupt.h"
 +static bool is_runqueue(struct list_elem *elem)
 +{
 +  struct list_elem *e;
++  enum intr_level old_level = intr_disable();
 +  for (e = list_begin(get_rq_addr()); e != list_end(get_rq_addr()); e = list_next(e)) {
 +    if (e == elem) {
++      intr_set_level(old_level);
 +      return true;
 +    }
 +  }
 +  if (e == elem) { /* check for e.g. list_insert(list_end(list), elem) */
++    intr_set_level(old_level);
 +    return true;
 +  }
++  intr_set_level(old_level);
 +  return false;
 +}
 +
  /* Returns true if ELEM is a head, false otherwise. */
  static inline bool
  is_head (struct list_elem *elem)
-@@ -171,6 +188,10 @@ list_insert (struct list_elem *before, struct list_elem *elem)
+@@ -171,6 +193,10 @@
    ASSERT (is_interior (before) || is_tail (before));
    ASSERT (elem != NULL);
  
@@ -49,7 +54,7 @@ index 316d9ef..6bd41bb 100644
    elem->prev = before->prev;
    elem->next = before;
    before->prev->next = elem;
-@@ -187,6 +208,13 @@ list_splice (struct list_elem *before,
+@@ -187,6 +213,13 @@
    ASSERT (is_interior (before) || is_tail (before));
    if (first == last)
      return;
@@ -63,7 +68,7 @@ index 316d9ef..6bd41bb 100644
    last = list_prev (last);
  
    ASSERT (is_interior (first));
-@@ -249,6 +277,9 @@ struct list_elem *
+@@ -249,6 +282,9 @@
  list_remove (struct list_elem *elem)
  {
    ASSERT (is_interior (elem));

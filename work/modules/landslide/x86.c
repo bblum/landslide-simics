@@ -398,7 +398,7 @@ unsigned int delay_instruction(conf_object_t *cpu)
 	 * the stack pointer as a fallback (XXX: this has issue #201). */
 	unsigned int buf =
 #ifdef PINTOS_KERNEL
-		PAGE_SIZE - 1 : /* dummy value to trigger backup plan */
+		PAGE_SIZE - 1 ; /* dummy value to trigger backup plan */
 #else
 		GET_SEGSEL(cpu, cs) == SEGSEL_USER_CS ?
 			USER_IMG_END : /* use spare .bss in user image */
