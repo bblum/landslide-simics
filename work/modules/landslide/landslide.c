@@ -193,6 +193,9 @@ static void check_exception(struct ls_state *ls, int number)
 
 #define TOO_DEEP_0TH_BRANCH 1000
 
+/* Avoid getting owned by DR PPs on e.g. memset which hose the average. */
+#define PROGRESS_MIN_TRIGGER_AVERAGE 100 /* idk really */
+
 static void wrong_panic(struct ls_state *ls, const char *panicked, const char *expected)
 {
 	lsprintf(BUG, COLOUR_BOLD COLOUR_YELLOW "********************************\n");
@@ -239,7 +242,8 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 	unsigned long most_recent =
 		ls->trigger_count - ls->save.current->trigger_count;
 	unsigned long average_triggers =
-		ls->save.total_triggers / ls->save.total_choices;
+		MAX(ls->save.total_triggers / ls->save.total_choices,
+		    PROGRESS_MIN_TRIGGER_AVERAGE);
 	unsigned long trigger_factor = more_aggressive_check ?
 		PROGRESS_AGGRESSIVE_TRIGGER_FACTOR : PROGRESS_TRIGGER_FACTOR;
 	unsigned long trigger_thresh = average_triggers * trigger_factor;
