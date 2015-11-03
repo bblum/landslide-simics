@@ -130,6 +130,7 @@ static void *run_job(void *arg)
 		/* basecode clis/stis */
 		XWRITE(&j->config_dynamic, "%s serial_putc\n", without);
 		XWRITE(&j->config_dynamic, "%s vga_putc\n", without);
+		XWRITE(&j->config_dynamic, "%s is_runqueue\n", without);
 	} else if (0 == strcmp(test_name, "mutex_test")) {
 		// XXX: Hack. This is special cased here, instead of being a
 		// cmdline option, so the studence don't have to worry about
