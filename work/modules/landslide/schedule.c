@@ -70,6 +70,7 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.cs_free_pass = true;
 	a->action.forking = false;
 	a->action.sleeping = false;
+	a->action.spleeping = false;
 	a->action.vanishing = false;
 	a->action.readlining = false;
 	a->action.just_forked = true;
@@ -181,8 +182,13 @@ static void current_dequeue(struct sched_state *s)
 {
 	struct agent *a = agent_by_tid_or_null(&s->rq, s->cur_agent->tid);
 	if (a == NULL) {
-		a = agent_by_tid(&s->dq, s->cur_agent->tid);
-		Q_REMOVE(&s->dq, a, nobe);
+		a = agent_by_tid_or_null(&s->dq, s->cur_agent->tid);
+		if (a == NULL) {
+			a = agent_by_tid(&s->sq, s->cur_agent->tid);
+			Q_REMOVE(&s->sq, a, nobe);
+		} else {
+			Q_REMOVE(&s->dq, a, nobe);
+		}
 	} else {
 		Q_REMOVE(&s->rq, a, nobe);
 	}
@@ -624,7 +630,42 @@ static void keep_schedule_inflight(struct ls_state *ls)
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_RED "Scheduler state: ");
 		print_qs(ALWAYS, s);
 		printf(ALWAYS, COLOUR_DEFAULT "\n");
+#ifdef PINTOS_KERNEL
+		// ok, we tried to run a thread that was sleeping, in the middle
+		// of a critical section by another thread, where the timer tick
+		// cannot wake up the sleeping thread because trylock will fail.
+		// if this is the case, we must simply end this branch early,
+		// so that explore() doesn't get confused about save->next_tid.
+		// but first, we must distinguish this case (where the currently
+		// running thread, in the sleep() critical section, is runnable)
+		// from another possibility -- that all other threads are also
+		// blocked, and that this is a sleep-related deadlock, where
+		// the schedule target fell into a hole and could take no more.
+		bool any_other_runnable = false;
+		struct agent *a;
+		FOR_EACH_RUNNABLE_AGENT(a, s,
+			if (a->tid != s->schedule_in_flight->tid) {
+				any_other_runnable = true;
+			}
+		);
+		if (any_other_runnable) {
+			// we were able to find the other runnable thread, which
+			// is in the sleep critical section preventing a trylock.
+			// override the test lifecycle logic, and end it now.
+			ls->end_branch_early_due_to_trylock_prob = true;
+			// note that this is not precise: if TWO threads both
+			// simultaneously fall into a hole and can take no more,
+			// the other will appear to be runnable, and we'll end
+			// up here with a false negative, instead of identifying
+			// the bug below. oh well.
+		} else {
+			FOUND_A_BUG(ls, "Sleep-related deadlock (TID %d fell "
+				    "into a hole, and could take no more.",
+				    s->schedule_in_flight->tid);
+		}
+#else
 		LS_ABORT();
+#endif
 	}
 }
 
@@ -742,6 +783,22 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	} else if (kern_sleeping(ls->eip)) {
 		assert_no_action(s, "sleeping");
 		ACTION(s, sleeping) = true;
+#ifdef PINTOS_KERNEL
+	/* the replacement for tell_landslide_sleeping in pintos is a bit of a
+	 * gross hack. we assume all ze studence will use list_insert_ordered,
+	 * so as soon as that exits during timer_sleep(), we take that to mean
+	 * the thread could be woken by the timer. */
+	} else if (ls->eip == GUEST_TIMER_SPLEEP_ENTER) {
+		assert(!ACTION(s, spleeping));
+		ACTION(s, spleeping) = true;
+	} else if (ls->eip == GUEST_TIMER_SPLEEP_EXIT) {
+		assert(ACTION(s, spleeping));
+		ACTION(s, spleeping) = false;
+	} else if (ls->eip == GUEST_LIST_INSERT_ORDERED_EXIT) {
+		if (ACTION(s, spleeping)) {
+			ACTION(s, sleeping) = true;
+		}
+#endif
 	} else if (kern_vanishing(ls->eip)) {
 #ifdef PINTOS_KERNEL
 		/* In pintos, for maximum patch compatibility, we put the
