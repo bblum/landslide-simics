@@ -136,6 +136,10 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_dynamic, "%s vga_putc\n", without);
 		XWRITE(&j->config_dynamic, "%s is_runqueue\n", without);
 		XWRITE(&j->config_dynamic, "%s idle\n", without);
+		if (0 == strcmp(test_name, "alarm-simultaneous")) {
+			XWRITE(&j->config_dynamic, "%s child_done\n", without);
+			XWRITE(&j->config_dynamic, "%s parent_done\n", without);
+		}
 	} else if (0 == strcmp(test_name, "mutex_test")) {
 		// XXX: Hack. This is special cased here, instead of being a
 		// cmdline option, so the studence don't have to worry about
