@@ -139,6 +139,7 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(action.cs_free_pass);
 	COPY_FIELD(action.forking);
 	COPY_FIELD(action.sleeping);
+	COPY_FIELD(action.spleeping);
 	COPY_FIELD(action.vanishing);
 	COPY_FIELD(action.readlining);
 	COPY_FIELD(action.just_forked);
