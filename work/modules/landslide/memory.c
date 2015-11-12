@@ -1197,18 +1197,18 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	STATIC_ASSERT(EXPLORE_BACKWARDS == 0 && "Hey, no fair!");
 	/* a 1-pass dr analysis would report this on 1st branch w/o "waiting to
 	 * reorder it"; it's not fair to count as a potential false negative */
-	if (true) {
+	if (l0->interrupce_enabled) {
 #else
-	if (confirmed) {
+	if (confirmed && l0->interrupce_enabled) {
 #endif
 		message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
 			l0->last_call, l0->most_recent_syscall, confirmed,
 			deterministic, free_re_malloc);
 	}
 #ifdef DR_FALSE_NEGATIVE_EXPERIMENT
-	if (true) {
+	if (l1->interrupce_enabled) {
 #else
-	if (confirmed || !too_suspicious) {
+	if ((confirmed || !too_suspicious) && l1->interrupce_enabled) {
 #endif
 		message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
 			l1->last_call, l1->most_recent_syscall, confirmed,
