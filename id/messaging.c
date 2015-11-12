@@ -401,17 +401,30 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 				j->cancelled = true;
 				RW_UNLOCK(&j->stats_lock);
 			} else {
-				found_a_bug(m.content.bug.trace_filename, j);
-
-				WRITE_LOCK(&j->stats_lock);
-				assert(j->trace_filename == NULL &&
-				       "bug already found same job?");
-				j->trace_filename =
-					XSTRDUP(m.content.bug.trace_filename);
-				j->fab_timestamp = time_elapsed();
-				j->fab_cputime = total_cpu_time();
-				j->elapsed_branches++;
+				READ_LOCK(&j->stats_lock);
+				/* this should scare you. it scares me. */
+				bool need_rerun = testing_pintos() &&
+					j->elapsed_branches == 0;
 				RW_UNLOCK(&j->stats_lock);
+				if (need_rerun) {
+					WRITE_LOCK(&j->stats_lock);
+					j->elapsed_branches++;
+					j->need_rerun = true;
+					RW_UNLOCK(&j->stats_lock);
+				} else {
+					/* actual logic */
+					found_a_bug(m.content.bug.trace_filename, j);
+
+					WRITE_LOCK(&j->stats_lock);
+					assert(j->trace_filename == NULL &&
+					       "bug already found same job?");
+					j->trace_filename =
+						XSTRDUP(m.content.bug.trace_filename);
+					j->fab_timestamp = time_elapsed();
+					j->fab_cputime = total_cpu_time();
+					j->elapsed_branches++;
+					RW_UNLOCK(&j->stats_lock);
+				}
 			}
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;

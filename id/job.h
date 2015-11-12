@@ -44,6 +44,7 @@ struct job {
 	bool kill_job;
 	char *log_filename;
 	char *trace_filename;
+	bool need_rerun;
 	unsigned long fab_timestamp;
 	unsigned long fab_cputime;
 	unsigned long current_cpu;

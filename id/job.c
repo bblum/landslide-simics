@@ -73,6 +73,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->kill_job = false;
 	j->log_filename = NULL;
 	j->trace_filename = NULL;
+	j->need_rerun = false;
 	j->fab_timestamp = 0;
 	j->fab_cputime = 0;
 	j->current_cpu = (unsigned long)-1;
@@ -202,6 +203,7 @@ static void *run_job(void *arg)
 
 	WRITE_LOCK(&j->stats_lock);
 	j->log_filename = XSTRDUP(j->log_stderr.filename);
+	j->need_rerun = false;
 	RW_UNLOCK(&j->stats_lock);
 
 	pid_t landslide_pid = fork();
@@ -267,6 +269,9 @@ static void *run_job(void *arg)
 
 	WRITE_LOCK(&j->stats_lock);
 	j->complete = true;
+	if (j->need_rerun) {
+		j->cancelled = true;
+	}
 	if (should_delete) {
 		FREE(j->log_filename);
 		j->log_filename = NULL;
@@ -341,7 +346,11 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 	}
 	PRINT("[JOB %d] ", j->id);
 	if (j->cancelled) {
-		PRINT(COLOUR_DARK COLOUR_YELLOW "CANCELLED\n");
+		PRINT(COLOUR_DARK COLOUR_YELLOW "CANCELLED");
+		if (j->need_rerun) {
+			PRINT(" (need rerun)");
+		}
+		PRINT("\n");
 	} else if (j->trace_filename != NULL) {
 		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
 		PRINT("(%u interleaving%s tested", j->elapsed_branches,

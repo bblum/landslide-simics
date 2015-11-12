@@ -287,6 +287,14 @@ static void process_work(struct job *j, bool was_blocked)
 			// DBG("[JOB %d] process(): after waiting, job blocked\n", j->id);
 			move_job_to_blocked_queue(j);
 		} else {
+			READ_LOCK(&j->stats_lock);
+			bool need_rerun = j->need_rerun;
+			RW_UNLOCK(&j->stats_lock);
+			if (need_rerun) {
+				WARN("[JOB %d] failed on branch 1, needs rerun\n",
+				     j->id);
+				add_work(new_job(j->config, j->should_reproduce));
+			} else
 			/* Job ran to completion. */
 			/* Don't let "small" jobs mark DRs as verified: they're
 			 * not likely to explore the interleavings we care about
