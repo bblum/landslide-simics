@@ -45,6 +45,7 @@ struct agent {
 		bool forking;
 		/* about to take a spin on the sleep queue? */
 		bool sleeping;
+		bool spleeping; // pintos
 		/* do they have properties of red wizard? */
 		bool vanishing;
 		/* are they reading lines */

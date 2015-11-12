@@ -78,6 +78,52 @@ index 316d9ef..6bd41bb 100644
    elem->prev->next = elem->next;
    elem->next->prev = elem->prev;
    return elem->next;
+diff --git a/pintos/src/tests/threads/alarm-simultaneous.c b/pintos/src/tests/threads/alarm-simultaneous.c
+index 2834a88..5f75e11 100644
+--- a/pintos/src/tests/threads/alarm-simultaneous.c
++++ b/pintos/src/tests/threads/alarm-simultaneous.c
+@@ -1,3 +1,36 @@
++#include <stdio.h>
++#include "tests/threads/tests.h"
++#include "threads/init.h"
++#include "threads/synch.h"
++#include "threads/thread.h"
++#include "devices/timer.h"
++
++struct semaphore done_sema;
++
++static __attribute__((noinline)) void child_done() {
++	sema_up(&done_sema);
++}
++static __attribute__((noinline)) void parent_done() {
++	sema_down(&done_sema);
++	sema_down(&done_sema);
++}
++
++static void sleeper (void *hax) {
++	timer_sleep ((int)hax);
++	child_done();
++	thread_yield();
++}
++void test_alarm_simultaneous() {
++	sema_init(&done_sema, 0);
++	thread_create ("Patrice Godefroid", PRI_DEFAULT, sleeper, (void *)3);
++	thread_create ("Cormac Flanagan", PRI_DEFAULT, sleeper, (void *)4);
++	thread_yield();
++	timer_sleep (2);
++	parent_done();
++	thread_yield();
++}
++
++#if 0
+ /* Creates N threads, each of which sleeps a different, fixed
+    duration, M times.  Records the wake-up order and verifies
+    that it is valid. */
+@@ -92,3 +125,4 @@
+       thread_yield ();
+     }
+ }
++#endif
 diff --git a/pintos/src/tests/threads/priority-sema.c b/pintos/src/tests/threads/priority-sema.c
 index 2834a88..5f75e11 100644
 --- a/pintos/src/tests/threads/priority-sema.c
