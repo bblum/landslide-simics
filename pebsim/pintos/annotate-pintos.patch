@@ -92,10 +92,10 @@ index 2834a88..5f75e11 100644
 +
 +struct semaphore done_sema;
 +
-+static void child_done() {
++static __attribute__((noinline)) void child_done() {
 +	sema_up(&done_sema);
 +}
-+static void parent_done() {
++static __attribute__((noinline)) void parent_done() {
 +	sema_down(&done_sema);
 +	sema_down(&done_sema);
 +}
