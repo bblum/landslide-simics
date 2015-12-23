@@ -413,7 +413,9 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			 "Tabular preemption trace output to %s\n." COLOUR_DEFAULT,
 			 ls->html_file);
 		if (bug_found) {
-			message_found_a_bug(&ls->mess, ls->html_file);
+			message_found_a_bug(&ls->mess, ls->html_file,
+					    ls->sched.icb_preemption_count,
+					    ls->icb_bound);
 		}
 	}
 	MM_FREE(stack);

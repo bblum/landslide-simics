@@ -43,6 +43,8 @@ struct ls_state {
 	struct messaging_state mess;
 	struct pp_config pps;
 
+	unsigned int icb_bound; /* used iff ICB is set */
+
 	char *cmd_file;
 	char *html_file;
 
