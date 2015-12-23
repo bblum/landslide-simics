@@ -427,6 +427,7 @@ void print_estimates(struct ls_state *ls)
 
 	uint64_t time_asleep =
 		message_estimate(&ls->mess, proportion, branches,
-				 usecs, ls->save.total_usecs);
+				 usecs, ls->save.total_usecs,
+				 ls->sched.icb_preemption_count, ls->icb_bound);
 	fudge_time(&ls->save.last_save_time, time_asleep);
 }

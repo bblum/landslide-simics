@@ -24,9 +24,11 @@ void message_data_race(struct messaging_state *m, unsigned int eip,
 /* returns the # of useconds that landslide was put to sleep for */
 uint64_t message_estimate(struct messaging_state *m, long double proportion,
 			  unsigned int elapsed_branches, long double total_usecs,
-			  unsigned long elapsed_usecs);
+			  unsigned long elapsed_usecs,
+			  unsigned int icb_preemptions, unsigned int icb_bound);
 
-void message_found_a_bug(struct messaging_state *m, const char *trace_filename);
+void message_found_a_bug(struct messaging_state *m, const char *trace_filename,
+			 unsigned int icb_preemptions, unsigned int icb_bound);
 
 bool should_abort(struct messaging_state *m);
 

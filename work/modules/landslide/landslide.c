@@ -74,6 +74,15 @@ struct ls_state *new_landslide()
 	messaging_init(&ls->mess);
 	pps_init(&ls->pps);
 
+#ifdef ICB
+	// TODO: avoid hardcoded bound
+	ls->icb_bound = ICB_BOUND;
+#else
+	/* garbage value; may be sent to QS in a message (WTB option types :\),
+	 * but should not get printed to the user */
+	ls->icb_bound = 31337;
+#endif
+
 	ls->cmd_file = NULL;
 	ls->html_file = NULL;
 	ls->just_jumped = false;

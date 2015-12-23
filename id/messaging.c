@@ -53,10 +53,14 @@ struct input_message {
 			unsigned int elapsed_branches;
 			long double total_usecs;
 			long double elapsed_usecs;
+			unsigned int icb_preemption_count;
+			unsigned int icb_cur_bound;
 		} estimate;
 
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
+			unsigned int icb_preemption_count;
+			unsigned int icb_cur_bound;
 		} bug;
 
 		struct {
