@@ -527,6 +527,8 @@ static bool time_travel(struct ls_state *ls)
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%" PRIu64
 		 ".\n" COLOUR_DEFAULT, ls->save.total_jumps + 1);
 	print_estimates(ls);
+	lsprintf(DEV, "ICB preemption count this branch = %u\n",
+		 ls->sched.icb_preemption_count);
 	check_should_abort(ls);
 
 	if (h != NULL) {

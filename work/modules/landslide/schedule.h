@@ -192,6 +192,8 @@ struct sched_state {
 	struct lockset known_semaphores;
 	/* Avoid false positive deadlocks caused by ad-hoc yield-blocking. */
 	unsigned int deadlock_fp_avoidance_count;
+	/* ICB */
+	unsigned int icb_preemption_count;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
 	/* It does take many instructions for us to switch, after all. This is
@@ -255,6 +257,24 @@ struct sched_state {
 		EVAPORATE_FLOW_CONTROL(code);		\
 	}						\
 	} while (0)
+
+/* For purposes of ICB, would switching to the given thread constitute a
+ * preemption? Note that in a voluntary resched senario, both cur and last
+ * agence are allowed (i.e., we could choose them even when the ICB bound
+ * is exceeded), as we may need to run one or the other for correctness. */
+#define NO_PREEMPTION_REQUIRED(s, voluntary, a) ({			\
+	struct agent *__a = (a);					\
+	struct sched_state *__s = (s);					\
+	(__a == __s->cur_agent ||					\
+	 ((voluntary) && __a == __s->last_agent)); })
+
+#ifdef ICB
+#define ICB_BLOCKED(s, voluntary, a)	\
+	(false && /* TODO: check counter against stored bound value */	\
+	 !NO_PREEMPTION_REQUIRED(s, voluntary, a))
+#else
+#define ICB_BLOCKED(ls, voluntary, a) false
+#endif
 
 struct agent *agent_by_tid_or_null(struct agent_q *, unsigned int tid);
 

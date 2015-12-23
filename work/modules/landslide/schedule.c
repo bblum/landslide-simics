@@ -20,6 +20,7 @@
 #include "memory.h"
 #include "schedule.h"
 #include "stack.h"
+#include "tree.h"
 #include "user_specifics.h"
 #include "variable_queue.h"
 #include "x86.h"
@@ -351,6 +352,7 @@ void sched_init(struct sched_state *s)
 	s->voluntary_resched_stack = NULL;
 	lockset_init(&s->known_semaphores);
 	s->deadlock_fp_avoidance_count = 0;
+	s->icb_preemption_count = 0;
 }
 
 void print_agent(verbosity v, const struct agent *a)
@@ -1656,6 +1658,8 @@ void sched_recover(struct ls_state *ls)
 				lsprintf(INFO, "Explorer-chosen tid %d already "
 					 "running!\n", tid);
 			}
+			/* ICB counter logic not necessary here; current thread
+			 * will always be legal w/o "preempting" (per ICB). */
 		} else {
 			// TODO: duplicate agent search logic (arbiter.c)
 			struct agent *a = agent_by_tid_or_null(&s->rq, tid);
@@ -1673,6 +1677,15 @@ void sched_recover(struct ls_state *ls)
 					ls->cpu0);
 			}
 			s->entering_timer = true;
+
+			/* Are we switching to someone other than the current
+			 * thread or a voluntary yield target? If so it counts
+			 * as a preemption for ICB. */
+			if (!NO_PREEMPTION_REQUIRED(s, ls->save.current->voluntary, a)) {
+				s->icb_preemption_count++;
+				lsprintf(DEV, "Switching to TID %d counts as a "
+					 "preemption for ICB.\n", a->tid);
+			}
 		}
 	} else {
 		tid = CURRENT(s, tid);

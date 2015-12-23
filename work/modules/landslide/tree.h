@@ -66,6 +66,9 @@ struct hax {
 	/* Optional value that may be set if this is a speculative DR PP.
 	 * Indicates the suspected DR eip value in the upcoming transition. */
 	unsigned int data_race_eip;
+	/* Was the arbiter interested in this instruction because it was the end
+	 * of a voluntary reschedule? (Used for ICB preemption counting.) */
+	bool voluntary;
 
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! Also, the "tags" that POR uses to denote to-be-explored

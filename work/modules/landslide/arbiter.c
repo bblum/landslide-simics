@@ -276,7 +276,8 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 
 	/* Count the number of available threads. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		if (!BLOCKED(a) && !IS_IDLE(ls, a)) {
+		if (!BLOCKED(a) && !IS_IDLE(ls, a) &&
+		    !ICB_BLOCKED(&ls->sched, voluntary, a)) {
 			print_agent(DEV, a);
 			printf(DEV, " ");
 			count++;
@@ -288,6 +289,10 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 
 //#define CHOOSE_RANDOMLY
 #ifdef CHOOSE_RANDOMLY
+	// TODO: add ICB option to definegen.sh
+#ifdef ICB
+	STATIC_ASSERT(false && "ICB and CHOOSE_RANDOMLY are incompatible");
+#endif
 	// with given odds, will make the "forwards" choice.
 	const int numerator   = 19;
 	const int denominator = 20;
@@ -297,6 +302,10 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 #else
 	if (EXPLORE_BACKWARDS == 0) {
 		count = 1;
+	} else {
+#ifdef ICB
+		assert(false && "For ICB, EXPLORE_BACKWARDS must be 0.");
+#endif
 	}
 #endif
 
@@ -305,8 +314,10 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 		if (current_is_legal_choice) {
 			printf(DEV, "- Must run yielding thread %d\n",
 			       current->tid);
+			/* NB. this will be last_agent when yielding. */
 			*result = current;
 			*our_choice = true;
+			/* Preemption count doesn't increase. */
 			return true;
 		} else if (!agent_is_user_yield_blocked(&current->user_yield)) {
 			/* Something funny happened, causing the thread to get
@@ -322,11 +333,21 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 	/* Find the count-th thread. */
 	unsigned int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		if (!BLOCKED(a) && !IS_IDLE(ls, a) && ++i == count) {
+		if (!BLOCKED(a) && !IS_IDLE(ls, a) &&
+		    !ICB_BLOCKED(&ls->sched, voluntary, a) && ++i == count) {
 			printf(DEV, "- Figured I'd look at TID %d next.\n",
 			       a->tid);
 			*result = a;
 			*our_choice = true;
+			/* Should preemption counter increase for ICB? */
+			// FIXME: actually, I'm pretty sure this is dead code.
+			// Given EXPLORE_BACKWARDS=0, don't we always choose
+			// either the cur agent or the last agent?
+			if (!NO_PREEMPTION_REQUIRED(&ls->sched, voluntary, a)) {
+				ls->sched.icb_preemption_count++;
+				lsprintf(DEV, "Switching to TID %d will count "
+					 "as a preemption for ICB.\n", a->tid);
+			}
 			return true;
 		}
 	);
@@ -340,12 +361,15 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 				 "WARNING: System is apparently deadlocked! "
 				 "Let me just try one thing. See you soon.\n");
 			*our_choice = true;
+			/* Special case. Bypass preemption count; this mechanism
+			 * is needed for correctness, so ICB can't interfere. */
 			return true;
 		} else {
 			if (voluntary) {
 				save_setjmp(&ls->save, ls, -1, true,
 					    true, true, -1, true);
 			}
+			lsprintf(DEV, "ICB count %u\n", ls->sched.icb_preemption_count);
 			FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
 			return false;
 		}
