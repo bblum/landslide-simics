@@ -279,6 +279,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 			copy_stack_trace(src->voluntary_resched_stack);
 	copy_lockset(&dest->known_semaphores, &src->known_semaphores);
 	dest->deadlock_fp_avoidance_count = src->deadlock_fp_avoidance_count;
+	dest->icb_preemption_count = src->icb_preemption_count;
 }
 
 static void copy_test(struct test_state *dest, const struct test_state *src)
@@ -521,6 +522,8 @@ static void free_hax(struct hax *h)
 	h->conflicts = NULL;
 	h->happens_before = NULL;
 	free_stack_trace(h->stack_trace);
+	// FIXME(#65): It should be safe to MM_FREE(h) here, right?
+	// FIXME(#65): Check if that's safe wrt update_marked_children.
 }
 
 /* Reverse that which is not glowing green. */
@@ -785,6 +788,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->proportion = 0.0L;
 		h->subtree_usecs = 0.0L;
 		h->estimate_computed = false;
+		h->voluntary = voluntary;
 
 		if (voluntary) {
 #ifndef PINTOS_KERNEL
