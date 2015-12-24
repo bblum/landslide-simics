@@ -38,12 +38,17 @@ struct job {
 	struct human_friendly_time estimate_elapsed;
 	struct human_friendly_time estimate_eta;
 	long double estimate_eta_numeric;
+	/* job lifecycle */
 	bool cancelled;
-	bool complete; /* same as 'done' just under different lock */
+	bool complete;
 	bool timed_out;
 	bool kill_job;
+	/* associated files */
 	char *log_filename;
 	char *trace_filename;
+	/* used iff -C option (control_experiment) is provided */
+	unsigned int icb_current_bound; /* last completed bound = this - 1 */
+	unsigned int icb_fab_preemptions; /* used only when FAB */
 
 	/* misc shared state */
 	enum { JOB_NORMAL, JOB_BLOCKED, JOB_DONE } status;
@@ -52,7 +57,8 @@ struct job {
 	pthread_mutex_t lifecycle_lock;
 };
 
-void set_job_options(char *test_name, bool verbose, bool leave_logs, bool pintos);
+void set_job_options(char *test_name, bool verbose, bool leave_logs,
+		     bool pintos, bool use_icb);
 bool testing_pintos();
 
 struct job *new_job(struct pp_set *config, bool should_reproduce);

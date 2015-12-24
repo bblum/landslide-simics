@@ -33,11 +33,12 @@ int main(int argc, char **argv)
 	bool use_wrapper_log;
 	char wrapper_log[BUF_SIZE];
 	bool pintos;
+	bool use_icb;
 	unsigned long progress_interval;
 
 	if (!get_options(argc, argv, test_name, BUF_SIZE, &max_time, &num_cpus,
 			 &verbose, &leave_logs, &control_experiment,
-			 &use_wrapper_log, wrapper_log, BUF_SIZE, &pintos,
+			 &use_wrapper_log, wrapper_log, BUF_SIZE, &pintos, &use_icb,
 			 &progress_interval, &eta_factor, &eta_threshold)) {
 		usage(argv[0]);
 		exit(ID_EXIT_USAGE);
@@ -47,7 +48,7 @@ int main(int argc, char **argv)
 
 	DBG("will run for at most %lu seconds\n", max_time);
 
-	set_job_options(test_name, verbose, leave_logs, pintos);
+	set_job_options(test_name, verbose, leave_logs, pintos, use_icb);
 	init_signal_handling();
 	start_time(max_time * 1000000);
 
