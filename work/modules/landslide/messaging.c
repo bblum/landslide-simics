@@ -50,14 +50,12 @@ struct output_message {
 			unsigned int elapsed_branches;
 			long double total_usecs;
 			long double elapsed_usecs;
-			unsigned int icb_preemption_count;
 			unsigned int icb_cur_bound;
 		} estimate;
 
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
 			unsigned int icb_preemption_count;
-			unsigned int icb_cur_bound;
 		} bug;
 
 		struct {
@@ -201,7 +199,7 @@ uint64_t message_estimate(struct messaging_state *state, long double proportion,
 	m.content.estimate.elapsed_branches = elapsed_branches;
 	m.content.estimate.total_usecs = total_usecs;
 	m.content.estimate.elapsed_usecs = elapsed_usecs;
-	m.content.estimate.icb_preemption_count = icb_preemptions;
+	//m.content.estimate.icb_preemption_count = icb_preemptions; // not needed
 	m.content.estimate.icb_cur_bound = icb_bound;
 	send(state, &m);
 
@@ -239,7 +237,7 @@ void message_found_a_bug(struct messaging_state *state, const char *trace_filena
 	assert(strlen(trace_filename) < MESSAGE_BUF_SIZE && "name too long");
 	strcpy(m.content.bug.trace_filename, trace_filename);
 	m.content.bug.icb_preemption_count = icb_preemptions;
-	m.content.bug.icb_cur_bound = icb_bound;
+	//m.content.bug.icb_cur_bound = icb_bound; // not needed
 	send(state, &m);
 }
 

@@ -39,14 +39,16 @@ char *test_name = NULL;
 bool verbose = false;
 bool leave_logs = false;
 bool pintos = false;
+bool use_icb = false;
 
-void set_job_options(char *arg_test_name, bool arg_verbose,
-		     bool arg_leave_logs, bool arg_pintos)
+void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
+		     bool arg_pintos, bool arg_use_icb)
 {
 	test_name = XSTRDUP(arg_test_name);
 	verbose = arg_verbose;
 	leave_logs = arg_leave_logs;
 	pintos = arg_pintos;
+	use_icb = arg_use_icb;
 }
 
 bool testing_pintos() { return pintos; }
@@ -100,6 +102,7 @@ static void *run_job(void *arg)
 
 	XWRITE(&j->config_static, "TEST_CASE=%s\n", test_name);
 	XWRITE(&j->config_static, "VERBOSE=%d\n", verbose ? 1 : 0);
+	XWRITE(&j->config_static, "ICB=%d\n", use_icb ? 1 : 0);
 
 	// XXX(#120): TEST_CASE must be defined before PPs are specified.
 	XWRITE(&j->config_dynamic, "TEST_CASE=%s\n", test_name);
@@ -334,19 +337,28 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 		PRINT(COLOUR_DARK COLOUR_YELLOW "CANCELLED\n");
 	} else if (j->trace_filename != NULL) {
 		PRINT(COLOUR_BOLD COLOUR_RED "BUG FOUND: %s ", j->trace_filename);
-		PRINT("(%u interleaving%s tested)\n", j->elapsed_branches,
-		      j->elapsed_branches == 1 ? "" : "s");
+		/* fab preemption count is valid even if not using ICB */
+		PRINT("(%u interleaving%s tested; %u preemptions)\n",
+		      j->elapsed_branches, j->elapsed_branches == 1 ? "" : "s",
+		      j->icb_fab_preemptions);
 	} else if (j->timed_out) {
 		PRINT(COLOUR_BOLD COLOUR_YELLOW "TIMED OUT ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
 		print_human_friendly_time(&j->estimate_eta);
+		if (use_icb) {
+			PRINT("; cur ICB bound %d", j->icb_current_bound);
+		}
 		PRINT(")\n");
 	} else if (j->complete) {
 		PRINT(COLOUR_BOLD COLOUR_GREEN "COMPLETE ");
 		PRINT("(%u interleaving%s tested; ", j->elapsed_branches,
 		      j->elapsed_branches == 1 ? "" : "s");
 		print_human_friendly_time(&j->estimate_elapsed);
-		PRINT(" elapsed)\n");
+		PRINT(" elapsed");
+		if (use_icb) {
+			PRINT("; max ICB bound %d", j->icb_current_bound);
+		}
+		PRINT(")\n");
 	} else if (pending) {
 		PRINT("Pending...\n");
 	} else if (j->elapsed_branches == 0) {
@@ -360,6 +372,9 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 		PRINT(COLOUR_BOLD COLOUR_MAGENTA "Running ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
 		print_human_friendly_time(&j->estimate_eta);
+		if (use_icb) {
+			PRINT("; cur ICB bound %d", j->icb_current_bound);
+		}
 		PRINT(")\n");
 	}
 	PRINT("       ");

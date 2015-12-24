@@ -53,14 +53,12 @@ struct input_message {
 			unsigned int elapsed_branches;
 			long double total_usecs;
 			long double elapsed_usecs;
-			unsigned int icb_preemption_count;
 			unsigned int icb_cur_bound;
 		} estimate;
 
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
 			unsigned int icb_preemption_count;
-			unsigned int icb_cur_bound;
 		} bug;
 
 		struct {
@@ -105,6 +103,7 @@ static bool recv(int input_fd, struct input_message *m)
 /* event handling logic */
 
 extern bool control_experiment;
+extern bool use_icb;
 extern bool verbose;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
@@ -194,7 +193,8 @@ extern unsigned long eta_threshold;
 
 static void handle_estimate(struct messaging_state *state, struct job *j,
 			    long double proportion, unsigned int elapsed_branches,
-			    long double total_usecs, long double elapsed_usecs)
+			    long double total_usecs, long double elapsed_usecs,
+			    unsigned int icb_bound)
 {
 	unsigned int total_branches =
 	    (unsigned int)((long double)elapsed_branches / proportion);
@@ -206,8 +206,13 @@ static void handle_estimate(struct messaging_state *state, struct job *j,
 	human_friendly_time(elapsed_usecs, &j->estimate_elapsed);
 	j->estimate_eta_numeric = remaining_usecs;
 	human_friendly_time(remaining_usecs, &j->estimate_eta);
-	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ETA ", j->id,
+	DBG("[JOB %d] progress: %u/%u brs (%Lf%%), ", j->id,
 	    elapsed_branches, total_branches, proportion * 100);
+	if (use_icb) {
+		DBG("ICB @ %u, ", icb_bound);
+		j->icb_current_bound = icb_bound;
+	}
+	DBG("ETA ");
 	dbg_human_friendly_time(&j->estimate_eta);
 	DBG(" (elapsed ");
 	dbg_human_friendly_time(&j->estimate_elapsed);
@@ -375,7 +380,8 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 			handle_estimate(state, j, m.content.estimate.proportion,
 					m.content.estimate.elapsed_branches,
 					m.content.estimate.total_usecs,
-					m.content.estimate.elapsed_usecs);
+					m.content.estimate.elapsed_usecs,
+					m.content.estimate.icb_cur_bound);
 		} else if (m.tag == FOUND_A_BUG) {
 			move_trace_file(m.content.bug.trace_filename);
 			// NB. Harmless if/then/else race; could cause simply
@@ -395,6 +401,8 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 				j->trace_filename =
 					XSTRDUP(m.content.bug.trace_filename);
 				j->elapsed_branches++;
+				j->icb_fab_preemptions =
+					m.content.bug.icb_preemption_count;
 				RW_UNLOCK(&j->stats_lock);
 			}
 		} else if (m.tag == SHOULD_CONTINUE) {

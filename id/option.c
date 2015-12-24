@@ -120,6 +120,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
 		 bool *leave_logs, bool *control_experiment, bool *use_wrapper_log,
 		 char *wrapper_log, unsigned int wrapper_log_len, bool *pintos,
+		 bool *use_icb,
 		 unsigned long *progress_report_interval,
 		 unsigned long *eta_factor, unsigned long *eta_thresh)
 {
@@ -159,6 +160,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_FLAG('l', false, leave_logs, "Don't delete log files from bug-free state spaces");
 	DEF_CMDLINE_FLAG('C', true, control_experiment, "Control mode, i.e., test only 1 maximal state space");
 	DEF_CMDLINE_FLAG('P', true, pintos, "Pintos (not for 15-410 use)");
+	DEF_CMDLINE_FLAG('I', true, icb, "Use Iterative Context Bounding (ICB) to order the search (-C only)");
 #undef DEF_CMDLINE_FLAG
 
 #define DEF_CMDLINE_OPTION(flagname, secret, varname, descr, value)	\
@@ -295,6 +297,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	*leave_logs = arg_leave_logs;
 	*control_experiment = arg_control_experiment;
 	*pintos = arg_pintos;
+	*use_icb = arg_icb;
 
 	return options_valid;
 }
