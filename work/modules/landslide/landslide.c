@@ -82,6 +82,7 @@ struct ls_state *new_landslide()
 	 * but should not get printed to the user */
 	ls->icb_bound = 31337;
 #endif
+	ls->icb_need_increment_bound = false;
 
 	ls->cmd_file = NULL;
 	ls->html_file = NULL;
@@ -531,7 +532,7 @@ static bool time_travel(struct ls_state *ls)
 {
 	/* find where we want to go in the tree, and choose what to do there */
 	unsigned int tid;
-	struct hax *h = explore(&ls->save, &tid);
+	struct hax *h = explore(ls, &tid);
 
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%" PRIu64
 		 ".\n" COLOUR_DEFAULT, ls->save.total_jumps + 1);
@@ -544,6 +545,13 @@ static bool time_travel(struct ls_state *ls)
 		assert(!h->all_explored);
 		arbiter_append_choice(&ls->arbiter, tid);
 		save_longjmp(&ls->save, ls, h);
+		return true;
+	} else if (ls->icb_need_increment_bound) {
+		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "ICB bound %u "
+			 "wasn't enough: try again with %u!\n",
+			 ls->icb_bound, ls->icb_bound + 1);
+		// TODO implement
+		// should involve eg: save_longjmp(&ls->save, ls, ls->save.root);
 		return true;
 	} else {
 		return false;

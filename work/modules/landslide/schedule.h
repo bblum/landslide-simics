@@ -264,14 +264,15 @@ struct sched_state {
  * is exceeded), as we may need to run one or the other for correctness. */
 #define NO_PREEMPTION_REQUIRED(s, voluntary, a) ({			\
 	struct agent *__a = (a);					\
-	struct sched_state *__s = (s);					\
-	(__a == __s->cur_agent ||					\
-	 ((voluntary) && __a == __s->last_agent)); })
+	struct sched_state *____s = (s); /* wtf gcc wrt shadowing  */	\
+	(__a == ____s->cur_agent ||					\
+	 ((voluntary) && __a == ____s->last_agent)); })
 
 #ifdef ICB
-#define ICB_BLOCKED(s, voluntary, a)	\
-	(false && /* TODO: check counter against stored bound value */	\
-	 !NO_PREEMPTION_REQUIRED(s, voluntary, a))
+#define ICB_BLOCKED(s, bound, voluntary, a) ({			\
+	struct sched_state *__s = (s);				\
+	(__s->icb_preemption_count >= (bound) &&		\
+	 !NO_PREEMPTION_REQUIRED(__s, voluntary, a)); })
 #else
 #define ICB_BLOCKED(ls, voluntary, a) false
 #endif

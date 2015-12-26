@@ -277,7 +277,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 	/* Count the number of available threads. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) &&
-		    !ICB_BLOCKED(&ls->sched, voluntary, a)) {
+		    !ICB_BLOCKED(&ls->sched, ls->icb_bound, voluntary, a)) {
 			print_agent(DEV, a);
 			printf(DEV, " ");
 			count++;
@@ -334,7 +334,8 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 	unsigned int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) &&
-		    !ICB_BLOCKED(&ls->sched, voluntary, a) && ++i == count) {
+		    !ICB_BLOCKED(&ls->sched, ls->icb_bound, voluntary, a) &&
+		    ++i == count) {
 			printf(DEV, "- Figured I'd look at TID %d next.\n",
 			       a->tid);
 			*result = a;
