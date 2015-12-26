@@ -1683,8 +1683,12 @@ void sched_recover(struct ls_state *ls)
 			 * as a preemption for ICB. */
 			if (!NO_PREEMPTION_REQUIRED(s, ls->save.current->voluntary, a)) {
 				s->icb_preemption_count++;
+#ifdef ICB
 				lsprintf(DEV, "Switching to TID %d counts as a "
 					 "preemption for ICB.\n", a->tid);
+				assert(s->icb_preemption_count <= ls->icb_bound &&
+				       "ouch! BPOR tried to preempt too much!");
+#endif
 			}
 		}
 	} else {

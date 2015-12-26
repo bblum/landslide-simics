@@ -9,8 +9,8 @@
 
 struct arbiter_state;
 struct hax;
-struct save_state;
+struct ls_state;
 
-struct hax *explore(struct save_state *ss, unsigned int *new_tid);
+struct hax *explore(struct ls_state *ls, unsigned int *new_tid);
 
 #endif
