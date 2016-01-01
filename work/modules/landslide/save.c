@@ -501,6 +501,23 @@ static void free_arbiter_choices(struct arbiter_state *a)
 	}
 }
 
+static void free_haxs_children(struct hax *h)
+{
+	while (Q_GET_SIZE(&h->children) > 0) {
+		struct hax *child = Q_GET_HEAD(&h->children);
+		assert(child != NULL);
+		Q_REMOVE(&h->children, child, sibling);
+		assert(Q_GET_SIZE(&child->children) == 0);
+		assert(child->oldsched == NULL);
+		assert(child->oldtest == NULL);
+		assert(child->old_kern_mem == NULL);
+		assert(child->old_user_mem == NULL);
+		assert(child->conflicts == NULL);
+		assert(child->happens_before == NULL);
+		MM_FREE(child);
+	}
+}
+
 static void free_hax(struct hax *h)
 {
 	free_sched(h->oldsched);
@@ -522,8 +539,7 @@ static void free_hax(struct hax *h)
 	h->conflicts = NULL;
 	h->happens_before = NULL;
 	free_stack_trace(h->stack_trace);
-	// FIXME(#65): It should be safe to MM_FREE(h) here, right?
-	// FIXME(#65): Check if that's safe wrt update_marked_children.
+	free_haxs_children(h);
 }
 
 /* Reverse that which is not glowing green. */
@@ -918,11 +934,12 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 
 	/* Find the target choice point from among our ancestors. */
 	while (ss->current != h) {
-		/* This node will soon be in the future. Reclaim memory. */
+		/* This nobe will soon be in the future. Reclaim memory. */
 		free_hax(ss->current);
 		run_command(ls->cmd_file, CMD_DELETE, (lang_void *)ss->current);
 
 		ss->current = ss->current->parent;
+		assert(Q_GET_SIZE(&ss->current->children) > 0);
 
 		/* We won't have simics bookmarks, or indeed some saved state,
 		 * for non-ancestor choice points. */
