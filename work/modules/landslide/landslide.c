@@ -75,8 +75,7 @@ struct ls_state *new_landslide()
 	pps_init(&ls->pps);
 
 #ifdef ICB
-	// TODO: avoid hardcoded bound
-	ls->icb_bound = ICB_BOUND;
+	ls->icb_bound = ICB_START_BOUND;
 #else
 	/* garbage value; may be sent to QS in a message (WTB option types :\),
 	 * but should not get printed to the user */
@@ -534,7 +533,7 @@ static bool time_travel(struct ls_state *ls)
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%" PRIu64
 		 ".\n" COLOUR_DEFAULT, ls->save.total_jumps + 1);
 	print_estimates(ls);
-	lsprintf(DEV, "ICB preemption count this branch = %u\n",
+	lsprintf(BRANCH, "ICB preemption count this branch = %u\n",
 		 ls->sched.icb_preemption_count);
 	check_should_abort(ls);
 
@@ -545,11 +544,12 @@ static bool time_travel(struct ls_state *ls)
 		return true;
 	} else if (ls->icb_need_increment_bound) {
 		lsprintf(ALWAYS, COLOUR_BOLD COLOUR_YELLOW "ICB bound %u "
-			 "wasn't enough: try again with %u!\n",
+			 "wasn't enough: trying again with %u...\n",
 			 ls->icb_bound, ls->icb_bound + 1);
-		// TODO implement
-		// should involve eg: save_longjmp(&ls->save, ls, ls->save.root);
-		return false;
+		ls->icb_bound++;
+		ls->icb_need_increment_bound = false;
+		save_reset_tree(&ls->save, ls);
+		return true;
 	} else {
 		return false;
 	}

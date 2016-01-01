@@ -51,4 +51,6 @@ void save_setjmp(struct save_state *, struct ls_state *,
  * the current choice point and the root (inclusive). */
 void save_longjmp(struct save_state *, struct ls_state *, struct hax *);
 
+void save_reset_tree(struct save_state *ss, struct ls_state *ls);
+
 #endif

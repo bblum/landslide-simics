@@ -289,7 +289,6 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 
 //#define CHOOSE_RANDOMLY
 #ifdef CHOOSE_RANDOMLY
-	// TODO: add ICB option to definegen.sh
 #ifdef ICB
 	STATIC_ASSERT(false && "ICB and CHOOSE_RANDOMLY are incompatible");
 #endif

@@ -958,3 +958,39 @@ void save_longjmp(struct save_state *ss, struct ls_state *ls, struct hax *h)
 	run_command(ls->cmd_file, CMD_SKIPTO, (lang_void *)h);
 	ss->total_jumps++;
 }
+
+#ifdef ICB
+void save_reset_tree(struct save_state *ss, struct ls_state *ls)
+{
+	struct hax *root = ss->root;
+	struct agent *a;
+
+	/* Do this before longjmp so the change gets copied into ls->sched. */
+	FOR_EACH_RUNNABLE_AGENT(a, root->oldsched,
+		a->do_explore = false;
+	);
+
+	/* As before but with some additional changes */
+	save_longjmp(ss, ls, root);
+
+	/* Need to reset tree state as if this is the 1st time we came here. */
+	free_haxs_children(root);
+	root->all_explored = false;
+	root->marked_children = 0;
+	root->proportion = 0.0L;
+	root->subtree_usecs = 0.0L;
+	root->estimate_computed = false;
+
+	ss->total_choice_poince = 0;
+	ss->total_choices = 0;
+	ss->total_jumps = 0;
+	ss->total_triggers = 0;
+	ss->depth_total = 0;
+	ss->total_usecs = root->usecs;
+}
+#else
+void save_reset_tree(struct save_state *ss, struct ls_state *ls)
+{
+	assert(0 && "how did this get here i am not good with computer");
+}
+#endif
