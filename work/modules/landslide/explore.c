@@ -79,7 +79,7 @@ static bool tag_good_sibling(struct hax *h0, struct hax *ancestor,
 {
 	unsigned int tid = h0->chosen_thread;
 	struct hax *grandparent = pp_parent(ancestor);
-	assert(!*need_bpor);
+	assert(need_bpor == NULL || !*need_bpor);
 
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, grandparent->oldsched,
@@ -88,19 +88,23 @@ static bool tag_good_sibling(struct hax *h0, struct hax *ancestor,
 				return false;
 			} else if (ICB_BLOCKED(grandparent->oldsched, icb_bound,
 					       grandparent->voluntary, a)) {
-				*need_bpor = true;
-				lsprintf(DEV, "from #%d/tid%d, want TID %d, "
-					 "sibling of #%d/tid%d, but ICB says no "
-					 ":(\n", h0->depth,
-					 h0->chosen_thread, a->tid,
-					 ancestor->depth, ancestor->chosen_thread);
+				if (need_bpor != NULL) {
+					*need_bpor = true;
+					lsprintf(DEV, "from #%d/tid%d, want TID "
+						 "%d, sibling of #%d/tid%d, but "
+						 "ICB says no :(\n", h0->depth,
+						 h0->chosen_thread, a->tid,
+						 ancestor->depth,
+						 ancestor->chosen_thread);
+				}
 				return false;
 			} else {
 				/* normal case; thread can be tagged */
 				a->do_explore = true;
-				lsprintf(DEV, "from #%d/tid%d, tagged TID %d, "
+				lsprintf(DEV, "from #%d/tid%d, tagged TID %d%s, "
 					 "sibling of #%d/tid%d\n", h0->depth,
 					 h0->chosen_thread, a->tid,
+					 need_bpor == NULL ? " (during BPOR)" : "",
 					 ancestor->depth, ancestor->chosen_thread);
 				return true;
 			}
@@ -116,9 +120,10 @@ static void tag_all_siblings(struct hax *h0, struct hax *ancestor,
 	struct hax *grandparent = pp_parent(ancestor);
 	unsigned int num_tagged = 0;
 
-	lsprintf(DEV, "from #%d/tid%d, tagged all siblings of #%d/tid%d: ",
-		 h0->depth, h0->chosen_thread, ancestor->depth,
-		 ancestor->chosen_thread);
+	lsprintf(DEV, "from #%d/tid%d%s, tagged all siblings of #%d/tid%d: ",
+		 h0->depth, h0->chosen_thread,
+		 need_bpor == NULL ? " (during BPOR)" : "",
+		 ancestor->depth, ancestor->chosen_thread);
 
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, grandparent->oldsched,
@@ -132,8 +137,10 @@ static void tag_all_siblings(struct hax *h0, struct hax *ancestor,
 			 * not-icb-blocked sibling is tagged, and successfully
 			 * leads to the desired thread reordering, that's enough
 			 * to know to untag something from this case. */
-			*need_bpor = true;
-			printf(DEV, "(tid%d needs BPOR) ", a->tid);
+			if (need_bpor != NULL) {
+				*need_bpor = true;
+				printf(DEV, "(tid%d needs BPOR) ", a->tid);
+			}
 		} else {
 			/* normal case; sibling can be tagged */
 			a->do_explore = true;
@@ -145,7 +152,7 @@ static void tag_all_siblings(struct hax *h0, struct hax *ancestor,
 
 	printf(DEV, "\n");
 
-	assert(!*need_bpor || num_tagged <= 1);
+	assert(need_bpor == NULL || !*need_bpor || num_tagged <= 1);
 }
 
 static bool tag_sibling(struct hax *h0, struct hax *ancestor,
@@ -159,10 +166,62 @@ static bool tag_sibling(struct hax *h0, struct hax *ancestor,
 }
 
 #ifdef ICB
-static struct hax *find_bpor_ancestor(struct hax *h0, struct hax *ancestor)
+static bool stop_bpor_backtracking(struct hax *h0, struct hax *ancestor2)
 {
-	// TODO implement
-	return NULL;
+	/* Don't BPOR-tag past the previous transition of same thread... */
+	if (h0->chosen_thread == ancestor2->chosen_thread) {
+		return true;
+	/* ...or past the point where the thread was created. */
+	} else if (find_agent(ancestor2->oldsched, h0->chosen_thread) == NULL) {
+		return true;
+	} else {
+		return false;
+	}
+
+}
+
+/* BPOR [Coons et al, OOPSLA 2013]. */
+static void tag_reachable_aunts(struct hax *h0, struct hax *ancestor,
+				unsigned int icb_bound)
+{
+	bool good_sibling_tagged = false;
+	assert(ancestor != NULL);
+
+	lsprintf(DEV, "BPOR trying to reorder #%d/tid%d around E.A. #%d/tid%d\n",
+		 h0->depth, h0->chosen_thread,
+		 ancestor->depth, ancestor->chosen_thread);
+
+	/* Search among ancestors for a place where we could switch to running
+	 * h0's thread without exceeding the preemption bound. */
+	for (struct hax *ancestor2 = ancestor->parent;
+	     ancestor2 != NULL && !stop_bpor_backtracking(h0, ancestor2);
+	     ancestor2 = ancestor2->parent) {
+		/* May need to tag multiple times for same reason as not
+		 * using "break" in the main dpor loop below. */
+		if (tag_good_sibling(h0, ancestor2, icb_bound, NULL)) {
+			lsprintf(DEV, "BPOR can run #%d/tid%d after reachable "
+				 "aunt #%d/tid%d\n", h0->depth, h0->chosen_thread,
+				 ancestor2->depth, ancestor2->chosen_thread);
+			good_sibling_tagged = true;
+		}
+	}
+
+	if (good_sibling_tagged) {
+		return;
+	} else {
+		lsprintf(DEV, "BPOR, ouch! lots of conservative tags incoming\n");
+	}
+
+	/* If got here, couldn't find a way to run h0's thread directly. But
+	 * there may be another way to make it runnable using all_siblings
+	 * which is reachable within the bound (either because the other sibling
+	 * is runnable during a voluntary resched, or because the preemption
+	 * count changes among these ancestors). */
+	for (struct hax *ancestor2 = ancestor->parent;
+	     ancestor2 != NULL && !stop_bpor_backtracking(h0, ancestor2);
+	     ancestor2 = ancestor2->parent) {
+		tag_all_siblings(h0, ancestor2, icb_bound, NULL);
+	}
 }
 #endif
 
@@ -246,25 +305,9 @@ struct hax *explore(struct ls_state *ls, unsigned int *new_tid)
 			bool need_bpor = tag_sibling(h, ancestor, ls->icb_bound);
 #ifdef ICB
 			if (need_bpor) {
-				struct hax *ancestor2 =
-					find_bpor_ancestor(h, ancestor);
-				if (ancestor2 != NULL) {
-					bool need_bpor_again = false;
-					// TODO (should tag_all_siblings
-					// be involved here? read BPOR
-					// paper to find out)
-					assert(0);
-					assert(!need_bpor_again);
-				}
+				tag_reachable_aunts(h, ancestor, ls->icb_bound);
 				ls->icb_need_increment_bound = true;
 			}
-			// TODO: Conservatively backtrack farther and tag
-			// to get this noob to run.
-			// TODO: remove this msg
-			lsprintf(DEV, "warning: need BPOR to soundly "
-				 "reorder #%d/tid%d around evil ancestor "
-				 "#%d/tid%d\n", h->depth, h->chosen_thread,
-				 ancestor->depth, ancestor->chosen_thread);
 #else
 			assert(!need_bpor);
 #endif

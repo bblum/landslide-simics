@@ -284,6 +284,7 @@ void sched_init(struct sched_state *);
 void print_agent(verbosity v, const struct agent *);
 void print_qs(verbosity v, const struct sched_state *);
 void print_scheduler_state(verbosity v, const struct sched_state *);
+struct agent *find_agent(struct sched_state *s, unsigned int tid);
 struct agent *find_runnable_agent(struct sched_state *s, unsigned int tid);
 
 /* called at every "interesting" point ... */

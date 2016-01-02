@@ -434,6 +434,17 @@ void print_scheduler_state(verbosity v, const struct sched_state *s)
 	print_q(v, "; descheduled ", &s->dq, "", dont_print_tid);
 }
 
+struct agent *find_agent(struct sched_state *s, unsigned int tid)
+{
+	struct agent *a;
+	if ((a = agent_by_tid_or_null(&s->rq, tid)) == NULL) {
+		if ((a = agent_by_tid_or_null(&s->sq, tid)) == NULL) {
+			a = agent_by_tid_or_null(&s->dq, tid);
+		}
+	}
+	return a;
+}
+
 struct agent *find_runnable_agent(struct sched_state *s, unsigned int tid)
 {
 	struct agent *a;
