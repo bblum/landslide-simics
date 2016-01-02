@@ -148,6 +148,16 @@ static void tag_all_siblings(struct hax *h0, struct hax *ancestor,
 	assert(!*need_bpor || num_tagged <= 1);
 }
 
+static bool tag_sibling(struct hax *h0, struct hax *ancestor,
+			unsigned int icb_bound)
+{
+	bool need_bpor = false;
+	if (!tag_good_sibling(h0, ancestor, icb_bound, &need_bpor)) {
+		tag_all_siblings(h0, ancestor, icb_bound, &need_bpor);
+	}
+	return need_bpor;
+}
+
 #ifdef ICB
 static struct hax *find_bpor_ancestor(struct hax *h0, struct hax *ancestor)
 {
@@ -227,48 +237,45 @@ struct hax *explore(struct ls_state *ls, unsigned int *new_tid)
 						 ancestor->chosen_thread);
 				}
 				continue;
-			/* Is the ancestor "evil"? */
-			} else if (is_evil_ancestor(h, ancestor)) {
-				/* Find which siblings need to be explored. */
-				bool need_bpor = false;
-				if (!tag_good_sibling(h, ancestor,
-						      ls->icb_bound, &need_bpor)) {
-					tag_all_siblings(h, ancestor,
-							 ls->icb_bound, &need_bpor);
-				}
+			} else if (!is_evil_ancestor(h, ancestor)) {
+				continue;
+			}
+
+			/* The ancestor is "evil". Find which siblings need to
+			 * be explored. */
+			bool need_bpor = tag_sibling(h, ancestor, ls->icb_bound);
 #ifdef ICB
-				if (need_bpor) {
-					struct hax *ancestor2 =
-						find_bpor_ancestor(h, ancestor);
-					if (ancestor2 != NULL) {
-						bool need_bpor_again = false;
-						// TODO (should tag_all_siblings
-						// be involved here? read BPOR
-						// paper to find out)
-						assert(0);
-						assert(!need_bpor_again);
-					}
-					ls->icb_need_increment_bound = true;
+			if (need_bpor) {
+				struct hax *ancestor2 =
+					find_bpor_ancestor(h, ancestor);
+				if (ancestor2 != NULL) {
+					bool need_bpor_again = false;
+					// TODO (should tag_all_siblings
+					// be involved here? read BPOR
+					// paper to find out)
+					assert(0);
+					assert(!need_bpor_again);
 				}
-				// TODO: Conservatively backtrack farther and tag
-				// to get this noob to run.
-				// TODO: remove this msg
-				lsprintf(DEV, "warning: need BPOR to soundly "
-					 "reorder #%d/tid%d around evil ancestor "
-					 "#%d/tid%d\n", h->depth, h->chosen_thread,
-					 ancestor->depth, ancestor->chosen_thread);
+				ls->icb_need_increment_bound = true;
+			}
+			// TODO: Conservatively backtrack farther and tag
+			// to get this noob to run.
+			// TODO: remove this msg
+			lsprintf(DEV, "warning: need BPOR to soundly "
+				 "reorder #%d/tid%d around evil ancestor "
+				 "#%d/tid%d\n", h->depth, h->chosen_thread,
+				 ancestor->depth, ancestor->chosen_thread);
 #else
-				assert(!need_bpor);
+			assert(!need_bpor);
 #endif
 
-				/* In theory, stopping after the first baddie
-				 * is fine; the others would be handled "by
-				 * induction". But that relies on choice points
-				 * being comprehensive enough, which we almost
-				 * always do not satisfy. So continue. (See MS
-				 * thesis section 5.4.3 / figure 5.4.) */
-				/* break; */
-			}
+			/* In theory, stopping after the first baddie
+			 * is fine; the others would be handled "by
+			 * induction". But that relies on choice points
+			 * being comprehensive enough, which we almost
+			 * always do not satisfy. So continue. (See MS
+			 * thesis section 5.4.3 / figure 5.4.) */
+			/* break; */
 		}
 	}
 
