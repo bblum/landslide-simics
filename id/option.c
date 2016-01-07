@@ -283,6 +283,11 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		options_valid = false;
 	}
 
+	if (arg_icb && !arg_control_experiment) {
+		ERR("Iterative Deepening & ICB not supported at same time.\n");
+		options_valid = false;
+	}
+
 	if (arg_help) {
 		options_valid = false;
 	}
