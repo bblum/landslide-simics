@@ -201,7 +201,7 @@ static void check_exception(struct ls_state *ls, int number)
 #define PROGRESS_TRIGGER_FACTOR 4000
 #define PROGRESS_AGGRESSIVE_TRIGGER_FACTOR 2000
 
-#define TOO_DEEP_0TH_BRANCH 1000
+#define TOO_DEEP_0TH_BRANCH 4000
 
 /* Avoid getting owned by DR PPs on e.g. memset which hose the average. */
 #define PROGRESS_MIN_TRIGGER_AVERAGE 100 /* idk really */
