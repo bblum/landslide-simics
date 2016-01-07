@@ -152,7 +152,7 @@ static void tag_all_siblings(struct hax *h0, struct hax *ancestor,
 
 	printf(DEV, "\n");
 
-	assert(need_bpor == NULL || !*need_bpor || num_tagged <= 1);
+	assert(need_bpor == NULL || !*need_bpor || num_tagged <= 2);
 }
 
 static bool tag_sibling(struct hax *h0, struct hax *ancestor,
