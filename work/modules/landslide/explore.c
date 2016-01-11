@@ -194,7 +194,8 @@ static void tag_reachable_aunts(struct hax *h0, struct hax *ancestor,
 	/* Search among ancestors for a place where we could switch to running
 	 * h0's thread without exceeding the preemption bound. */
 	for (struct hax *ancestor2 = ancestor->parent;
-	     ancestor2 != NULL && !stop_bpor_backtracking(h0, ancestor2);
+	     ancestor2 != NULL && ancestor2->parent != NULL
+	     && !stop_bpor_backtracking(h0, ancestor2);
 	     ancestor2 = ancestor2->parent) {
 		/* May need to tag multiple times for same reason as not
 		 * using "break" in the main dpor loop below. */
@@ -218,7 +219,8 @@ static void tag_reachable_aunts(struct hax *h0, struct hax *ancestor,
 	 * is runnable during a voluntary resched, or because the preemption
 	 * count changes among these ancestors). */
 	for (struct hax *ancestor2 = ancestor->parent;
-	     ancestor2 != NULL && !stop_bpor_backtracking(h0, ancestor2);
+	     ancestor2 != NULL && ancestor2->parent != NULL
+	     && !stop_bpor_backtracking(h0, ancestor2);
 	     ancestor2 = ancestor2->parent) {
 		tag_all_siblings(h0, ancestor2, icb_bound, NULL);
 	}
