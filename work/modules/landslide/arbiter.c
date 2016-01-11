@@ -219,8 +219,9 @@ static bool report_deadlock(struct ls_state *ls)
  * The tradeoff with this knob is how long FAB traces are for deadlock reports,
  * versus how many benign repetitions an adversarial program must contain in
  * order to trigger a false positive report despite this cleverness. */
-#define DEADLOCK_FP_MAX_ATTEMPTS 16
-static bool try_avoid_fp_deadlock(struct ls_state *ls, struct agent **result) {
+#define DEADLOCK_FP_MAX_ATTEMPTS 128
+static bool try_avoid_fp_deadlock(struct ls_state *ls, bool voluntary,
+				  struct agent **result) {
 	/* The counter is reset every time we backtrack, but it's never reset
 	 * during a single branch. This gives some notion of progress, so we
 	 * won't just try this strategy forever in a real deadlock situation. */
@@ -232,11 +233,33 @@ static bool try_avoid_fp_deadlock(struct ls_state *ls, struct agent **result) {
 
 	bool found_one = false;
 	struct agent *a;
+
+	/* We must prioritize trying ICB-blocked threads higher than yield/xchg-
+	 * blocked ones, because ICB-blocked threads won't get run "on their
+	 * own" at subsequent PPs; rather we must force it immediately here.
+	 * In fact, we must check *all* threads for being ICB-blocked before
+	 * checking *any* for other kinds of blockage, so that we don't awaken
+	 * the latter type unnecessarily (resulting in infinite subtrees). */
+	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
+		if (ICB_BLOCKED(&ls->sched, ls->icb_bound, voluntary, a)) {
+			assert(!IS_IDLE(ls, a) && "That's weird.");
+			lsprintf(DEV, "I thought TID %d was ICB-blocked (bound "
+				 "%u), but maybe preempting is needed here for "
+				 "correctness!\n", a->tid, ls->icb_bound);
+			*result = a;
+			found_one = true;
+		}
+	);
+
+	if (found_one) {
+		/* Found ICB-blocked thread to wake. Return early. */
+		return found_one;
+	}
+
 	/* Doesn't matter which thread we choose; take whichever is latest in
 	 * this loop. But we need to wake all of them, not knowing which was
 	 * "faking it". If it's truly deadlocked, they'll all block again. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
-		// TODO: Also support yield-loop blocking here (issue #75).
 		if (a->user_blocked_on_addr != -1) {
 			assert(!IS_IDLE(ls, a) && "That's weird.");
 			lsprintf(DEV, "I thought TID %d was blocked on 0x%x, "
@@ -356,7 +379,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 
 	/* No runnable threads. Is this a bug, or is it expected? */
 	if (report_deadlock(ls)) {
-		if (try_avoid_fp_deadlock(ls, result)) {
+		if (try_avoid_fp_deadlock(ls, voluntary, result)) {
 			lsprintf(CHOICE, COLOUR_BOLD COLOUR_YELLOW
 				 "WARNING: System is apparently deadlocked! "
 				 "Let me just try one thing. See you soon.\n");
@@ -369,7 +392,8 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 				save_setjmp(&ls->save, ls, -1, true,
 					    true, true, -1, true);
 			}
-			lsprintf(DEV, "ICB count %u\n", ls->sched.icb_preemption_count);
+			lsprintf(DEV, "ICB count %u bound %u\n",
+				 ls->sched.icb_preemption_count, ls->icb_bound);
 			FOUND_A_BUG(ls, "Deadlock -- no threads are runnable!\n");
 			return false;
 		}
