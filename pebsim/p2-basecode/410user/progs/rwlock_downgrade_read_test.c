@@ -79,6 +79,6 @@ int main()
 	else
 		REPORT_END_FAIL;
 
+	thr_exit((void *)pass);
 	return pass;
 }
-
