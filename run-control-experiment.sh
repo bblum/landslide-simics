@@ -14,7 +14,7 @@ if [ "$(($MACHINE_CPUS<10))" = "1" ]; then
 	exit 1
 fi
 
-TRY=control-epsilon
+TRY=icb-rho
 
 #for TEST_CASE in mutex_test thr_exit_join; do
 
@@ -36,10 +36,17 @@ function runtest {
 		CORES=10
 		TIMESPLEPT=0
 		./landslide -v -C -p $TEST_CASE -c 1 -t${SECS}
+		# ICB
+		#./landslide -v -C -I -p $TEST_CASE -c 1 -t${SECS}
 
 		LOGDIR="$HOME/masters/p2-id-logs/test-$TEST_CASE-try$TRY"
 		DESTDIR="$LOGDIR/$TEST_CASE/$semestername-$groupname"
 		mkdir -p "$DESTDIR"
+		for logpath in `ls id/ls-output*log* | grep -v '\.gz$' | grep -v afsfull`; do
+			if ! head -n 1000 "$logpath" | grep License "$logpath" >/dev/null; then
+				rm "$logpath"
+			fi
+		done
 		for logpath in `ls id/ls-*log* | grep -v '\.gz$' | grep -v afsfull`; do
 			gzip "$logpath"
 			mv "$logpath".gz "$DESTDIR"
