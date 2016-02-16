@@ -6,7 +6,7 @@ if [ $MN != "x86_64" ]; then
     exit 1
 fi
 
-[ -z $SIMROOT ] && SIMROOT=/afs/cs.cmu.edu/academic/class/15410-f15/simics-4.0.60
+[ -z $SIMROOT ] && SIMROOT=/afs/cs.cmu.edu/academic/class/15410-s16/simics-4.0.60
 [ -z $SIMBIN ] && SIMBIN=simics
 [ -z $SIMBINPATH] && SIMBINPATH=$SIMROOT/simics-4.0.60/bin/$SIMBIN
 [ -z $SIMHOMES ] && SIMHOMES=$SIMROOT/home
