@@ -327,6 +327,7 @@ static bool ensure_progress(struct ls_state *ls)
 		MM_FREE(buf);
 		return false;
 	} else if (user_panicked(ls->cpu0, ls->eip, &buf) &&
+		   check_user_address_space(ls) &&
 		   !(TID_IS_INIT(tid) || TID_IS_SHELL(tid) || TID_IS_IDLE(tid))) {
 		if (testing_userspace()) {
 			FOUND_A_BUG(ls, "USERSPACE PANIC: %s", buf);
