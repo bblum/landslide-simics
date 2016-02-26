@@ -43,7 +43,7 @@ fi
 # Check for updates in said personal directory.
 
 function check_updates_in_subdir() {
-	diff -qru --exclude="*.dep" --exclude="*.o" --exclude=".*" "$ORIG_SRC_DIR/$1/" "$1/" 
+	diff -qru --exclude="*.dep" --exclude="*.o" --exclude=".*" "$ORIG_SRC_DIR/$1/" "$1/" >/dev/null
 	RV=$?
 	if [ "$RV" != "0" ]; then
 		die "Files in $ORIG_SRC_DIR have been updated since last ./p2-setup.sh!"
