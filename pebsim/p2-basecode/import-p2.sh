@@ -46,6 +46,7 @@ function sync_optional_subdir() {
 	fi
 }
 
+# note: if you update this you need to update check-for...sh too
 sync_optional_subdir vq_challenge
 sync_subdir user/inc
 sync_subdir user/libautostack

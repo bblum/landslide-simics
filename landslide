@@ -13,6 +13,10 @@ if [ ! -f "$IDDIR/$IDEXE" ]; then
 	exit 1
 fi
 
+cd pebsim/p2-basecode
+./check-need-p2-setup-again.sh || exit 1
+cd ../../
+
 SUFFIX=`date +%Y%m%d%H%M%S`
 
 CMDLINE_OPTION_FILE=`mktemp "ls-id-options-$SUFFIX.cfg.XXXXXXXX"`
