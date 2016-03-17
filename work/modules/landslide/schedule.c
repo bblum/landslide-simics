@@ -111,6 +111,9 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->last_pf_cr2 = 0x15410de0u;
 	a->just_delayed_for_data_race = false;
 	a->delayed_data_race_eip = -1;
+#ifdef PREEMPT_EVERYWHERE
+	a->preempt_for_shm_here = false;
+#endif
 	a->just_delayed_for_vr_exit = false;
 	a->delayed_vr_exit_eip = -1;
 	a->most_recent_syscall = 0;
@@ -1581,6 +1584,9 @@ void sched_update(struct ls_state *ls)
 				 * Allow arbiter to insert new PPs again. */
 				CURRENT(s, just_delayed_for_data_race) = false;
 				CURRENT(s, delayed_data_race_eip) = -1;
+#ifdef PREEMPT_EVERYWHERE
+				CURRENT(s, preempt_for_shm_here) = false;
+#endif
 			}
 			return;
 		}
@@ -1688,6 +1694,9 @@ void sched_update(struct ls_state *ls)
 			lsprintf(CHOICE, "just delayed DR (tricky disco)\n");
 			CURRENT(s, just_delayed_for_data_race) = false;
 			CURRENT(s, delayed_data_race_eip) = -1;
+#ifdef PREEMPT_EVERYWHERE
+			CURRENT(s, preempt_for_shm_here) = false;
+#endif
 		}
 #endif
 	}

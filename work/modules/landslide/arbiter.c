@@ -108,8 +108,12 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		   /* if xchg-blocked, need NOT set DR PP. other case below. */
 		   && !XCHG_BLOCKED(&ls->sched.cur_agent->user_yield)
 #ifdef DR_PPS_RESPECT_WITHIN_FUNCTIONS
-		   && ((testing_userspace() && user_within_functions(ls)) ||
-		      (!testing_userspace() && kern_within_functions(ls)))
+		   // NB. The use of KERNEL_MEMORY here used to be !testing_userspace.
+		   // I needed to change it to implement preempt-everywhere mode,
+		   // to handle the case of userspace shms in deschedule() syscall.
+		   // Not entirely sure of all implications of this change.
+		   && ((!KERNEL_MEMORY(ls->eip) && user_within_functions(ls)) ||
+		      (KERNEL_MEMORY(ls->eip) && kern_within_functions(ls)))
 #endif
 		   ) {
 		*data_race = true;
