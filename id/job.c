@@ -107,7 +107,7 @@ static void *run_job(void *arg)
 	/* write config file */
 
 	XWRITE(&j->config_static, "TEST_CASE=%s\n", test_name);
-	XWRITE(&j->config_static, "VERBOSE=%d\n", verbose ? 1 : 0);
+	XWRITE(&j->config_static, "VERBOSE=%d\n", preempt_everywhere ? 0 : verbose ? 1 : 0);
 	XWRITE(&j->config_static, "ICB=%d\n", use_icb ? 1 : 0);
 	XWRITE(&j->config_static, "PREEMPT_EVERYWHERE=%d\n", preempt_everywhere ? 1 : 0);
 
@@ -169,6 +169,19 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
 		/* this may look strange, but see the test case */
 		XWRITE(&j->config_dynamic, "%s critical_section\n", without);
+	}
+
+	if (preempt_everywhere) {
+		XWRITE(&j->config_static, "DR_PPS_RESPECT_WITHIN_FUNCTIONS=1\n");
+		if (pintos) {
+			/* Manually approved shm accesses. */
+			XWRITE(&j->config_dynamic, "%s intr_get_level\n", without);
+			XWRITE(&j->config_dynamic, "%s intr_context\n", without);
+		} else {
+			/* Known offender to our ">=ebp+0x10" heuristic.
+			 * See work/modules/landslide/pp.c. */
+			XWRITE(&j->config_dynamic, "%s _doprnt\n", without);
+		}
 	}
 
 	messaging_init(&mess, &j->config_static, &j->config_dynamic, j->id);

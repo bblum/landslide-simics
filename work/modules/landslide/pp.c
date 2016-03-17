@@ -17,6 +17,7 @@
 #include "pp.h"
 #include "stack.h"
 #include "student_specifics.h"
+#include "x86.h"
 
 void pps_init(struct pp_config *p)
 {
@@ -139,10 +140,12 @@ bool load_dynamic_pps(struct ls_state *ls, const char *filename)
 
 static bool check_withins(struct ls_state *ls, pp_within_list_t *pps)
 {
+#ifndef PREEMPT_EVERYWHERE
 	/* If there are no within_functions, the default answer is yes.
 	 * Otherwise the default answer is no. Later ones take precedence, so
 	 * all of them have to be compared. */
 	bool any_withins = false;
+#endif
 	bool answer = true;
 	unsigned int i;
 	struct pp_within *pp;
@@ -152,11 +155,13 @@ static bool check_withins(struct ls_state *ls, pp_within_list_t *pps)
 	ARRAY_LIST_FOREACH(pps, i, pp) {
 		bool in = within_function_st(st, pp->func_start, pp->func_end);
 		if (pp->within) {
+#ifndef PREEMPT_EVERYWHERE
 			/* Switch to whitelist mode. */
 			if (!any_withins) {
 				any_withins = true;
 				answer = false;
 			}
+#endif
 			/* Must be within this function to allow. */
 			if (in) {
 				answer = true;
@@ -182,6 +187,41 @@ bool user_within_functions(struct ls_state *ls)
 {
 	return check_withins(ls, &ls->pps.user_withins);
 }
+
+#ifdef PREEMPT_EVERYWHERE
+#define EBP_OFFSET_HEURISTIC 0x10 /* for judging stack frame accesses */
+void maybe_preempt_here(struct ls_state *ls, unsigned int addr)
+{
+#ifndef TESTING_MUTEXES
+	if (ls->sched.cur_agent->action.user_mutex_locking ||
+	    ls->sched.cur_agent->action.user_mutex_unlocking ||
+	    ls->sched.cur_agent->action.kern_mutex_locking ||
+	    ls->sched.cur_agent->action.kern_mutex_trylocking ||
+	    ls->sched.cur_agent->action.kern_mutex_unlocking) {
+		return;
+	}
+#endif
+	/* Omit accesses on the current stack frame. Also, extend consideration
+	 * of the current frame to include up to 4 pushed args. Beyond that is
+	 * considered "shared memory". It's ok to have false positives on this
+	 * judgement of shared memory as long as they're uncommon; the cost is
+	 * just extra PPs that DPOR will find to be independent. But the cost
+	 * of false negatives (not preempting on true shms) is missing bugs. */
+	if (addr < GET_CPU_ATTR(ls->cpu0, esp) - WORD_SIZE ||
+	    addr >= GET_CPU_ATTR(ls->cpu0, ebp) + EBP_OFFSET_HEURISTIC) {
+		ls->sched.cur_agent->preempt_for_shm_here = true;
+	}
+}
+
+bool suspected_data_race(struct ls_state *ls)
+{
+#ifndef DR_PPS_RESPECT_WITHIN_FUNCTIONS
+	assert(0 && "PREEMPT_EVERYWHERE requires DR_PPS_RESPECT_WITHIN_FUNCTIONS");
+#endif
+	return ls->sched.cur_agent->preempt_for_shm_here;
+}
+
+#else
 
 bool suspected_data_race(struct ls_state *ls)
 {
@@ -216,4 +256,4 @@ bool suspected_data_race(struct ls_state *ls)
 	}
 	return false;
 }
-
+#endif
