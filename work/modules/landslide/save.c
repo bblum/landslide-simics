@@ -183,6 +183,9 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(last_pf_cr2);
 	COPY_FIELD(just_delayed_for_data_race);
 	COPY_FIELD(delayed_data_race_eip);
+#ifdef PREEMPT_EVERYWHERE
+	COPY_FIELD(preempt_for_shm_here);
+#endif
 	COPY_FIELD(just_delayed_for_vr_exit);
 	COPY_FIELD(delayed_vr_exit_eip);
 	COPY_FIELD(most_recent_syscall);
@@ -795,9 +798,13 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		Q_INIT_HEAD(&h->children);
 		h->all_explored = end_of_test;
 
-		h->is_preemption_point = is_preemption_point;
 		h->data_race_eip = data_race_eip;
+#ifdef PREEMPT_EVERYWHERE
+		h->is_preemption_point = true;
+#else
+		h->is_preemption_point = is_preemption_point;
 		if (is_preemption_point) { assert(data_race_eip == -1); }
+#endif
 
 		h->marked_children = 0;
 		h->proportion = 0.0L;

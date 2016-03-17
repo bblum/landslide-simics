@@ -999,12 +999,24 @@ void mem_check_shared_access(struct ls_state *ls, unsigned int phys_addr,
 		} else if (do_add_shm) {
 			add_shm(ls, m, c, addr, write, in_kernel);
 		}
+#ifdef PREEMPT_EVERYWHERE
+		if (testing_userspace() != in_kernel &&
+		    !(testing_userspace() && KERNEL_MEMORY(addr))) {
+			maybe_preempt_here(ls, addr);
+		}
+#endif
 	} else if ((in_kernel && kern_address_global(addr)) ||
 		   (!in_kernel /* && user_address_global(addr) */
 		    && do_add_shm)) {
 		/* Record shm accesses for user threads even on their own
 		 * stacks, to deal with potential WISE IDEA yield loops. */
 		add_shm(ls, m, NULL, addr, write, in_kernel);
+#ifdef PREEMPT_EVERYWHERE
+		if (testing_userspace() != in_kernel &&
+		    !(testing_userspace() && KERNEL_MEMORY(addr))) {
+			maybe_preempt_here(ls, addr);
+		}
+#endif
 	}
 }
 
@@ -1388,8 +1400,10 @@ bool mem_shm_intersect(struct ls_state *ls, struct hax *h0, struct hax *h1,
 				conflicts++;
 				ma0->conflict = true;
 				ma1->conflict = true;
+#ifndef PREEMPT_EVERYWHERE
 				// FIXME: make this not interleave horribly with conflicts
 				check_locksets(ls, h0, h1, ma0, ma1, c0, c1, in_kernel);
+#endif
 			}
 			ma0 = MEM_ENTRY(rb_next(&ma0->nobe));
 			ma1 = MEM_ENTRY(rb_next(&ma1->nobe));

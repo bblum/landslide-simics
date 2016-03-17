@@ -10,6 +10,7 @@
 #include <simics/api.h>
 
 #include "array_list.h"
+#include "student_specifics.h"
 
 struct ls_state;
 
@@ -46,5 +47,8 @@ bool load_dynamic_pps(struct ls_state *ls, const char *filename);
 bool kern_within_functions(struct ls_state *ls);
 bool user_within_functions(struct ls_state *ls);
 bool suspected_data_race(struct ls_state *ls);
+#ifdef PREEMPT_EVERYWHERE
+void maybe_preempt_here(struct ls_state *ls, unsigned int addr);
+#endif
 
 #endif

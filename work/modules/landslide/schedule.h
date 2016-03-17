@@ -113,6 +113,9 @@ struct agent {
 	 * race instruction (to delay its access until after the save point). */
 	bool just_delayed_for_data_race;
 	unsigned int delayed_data_race_eip; /* ...and if so, where was it */
+#ifdef PREEMPT_EVERYWHERE
+	bool preempt_for_shm_here;
+#endif
 	/* Same as above but used when exiting a VR yield to a new thread. */
 	bool just_delayed_for_vr_exit;
 	unsigned int delayed_vr_exit_eip; /* ...and if so, where was it */
