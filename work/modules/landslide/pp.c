@@ -56,6 +56,9 @@ void pps_init(struct pp_config *p)
 		                           .last_call           = drs[i][2],
 		                           .most_recent_syscall = drs[i][3] };
 		ARRAY_LIST_APPEND(&p->data_races, pp);
+#ifdef PREEMPT_EVERYWHERE
+		assert(0 && "DR PPs incompatible with preempt-everywhere mode.");
+#endif
 	}
 }
 
@@ -112,6 +115,9 @@ bool load_dynamic_pps(struct ls_state *ls, const char *filename)
 				{ .addr = x, .tid = y, .last_call = z,
 				  .most_recent_syscall = w };
 			ARRAY_LIST_APPEND(&p->data_races, pp);
+#ifdef PREEMPT_EVERYWHERE
+			assert(0 && "DR PPs incompatible with preempt-everywhere mode.");
+#endif
 		} else {
 			/* unknown */
 			lsprintf(DEV, "warning: unrecognized directive in "
