@@ -13,9 +13,11 @@ if [ ! -f "$IDDIR/$IDEXE" ]; then
 	exit 1
 fi
 
-cd pebsim/p2-basecode
-./check-need-p2-setup-again.sh || exit 1
-cd ../../
+if [ "`cat pebsim/current-architecture.txt 2>/dev/null`" = "p2" ]; then
+	cd pebsim/p2-basecode
+	./check-need-p2-setup-again.sh || exit 1
+	cd ../../
+fi
 
 SUFFIX=`date +%Y%m%d%H%M%S`
 

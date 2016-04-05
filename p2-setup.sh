@@ -40,6 +40,8 @@ cd ../pebsim || die "couldn't cd into pebsim"
 
 rm -f current-p2-group.txt
 echo "$1" > current-p2-group.txt
+rm -f current-architecture.txt
+echo "p2" > current-architecture.txt
 
 CONFIG=config.landslide.pathos-p2
 

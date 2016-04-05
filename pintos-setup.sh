@@ -94,3 +94,5 @@ echo "Setup successful. Can now run ./landslide."
 echo -ne '\033[00m'
 rm -f current-pintos-group.txt
 echo "$1" >> current-pintos-group.txt
+rm -f current-architecture.txt
+echo "pintos" > current-architecture.txt
