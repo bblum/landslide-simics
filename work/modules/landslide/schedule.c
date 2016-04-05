@@ -312,7 +312,6 @@ static void user_mutex_block_others(struct agent_q *q, unsigned int mutex_addr, 
 			if (mutex_held && a->action.user_mutex_yielding) {
 				/* lock was taken; the contender becomes blocked. */
 				a->user_blocked_on_addr = mutex_addr;
-				dump_stack();
 			/* On the other hand, be LIBERAL about when to unblock
 			 * contenders. Ones that haven't gotten to yield yet
 			 * might still have raced to see xchg=LOCKED already. */
@@ -1559,7 +1558,6 @@ void sched_update(struct ls_state *ls)
 						 "choice TID %d after all.\n",
 						 chosen->tid, current->tid);
 				}
-				dump_stack();
 				data_race_eip = ls->eip;
 				/* Insert a dummy instruction before creating
 				 * the save point, so the racing instruction
