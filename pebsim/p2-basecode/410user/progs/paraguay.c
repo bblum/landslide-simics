@@ -76,7 +76,8 @@ int main(void)
 {
 	report_start(START_CMPLT);
 
-	assuredly_misbehave((rand() % 521) % MISBEHAVE_MAX);
+	//assuredly_misbehave((rand() % 521) % MISBEHAVE_MAX);
+	misbehave(BGND_BRWN >> FGND_CYAN); // for landslide
 
 	ERR(thr_init(STACK_SIZE));
 	ERR(mutex_init(&lock1));

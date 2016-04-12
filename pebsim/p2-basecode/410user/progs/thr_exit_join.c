@@ -19,6 +19,7 @@ waiter(void *p)
 int main()
 {
   thr_init(16 * PAGE_SIZE);
+  misbehave(BGND_BRWN >> FGND_CYAN);
   
   (void) thr_create(waiter, (void *) thr_getid());
   

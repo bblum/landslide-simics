@@ -51,6 +51,7 @@ int main()
 	REPORT_START_CMPLT;
 
 	thr_init(STACK_SIZE);
+	misbehave(BGND_BRWN >> FGND_CYAN); // for landslide
 
 	REPORT_ON_ERR(rwlock_init(&lock));
 	REPORT_ON_ERR(mutex_init(&read_count_lock));

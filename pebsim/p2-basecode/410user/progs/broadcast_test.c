@@ -51,6 +51,7 @@ int main(void)
 	ERR(thr_init(STACK_SIZE));
 	ERR(mutex_init(&lock));
 	ERR(cond_init(&cvar));
+	misbehave(BGND_BRWN >> FGND_CYAN); // for landslide
 
 	ERR(thr_create(waiter, NULL));
 	//ERR(thr_create(waiter, NULL));

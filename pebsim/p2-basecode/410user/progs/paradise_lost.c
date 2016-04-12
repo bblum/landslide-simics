@@ -73,6 +73,7 @@ void producer()
 int main(void)
 {
 	report_start(START_CMPLT);
+	misbehave(BGND_BRWN >> FGND_CYAN);
 
 	ERR(thr_init(STACK_SIZE));
 
