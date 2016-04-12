@@ -26,16 +26,19 @@ mkdir -p /tmp/shit || die "fail mkdir"
 chmod go-rx /tmp/shit || die "fail chmod"
 cd /tmp/shit || die "fail cd"
 
-tar xvjf /afs/andrew.cmu.edu/usr12/bblum/p2s-even-newer-now.tar.bz2 || die "fail untar p2s"
+tar xvjf /afs/andrew.cmu.edu/usr12/bblum/p2s-final-hopefully2.tar.bz2 || die "fail untar p2s"
+tar xvjf /afs/andrew.cmu.edu/usr12/bblum/pintoses-bothunis-try3-alarmtest.tar.bz2 || die "fail untar pintoses"
 
 warn "getting repo"
 cp -r /afs/andrew.cmu.edu/usr12/bblum/masters . || die "fail cp masters"
+rm -f masters/id/ls-*log*
 cd masters || die "fail cd"
 ./prepare-workspace.sh || die "fail prepare wksp"
 cd work || die "fail cd"
 make clean || warn "fail make clean"
 make || warn "fail make"
 cd ../id || die "fail cd id"
+make clean
 make || die "fail make id"
 cd ../ || die "fail cd" # to /tmp/shit/masters
 cd ../ || die "fail cd" # to /tmp/shit

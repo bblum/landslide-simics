@@ -35,9 +35,9 @@ function runtest {
 		INCR=60
 		CORES=10
 		TIMESPLEPT=0
-		./landslide -v -C -p $TEST_CASE -c 1 -t${SECS}
+		#./landslide -v -C -p $TEST_CASE -c 1 -t${SECS}
 		# ICB
-		#./landslide -v -C -I -p $TEST_CASE -c 1 -t${SECS}
+		./landslide -v -C -I -p $TEST_CASE -c 1 -t${SECS}
 
 		LOGDIR="$HOME/masters/p2-id-logs/test-$TEST_CASE-try$TRY"
 		DESTDIR="$LOGDIR/$TEST_CASE/$semestername-$groupname"
