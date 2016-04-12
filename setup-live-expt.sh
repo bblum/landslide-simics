@@ -24,17 +24,19 @@ git branch | grep '*' | grep dr-experimence >/dev/null || die "masters not on ri
 
 cd /tmp/shit || die "fail cd"
 
-warn "refreshing p2s"
-rm -rf /tmp/shit/p2s
-tar xvjf /afs/andrew.cmu.edu/usr12/bblum/p2s-even-newer-now.tar.bz2 || die "fail untar p2s"
-
-warn "refreshing pintoses"
-rm -rf /tmp/shit/pintoses
-tar xvjf /afs/andrew.cmu.edu/usr12/bblum/pintoses-bothunis-try3-alarmtest.tar.bz2 || die "fail untar pintoses"
+#warn "refreshing p2s"
+#rm -rf /tmp/shit/p2s
+#tar xvjf /afs/andrew.cmu.edu/usr12/bblum/p2s-even-newer-now.tar.bz2 || die "fail untar p2s"
+#
+#warn "refreshing pintoses"
+#rm -rf /tmp/shit/pintoses
+#tar xvjf /afs/andrew.cmu.edu/usr12/bblum/pintoses-bothunis-try3-alarmtest.tar.bz2 || die "fail untar pintoses"
 
 warn "getting repo"
 rm -rf masters
 cp -r /afs/andrew.cmu.edu/usr12/bblum/masters . || die "fail cp masters"
+
+rm -f masters/id/ls-*log*
 
 cp -r masters dr-falsenegs || die "fail make drfalsenegs"
 
@@ -47,6 +49,7 @@ make clean || warn "fail make clean"
 make || warn "fail make"
 cd ../id || die "fail cd id"
 sed -i 's/summarize_pending =/summarize_pending = true ||/' work.c || die "fail sed work.c" # avoid not-quite-quadratic blowup
+make clean
 make || die "fail make id"
 cd ../ || die "fail cd" # to /tmp/shit/masters
 cd ../ || die "fail cd" # to /tmp/shit
@@ -65,6 +68,7 @@ make clean || warn "fail make clean"
 make || warn "fail make"
 cd ../id || die "fail cd id"
 sed -i 's/summarize_pending =/summarize_pending = true ||/' work.c || die "fail sed work.c" # avoid not-quite-quadratic blowup
+make clean
 make || die "fail make id"
 cd ../ || die "fail cd" # to /tmp/shit/masters
 cd ../ || die "fail cd" # to /tmp/shit

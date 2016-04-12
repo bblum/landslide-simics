@@ -14,7 +14,7 @@ if [ "$(($MACHINE_CPUS<10))" = "1" ]; then
 	exit 1
 fi
 
-TRY=live-epsilon-goodcputime
+TRY=live-iota-misbehaving
 
 function runtest {
 	echo -e "\033[01;32mTesting $semestername $groupname on $TEST_CASE\033[00m"
@@ -54,6 +54,11 @@ function runtest {
 		LOGDIR="$HOME/masters/p2-id-logs/test-$TEST_CASE-try$TRY"
 		DESTDIR="$LOGDIR/$TEST_CASE/$semestername-$groupname"
 		mkdir -p "$DESTDIR"
+		for logpath in `ls id/ls-output*log* | grep -v '\.gz$' | grep -v afsfull`; do
+			if ! head -n 1000 "$logpath" | grep License "$logpath" >/dev/null; then
+				rm "$logpath"
+			fi
+		done
 		for logpath in `ls id/ls-*log* | grep -v '\.gz$' | grep -v afsfull`; do
 			gzip "$logpath"
 			mv "$logpath".gz "$DESTDIR"
