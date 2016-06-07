@@ -87,10 +87,15 @@ static unsigned int update_marked_children(struct hax *h)
 	return old_marked_children;
 }
 
+#ifdef PREEMPT_EVERYWHERE
+// FIXME: bug #218
+#define ASSERT_FRACTIONAL(val) do { } while (0)
+#else
 #define ASSERT_FRACTIONAL(val) do {			\
 		typeof(val) __val = (val);		\
 		assert(__val >= 0.0L && __val <= 1.0L);	\
 	} while (0)
+#endif
 
 /* Propagate changed proportion to descendants, including the nobe itself. */
 static void adjust_subtree_proportions(struct hax *ancestor, struct hax *leaf,
