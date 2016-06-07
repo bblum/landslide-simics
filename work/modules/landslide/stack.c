@@ -384,13 +384,17 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 					   SEGSEL_KERNEL_CS) {
 					/* Kernel-to-kernel iret. Look past it. */
 					stack_ptr += WORD_SIZE * IRET_BLOCK_WORDS;
-				} else {
+				} else if (READ_MEMORY(cpu, stack_ptr + WORD_SIZE) == SEGSEL_USER_CS) {
 					/* User-to-kernel iret. Stack switch. */
-					assert(READ_MEMORY(cpu, stack_ptr + WORD_SIZE)
-					       == SEGSEL_USER_CS);
 					unsigned int esp_addr =
 						stack_ptr + (3 * WORD_SIZE);
 					stack_ptr = READ_MEMORY(cpu, esp_addr);
+				} else {
+					/* Unknown case (used to be assert fail) */
+					lsprintf(DEV, COLOUR_BOLD COLOUR_YELLOW
+						 "Warning: unhandled case in "
+						 "stack trace; truncating.\n");
+					return st;
 				}
 			}
 		} while (extra_frame);
