@@ -25,6 +25,7 @@ SRC_FILES = landslide.h landslide.c \
 	    user_sync.h user_sync.c \
 	    rand.h rand.c \
 	    lockset.c lockset.h \
+	    vector_clock.c vector_clock.h \
 	    stack.c stack.h \
 	    symtable.c symtable.h \
 	    messaging.c messaging.h \
