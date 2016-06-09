@@ -32,6 +32,7 @@
 #include "test.h"
 #include "tree.h"
 #include "user_sync.h"
+#include "vector_clock.h"
 
 /******************************************************************************
  * simics goo
@@ -192,6 +193,9 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(last_call);
 	lockset_clone(&a_dest->kern_locks_held, &a_src->kern_locks_held);
 	lockset_clone(&a_dest->user_locks_held, &a_src->user_locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+	vc_copy(&a_dest->clock, &a_src->clock);
+#endif
 	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);
 #ifdef ALLOW_REENTRANT_MALLOC_FREE
 	copy_malloc_actions(&a_dest->kern_malloc_flags, &a_src->kern_malloc_flags);
@@ -277,6 +281,11 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 		(src->voluntary_resched_stack == NULL) ? NULL :
 			copy_stack_trace(src->voluntary_resched_stack);
 	lockset_clone(&dest->known_semaphores, &src->known_semaphores);
+#ifdef PURE_HAPPENS_BEFORE
+	lock_clocks_copy(&dest->lock_clocks, &src->lock_clocks);
+	vc_copy(&dest->scheduler_lock_clock, &src->scheduler_lock_clock);
+	dest->scheduler_lock_held = src->scheduler_lock_held;
+#endif
 	dest->deadlock_fp_avoidance_count = src->deadlock_fp_avoidance_count;
 	dest->icb_preemption_count = src->icb_preemption_count;
 }
@@ -410,6 +419,9 @@ static void free_sched_q(struct agent_q *q)
 		Q_REMOVE(q, a, nobe);
 		lockset_free(&a->kern_locks_held);
 		lockset_free(&a->user_locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+		vc_destroy(&a->clock);
+#endif
 		if (a->pre_vanish_trace != NULL) {
 			free_stack_trace(a->pre_vanish_trace);
 		}
@@ -422,6 +434,10 @@ static void free_sched(struct sched_state *s)
 	free_sched_q(&s->dq);
 	free_sched_q(&s->sq);
 	lockset_free(&s->known_semaphores);
+#ifdef PURE_HAPPENS_BEFORE
+	lock_clocks_destroy(&s->lock_clocks);
+	vc_destroy(&s->scheduler_lock_clock);
+#endif
 }
 static void free_test(const struct test_state *t)
 {
