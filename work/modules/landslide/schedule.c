@@ -126,6 +126,9 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 
 	lockset_init(&a->kern_locks_held);
 	lockset_init(&a->user_locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+	vc_init(&a->clock);
+#endif
 
 	user_yield_state_init(&a->user_yield);
 
@@ -215,6 +218,9 @@ static void agent_vanish(struct sched_state *s)
 		assert(s->last_vanished_agent->action.context_switch);
 		lockset_free(&s->last_vanished_agent->kern_locks_held);
 		lockset_free(&s->last_vanished_agent->user_locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+		vc_destroy(&s->last_vanished_agent->clock);
+#endif
 		if (s->last_vanished_agent->pre_vanish_trace != NULL) {
 			free_stack_trace(s->last_vanished_agent->pre_vanish_trace);
 		}
@@ -359,6 +365,11 @@ void sched_init(struct sched_state *s)
 	s->voluntary_resched_tid = -1;
 	s->voluntary_resched_stack = NULL;
 	lockset_init(&s->known_semaphores);
+#ifdef PURE_HAPPENS_BEFORE
+	lock_clocks_init(&s->lock_clocks);
+	vc_init(&s->scheduler_lock_clock);
+	s->scheduler_lock_held = false;
+#endif
 	s->deadlock_fp_avoidance_count = 0;
 	s->icb_preemption_count = 0;
 }

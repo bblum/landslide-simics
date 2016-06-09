@@ -16,6 +16,7 @@
 #include "stack.h"
 #include "user_sync.h"
 #include "variable_queue.h"
+#include "vector_clock.h"
 
 struct ls_state;
 
@@ -125,6 +126,9 @@ struct agent {
 	/* locks held for data race detection */
 	struct lockset kern_locks_held;
 	struct lockset user_locks_held;
+#ifdef PURE_HAPPENS_BEFORE
+	struct vector_clock clock;
+#endif
 	/* State for tracking userspace synchronization actions */
 	struct user_yield_state user_yield;
 	/* Possible stack trace saved from before sim_unreg_process. */
@@ -194,6 +198,17 @@ struct sched_state {
 	/* List of known semaphores that were initialized with values other than
 	 * 1 (i.e., ones that don't behave like mutexes for sake of locksets). */
 	struct lockset known_semaphores;
+#ifdef PURE_HAPPENS_BEFORE
+	/* vector clocks that track time from the perspective of each lock;
+	 * iow, the "L" map from the fasttrack paper. tracks only kernel or
+	 * only user locks depending on which space we're testing, not both. */
+	struct lock_clocks lock_clocks;
+	/* special case lock clock entry for cli/sti (or scheduler locking) */
+	struct vector_clock scheduler_lock_clock;
+	/* not necessarily matching interrupts state, since we ignore cli/sti
+	 * during timer or context switch. but needed for tracking "handoff". */
+	bool scheduler_lock_held;
+#endif
 	/* Avoid false positive deadlocks caused by ad-hoc yield-blocking. */
 	unsigned int deadlock_fp_avoidance_count;
 	/* ICB */
