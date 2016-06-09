@@ -41,9 +41,11 @@ bool leave_logs = false;
 bool pintos = false;
 bool use_icb = false;
 bool preempt_everywhere = false;
+bool pure_hb = false;
 
 void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
-		     bool arg_pintos, bool arg_use_icb, bool arg_preempt_everywhere)
+		     bool arg_pintos, bool arg_use_icb, bool arg_preempt_everywhere,
+		     bool arg_pure_hb)
 {
 	test_name = XSTRDUP(arg_test_name);
 	verbose = arg_verbose;
@@ -51,6 +53,7 @@ void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 	pintos = arg_pintos;
 	use_icb = arg_use_icb;
 	preempt_everywhere = arg_preempt_everywhere;
+	pure_hb = arg_pure_hb;
 }
 
 bool testing_pintos() { return pintos; }
@@ -110,6 +113,7 @@ static void *run_job(void *arg)
 	XWRITE(&j->config_static, "VERBOSE=%d\n", preempt_everywhere ? 0 : verbose ? 1 : 0);
 	XWRITE(&j->config_static, "ICB=%d\n", use_icb ? 1 : 0);
 	XWRITE(&j->config_static, "PREEMPT_EVERYWHERE=%d\n", preempt_everywhere ? 1 : 0);
+	XWRITE(&j->config_static, "PURE_HAPPENS_BEFORE=%d\n", pure_hb ? 1 : 0);
 
 	// XXX(#120): TEST_CASE must be defined before PPs are specified.
 	XWRITE(&j->config_dynamic, "TEST_CASE=%s\n", test_name);

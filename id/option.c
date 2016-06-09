@@ -120,7 +120,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
 		 bool *leave_logs, bool *control_experiment, bool *use_wrapper_log,
 		 char *wrapper_log, unsigned int wrapper_log_len, bool *pintos,
-		 bool *use_icb, bool *preempt_everywhere,
+		 bool *use_icb, bool *preempt_everywhere, bool *pure_hb,
 		 unsigned long *progress_report_interval,
 		 unsigned long *eta_factor, unsigned long *eta_thresh)
 {
@@ -162,6 +162,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_FLAG('P', true, pintos, "Pintos (not for 15-410 use)");
 	DEF_CMDLINE_FLAG('I', true, icb, "Use Iterative Context Bounding (ICB) to order the search (-C only)");
 	DEF_CMDLINE_FLAG('0', true, everywhere, "Preempt unconditionally on all heap/global accesses (-C only)");
+	DEF_CMDLINE_FLAG('H', true, pure_hb, "Use vector clocks for \"pure\" happens-before data-races");
 #undef DEF_CMDLINE_FLAG
 
 #define DEF_CMDLINE_OPTION(flagname, secret, varname, descr, value)	\
@@ -309,6 +310,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	*pintos = arg_pintos;
 	*use_icb = arg_icb;
 	*preempt_everywhere = arg_everywhere;
+	*pure_hb = arg_pure_hb;
 
 	return options_valid;
 }
