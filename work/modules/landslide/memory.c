@@ -628,6 +628,9 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	enum chunk_id_info any_cids = c == NULL ? NOT_IN_HEAP : HAS_CHUNK_ID;
 	unsigned int cid = c == NULL ? 0x15410de0u : c->id;
 
+	/* Many memory accesses are repeated under identical circumstances (same
+	 * line of code, same locks held, etc). This loop attempts not to create
+	 * a new mem_lockset for each repeat access, instead coalescing them. */
 	Q_FOREACH(l_old, &ma->locksets, nobe) {
 		if (remove_prev) {
 			struct mem_lockset *l_prev = l_old->nobe.prev;

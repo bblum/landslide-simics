@@ -108,11 +108,6 @@ static void run_command(const char *file, const char *cmd, struct hax *h)
  * helpers
  ******************************************************************************/
 
-static void copy_lockset(struct lockset *dest, const struct lockset *src)
-{
-	lockset_clone(dest, src);
-}
-
 static void copy_user_yield_state(struct user_yield_state *dest,
 				  struct user_yield_state *src)
 {
@@ -191,8 +186,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(delayed_vr_exit_eip);
 	COPY_FIELD(most_recent_syscall);
 	COPY_FIELD(last_call);
-	copy_lockset(&a_dest->kern_locks_held, &a_src->kern_locks_held);
-	copy_lockset(&a_dest->user_locks_held, &a_src->user_locks_held);
+	lockset_clone(&a_dest->kern_locks_held, &a_src->kern_locks_held);
+	lockset_clone(&a_dest->user_locks_held, &a_src->user_locks_held);
 	copy_user_yield_state(&a_dest->user_yield, &a_src->user_yield);
 #ifdef ALLOW_REENTRANT_MALLOC_FREE
 	copy_malloc_actions(&a_dest->kern_malloc_flags, &a_src->kern_malloc_flags);
@@ -277,7 +272,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->voluntary_resched_stack =
 		(src->voluntary_resched_stack == NULL) ? NULL :
 			copy_stack_trace(src->voluntary_resched_stack);
-	copy_lockset(&dest->known_semaphores, &src->known_semaphores);
+	lockset_clone(&dest->known_semaphores, &src->known_semaphores);
 	dest->deadlock_fp_avoidance_count = src->deadlock_fp_avoidance_count;
 	dest->icb_preemption_count = src->icb_preemption_count;
 }
