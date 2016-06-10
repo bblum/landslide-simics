@@ -128,6 +128,16 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	lockset_init(&a->user_locks_held);
 #ifdef PURE_HAPPENS_BEFORE
 	vc_init(&a->clock);
+	/* start child clock at a non-bottom value - not quite sure if needed,
+	 * but it can't hurt (as if child bounced off a private mutex). */
+	vc_inc(&a->clock, a->tid);
+	/* rule FT-fork from fasttrack paper */
+	if (s->cur_agent != NULL) {
+		/* child thread inherits vector clock of parent */
+		vc_merge(&a->clock, &s->cur_agent->clock);
+		/* parent enters new epoch */
+		vc_inc(&s->cur_agent->clock, s->cur_agent->tid);
+	}
 #endif
 
 	user_yield_state_init(&a->user_yield);
@@ -351,6 +361,7 @@ void sched_init(struct sched_state *s)
 	s->num_agents = 0;
 	s->most_agents_ever = 0;
 	s->guest_init_done = false; /* must be before kern_init_threads */
+	s->cur_agent = NULL; /* tell agent_fork there's no forking parent */
 	kern_init_threads(s, agent_fork);
 	s->cur_agent = agent_by_tid_or_null(&s->rq, kern_get_first_tid());
 	if (s->cur_agent == NULL)
