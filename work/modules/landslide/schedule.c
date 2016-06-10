@@ -978,7 +978,37 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 
 #ifdef PURE_HAPPENS_BEFORE
 #ifdef PINTOS_KERNEL
-	// TODO
+	/* In Pintos, track cli/sti as a special-case global lock (but only if
+	 * it's taken outside of the context switch path - otherwise all
+	 * transitions would HB each other trivially). If a context switch
+	 * happens before interrupts are restored, we will "hand off" this
+	 * virtual lock when we notice the switch (see tl_thread_switch). */
+	// FIXME: clean this up to generalize for pebbles as well (haha never)
+	// TODO: handle ad-hoc pushf and popf (maybe interrupts/iret too?)
+	if (ls->eip >= GUEST_CLI_ENTER && ls->eip <= GUEST_CLI_EXIT &&
+	    ls->instruction_text[0] == OPCODE_CLI && !s->scheduler_lock_held &&
+	    !ACTION(s, context_switch) && !ACTION(s, handling_timer) &&
+	    !ACTION(s, kern_mutex_locking) && !ACTION(s, kern_mutex_unlocking)) {
+		/* We can't apply these rules at CLI_ENTER and STI_EXIT since
+		 * those are the same instructions the arbiter will preempt on.
+		 * We can't interleave another thread's acquire/release between
+		 * applying this rule and actually cli'ing/sti'ing. So let's
+		 * pick something in the middle - the cli/sti itself. */
+		assert(ls->eip != GUEST_CLI_ENTER);
+		/* FT-acquire */
+		vc_merge(&CURRENT(s, clock), &s->scheduler_lock_clock);
+		s->scheduler_lock_held = true;
+	} else if (ls->eip >= GUEST_STI_ENTER && ls->eip <= GUEST_STI_EXIT &&
+		   ls->instruction_text[0] == OPCODE_STI && s->scheduler_lock_held) {
+		/* as above, although actually this would be ok, since the state
+		 * machine update happens before the arbiter puts a PP. */
+		assert(ls->eip != GUEST_STI_EXIT);
+		/* FT-release */
+		vc_destroy(&s->scheduler_lock_clock);
+		vc_copy(&s->scheduler_lock_clock, &CURRENT(s, clock));
+		vc_inc(&CURRENT(s, clock), CURRENT(s, tid));
+		s->scheduler_lock_held = false;
+	}
 #else
 	/* Pathos scheduler blocking/unblocking, which userspace may use in
 	 * various forms as a "join"-like primitive. This implements the
@@ -1405,6 +1435,20 @@ void sched_update(struct ls_state *ls)
 
 		record_user_xchg_activity(&ls->user_sync);
 
+#ifdef PURE_HAPPENS_BEFORE
+		/* Handle necessary "handoff" of cli/sti lock clock state. */
+		if (s->scheduler_lock_held) {
+			/* FT-release */
+			vc_destroy(&s->scheduler_lock_clock);
+			vc_copy(&s->scheduler_lock_clock, &CURRENT(s, clock));
+			vc_inc(&CURRENT(s, clock), CURRENT(s, tid));
+			lskprintf(DEV, "cli'd context switch: handoff 1\n");
+#ifndef PINTOS_KERNEL
+			assert(false && "i am not good with computer");
+#endif
+		}
+#endif
+
 		/* Careful! On some kernels, the trigger for a new agent forking
 		 * (where it first gets added to the RQ) may happen AFTER its
 		 * tcb is set to be the currently running thread. This would
@@ -1447,6 +1491,17 @@ void sched_update(struct ls_state *ls)
 		} else if (TID_IS_IDLE(CURRENT(s, tid))) {
 			lskprintf(DEV, "Now idling.\n");
 		}
+
+#ifdef PURE_HAPPENS_BEFORE
+		/* see above */
+		if (s->scheduler_lock_held) {
+			/* FT-acquire */
+			vc_merge(&CURRENT(s, clock), &s->scheduler_lock_clock);
+			lskprintf(DEV, "cli'd context switch: handoff 2\n");
+		} else {
+			lskprintf(DEV, "non-cli'd context switch: no HB.\n");
+		}
+#endif
 	}
 
 	s->current_extra_runnable = kern_current_extra_runnable(ls->cpu0);
