@@ -11,6 +11,7 @@
 
 #include "lockset.h"
 #include "rbtree.h"
+#include "vector_clock.h"
 #include "variable_queue.h"
 
 struct hax;
@@ -38,6 +39,9 @@ struct mem_lockset {
 	enum chunk_id_info any_chunk_ids;
 	unsigned int chunk_id;
 	struct lockset locks_held;
+#ifdef PURE_HAPPENS_BEFORE
+	struct vector_clock clock;
+#endif
 	Q_NEW_LINK(struct mem_lockset) nobe;
 };
 

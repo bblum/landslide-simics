@@ -639,6 +639,9 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 			merge_chunk_id_info(&any_cids, &cid, l_prev->any_chunk_ids,
 					    l_prev->chunk_id);
 			lockset_free(&l_prev->locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+			vc_destroy(&l_prev->clock);
+#endif
 			MM_FREE(l_prev);
 			remove_prev = false;
 		}
@@ -670,6 +673,13 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		if (l_old->interrupce_enabled != interrupce) {
 			continue;
 		}
+
+#ifdef PURE_HAPPENS_BEFORE
+		/* ensure matching vector clocks */
+		if (!vc_eq(&l_old->clock, &ls->sched.cur_agent->clock)) {
+			continue;
+		}
+#endif
 
 		enum lockset_cmp_result r =
 			lockset_compare(current_locks, &l_old->locks_held);
@@ -709,6 +719,9 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		l_old = Q_GET_TAIL(&ma->locksets);
 		Q_REMOVE(&ma->locksets, l_old, nobe);
 		lockset_free(&l_old->locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+		vc_destroy(&l_old->clock);
+#endif
 		MM_FREE(l_old);
 	}
 
@@ -724,6 +737,9 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		l_new->any_chunk_ids = any_cids;
 		l_new->chunk_id = cid;
 		lockset_clone(&l_new->locks_held, current_locks);
+#ifdef PURE_HAPPENS_BEFORE
+		vc_copy(&l_new->clock, &ls->sched.cur_agent->clock);
+#endif
 		Q_INSERT_FRONT(&ma->locksets, l_new, nobe);
 	}
 }
