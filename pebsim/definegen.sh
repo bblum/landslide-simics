@@ -449,7 +449,9 @@ if [ ! -z "$PINTOS_KERNEL" ]; then
 	echo "#define GUEST_VGA_CONSOLE_BASE 0xc00b8000"
 	echo "#define GUEST_VGA_CONSOLE_END (0xc00b8000 + (80*25*2))"
 	echo "#define GUEST_CLI_ENTER 0x`get_func intr_disable`"
-	echo "#define GUEST_STI_EXIT 0x`get_func_end intr_enable`" # intr_set_level calls intr_enable
+	echo "#define GUEST_CLI_EXIT  0x`get_func_end intr_disable`"
+	echo "#define GUEST_STI_ENTER 0x`get_func intr_enable`" # intr_set_level calls intr_enable
+	echo "#define GUEST_STI_EXIT  0x`get_func_end intr_enable`" # intr_set_level calls intr_enable
 	echo "#define GUEST_TIMER_SPLEEP_ENTER 0x`get_func timer_sleep`"
 	echo "#define GUEST_TIMER_SPLEEP_EXIT  0x`get_func_end timer_sleep`"
 	echo "#define GUEST_LIST_INSERT_ORDERED_EXIT 0x`get_func_end list_insert_ordered`"
