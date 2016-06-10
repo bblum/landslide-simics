@@ -975,6 +975,33 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	} else {
 		sched_check_lmm_init(ls);
 	}
+
+#ifdef PURE_HAPPENS_BEFORE
+#ifdef PINTOS_KERNEL
+	// TODO
+#else
+	/* Pathos scheduler blocking/unblocking, which userspace may use in
+	 * various forms as a "join"-like primitive. This implements the
+	 * FT-join rule (see fasttrack paper) at a lower level. */
+	if (!testing_userspace()) {
+		assert(false && "pure HB not implemented for pathos kernelspace");
+	// XXX HACK FIXME GROSS (#220): Make an annotation!
+	// XXX HACK FIXME GROSS: this is when cond_signal calls sched_unblock
+	} else if (ls->eip == 0x1029b6) {
+		// FIXME: issue #220
+		unsigned int tid = READ_MEMORY(ls->cpu0, GET_CPU_ATTR(ls->cpu0, eax) + 0x30);
+		/* the "joining" thread is the one being signalled here */
+		struct agent *joiner = find_agent(s, tid);
+		assert(joiner != NULL && "couldn't find signalled thread");
+		lsprintf(DEV, "kernel cond_signal(TID %d) by TID %d\n",
+			 tid, CURRENT(s, tid));
+		/* joiner inherits vector clock of signaller */
+		vc_merge(&joiner->clock, &CURRENT(s, clock));
+		/* signaller enters new epoch. */
+		vc_inc(&CURRENT(s, clock), CURRENT(s, tid));
+	}
+#endif
+#endif
 }
 
 #define CHECK_NO_RECURSION(s, action, msg) do {			\
