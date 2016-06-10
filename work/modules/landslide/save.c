@@ -469,6 +469,9 @@ static void free_shm(struct rb_node *nobe)
 		assert(l != NULL);
 		Q_REMOVE(&ma->locksets, l, nobe);
 		lockset_free(&l->locks_held);
+#ifdef PURE_HAPPENS_BEFORE
+		vc_destroy(&l->clock);
+#endif
 		MM_FREE(l);
 	}
 	MM_FREE(ma);
