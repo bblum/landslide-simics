@@ -406,6 +406,9 @@ static void free_sched_q(struct agent_q *q)
 		Q_REMOVE(q, a, nobe);
 		lockset_free(&a->kern_locks_held);
 		lockset_free(&a->user_locks_held);
+		if (a->pre_vanish_trace != NULL) {
+			free_stack_trace(a->pre_vanish_trace);
+		}
 		MM_FREE(a);
 	}
 }
