@@ -891,6 +891,11 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		/* no need to check for deadlock; this can't create a cycle. */
 		kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
 					CURRENT(s, tid));
+#ifdef PURE_HAPPENS_BEFORE
+		if (!testing_userspace()) {
+			VC_ACQUIRE(&s->lock_clocks, &CURRENT(s, clock), lock_addr);
+		}
+#endif
 	} else if (kern_mutex_trylocking(ls->cpu0, ls->eip, &lock_addr)) {
 		/* trylocking can happen in the timer handler, so it is expected
 		 * to preempt a lock or unlock operation. */
@@ -906,6 +911,12 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 			/* similar to mutex_locking_done case */
 			kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
 						CURRENT(s, tid));
+#ifdef PURE_HAPPENS_BEFORE
+			if (!testing_userspace()) {
+				VC_ACQUIRE(&s->lock_clocks, &CURRENT(s, clock),
+					   lock_addr);
+			}
+#endif
 		} else {
 			/* simply undo changes from trylock begin */
 			lockset_remove(s, lock_addr, LOCK_MUTEX, true);
@@ -921,6 +932,12 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		lskprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
 		          lock_addr, CURRENT(s, tid));
 		kern_mutex_block_others(&s->rq, lock_addr, NULL, -1);
+#ifdef PURE_HAPPENS_BEFORE
+		if (!testing_userspace()) {
+			VC_RELEASE(&s->lock_clocks, &CURRENT(s, clock),
+				   CURRENT(s, tid), lock_addr);
+		}
+#endif
 	} else if (kern_mutex_unlocking_done(ls->eip)) {
 		assert(ACTION(s, kern_mutex_unlocking));
 		ACTION(s, kern_mutex_unlocking) = false;
@@ -1149,6 +1166,12 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			lockset_add(s, &CURRENT(s, user_locks_held),
 				    lock_addr, LOCK_MUTEX);
 #endif
+#ifdef PURE_HAPPENS_BEFORE
+			if (testing_userspace()) {
+				VC_ACQUIRE(&s->lock_clocks, &CURRENT(s, clock),
+					   lock_addr);
+			}
+#endif
 		}
 		CURRENT(s, user_mutex_locking_addr) = -1;
 		/* Got the lock. Therefore blocked on no mutex. In most cases,
@@ -1175,6 +1198,12 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			lockset_add(s, &CURRENT(s, user_locks_held),
 				    lock_addr, LOCK_MUTEX);
 #endif
+#ifdef PURE_HAPPENS_BEFORE
+			if (testing_userspace()) {
+				VC_ACQUIRE(&s->lock_clocks, &CURRENT(s, clock),
+					   lock_addr);
+			}
+#endif
 		} else {
 			lsprintf(DEV, "tid %d failed to trylock mutex 0x%x\n",
 				 CURRENT(s, tid), lock_addr);
@@ -1191,11 +1220,17 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_mutex_unlocking) = true;
 		CURRENT(s, user_mutex_unlocking_addr) = lock_addr;
 		lsprintf(DEV, "tid %d unlocks mutex 0x%x\n", CURRENT(s, tid), lock_addr);
-#ifdef TESTING_MUTEXES
 		if (lock_addr != 0) {
+#ifdef TESTING_MUTEXES
 			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
-		}
 #endif
+#ifdef PURE_HAPPENS_BEFORE
+			if (testing_userspace()) {
+				VC_RELEASE(&s->lock_clocks, &CURRENT(s, clock),
+					   CURRENT(s, tid), lock_addr);
+			}
+#endif
+		}
 		record_user_mutex_activity(&ls->user_sync);
 	} else if (user_mutex_unlock_exiting(ls->eip)) {
 		unsigned int lock_addr = CURRENT(s, user_mutex_unlocking_addr);

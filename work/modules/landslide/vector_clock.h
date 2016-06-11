@@ -44,4 +44,19 @@ bool lock_clock_find(struct lock_clocks *lc, unsigned int lock_addr, struct vect
 struct vector_clock *lock_clock_get(struct lock_clocks *lc, unsigned int lock_addr);
 void lock_clock_set(struct lock_clocks *lc, unsigned int lock_addr, struct vector_clock *vc);
 
+/* FT-acquire, see fasttrack paper */
+#define VC_ACQUIRE(lc, current_clock, lock_addr) do {			\
+		struct vector_clock *__clock;				\
+		if (lock_clock_find((lc), (lock_addr), &__clock)) {	\
+			vc_merge((current_clock), __clock);		\
+		}							\
+	} while (0)
+
+/* FT-release, see fasttrack paper */
+#define VC_RELEASE(lc, current_clock, tid, lock_addr) do {		\
+		struct vector_clock *__clock = (current_clock);		\
+		lock_clock_set((lc), (lock_addr), __clock);		\
+		vc_inc(__clock, (tid));					\
+	} while (0)
+
 #endif
