@@ -1349,7 +1349,13 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			/* Are there any 2 locksets without a lock in common? */
 			if ((l0->write || l1->write)
+#ifdef PURE_HAPPENS_BEFORE
+			    /* l1 is the older transition */
+			    && !vc_happens_before(&l1->clock, &l0->clock)
+#endif
+#if (!defined(PURE_HAPPENS_BEFORE)) || (!defined(TESTING_MUTEXES))
 			    && !lockset_intersect(&l0->locks_held, &l1->locks_held)
+#endif
 			    && (l0->interrupce_enabled || l1->interrupce_enabled)
 			    && !ignore_dr_function(l0->eip)
 			    && !ignore_dr_function(l1->eip)) {
@@ -1361,6 +1367,16 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 				/* Whether or not we saw it reordered, check if
 				 * it enables a speculative DR save point. */
 				check_enable_speculative_pp(h1->parent, l1->eip);
+				// FIXME: Clean up this mess of #defines. They're
+				// only there for the sake of this assertion.
+				// Once you're satisfied with the assertion,
+				// let it go.
+#if defined(PURE_HAPPENS_BEFORE) && defined(TESTING_MUTEXES)
+				/* Same lock implies a HB edge between one's
+				 * release and the other's acquire. */
+				assert(!lockset_intersect(&l0->locks_held,
+							  &l1->locks_held));
+#endif
 			}
 		}
 	}
