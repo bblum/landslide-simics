@@ -1349,6 +1349,11 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 		Q_FOREACH(l1, &ma1->locksets, nobe) {
 			/* Are there any 2 locksets without a lock in common? */
 			if ((l0->write || l1->write)
+#ifdef PURE_HAPPENS_BEFORE
+			    /* l1 is the older transition */
+			    && !vc_happens_before(&l1->clock, &l0->clock)
+#endif
+			    /* with pure HB, the above check subsumes this one */
 			    && !lockset_intersect(&l0->locks_held, &l1->locks_held)
 			    && (l0->interrupce_enabled || l1->interrupce_enabled)
 			    && !ignore_dr_function(l0->eip)
