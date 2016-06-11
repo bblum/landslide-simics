@@ -1032,6 +1032,10 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			lsprintf(DEV, "tid %d tried + could lock mutex 0x%x\n",
 				 CURRENT(s, tid), lock_addr);
 			user_mutex_block_others(&s->rq, lock_addr, true);
+#ifdef TESTING_MUTEXES
+			lockset_add(s, &CURRENT(s, user_locks_held),
+				    lock_addr, LOCK_MUTEX);
+#endif
 		} else {
 			lsprintf(DEV, "tid %d failed to trylock mutex 0x%x\n",
 				 CURRENT(s, tid), lock_addr);
