@@ -88,6 +88,15 @@ static void send(struct messaging_state *state, struct output_message *m)
 	m->magic = ID_WRAPPER_MAGIC;
 	int ret = write(state->output_fd, m, sizeof(struct output_message));
 	assert(ret == sizeof(struct output_message) && "write failed");
+
+	if (state->do_log_messages) {
+		assert(state->message_log_fd != 0);
+		int ret = write(state->message_log_fd, m, sizeof(struct output_message));
+		assert(ret == sizeof(struct output_message) && "log write failed");
+		uint64_t usecs = update_time(&state->last_message_time);
+		ret = write(state->message_log_fd, &usecs, sizeof(usecs));
+		assert(ret == sizeof(usecs) && "log write 2 failed");
+	}
 }
 
 static void recv(struct messaging_state *state, struct input_message *m)
@@ -126,7 +135,8 @@ void messaging_init(struct messaging_state *state)
 }
 
 void messaging_open_pipes(struct messaging_state *state,
-			  const char *input_name, const char *output_name)
+			  const char *input_name, const char *output_name,
+			  const char *message_log_name)
 {
 #ifdef ID_WRAPPER_MAGIC
 	assert(!state->pipes_opened && "double call of messaging open pipes");
@@ -140,6 +150,14 @@ void messaging_open_pipes(struct messaging_state *state,
 	state->output_fd = open(output_name, O_WRONLY);
 	lsprintf(INFO, "the hatches are open\n");
 	assert(state->output_fd >= 0 && "opening output pipe failed");
+
+	if ((state->do_log_messages = (message_log_name != NULL))) {
+		lsprintf(INFO, "opening message log file %s\n", input_name);
+		state->message_log_fd = open(message_log_name, O_WRONLY);
+		lsprintf(INFO, "slippy get back here\n");
+		assert(state->message_log_fd >= 0 && "opening message log failed");
+		update_time(&state->last_message_time);
+	}
 
 	struct output_message m;
 	m.tag = THUNDERBIRDS_ARE_GO;
@@ -223,6 +241,9 @@ uint64_t message_estimate(struct messaging_state *state, long double proportion,
 			assert(result.tag == RESUME_TIME ||
 			       result.tag == SHOULD_CONTINUE_REPLY);
 			time_asleep = update_time(&tv);
+			if (state->do_log_messages) {
+				update_time(&state->last_message_time);
+			}
 			lsprintf(DEV, "resuming time (time asleep: %" PRIu64 ")\n",
 				 time_asleep);
 		}

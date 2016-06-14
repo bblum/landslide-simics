@@ -7,14 +7,19 @@
 #ifndef __LS_MESSAGING_H
 #define __LS_MESSAGING_H
 
+#include <sys/time.h>
+
 struct messaging_state {
 	bool pipes_opened;
 	int input_fd;
 	int output_fd;
+	int message_log_fd;
+	bool do_log_messages;
+	struct timeval last_message_time;
 };
 
 void messaging_init(struct messaging_state *m);
-void messaging_open_pipes(struct messaging_state *m, const char *i, const char *o);
+void messaging_open_pipes(struct messaging_state *m, const char *i, const char *o, const char *);
 
 #define DR_TID_WILDCARD 0x15410de0u /* 0 could be a valid tid */
 void message_data_race(struct messaging_state *m, unsigned int eip,

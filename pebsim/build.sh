@@ -227,6 +227,27 @@ elif [ -f $HEADER ]; then
 	fi
 fi
 
+# figure file name / directories for dummy
+
+OOPSLA_AEC_BASE_DIR=oopsla-aec
+
+if [ "$PREEMPT_EVERYWHERE" = "1" ]; then
+	OOPSLA_AEC_DIR="$OOPSLA_AEC_BASE_DIR/everywhere"
+elif [ "$ICB" = "1" ]; then
+	OOPSLA_AEC_DIR="$OOPSLA_AEC_BASE_DIR/icb"
+else
+	OOPSLA_AEC_DIR="$OOPSLA_AEC_BASE_DIR/qs"
+fi
+
+mkdir -p "$OOPSLA_AEC_DIR/$TEST_CASE" || die "rip"
+OOPSLA_AEC_DIR=`mktemp -d "$OOPSLA_AEC_DIR/$TEST_CASE/logs.XXXXXXXX"`
+if [ ! -d "$OOPSLA_AEC_DIR" ]; then
+	die "rip 2"
+fi
+OOPSLA_AEC_PPS_FILE="$OOPSLA_AEC_DIR/pps"
+OOPSLA_AEC_MESSAGE_LOG="$OOPSLA_AEC_DIR/messages"
+
+
 # generate dynamic pp config file independently of definegen
 
 if [ ! -z "$QUICKSAND_CONFIG_DYNAMIC" ]; then
@@ -262,6 +283,10 @@ if [ ! -z "$QUICKSAND_CONFIG_DYNAMIC" ]; then
 		echo "O $1" >> "$QUICKSAND_CONFIG_TEMP" || die "couldn't write to $QUICKSAND_CONFIG_TEMP"
 	}
 	source "$QUICKSAND_CONFIG_DYNAMIC"
+
+	touch "$OOPSLA_AEC_MESSAGE_LOG"
+	echo "F $OOPSLA_AEC_MESSAGE_LOG" >> "$QUICKSAND_CONFIG_TEMP" || die "rip 3"
+	sort "$QUICKSAND_CONFIG_DYNAMIC" | grep -v "^output_pipe" | grep -v "^input_pipe" >> "$OOPSLA_AEC_PPS_FILE" || die "rip 4"
 fi
 
 #### Accept simics-4.0 license if not already ####

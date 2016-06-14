@@ -27,6 +27,7 @@ void pps_init(struct pp_config *p)
 	ARRAY_LIST_INIT(&p->data_races,   16);
 	p->output_pipe_filename = NULL;
 	p->input_pipe_filename  = NULL;
+	p->messaging_log_file   = NULL;
 
 	/* Load PPs from static config (e.g. if not running under quicksand) */
 
@@ -94,6 +95,13 @@ bool load_dynamic_pps(struct ls_state *ls, const char *filename)
 			assert(p->input_pipe_filename == NULL);
 			p->input_pipe_filename = MM_XSTRDUP(buf + 2);
 			lsprintf(DEV, "input %s\n", p->input_pipe_filename);
+		} else if (buf[0] == 'F') {
+			/* expect filename to start immediately after a space */
+			assert(buf[1] == ' ');
+			assert(buf[2] != ' ' && buf[2] != '\0');
+			assert(p->messaging_log_file == NULL);
+			p->messaging_log_file = MM_XSTRDUP(buf + 2);
+			lsprintf(DEV, "message log %s\n", p->messaging_log_file);
 		} else if ((ret = sscanf(buf, "K %x %x %i", &x, &y, &z)) != 0) {
 			/* kernel within function directive */
 			assert(ret == 3 && "invalid kernel within PP");
@@ -134,7 +142,7 @@ bool load_dynamic_pps(struct ls_state *ls, const char *filename)
 	p->dynamic_pps_loaded = true;
 
 	messaging_open_pipes(&ls->mess, p->input_pipe_filename,
-			     p->output_pipe_filename);
+			     p->output_pipe_filename, p->messaging_log_file);
 	return true;
 }
 

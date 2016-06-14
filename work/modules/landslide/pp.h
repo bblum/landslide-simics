@@ -39,6 +39,7 @@ struct pp_config {
 	ARRAY_LIST(struct pp_data_race) data_races;
 	char *output_pipe_filename;
 	char *input_pipe_filename;
+	char *messaging_log_file;
 };
 
 void pps_init(struct pp_config *p);
