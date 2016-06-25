@@ -36,6 +36,7 @@ unsigned int vc_get(struct vector_clock *vc, unsigned int tid);
 void vc_merge(struct vector_clock *vc_dest, struct vector_clock *vc_src);
 bool vc_eq(struct vector_clock *vc1, struct vector_clock *vc2);
 bool vc_happens_before(struct vector_clock *vc_before, struct vector_clock *vc_after);
+void vc_print(verbosity v, struct vector_clock *vc);
 
 void lock_clocks_init(struct lock_clocks *lm);
 void lock_clocks_copy(struct lock_clocks *lm_new, const struct lock_clocks *lm_existing);

@@ -170,6 +170,23 @@ bool vc_happens_before(struct vector_clock *vc_before, struct vector_clock *vc_a
 	return true;
 }
 
+void vc_print(verbosity v, struct vector_clock *vc)
+{
+	unsigned int i;
+	struct epoch *e;
+	bool first = true;
+
+	printf(v, "[");
+	ARRAY_LIST_FOREACH(&vc->v, i, e) {
+		if (!first) {
+			printf(v, ", ");
+		}
+		printf(v, "%u@%u", e->tid, e->timestamp);
+		first = false;
+	}
+	printf(v, "]");
+}
+
 #if 0
 void vc_test()
 {
