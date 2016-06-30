@@ -20,7 +20,7 @@ if [ ! -d "/tmp/shit/masters" ]; then
 fi
 
 cd $HOME/masters || die "fail cd masters"
-git branch | grep '*' | grep dr-experimence >/dev/null || die "masters not on right git branch"
+git branch | grep '*' | grep 'dr-experimence\|vector-clocks' >/dev/null || die "masters not on right git branch"
 
 cd /tmp/shit || die "fail cd"
 
