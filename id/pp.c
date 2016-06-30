@@ -26,6 +26,7 @@ static struct pp **registry = NULL; /* NULL means not yet initialized */
 #define INITIAL_CAPACITY 16
 
 extern bool verbose;
+extern bool pure_hb;
 
 /******************************************************************************
  * PP registry
@@ -156,7 +157,8 @@ struct pp *pp_new(char *config_str, char *short_str, char *long_str,
 	if (!already_present) {
 		DBG("adding new pp '%s' priority %d\n", config_str, priority);
 		if (IS_DATA_RACE(priority)) {
-			WARN("Found a potentially-racy access at %s\n", long_str);
+			WARN("Found a %sracy access at %s\n",
+			     pure_hb ? "" : "potentially-", long_str);
 		}
 		result = pp_append(XSTRDUP(config_str), XSTRDUP(short_str),
 				   XSTRDUP(long_str), priority, deterministic,
