@@ -14,7 +14,7 @@ if [ "$(($MACHINE_CPUS<10))" = "1" ]; then
 	exit 1
 fi
 
-TRY=live-iota-misbehaving
+TRY=purehb-alpha
 
 function runtest {
 	echo -e "\033[01;32mTesting $semestername $groupname on $TEST_CASE\033[00m"
@@ -33,7 +33,7 @@ function runtest {
 		INCR=60
 		CORES=10
 		TIMESPLEPT=0
-		./landslide -v -p $TEST_CASE -c ${CORES} -t${SECS} &
+		./landslide -v -p $TEST_CASE -c ${CORES} -t${SECS} -H &
 
 		# frickin afs; frickin bootfd.img truncated read
 		for increment in `seq $INCR $INCR $(($GRACE+$SECS))`; do
