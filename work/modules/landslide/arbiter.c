@@ -243,11 +243,18 @@ static bool try_avoid_fp_deadlock(struct ls_state *ls, bool voluntary,
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (ICB_BLOCKED(&ls->sched, ls->icb_bound, voluntary, a)) {
 			assert(!IS_IDLE(ls, a) && "That's weird.");
-			lsprintf(DEV, "I thought TID %d was ICB-blocked (bound "
-				 "%u), but maybe preempting is needed here for "
-				 "correctness!\n", a->tid, ls->icb_bound);
-			*result = a;
-			found_one = true;
+			/* a thread could be multiple types of maybe-blocked at
+			 * once. skip those for now; prioritizing ICB-blocked
+			 * ones that are definitely otherwise runnable. */
+			if (a->user_blocked_on_addr == -1 &&
+			    !agent_is_user_yield_blocked(&a->user_yield)) {
+				lsprintf(DEV, "I thought TID %d was ICB-blocked "
+					 "(bound %u), but maybe preempting is "
+					 "needed here for  correctness!\n",
+					 a->tid, ls->icb_bound);
+				*result = a;
+				found_one = true;
+			}
 		}
 	);
 
