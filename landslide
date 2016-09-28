@@ -75,7 +75,7 @@ tar cvjf "$TEMP_SNAP_DIR/$SNAPSHOT_NAME" \
 mv "$TEMP_SNAP_DIR/$SNAPSHOT_NAME" "$SNAPSHOT_DIR"
 MV_RV=$?
 if [ "$MV_RV" != "0" ]; then
-	echo -e "\033[01;31mFailed to save snapshot ($TEMP_SNAP_DIR/$SNAPSHOT_NAME) into 410 AFS space ($SNAPSHOT_DIR). Please email Ben <bblum@cs.cmu.edu> for support, including this snapshot as an attachment."
+	echo -e "\033[01;31mFailed to save snapshot ($TEMP_SNAP_DIR/$SNAPSHOT_NAME) into 410 AFS space ($SNAPSHOT_DIR). Please email Ben <bblum@cs.cmu.edu> for support, and copy that .tar.bz2 file as an attachment."
 	echo -e "\033[00m(landslide's exit code was $RV)"
 	exit 1
 fi
