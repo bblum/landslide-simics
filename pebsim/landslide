@@ -23,7 +23,7 @@ if ! grep "PINTOS_KERNEL=1" "$LANDSLIDE_CONFIG" >/dev/null; then
 	export KERNEL_SOURCE_DIR="`grep KERNEL_SOURCE_DIR $LANDSLIDE_CONFIG | cut -d= -f2-`"
 fi
 
-export VTECH_LICENSE_FILE=/afs/cs.cmu.edu/academic/class/15410-s16/simics-4.0.60/simics-4.0.60/licenses/1license.lic
+export VTECH_LICENSE_FILE=/afs/cs.cmu.edu/academic/class/15410-f16/simics-4.0.60/simics-4.0.60/licenses/1license.lic
 
 export DISPLAY=
 ./build.sh && time ./simics4
