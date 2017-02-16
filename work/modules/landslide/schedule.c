@@ -709,6 +709,16 @@ static void report_recursive_mutex_bug(struct ls_state *ls, const char *what)
 	);
 }
 
+static void handle_kern_mutex_unlocking_done(struct sched_state *s)
+{
+	assert(ACTION(s, kern_mutex_unlocking));
+	ACTION(s, kern_mutex_unlocking) = false;
+	assert(CURRENT(s, kern_mutex_unlocking_addr) != -1);
+	lockset_remove(s, CURRENT(s, kern_mutex_unlocking_addr), LOCK_MUTEX, true);
+	CURRENT(s, kern_mutex_unlocking_addr) = -1;
+	lskprintf(DEV, "mutex: unlocking done by tid %d\n", CURRENT(s, tid));
+}
+
 static void sched_update_kern_state_machine(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
@@ -805,7 +815,12 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		assert_no_action(s, "forking");
 		ACTION(s, forking) = true;
 	} else if (kern_sleeping(ls->eip)) {
+#ifndef PINTOS_KERNEL
+		/* pintoses may accidentally double-sleep if they are preempted
+		 * during timer_sleep, causing false-positive "spleeps".
+		 * (group108 only?) best i can do right now is ignore it. */
 		assert_no_action(s, "sleeping");
+#endif
 		ACTION(s, sleeping) = true;
 #ifdef PINTOS_KERNEL
 	/* the replacement for tell_landslide_sleeping in pintos is a bit of a
@@ -922,6 +937,15 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 			lockset_remove(s, lock_addr, LOCK_MUTEX, true);
 		}
 	} else if (kern_mutex_unlocking(ls->cpu0, ls->eip, &lock_addr)) {
+#ifdef PINTOS_KERNEL
+		/* in pintos, sema_up may reenter itself just before it returns:
+		 * when it reenables interrupce, it can take an IDE interrupt,
+		 * which uses a sem for disk wait. we must finish unlocking the
+		 * reentered lock first so we don't clobber lock addr. */
+		if (ACTION(s, kern_mutex_unlocking)) {
+			handle_kern_mutex_unlocking_done(s);
+		}
+#endif
 		/* It's allowed to have a mutex_unlock call inside a mutex_lock
 		 * (and it can happen), or mutex_lock inside of mutex_lock, but
 		 * not the other way around. */
@@ -938,15 +962,13 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 				   CURRENT(s, tid), lock_addr);
 		}
 #endif
-	} else if (kern_mutex_unlocking_done(ls->eip)) {
-		assert(ACTION(s, kern_mutex_unlocking));
-		ACTION(s, kern_mutex_unlocking) = false;
-		assert(CURRENT(s, kern_mutex_unlocking_addr) != -1);
-		lockset_remove(s, CURRENT(s, kern_mutex_unlocking_addr),
-			       LOCK_MUTEX, true);
-		CURRENT(s, kern_mutex_unlocking_addr) = -1;
-		lskprintf(DEV, "mutex: unlocking done by tid %d\n",
-			  CURRENT(s, tid));
+	} else if (kern_mutex_unlocking_done(ls->eip)
+#ifdef PINTOS_KERNEL
+		   /* see above case; careful not to run this logic twice */
+		   && ACTION(s, kern_mutex_unlocking)
+#endif
+		   ) {
+		handle_kern_mutex_unlocking_done(s);
 	/* Etc. */
 	} else if (kern_wants_us_to_dump_stack(ls->eip)) {
 		dump_stack();
