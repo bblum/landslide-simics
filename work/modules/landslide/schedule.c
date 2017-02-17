@@ -317,6 +317,17 @@ static void kern_mutex_block_others(struct sched_state *s, unsigned int mutex_ad
 			a->kern_blocked_on_tid = kern_blocked_on_tid;
 		}
 	}
+#if ALLOW_LOCK_HANDOFF != 0
+	/* With lock handoff, it's possible for a thread to unlock a mutex that
+	 * it itself is blocked on, e.g. in pathos with last_vanished_lock. */
+	if (s->cur_agent->kern_blocked_on_addr == mutex_addr) {
+		assert(kern_blocked_on == NULL);
+		lsprintf(DEV, "mutex: on 0x%x tid %d unblocks itself\n",
+			 mutex_addr, s->cur_agent->tid);
+		s->cur_agent->kern_blocked_on = kern_blocked_on;
+		s->cur_agent->kern_blocked_on_tid = kern_blocked_on_tid;
+	}
+#endif
 #endif
 }
 
