@@ -241,7 +241,7 @@ static bool check_infinite_loop(struct ls_state *ls, char *message, unsigned int
 	 * there. However, the past instruction average must be non-0. */
 	bool possible_to_check = ls->save.current != NULL &&
 		ls->save.total_triggers != 0;
-	bool more_aggressive_check = possible_to_check &&
+	bool more_aggressive_check = possible_to_check && testing_userspace() &&
 		(ls->save.total_jumps == 0 || /* don't get owned on 0th branch */
 		 IN_USER_SYNC_PRIMITIVES(ls->sched.cur_agent));
 
