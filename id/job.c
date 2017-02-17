@@ -39,24 +39,27 @@ char *test_name = NULL;
 bool verbose = false;
 bool leave_logs = false;
 bool pintos = false;
+bool pathos = false;
 bool use_icb = false;
 bool preempt_everywhere = false;
 bool pure_hb = false;
 
 void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 		     bool arg_pintos, bool arg_use_icb, bool arg_preempt_everywhere,
-		     bool arg_pure_hb)
+		     bool arg_pure_hb, bool arg_pathos)
 {
 	test_name = XSTRDUP(arg_test_name);
 	verbose = arg_verbose;
 	leave_logs = arg_leave_logs;
 	pintos = arg_pintos;
+	pathos = arg_pathos;
 	use_icb = arg_use_icb;
 	preempt_everywhere = arg_preempt_everywhere;
 	pure_hb = arg_pure_hb;
 }
 
 bool testing_pintos() { return pintos; }
+bool testing_pathos() { return pathos; }
 
 struct job *new_job(struct pp_set *config, bool should_reproduce)
 {

@@ -62,8 +62,9 @@ struct job {
 };
 
 void set_job_options(char *test_name, bool verbose, bool leave_logs, bool pintos,
-		     bool use_icb, bool preempt_everywhere, bool pure_hb);
+		     bool use_icb, bool preempt_everywhere, bool pure_hb, bool pathos);
 bool testing_pintos();
+bool testing_pathos();
 
 struct job *new_job(struct pp_set *config, bool should_reproduce);
 void start_job(struct job *j);

@@ -121,7 +121,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		 bool *leave_logs, bool *control_experiment, bool *use_wrapper_log,
 		 char *wrapper_log, unsigned int wrapper_log_len, bool *pintos,
 		 bool *use_icb, bool *preempt_everywhere, bool *pure_hb,
-		 unsigned long *progress_report_interval,
+		 bool *pathos, unsigned long *progress_report_interval,
 		 unsigned long *eta_factor, unsigned long *eta_thresh)
 {
 	/* Set up cmdline options & their default values */
@@ -160,6 +160,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_FLAG('l', false, leave_logs, "Don't delete log files from bug-free state spaces");
 	DEF_CMDLINE_FLAG('C', true, control_experiment, "Control mode, i.e., test only 1 maximal state space");
 	DEF_CMDLINE_FLAG('P', true, pintos, "Pintos (not for 15-410 use)");
+	DEF_CMDLINE_FLAG('4', true, pathos, "Pathos (for 15-410 TA use only)");
 	DEF_CMDLINE_FLAG('I', true, icb, "Use Iterative Context Bounding (ICB) to order the search (-C only)");
 	DEF_CMDLINE_FLAG('0', true, everywhere, "Preempt unconditionally on all heap/global accesses (-C only)");
 	DEF_CMDLINE_FLAG('H', true, pure_hb, "Use vector clocks for \"pure\" happens-before data-races");
@@ -293,7 +294,10 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		ERR("Iterative Deepening & Preempt-Everywhere mode not supported at same time.\n");
 		options_valid = false;
 	}
-
+	if (arg_pintos && arg_pathos) {
+		ERR("Make up your mind (pintos/pathos)!\n");
+		options_valid = false;
+	}
 	if (arg_help) {
 		options_valid = false;
 	}
@@ -308,6 +312,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	*leave_logs = arg_leave_logs;
 	*control_experiment = arg_control_experiment;
 	*pintos = arg_pintos;
+	*pathos = arg_pathos;
 	*use_icb = arg_icb;
 	*preempt_everywhere = arg_everywhere;
 	*pure_hb = arg_pure_hb;

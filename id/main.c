@@ -33,6 +33,7 @@ int main(int argc, char **argv)
 	bool use_wrapper_log;
 	char wrapper_log[BUF_SIZE];
 	bool pintos;
+	bool pathos;
 	bool use_icb;
 	bool preempt_everywhere;
 	bool pure_hb;
@@ -41,7 +42,7 @@ int main(int argc, char **argv)
 	if (!get_options(argc, argv, test_name, BUF_SIZE, &max_time, &num_cpus,
 			 &verbose, &leave_logs, &control_experiment,
 			 &use_wrapper_log, wrapper_log, BUF_SIZE, &pintos,
-			 &use_icb, &preempt_everywhere, &pure_hb,
+			 &use_icb, &preempt_everywhere, &pure_hb, &pathos,
 			 &progress_interval, &eta_factor, &eta_threshold)) {
 		usage(argv[0]);
 		exit(ID_EXIT_USAGE);
@@ -51,7 +52,7 @@ int main(int argc, char **argv)
 
 	DBG("will run for at most %lu seconds\n", max_time);
 
-	set_job_options(test_name, verbose, leave_logs, pintos, use_icb, preempt_everywhere, pure_hb);
+	set_job_options(test_name, verbose, leave_logs, pintos, use_icb, preempt_everywhere, pure_hb, pathos);
 	init_signal_handling();
 	start_time(max_time * 1000000, num_cpus);
 
