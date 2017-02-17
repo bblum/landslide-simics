@@ -299,7 +299,7 @@ static unsigned int print_deadlock(char *buf, unsigned int len, struct agent *a)
 	return pos;
 }
 
-static void kern_mutex_block_others(struct agent_q *q, unsigned int mutex_addr,
+static void kern_mutex_block_others(struct sched_state *s, unsigned int mutex_addr,
 			            struct agent *kern_blocked_on,
 			            unsigned int kern_blocked_on_tid)
 {
@@ -307,7 +307,7 @@ static void kern_mutex_block_others(struct agent_q *q, unsigned int mutex_addr,
 #ifndef PINTOS_KERNEL
 	struct agent *a;
 	assert(mutex_addr != -1);
-	Q_FOREACH(a, q, nobe) {
+	Q_FOREACH(a, &s->rq, nobe) {
 		if (a->kern_blocked_on_addr == mutex_addr) {
 			lsprintf(DEV, "mutex: on 0x%x tid %d now blocks on %d "
 				 "(was %d)\n", mutex_addr, a->tid,
@@ -320,13 +320,13 @@ static void kern_mutex_block_others(struct agent_q *q, unsigned int mutex_addr,
 #endif
 }
 
-static void user_mutex_block_others(struct agent_q *q, unsigned int mutex_addr, bool mutex_held)
+static void user_mutex_block_others(struct sched_state *s, unsigned int mutex_addr, bool mutex_held)
 {
 	struct agent *a;
 	assert(mutex_addr != -1);
 	assert(mutex_addr != 0);
 	assert(USER_MEMORY(mutex_addr));
-	Q_FOREACH(a, q, nobe) {
+	Q_FOREACH(a, &s->rq, nobe) {
 		/* slightly different than for kernel mutexes, since we
 		 * don't have the first tid a contender gets blocked on */
 		if (a->user_mutex_locking_addr == mutex_addr) {
@@ -904,7 +904,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		CURRENT(s, kern_blocked_on_tid) = -1;
 		CURRENT(s, kern_blocked_on_addr) = -1;
 		/* no need to check for deadlock; this can't create a cycle. */
-		kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
+		kern_mutex_block_others(s, lock_addr, s->cur_agent,
 					CURRENT(s, tid));
 #ifdef PURE_HAPPENS_BEFORE
 		if (!testing_userspace()) {
@@ -924,7 +924,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		ACTION(s, kern_mutex_trylocking) = false;
 		if (succeeded) {
 			/* similar to mutex_locking_done case */
-			kern_mutex_block_others(&s->rq, lock_addr, s->cur_agent,
+			kern_mutex_block_others(s, lock_addr, s->cur_agent,
 						CURRENT(s, tid));
 #ifdef PURE_HAPPENS_BEFORE
 			if (!testing_userspace()) {
@@ -955,7 +955,7 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 		CURRENT(s, kern_mutex_unlocking_addr) = lock_addr;
 		lskprintf(DEV, "mutex: 0x%x unlocked by tid %d\n",
 		          lock_addr, CURRENT(s, tid));
-		kern_mutex_block_others(&s->rq, lock_addr, NULL, -1);
+		kern_mutex_block_others(s, lock_addr, NULL, -1);
 #ifdef PURE_HAPPENS_BEFORE
 		if (!testing_userspace()) {
 			VC_RELEASE(&s->lock_clocks, &CURRENT(s, clock),
@@ -1181,7 +1181,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_mutex_yielding) = false;
 		lsprintf(DEV, "tid %d locked mutex 0x%x\n", CURRENT(s, tid), lock_addr);
 		if (lock_addr != 0) {
-			user_mutex_block_others(&s->rq, lock_addr, true);
+			user_mutex_block_others(s, lock_addr, true);
 #ifdef TESTING_MUTEXES
 			/* Add to lockset at inner boundaries of lock logic,
 			 * so the mutex internals are fair game for DR PPs. */
@@ -1215,7 +1215,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		} else if (succeeded) {
 			lsprintf(DEV, "tid %d tried + could lock mutex 0x%x\n",
 				 CURRENT(s, tid), lock_addr);
-			user_mutex_block_others(&s->rq, lock_addr, true);
+			user_mutex_block_others(s, lock_addr, true);
 #ifdef TESTING_MUTEXES
 			lockset_add(s, &CURRENT(s, user_locks_held),
 				    lock_addr, LOCK_MUTEX);
@@ -1266,7 +1266,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 #ifndef TESTING_MUTEXES
 			lockset_remove(s, lock_addr, LOCK_MUTEX, false);
 #endif
-			user_mutex_block_others(&s->rq, lock_addr, false);
+			user_mutex_block_others(s, lock_addr, false);
 		}
 		CURRENT(s, user_mutex_unlocking_addr) = -1;
 		record_user_mutex_activity(&ls->user_sync);
