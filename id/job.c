@@ -106,7 +106,8 @@ static void *run_job(void *arg)
 	create_file(&j->log_stdout, LOG_FILE_TEMPLATE("setup"));
 	create_file(&j->log_stderr, LOG_FILE_TEMPLATE("output"));
 
-	const char *without   = pintos ? "without_function" : "without_user_function";
+	const char *without   = pintos || pathos ? "without_function"
+	                                         : "without_user_function";
 	const char *mx_lock   = pintos ? "sema_down" : "mutex_lock";
 	const char *mx_unlock = pintos ? "sema_up"   : "mutex_unlock";
 
@@ -125,18 +126,29 @@ static void *run_job(void *arg)
 	if (pintos) {
 		XWRITE(&j->config_dynamic, "%s %s\n", without, "intr_disable");
 		XWRITE(&j->config_dynamic, "%s %s\n", without, "intr_enable");
+	} else if (pathos) {
+		XWRITE(&j->config_dynamic, "%s %s\n", without, "preempt_disable");
+		XWRITE(&j->config_dynamic, "%s %s\n", without, "preempt_enable");
 	}
 
 	struct pp *pp;
 	FOR_EACH_PP(pp, j->config) {
 		XWRITE(&j->config_dynamic, "%s\n", pp->config_str);
 	}
-	assert(test_name != NULL);
-	// FIXME: Make this principled, as above
-	XWRITE(&j->config_dynamic, "%s malloc\n", without);
-	XWRITE(&j->config_dynamic, "%s realloc\n", without);
-	XWRITE(&j->config_dynamic, "%s calloc\n", without);
-	XWRITE(&j->config_dynamic, "%s free\n", without);
+
+	if (pathos) {
+		XWRITE(&j->config_dynamic, "%s smemalign\n", without);
+		XWRITE(&j->config_dynamic, "%s sfree\n", without);
+		XWRITE(&j->config_dynamic, "%s console_lock\n", without);
+		XWRITE(&j->config_dynamic, "%s vm_map\n", without);
+		XWRITE(&j->config_dynamic, "%s vm_free\n", without);
+	} else {
+		XWRITE(&j->config_dynamic, "%s malloc\n", without);
+		XWRITE(&j->config_dynamic, "%s realloc\n", without);
+		XWRITE(&j->config_dynamic, "%s calloc\n", without);
+		XWRITE(&j->config_dynamic, "%s free\n", without);
+	}
+
 	if (pintos) {
 		/* basecode sema ups/downs */
 		XWRITE(&j->config_dynamic, "%s block_read\n", without);

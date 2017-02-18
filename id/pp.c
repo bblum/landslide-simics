@@ -81,6 +81,8 @@ static void check_init() {
 			struct pp *pp = pp_append(
 				XSTRDUP(testing_pintos() ?
 					"within_function sema_down" :
+					testing_pathos() ?
+					"within_function mutex_lock" :
 					"within_user_function mutex_lock"),
 				XSTRDUP(testing_pintos() ?
 					"sema_down" : "mutex_lock"),
@@ -90,6 +92,8 @@ static void check_init() {
 			pp = pp_append(
 				XSTRDUP(testing_pintos() ?
 					"within_function sema_up" :
+					testing_pathos() ?
+					"within_function mutex_unlock" :
 					"within_user_function mutex_unlock"),
 				XSTRDUP(testing_pintos() ?
 					"sema_up" : "mutex_unlock"),
@@ -97,15 +101,19 @@ static void check_init() {
 				PRIORITY_MUTEX_UNLOCK, true, false, max_generation);
 			assert(pp->id == 1);
 			assert(next_id == 2);
-			if (testing_pintos()) {
+			if (testing_pintos() || testing_pathos()) {
 				pp = pp_append(
-					XSTRDUP("within_function intr_disable"),
+					XSTRDUP(testing_pintos() ?
+						"within_function intr_disable" :
+						"within_function preempt_disable"),
 					XSTRDUP("cli"),
 					XSTRDUP("<just before cli>"),
 					PRIORITY_CLI, true, false, max_generation);
 				assert(pp->id == 2);
 				pp = pp_append(
-					XSTRDUP("within_function intr_enable"),
+					XSTRDUP(testing_pintos() ?
+						"within_function intr_enable" :
+						"within_function preempt_enable"),
 					XSTRDUP("sti"),
 					XSTRDUP("<just after sti>"),
 					PRIORITY_STI, true, false, max_generation);
