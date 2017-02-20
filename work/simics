@@ -3,7 +3,7 @@
 SIMICS_BASE_PACKAGE="/afs/cs.cmu.edu/academic/class/15410-s17/simics-4.0.60/simics-4.0.60"
 export SIMICS_BASE_PACKAGE
 if [ -f "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work/.package-list" ]; then
-    exec "/afs/cs.cmu.edu/academic/class/15410-s17/410/simics-4.0.60/simics-4.0.60/bin/simics" -package-list "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work/.package-list" -workspace "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work" ${1+"$@"}
+    exec "/afs/cs.cmu.edu/academic/class/15410-s17/simics-4.0.60/simics-4.0.60/bin/simics" -package-list "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work/.package-list" -workspace "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work" ${1+"$@"}
 else
-    exec "/afs/cs.cmu.edu/academic/class/15410-s17/410/simics-4.0.60/simics-4.0.60/bin/simics" -workspace "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work" ${1+"$@"}
+    exec "/afs/cs.cmu.edu/academic/class/15410-s17/simics-4.0.60/simics-4.0.60/bin/simics" -workspace "/afs/cs.cmu.edu/academic/class/15410-s17/masters/work" ${1+"$@"}
 fi
