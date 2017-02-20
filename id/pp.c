@@ -203,12 +203,21 @@ static void _print_live_data_race_pps_unlocked()
 			if (!any_exist) {
 				/* first one such found; print header */
 				any_exist = true;
-				WARN("NOTE: I discovered the following "
-				     "POTENTIALLY-RACY accesses,\n");
-				WARN("but was not able to confirm them either "
-				     "way as benign or buggy.\n");
-				WARN("You may wish to inspect them manually, "
-				     "if the following info is convenient:\n");
+				if (pure_hb) {
+					WARN("NOTE: I found the following DATA "
+					     "RACES (see slide #26 in my lecture).\n");
+					WARN("I didn't have enough time to check "
+					     "whether they could lead to bugs,\n");
+					WARN("but they are still suspicious, so "
+					     "please inspect them yourself:\n");
+				} else {
+					WARN("NOTE: I discovered the following "
+					     "POTENTIALLY-RACY accesses,\n");
+					WARN("but was not able to confirm them "
+					     "either way as benign or buggy.\n");
+					WARN("You may wish to inspect them manually, "
+					     "if the following info is convenient:\n");
+				}
 			}
 			WARN("Data race at %s\n", pp->long_str);
 		}
@@ -236,6 +245,8 @@ void try_print_live_data_race_pps()
 
 void print_free_re_malloc_false_positives()
 {
+	if (!verbose) return;
+
 	bool any_exist = false;
 
 	READ_LOCK(&pp_registry_lock);
