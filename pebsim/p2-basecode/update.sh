@@ -26,8 +26,8 @@
 
 
 # location of official support code and libraries
-AFS_PATH=${AFS_PATH-'/afs/cs.cmu.edu/academic/class/15410-f16/Web/update/proj2'}
-WEB_URL=${WEB_URL-'http://www.cs.cmu.edu/~410-f16/update/proj2'}
+AFS_PATH=${AFS_PATH-'/afs/cs.cmu.edu/academic/class/15410-s17/Web/update/proj2'}
+WEB_URL=${WEB_URL-'http://www.cs.cmu.edu/~410-s17/update/proj2'}
 
 # the name of the file containing the MD5s for the files we want to update
 WHAT=all.md5s

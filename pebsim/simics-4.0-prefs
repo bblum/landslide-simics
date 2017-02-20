@@ -15,7 +15,7 @@ OBJECT prefs TYPE preferences {
 	history_lines: 0x2710
 	compress_images: TRUE
 	async_command_line: TRUE
-	network_iface_helper: "/afs/cs.cmu.edu/academic/class/15410-f16/simics-4.0.60/simics-4.0.60/amd64-linux/bin/openif"
+	network_iface_helper: "/afs/cs.cmu.edu/academic/class/15410-s17/simics-4.0.60/simics-4.0.60/amd64-linux/bin/openif"
 	gui_cmd_line_font: NIL
 	readline_shortcuts: TRUE
 	gui_source_code_encoding: NIL
