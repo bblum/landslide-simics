@@ -33,7 +33,7 @@ function runtest {
 		INCR=60
 		CORES=10
 		TIMESPLEPT=0
-		./landslide -v -p $TEST_CASE -c ${CORES} -t${SECS} -H &
+		./landslide -v -p $TEST_CASE -c ${CORES} -t${SECS} -V &
 
 		# frickin afs; frickin bootfd.img truncated read
 		for increment in `seq $INCR $INCR $(($GRACE+$SECS))`; do

@@ -163,7 +163,10 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_FLAG('4', true, pathos, "Pathos (for 15-410 TA use only)");
 	DEF_CMDLINE_FLAG('I', true, icb, "Use Iterative Context Bounding (ICB) to order the search (-C only)");
 	DEF_CMDLINE_FLAG('0', true, everywhere, "Preempt unconditionally on all heap/global accesses (-C only)");
-	DEF_CMDLINE_FLAG('H', true, pure_hb, "Use vector clocks for \"pure\" happens-before data-races");
+	// LHB is default if testing pintos or pathos.
+	// PHB is default if testing P2s (new as of s17!).
+	DEF_CMDLINE_FLAG('H', true, limited_hb, "Use \"limited\" happens-before data-race analysis");
+	DEF_CMDLINE_FLAG('V', true, pure_hb, "Use vector clocks for \"pure\" happens-before data-races");
 #undef DEF_CMDLINE_FLAG
 
 #define DEF_CMDLINE_OPTION(flagname, secret, varname, descr, value)	\
@@ -301,6 +304,10 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	if (arg_help) {
 		options_valid = false;
 	}
+	if (arg_limited_hb && arg_pure_hb) {
+		ERR("Make up your mind (limited/pure happens-before)!\n");
+		options_valid = false;
+	}
 
 	scnprintf(test_name, test_name_len, "%s", arg_test_name);
 
@@ -315,7 +322,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	*pathos = arg_pathos;
 	*use_icb = arg_icb;
 	*preempt_everywhere = arg_everywhere;
-	*pure_hb = arg_pure_hb;
+	*pure_hb = (!arg_pintos && !arg_pathos && !arg_limited_hb) || arg_pure_hb;
 
 	return options_valid;
 }
