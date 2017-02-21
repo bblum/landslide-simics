@@ -35,15 +35,20 @@ void sim_fr_here(void) {
     sim_call(SIM_FR_HERE);
 }
 
-void sim_printf(const char *fmt, ...) {
+void sim_vprintf(const char* fmt, va_list ap)
+{
     char str[256];
+    vsnprintf(str, sizeof(str) - 1, fmt, ap);
+    sim_puts(str);
+}
+
+void sim_printf(const char* fmt, ...)
+{
     va_list ap;
 
     va_start(ap, fmt);
-    vsnprintf(str, sizeof(str) - 1, fmt, ap);
+    sim_vprintf(fmt, ap);
     va_end(ap);
-
-    sim_puts(str);
 }
 
 void sim_update_scoreboard(char *testname, int success) {

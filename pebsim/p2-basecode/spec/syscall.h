@@ -34,7 +34,7 @@ int new_pages(void * addr, int len);
 int remove_pages(void * addr);
 
 /* Console I/O */
-char getchar(void);
+int getchar(void);
 int readline(int size, char *buf);
 int print(int size, char *buf);
 int set_term_color(int color);

@@ -12,7 +12,6 @@
 #ifndef _SYSCALL_INT_H
 #define _SYSCALL_INT_H
 
-#define SYSCALL_INT         0x40
 #define FORK_INT            0x41
 #define EXEC_INT            0x42
 /* #define EXIT_INT            0x43 */

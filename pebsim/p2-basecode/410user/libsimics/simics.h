@@ -39,6 +39,8 @@
 
 #ifndef ASSEMBLER
 
+#include <stdarg.h>
+
 /** @brief Calls simics. Arguments are ebx, ecx, edx. */
 extern int sim_call(int ebx, ...);
 
@@ -64,7 +66,8 @@ extern void sim_ck1(void);
 extern void sim_fr_prog(int a);
 extern void sim_fr_here(void);
 
-/** @brief Convenience wrapper around sim_puts(). */
+/** @brief Convenience wrappers around sim_puts(). */
+extern void sim_vprintf(const char* fmt, va_list ap);
 extern void sim_printf(const char *fmt, ...) __attribute__((__format__ (__printf__, 1, 2)));
 
 /** @brief readline(), but wrapped in "magic" */

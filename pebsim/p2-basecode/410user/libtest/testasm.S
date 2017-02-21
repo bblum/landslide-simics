@@ -57,6 +57,7 @@ fork_and_exit:
 exit_success:
     mov %ebx, %ecx
     INLINE_SIMCALL(SIM_PUTS, %ecx, $0)
+    INLINE_SIMCALL(SIM_TEST_REPORT, %ecx, $1)
     mov $0, %esi
     int $SET_STATUS_INT
     int $VANISH_INT
