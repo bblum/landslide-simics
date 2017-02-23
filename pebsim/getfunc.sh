@@ -39,7 +39,7 @@ function _get_func_end {
 
 # Gets the last instruction, temporally. Must be ret or iret.
 function _get_func_ret {
-	RET_INSTR=`objdump -d $2 | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep 'c3.*ret\|cf.*iret'`
+	RET_INSTR=`objdump -d $2 | grep -A10000 "<$1>:" | tail -n+2 | grep -m 1 -B10000 ^$ | grep '[^0-9abcdef]c3.*ret\|[^0-9abcdef]cf.*iret'`
 	# Test for there being only one ret or iret - normal case.
 	if [ "`echo "$RET_INSTR" | wc -l`" = "1" ]; then
 		echo "$RET_INSTR" | sed 's/ //g' | cut -d":" -f1
