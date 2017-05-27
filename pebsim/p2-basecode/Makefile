@@ -76,7 +76,7 @@ DEP_SUFFIX = dep
 ## in user/ like we did with P2.
 410USER_LIBS_EARLY = # libthrgrp.a
 410USER_LIBS_LATE = libRNG.a libx86.a libsimics.a libstdio.a libstdlib.a \
-                    libstring.a libmalloc.a libtest.a
+                    libstring.a libmalloc.a libtest.a libhtm.a
 STUDENT_LIBS_EARLY = libthread.a libautostack.a
 STUDENT_LIBS_LATE = libsyscall.a
 
