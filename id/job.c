@@ -43,10 +43,11 @@ bool pathos = false;
 bool use_icb = false;
 bool preempt_everywhere = false;
 bool pure_hb = false;
+bool transactions = false;
 
 void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 		     bool arg_pintos, bool arg_use_icb, bool arg_preempt_everywhere,
-		     bool arg_pure_hb, bool arg_pathos)
+		     bool arg_pure_hb, bool arg_txn, bool arg_pathos)
 {
 	test_name = XSTRDUP(arg_test_name);
 	verbose = arg_verbose;
@@ -56,6 +57,7 @@ void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 	use_icb = arg_use_icb;
 	preempt_everywhere = arg_preempt_everywhere;
 	pure_hb = arg_pure_hb;
+	transactions = arg_txn;
 }
 
 bool testing_pintos() { return pintos; }
@@ -188,6 +190,23 @@ static void *run_job(void *arg)
 		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
 		/* this may look strange, but see the test case */
 		XWRITE(&j->config_dynamic, "%s critical_section\n", without);
+	} else if (transactions) {
+		assert(!pintos && !pathos);
+		XWRITE(&j->config_static, "HTM=1\n");
+		XWRITE(&j->config_static, "FILTER_DRS_BY_TID=0\n");
+		XWRITE(&j->config_static, "ignore_dr_function thr_create 1\n");
+		XWRITE(&j->config_static, "ignore_dr_function thr_exit 1\n");
+		XWRITE(&j->config_static, "ignore_dr_function thr_join 1\n");
+		// XXX: assumes sully ref p2 :(
+		XWRITE(&j->config_static, "ignore_dr_function thr_bottom 1\n");
+		XWRITE(&j->config_static, "ignore_dr_function wakeup_thread 1\n");
+		XWRITE(&j->config_static, "ignore_dr_function remove_thread 1\n");
+		XWRITE(&j->config_static, "ignore_dr_function cond_wait 1\n");
+		XWRITE(&j->config_dynamic, "%s thr_init\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_create\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_exit\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_join\n", without);
+		XWRITE(&j->config_dynamic, "%s thr_bottom\n", without);
 	}
 
 	if (preempt_everywhere) {

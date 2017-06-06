@@ -62,7 +62,8 @@ struct job {
 };
 
 void set_job_options(char *test_name, bool verbose, bool leave_logs, bool pintos,
-		     bool use_icb, bool preempt_everywhere, bool pure_hb, bool pathos);
+		     bool use_icb, bool preempt_everywhere, bool pure_hb, bool txn,
+		     bool pathos);
 bool testing_pintos();
 bool testing_pathos();
 
