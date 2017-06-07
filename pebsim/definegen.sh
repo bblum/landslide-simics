@@ -130,6 +130,7 @@ TESTING_MUTEXES=0
 DR_PPS_RESPECT_WITHIN_FUNCTIONS=0
 PREEMPT_EVERYWHERE=0
 PURE_HAPPENS_BEFORE=0
+HTM=0
 source $CONFIG
 
 source ./symbols.sh
@@ -378,6 +379,14 @@ fi
 
 if [ "$PURE_HAPPENS_BEFORE" = "1" ]; then
 	echo "#define PURE_HAPPENS_BEFORE"
+fi
+
+if [ "$HTM" = "1" ]; then
+	echo "#define HTM"
+	echo "#define HTM_XBEGIN     0x`get_user_func     _xbegin`"
+	echo "#define HTM_XBEGIN_END 0x`get_user_func_end _xbegin`"
+	echo "#define HTM_XEND       0x`get_user_func     _xend`"
+	echo "#define HTM_XABORT     0x`get_user_func     _xabort`"
 fi
 
 echo

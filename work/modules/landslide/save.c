@@ -166,6 +166,8 @@ static struct agent *copy_agent(struct agent *a_src)
 	COPY_FIELD(action.user_locked_callocing);
 	COPY_FIELD(action.user_locked_reallocing);
 	COPY_FIELD(action.user_locked_freeing);
+	COPY_FIELD(action.user_wants_txn);
+	COPY_FIELD(action.user_txn);
 	COPY_FIELD(action.schedule_target);
 	assert(memcmp(&a_dest->action, &a_src->action, sizeof(a_dest->action)) == 0 &&
 	       "Did you update agent->action without updating save.c?");
@@ -288,6 +290,7 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 #endif
 	dest->deadlock_fp_avoidance_count = src->deadlock_fp_avoidance_count;
 	dest->icb_preemption_count = src->icb_preemption_count;
+	dest->any_thread_txn = src->any_thread_txn;
 }
 
 static void copy_test(struct test_state *dest, const struct test_state *src)

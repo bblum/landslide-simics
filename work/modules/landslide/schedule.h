@@ -80,6 +80,8 @@ struct agent {
 		bool user_locked_callocing;
 		bool user_locked_reallocing;
 		bool user_locked_freeing;
+		bool user_wants_txn;
+		bool user_txn;
 		/* are we trying to schedule this agent? */
 		bool schedule_target;
 	} action;
@@ -213,6 +215,8 @@ struct sched_state {
 	unsigned int deadlock_fp_avoidance_count;
 	/* ICB */
 	unsigned int icb_preemption_count;
+	/* HTM */
+	bool any_thread_txn;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
 	/* It does take many instructions for us to switch, after all. This is
@@ -295,6 +299,9 @@ struct sched_state {
 #else
 #define ICB_BLOCKED(ls, bound, voluntary, a) false
 #endif
+
+#define HTM_BLOCKED(s, a) ((s)->any_thread_txn && \
+			   (a)->action.user_wants_txn && !(a)->action.user_txn)
 
 struct agent *agent_by_tid_or_null(struct agent_q *, unsigned int tid);
 

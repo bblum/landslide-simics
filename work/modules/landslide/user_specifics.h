@@ -81,4 +81,9 @@ bool user_rwlock_lock_exiting(unsigned int eip);
 bool user_rwlock_unlock_entering(conf_object_t *cpu, unsigned int eip, unsigned int *addr);
 bool user_rwlock_unlock_exiting(unsigned int eip);
 
+bool user_xbegin_entering(unsigned int eip);
+bool user_xbegin_exiting(unsigned int eip);
+bool user_xend_entering(unsigned int eip);
+bool user_xabort_entering(conf_object_t *cpu, unsigned int eip, unsigned int *xabort_code);
+
 #endif

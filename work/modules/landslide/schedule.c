@@ -96,6 +96,8 @@ static void agent_fork(struct sched_state *s, unsigned int tid, bool on_runqueue
 	a->action.user_locked_callocing = false;
 	a->action.user_locked_reallocing = false;
 	a->action.user_locked_freeing = false;
+	a->action.user_wants_txn = false;
+	a->action.user_txn = false;
 	a->action.schedule_target = false;
 	a->kern_blocked_on = NULL;
 	a->kern_blocked_on_tid = -1;
@@ -394,6 +396,7 @@ void sched_init(struct sched_state *s)
 #endif
 	s->deadlock_fp_avoidance_count = 0;
 	s->icb_preemption_count = 0;
+	s->any_thread_txn = false;
 }
 
 void print_agent(verbosity v, const struct agent *a)
@@ -1078,6 +1081,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	unsigned int lock_addr;
 	bool succeeded;
 	bool write_mode;
+	unsigned int xabort_code;
 
 	/* Prevent the rwlock downgrade test memorial bug. The following logic
 	 * checks eip against hardcoded user addresses obtained from objdump,
@@ -1398,6 +1402,36 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	} else if (user_locked_realloc_exiting(ls->eip)) {
 		assert(ACTION(s, user_locked_reallocing));
 		ACTION(s, user_locked_reallocing) = false;
+	/* txn */
+	} else if (user_xbegin_entering(ls->eip)) {
+		assert(!ACTION(s, user_txn) && "nested txn not supported");
+		assert(!ACTION(s, user_wants_txn));
+		/* if another thread is in htm, this denotes me as blocked */
+		ACTION(s, user_wants_txn) = true;
+		record_user_yield_activity(&ls->user_sync);
+	} else if (user_xbegin_exiting(ls->eip)) {
+		assert(!s->any_thread_txn && "acc'ly ran htm-blocked thread");
+		assert(ACTION(s, user_wants_txn));
+		/* potentially-blocked state -> owns the htm lock state */
+		ACTION(s, user_wants_txn) = false;
+		ACTION(s, user_txn) = s->any_thread_txn = true;
+		// TODO: add a global txn lock to the lockset
+	} else if (user_xend_entering(ls->eip)) {
+		if (!ACTION(s, user_txn)) {
+			FOUND_A_BUG(ls, "xend() while not in a transaction\n");
+		}
+		assert(s->any_thread_txn);
+		ACTION(s, user_txn) = s->any_thread_txn = false;
+		record_user_yield_activity(&ls->user_sync);
+		// TODO: lockset
+	} else if (user_xabort_entering(ls->cpu0, ls->eip, &xabort_code)) {
+		if (!ACTION(s, user_txn)) {
+			FOUND_A_BUG(ls, "xabort() while not in a transaction\n");
+		}
+		// TODO
+		assert(xabort_code == 0 && "diff xabort codes not supported yet");
+		// TODO
+		assert(0 && "implement dis time travel");
 	/* misc */
 	} else if (user_make_runnable_entering(ls->eip)) {
 		/* Catch "while (make_runnable(tid) < 0)" loops. */

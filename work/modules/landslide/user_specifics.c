@@ -697,3 +697,32 @@ bool user_rwlock_unlock_exiting(unsigned int eip) {
 	return false;
 #endif
 }
+
+/******************************************************************************
+ * HTM
+ ******************************************************************************/
+
+#ifdef HTM
+
+bool user_xbegin_entering(unsigned int eip) { return eip == HTM_XBEGIN; }
+bool user_xbegin_exiting(unsigned int eip)  { return eip == HTM_XBEGIN_END; }
+bool user_xend_entering(unsigned int eip)   { return eip == HTM_XEND; }
+bool user_xabort_entering(conf_object_t *cpu, unsigned int eip, unsigned int *code)
+{
+	if (eip == HTM_XABORT) {
+		*code = READ_STACK(cpu, 1);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+#else
+
+bool user_xbegin_entering(unsigned int eip)   { return false; }
+bool user_xbegin_exiting(unsigned int eip)    { return false; }
+bool user_xend_entering(unsigned int eip)     { return false; }
+bool user_xabort_entering(conf_object_t *cpu, unsigned int eip,
+			  unsigned int *code) { return false; }
+
+#endif

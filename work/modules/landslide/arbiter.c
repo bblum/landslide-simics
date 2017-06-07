@@ -151,6 +151,12 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			   user_within_functions(ls)) {
 			ASSERT_ONE_THREAD_PER_PP(ls);
 			return true;
+		} else if (user_xbegin_entering(ls->eip) ||
+			   user_xend_entering(ls->eip)) {
+			/* Have to disrespect within functions to properly
+			 * respect htm-blocking if there's contention. */
+			ASSERT_ONE_THREAD_PER_PP(ls);
+			return true;
 		} else {
 			return false;
 		}
@@ -311,6 +317,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 	/* Count the number of available threads. */
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) &&
+		    !HTM_BLOCKED(&ls->sched, a) &&
 		    !ICB_BLOCKED(&ls->sched, ls->icb_bound, voluntary, a)) {
 			print_agent(DEV, a);
 			printf(DEV, " ");
@@ -367,6 +374,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 	unsigned int i = 0;
 	FOR_EACH_RUNNABLE_AGENT(a, &ls->sched,
 		if (!BLOCKED(a) && !IS_IDLE(ls, a) &&
+		    !HTM_BLOCKED(&ls->sched, a) &&
 		    !ICB_BLOCKED(&ls->sched, ls->icb_bound, voluntary, a) &&
 		    ++i == count) {
 			printf(DEV, "- Figured I'd look at TID %d next.\n",

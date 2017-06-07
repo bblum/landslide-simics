@@ -84,7 +84,8 @@ static bool tag_good_sibling(struct hax *h0, struct hax *ancestor,
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, grandparent->oldsched,
 		if (a->tid == tid) {
-			if (BLOCKED(a) || is_child_searched(grandparent, a->tid)) {
+			if (BLOCKED(a) || HTM_BLOCKED(grandparent->oldsched, a) ||
+			    is_child_searched(grandparent, a->tid)) {
 				return false;
 			} else if (ICB_BLOCKED(grandparent->oldsched, icb_bound,
 					       grandparent->voluntary, a)) {
@@ -127,7 +128,8 @@ static void tag_all_siblings(struct hax *h0, struct hax *ancestor,
 
 	struct agent *a;
 	FOR_EACH_RUNNABLE_AGENT(a, grandparent->oldsched,
-		if (BLOCKED(a) || is_child_searched(grandparent, a->tid)) {
+		if (BLOCKED(a) || HTM_BLOCKED(grandparent->oldsched, a) ||
+		    is_child_searched(grandparent, a->tid)) {
 			// continue;
 		} else if (ICB_BLOCKED(grandparent->oldsched, icb_bound,
 				       grandparent->voluntary, a)) {
