@@ -575,7 +575,7 @@ static void check_test_state(struct ls_state *ls)
 				DUMP_DECISION_INFO(ls);
 			} else if (test_ended_safely(ls)) {
 				save_setjmp(&ls->save, ls, -1, true, true,
-					    false, -1, false);
+					    false, -1, false, false);
 				if (!time_travel(ls)) {
 					found_no_bug(ls);
 				}

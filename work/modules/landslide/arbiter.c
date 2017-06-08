@@ -59,11 +59,13 @@ bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
 	} while (0)
 
 bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
-			bool *voluntary, bool *need_handle_sleep, bool *data_race)
+			bool *voluntary, bool *need_handle_sleep, bool *data_race,
+			bool *xbegin)
 {
 	*voluntary = false;
 	*need_handle_sleep = false;
 	*data_race = false;
+	*xbegin = false;
 
 	// TODO: more interesting choice points
 
@@ -156,6 +158,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			/* Have to disrespect within functions to properly
 			 * respect htm-blocking if there's contention. */
 			ASSERT_ONE_THREAD_PER_PP(ls);
+			*xbegin = user_xbegin_entering(ls->eip);
 			return true;
 		} else {
 			return false;
@@ -409,7 +412,7 @@ bool arbiter_choose(struct ls_state *ls, struct agent *current, bool voluntary,
 		} else {
 			if (voluntary) {
 				save_setjmp(&ls->save, ls, -1, true,
-					    true, true, -1, true);
+					    true, true, -1, true, false);
 			}
 			lsprintf(DEV, "ICB count %u bound %u\n",
 				 ls->sched.icb_preemption_count, ls->icb_bound);

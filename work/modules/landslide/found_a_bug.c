@@ -250,7 +250,7 @@ static long double compute_state_space_size(struct ls_state *ls,
 		// will call setjmp on its own. Avoid double call in that case.
 		if (!voluntary || ls->sched.voluntary_resched_stack != NULL) {
 			save_setjmp(&ls->save, ls, -1, true, true, true,
-				    -1, voluntary);
+				    -1, voluntary, false);
 		}
 		unsigned int _tid;
 		explore(ls, &_tid);

@@ -1414,6 +1414,10 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		assert(ACTION(s, user_wants_txn));
 		/* potentially-blocked state -> owns the htm lock state */
 		ACTION(s, user_wants_txn) = false;
+		// TODO: Check value of eax to see if we're in failure path
+		// If so need clear wants txn as above, but skip the rest.
+		// Need confirm whether failure injection mechanism actually does
+		// make this logic execute, or otherwise duplicate it .. elsewhere?
 		ACTION(s, user_txn) = s->any_thread_txn = true;
 		// TODO: add a global txn lock to the lockset
 	} else if (user_xend_entering(ls->eip)) {
@@ -1769,11 +1773,11 @@ void sched_update(struct ls_state *ls)
 	}
 
 	/* Okay, are we at a choice point? */
-	bool voluntary, need_handle_sleep, data_race;
+	bool voluntary, need_handle_sleep, data_race, xbegin;
 	bool just_finished_reschedule = s->just_finished_reschedule;
 	s->just_finished_reschedule = false;
 	if (arbiter_interested(ls, just_finished_reschedule, &voluntary,
-			       &need_handle_sleep, &data_race)) {
+			       &need_handle_sleep, &data_race, &xbegin)) {
 		struct agent *current = voluntary ? s->last_agent : s->cur_agent;
 		struct agent *chosen;
 		bool our_choice;
@@ -1875,7 +1879,7 @@ void sched_update(struct ls_state *ls)
 			    ls->test.start_population != s->most_agents_ever) {
 				save_setjmp(&ls->save, ls, chosen->tid,
 					    our_choice, false, !data_race,
-					    data_race_eip, voluntary);
+					    data_race_eip, voluntary, xbegin);
 			}
 		} else {
 			lsprintf(DEV, "no agent was chosen at eip 0x%x\n",

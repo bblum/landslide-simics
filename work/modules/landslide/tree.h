@@ -69,6 +69,9 @@ struct hax {
 	/* Was the arbiter interested in this instruction because it was the end
 	 * of a voluntary reschedule? (Used for ICB preemption counting.) */
 	bool voluntary;
+	/* Does this preemption point denote the start of a transaction?
+	 * (If so, then a failure will need to be injected, not just timers.) */
+	bool xbegin;
 
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! Also, the "tags" that POR uses to denote to-be-explored

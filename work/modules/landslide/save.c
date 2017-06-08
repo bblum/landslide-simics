@@ -768,7 +768,7 @@ void save_recover(struct save_state *ss, struct ls_state *ls, int new_tid)
 void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		 int new_tid, bool our_choice, bool end_of_test,
 		 bool is_preemption_point, unsigned int data_race_eip,
-		 bool voluntary)
+		 bool voluntary, bool xbegin)
 {
 	struct hax *h;
 
@@ -833,6 +833,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->subtree_usecs = 0.0L;
 		h->estimate_computed = false;
 		h->voluntary = voluntary;
+		h->xbegin = xbegin;
 
 		if (voluntary) {
 #ifndef PINTOS_KERNEL
