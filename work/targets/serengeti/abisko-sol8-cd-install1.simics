@@ -1,2 +1,0 @@
-add-directory "%script%"
-run-command-file "%simics%/targets/serengeti/abisko-sol8-cd-install1.simics"

@@ -1,2 +1,0 @@
-add-directory "%script%"
-run-command-file "%simics%/targets/sunfire/cashew-multi.simics"
