@@ -22,6 +22,9 @@
 
 */
 
+#ifndef __LS_TRACE_H
+#define __LS_TRACE_H
+
 typedef enum {
         TR_Reserved = 0, TR_Data = 1, TR_Instruction = 2, TR_Exception = 3,
         TR_Execute = 4, TR_Reserved_2, TR_Reserved_3, TR_Reserved_4,
@@ -71,3 +74,5 @@ typedef struct {
 } trace_consume_interface_t;
 
 #define TRACE_CONSUME_INTERFACE "trace_consume"
+
+#endif

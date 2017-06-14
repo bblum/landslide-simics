@@ -2,6 +2,7 @@
 # When a simics call happens, this is the device whose problem it is.
 
 from simics import *
+import simics_4_0_api as simics40
 from components import *
 import cs410_dispatch
 
@@ -20,11 +21,11 @@ class simcall_dev:
         m.priority = 0
         m.align_size = 1
         m.reverse_endian = 0
-        isab = conf.isa_bus0
-        return isab.iface.map_demap.add_map(isab, self.obj, None, m)
+        isab = conf.system.motherboard.southbridge.isa_bus
+        return isab.iface.map_demap.add_map(self.obj, None, m)
 
 def new_instance(parse_obj):
-    obj = VT_alloc_log_object(parse_obj)
+    obj = simics40.VT_alloc_log_object(parse_obj)
     simcall_dev(obj)
     return obj
 

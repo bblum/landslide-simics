@@ -1,5 +1,12 @@
-@sys.path += ['../scripts']
-@SIM_add_directory(os.environ["OS_PROJ_PATH"], 0)
+# Add the 410mods directory to the python path and the simics search path.
+@sys.path += [ os.environ["SIMENV"] ]
+add-directory (env "SIMENV")
+
+# Add the scripts directory.
+@sys.path += [ os.environ["SIMSCRIPTS"] ]
+
+# Add the current directory (from where simics46[-gui] was invoked) to the search path.
+add-directory (env "OS_PROJ_PATH")
 
 if not defined create_network {}
 if not defined mac_address    {$mac_address   = "10:10:10:10:10:20"}
@@ -26,7 +33,7 @@ $freq_mhz = 200
 except :
   pass
 
-@try : 
+@try :
   simenv.disk_size = os.environ["SIMICS_DISK_SIZE"]
 except :
   pass
@@ -37,6 +44,7 @@ except :
 except :
   pass
 
+$use_vmp = FALSE
 run-command-file "%simics%/targets/x86-440bx/x86-440bx-pci-system.include"
 
 # $eth = (create-isa-lance mac_address = $mac_address)
@@ -51,21 +59,50 @@ instantiate-components
 load-module symtable
 new-symtable deflsym
 if $text_console == "no" {
-	con0.enable-input
+	system.console.switch-to-graphics-console
+	system.console.con.enable-input
 }
 
-@try :
-	if os.environ["SIMICS_REALTIME"] != "" :
-		conf.sim.real_time_enable=1
-		conf.sim.real_time_ms_interval=100
-		conf.sim.real_time_max_speed=100
-except :
-	pass
+@if os.environ.get("SIMICS_REALTIME", "") != "":
+	SIM_run_command("enable-real-time-mode")
 
 # ???
 
 @if os.environ.has_key('SIMICS_DISK_IMAGE') and os.environ.has_key('SIMICS_WRITEBACK'):
-    conf.disk0_image.files[0][1] = 'rw'
+    conf.system.disk.hd_image.files[0][1] = 'rw'
+
+alias ide0 system.motherboard.southbridge.ide0
+alias ide_dma system.motherboard.southbridge.pci_to_ide
+
+# Aliases
+
+alias cpu0 system.motherboard.processor0.core[0][0]
+@conf.cpu0 = conf.system.motherboard.processor0.core[0][0]
+
+alias cpu0_tlb system.motherboard.processor0.tlb[0][0]
+@conf.cpu0_tlb = conf.system.motherboard.processor0.tlb[0][0]
+alias tlb0 system.motherboard.processor0.tlb[0][0]
+@conf.tlb0 = conf.system.motherboard.processor0.tlb[0][0]
+alias apic0 system.motherboard.processor0.apic[0][0]
+@conf.apic0 = conf.system.motherboard.processor0.apic[0][0]
+
+# aliases for cpu1, cpu1_tlb, tlb1, etc.
+foreach $cpu in (range 1 $num_cpus) {
+	$proc = "system.motherboard.processor" + $cpu
+	exec "alias " + "cpu" + $cpu + " " + $proc + ".core[0][0]"
+	exec "alias " + "cpu" + $cpu + "_tlb" + " " + $proc + ".tlb[0][0]"
+	exec "alias " + "tlb" + $cpu + " " + $proc + ".tlb[0][0]"
+	exec "alias " + "apic" + $cpu + " " + $proc + ".apic[0][0]"
+}
+
+alias pic0 system.motherboard.southbridge.pic
+@conf.pic0 = conf.system.motherboard.southbridge.pic
+
+alias pit0 system.motherboard.southbridge.pit
+@conf.pit0 = conf.system.motherboard.southbridge.pit
+
+alias ps2 system.motherboard.sio.kbd
+@conf.ps2 = conf.system.motherboard.sio.kbd
 
 run-python-file "410mods.py"
 
@@ -73,7 +110,7 @@ run-python-file "410mods.py"
 #### bblum was here ####
 ########################
 
-add-module-directory /afs/andrew/usr12/bblum/masters/work/amd64-linux/lib
+add-module-directory /afs/andrew.cmu.edu/usr12/bblum/masters/work/linux64/lib
 
 # Get the kernel image name, source path, test case name.
 @SIM_source_python("landslide-config.py")
@@ -114,7 +151,7 @@ if $ls_pintos == "yes" {
 	break (sym _start)
 }
 run
-delete 1
+delete 3
 new-tracer
 trace0.start
 @SIM_set_attribute(SIM_get_object("trace0"), "consumer", landslide)

@@ -44,4 +44,7 @@ magic_opcodes = {
     # 410mods-dynamic-interleave
     "inter_learn"         : 0x04108009L,
     "inter_switch"        : 0x0410800AL,
+
+    # 410mods-dynamic-scoreboard
+    "test_report"         : 0x0410800BL,
 }

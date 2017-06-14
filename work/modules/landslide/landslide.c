@@ -29,7 +29,6 @@
 #include <simics/api.h>
 #include <simics/arch/x86.h>
 
-// XXX: this header lacks guards, so it must be after the other includes.
 #include "trace.h"
 
 #define MODULE_NAME "LANDSLIDE"
@@ -59,9 +58,9 @@ struct ls_state *new_landslide()
 	ls->trigger_count = 0;
 	ls->absolute_trigger_count = 0;
 
-	ls->cpu0 = SIM_get_object("cpu0");
+	ls->cpu0 = SIM_get_object("system.motherboard.processor0.core[0][0]");
 	assert(ls->cpu0 != NULL && "failed to find cpu");
-	ls->kbd0 = SIM_get_object("kbd0");
+	ls->kbd0 = SIM_get_object("system.motherboard.sio.kbd");
 	assert(ls->kbd0 != NULL && "failed to find keyboard");
 
 	sched_init(&ls->sched);

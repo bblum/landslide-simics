@@ -13,6 +13,7 @@
 #include "x86.h"
 
 #define SYMTABLE_NAME "deflsym"
+#define CONTEXT_NAME "system.cell_context"
 
 #define LIKELY_DIR "pebsim/"
 #define UNKNOWN_FILE "410kern/boot/head.S"
@@ -22,9 +23,9 @@
 
 conf_object_t *get_symtable()
 {
-	conf_object_t *cell0_context = SIM_get_object("cell0_context");
+	conf_object_t *cell0_context = SIM_get_object(CONTEXT_NAME);
 	if (cell0_context == NULL) {
-		lsprintf(ALWAYS, "WARNING: couldn't get cell0_context\n");
+		lsprintf(ALWAYS, "WARNING: couldn't get " CONTEXT_NAME "\n");
 		return NULL;
 	}
 	attr_value_t table = SIM_get_attribute(cell0_context, "symtable");
@@ -34,8 +35,7 @@ conf_object_t *get_symtable()
 		table = SIM_get_attribute(cell0_context, "symtable");
 		if (!SIM_attr_is_object(table)) {
 			SIM_free_attribute(table);
-			lsprintf(ALWAYS, "WARNING: cell0_context.symtable not an obj\n");
-			assert(0);
+			assert(0 && CONTEXT_NAME ".symtable not an obj");
 			return NULL;
 		}
 	}
@@ -46,7 +46,7 @@ conf_object_t *get_symtable()
 
 void set_symtable(conf_object_t *symtable)
 {
-	conf_object_t *cell0_context = SIM_get_object("cell0_context");
+	conf_object_t *cell0_context = SIM_get_object(CONTEXT_NAME);
 	if (cell0_context == NULL) {
 		lsprintf(ALWAYS, "WARNING: couldn't get cell0_context\n");
 		return;

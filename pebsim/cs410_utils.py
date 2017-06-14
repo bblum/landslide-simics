@@ -67,8 +67,8 @@ def copyout(cpu, addr, type):
     cpi = cpu.iface.processor_info
     len = struct.calcsize(type)
     for i in range(len):
-        pa = cpi.logical_to_physical(cpu, addr + i, X86_Vanilla).address
-        ch = SIM_read_byte(conf.phys_mem0, pa)
+        pa = cpi.logical_to_physical(addr + i, X86_Vanilla).address
+        ch = SIM_read_byte(conf.system.motherboard.phys_mem, pa)
         ret = ret + chr(ch)
     return struct.unpack(type, ret)
 
@@ -83,8 +83,8 @@ def copyin(cpu, addr, type, *vals):
     cpi = cpu.iface.processor_info
     buf = struct.pack(type, *vals)
     for i in range(len(buf)):
-        pa = cpi.logical_to_physical(cpu, addr + i, X86_Vanilla).address
-        SIM_write_byte(conf.phys_mem0, pa, ord(buf[i]))
+        pa = cpi.logical_to_physical(addr + i, X86_Vanilla).address
+        SIM_write_byte(conf.system.motherboard.phys_mem, pa, ord(buf[i]))
 
 # Copies a string out of system memory.
 def copyout_str(cpu, addr):
@@ -199,8 +199,7 @@ def l2p(cpu, addr):
     Returns the physical address corresponding with virtual address 'addr' on
     cpu 'cpu'.
     """
-    return cpu.iface.processor_info.logical_to_physical(cpu, addr,
-                X86_Vanilla).address
+    return cpu.iface.processor_info.logical_to_physical(addr,X86_Vanilla).address
 
 def alone_helper(fa):
     (func, args) = fa
@@ -235,7 +234,7 @@ def print_trap_frame(f) :
 
     log('410', "eax %08x ebx %08x ecx %08x edx %08x" \
       % (f['eax'], f['ebx'], f['ecx'], f['edx']))
-    log('410', "edi %08x esi %08x epb %08x" \
+    log('410', "edi %08x esi %08x ebp %08x" \
       % (f['edi'], f['esi'], f['ebp']))
     log('410', "esp %08x  ss     %04x eip %08x  cs     %04x" \
       % (f['esp'], f['ss'], f['eip'], f['cs']))

@@ -1,5 +1,5 @@
 #
-# 15-410 Simics mods file loader 
+# 15-410 Simics mods file loader
 # Nathaniel Filardo (nwf)
 # Mutated beyond recognition by Elly (elly1)
 
@@ -33,10 +33,10 @@ print "Done."
 
 from cs410_utils import working_dir, user_src_path, test_src_path, kern_path, img_path
 
-cli.quiet_run_command("flp0.insert-floppy A " + img_path)
-cli.quiet_run_command("system_cmp0.cmos-boot-dev A")
+cli.quiet_run_command("system.motherboard.sio.flp.insert-floppy A " + img_path)
+cli.quiet_run_command("system.motherboard.cmos-boot-dev A")
 (y, m, d, h, min, s, wd, yd, dst) = time.localtime(time.time())
-cli.quiet_run_command("rtc0.set-date-time %d %d %d %d %d %d" % (y, m, d, h, min, s))
+cli.quiet_run_command("system.motherboard.southbridge.rtc.set-date-time %d %d %d %d %d %d" % (y, m, d, h, min, s))
 
 # The world has been put in order.  But that might be way too boring.
 # So glance around and try to load some other files.

@@ -6,7 +6,7 @@ from cs410_utils import copyout_str, kern_path, user_prog_path, working_dir
 from cs410_utils import user_src_path, test_src_path
 import cs410_utils
 
-ncr3 = conf.cpu0.iface.int_register.get_number(conf.cpu0, "cr3")
+ncr3 = conf.cpu0.iface.int_register.get_number("cr3")
 
 #
 # Hash for user process debugging.
@@ -43,6 +43,7 @@ def make_new_symtable(sname, fname, cr3):
 # Registers a user process for debugging
 #
 def reg_process(dummy, cpu, param):
+    global user_process_registry
     fname = ""
     try :
         fname = copyout_str(cpu, cpu.edx)
@@ -54,7 +55,7 @@ def reg_process(dummy, cpu, param):
         return
 
     cr3 = cpu.ecx
-    sname = "prog-"+fname
+    sname = fname+"_prog"
     user_process_registry[cr3] = sname
 
     # see if symbol table for fname exists.
@@ -94,14 +95,14 @@ def reg_child(dummy, cpu, param):
 # Sets the current symtable to be the one associated with the cr3
 def switch_symtable(cr3):
     if user_process_registry.has_key(cr3):
-        cli.quiet_run_command("cell0_context.symtable %s" %
+        cs410_utils.alone(cli.quiet_run_command,"system.cell_context.symtable %s" %
             user_process_registry[cr3])
     else:
-        cli.quiet_run_command("cell0_context.symtable deflsym")
+        cs410_utils.alone(cli.quiet_run_command,"system.cell_context.symtable deflsym")
 
 # Switch to the symtable associated with the current execution state
 def switch_current_symtable(cpu):
-    switch_symtable(cpu.iface.int_register.read(cpu, ncr3))
+    switch_symtable(cpu.iface.int_register.read(ncr3))
 
 def switch_creg(dummy, cpu, regnum, val):
     if regnum == ncr3:

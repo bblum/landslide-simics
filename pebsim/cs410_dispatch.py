@@ -48,7 +48,7 @@ def __callback_magic(dummy, cpu, param):
     #  ### different reads.  We now always read out 32 bit values.
     #  pass
     #else :
-    #  # Protected mode not engaged 
+    #  # Protected mode not engaged
     #  ### We used to read out a 16 bit value here via cpu.bx;
     #  ### instead we'll now just check for the BIOS region and
     #  ### bail in that case.
@@ -88,7 +88,7 @@ def __callback_breakpoint(arg, obj, brknum, memop) :
   else :
     SIM_break_simulation("Reached Breakpoint %d" % brknum)
 
-ncr3 = conf.cpu0.iface.int_register.get_number(conf.cpu0, "cr3")
+ncr3 = conf.cpu0.iface.int_register.get_number("cr3")
 def __callback_creg(dummy, cpu, regnum, val):
     if regnum != ncr3:
         return
@@ -97,21 +97,22 @@ def __callback_creg(dummy, cpu, regnum, val):
 
 SIM_hap_add_callback("Core_Magic_Instruction", __callback_magic, 0)
 SIM_hap_add_callback("Core_Control_Register_Write", __callback_creg, 0)
-SIM_hap_add_callback("Core_Exception", __callback_exp, 0)
+hap_exc_id = SIM_hap_add_callback("Core_Exception", __callback_exp, 0)
 SIM_hap_add_callback("Core_Breakpoint_Memop", __callback_breakpoint, 0)
 
 def add_simcall(fn):
     hap_handlers[cs410_namespace.magic_opcodes[fn.__name__]] = fn
 
 def add_exnhandler(exn, fn):
+    global hap_exc_id
     if len(exn_handlers) == 0:
-        SIM_hap_add_callback("Core_Exception", __callback_exp, 0)
+        hap_exc_id = SIM_hap_add_callback("Core_Exception", __callback_exp, 0)
     exn_handlers[exn] = fn
 
 def del_exnhandler(exn, fn):
     del exn_handlers[exn]
     if len(exn_handlers) == 0:
-        SIM_hap_delete_callback("Core_Exception", __callback_exp, 0)
+        SIM_hap_delete_callback_id("Core_Exception", hap_exc_id)
 
 def add_swproc_handler(fn):
     swproc_handlers.append(fn)

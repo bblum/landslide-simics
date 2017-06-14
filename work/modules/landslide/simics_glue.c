@@ -8,7 +8,6 @@
 #include <simics/utils.h>
 #include <simics/arch/x86.h>
 
-// XXX: this header lacks guards, so it must be after the other includes.
 #include "trace.h"
 
 #define MODULE_NAME "SIMICS_GLUE"

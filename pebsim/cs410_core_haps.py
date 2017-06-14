@@ -21,7 +21,10 @@ def lputs(dummy, cpu, param):
 
 # Loads memory size in kilobytes into %esi
 def memsize(dummy, cpu, param):
-    cpu.eax = conf.system_cmp0.memory_megs * 1024
+    if cpu.cs[0] & 3:
+        cpu.eax = -15410
+    else:
+        cpu.eax = conf.system.motherboard.memory.memory_megs * 1024
 
 # Writes 1 into eax to determine whether we are in Simics.
 def in_simics(dummy, cpu, param):

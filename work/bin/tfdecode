@@ -1,5 +1,5 @@
 #!/bin/sh
 # this file will be overwritten by the workspace setup script
-SIMICS_BASE_PACKAGE="/afs/cs.cmu.edu/academic/class/15410-f15/simics-4.0.60/simics-4.0.60"
+SIMICS_BASE_PACKAGE="/afs/cs/academic/class/15410-s17/simics-4.6.58/simics-4.6.58"
 export SIMICS_BASE_PACKAGE
-exec "/afs/cs.cmu.edu/academic/class/15410-f15/simics-4.0.60/simics-4.0.60/bin/tfdecode"  ${1+"$@"}
+exec "/afs/cs/academic/class/15410-s17/simics-4.6.58/simics-4.6.58/bin/tfdecode"  "$@"

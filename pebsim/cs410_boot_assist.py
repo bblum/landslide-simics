@@ -27,7 +27,7 @@ def booted(dummy, cpu, param):
       print e
       return
 
-#    print "Simulation claims to have been booted from '%s'" % str
+    print "Simulation claims to have been booted from '%s'" % str
 
     match = re.match(r'^\(.*\)/(\w*/)*(?P<file>\w+)(|.gz)$', str);
     if not match is None :
@@ -35,31 +35,29 @@ def booted(dummy, cpu, param):
 
     str = working_dir + "/" + str
 
-#    print " And I'm guessing this means I should look in '%s'" % str
-
     if (os.path.isfile(str)):
         # Load all subsequent symbol tables with this source as well
         kern_path = str
-# I'm pretty sure this is unnecessary; it's not like the kernel symbol table is
-# going to change in flight, and even if it does, it's not like we need to keep
-# both of them around. Let's reuse deflsym and avoid the assertion failure we
-# get from calling new-symtable at runtime.
-#        usersym = "usersym%d" % cs410_dispatch.kernel_up
         usersym = "deflsym"
-     
-        cli.quiet_run_command("%s.source-path \"%s/;%s;%s\"" %
-            (usersym, working_dir, user_src_path, test_src_path))
-        cli.quiet_run_command("%s.load-symbols %s" % (usersym, str))
-        cli.quiet_run_command("cell0_context.symtable %s" % usersym)
+
+        sp = ""
+        for p in [working_dir + "/", user_src_path, test_src_path]:
+            if os.path.exists(p):
+                sp += p + ";"
+
+        def to_do_alone(cpu, times, error):
+            cli.run_command("%s.source-path \"%s\"" % (usersym, sp[:-1]))
+            cli.run_command("%s.load-symbols %s" % (usersym, str))
+            cli.run_command("system.cell_context.symtable %s" % usersym)
+        if len(sp) > 0:
+            boot_callbacks.insert(0, to_do_alone)
     else:
         print "No such kernel image: '%s'; symbolic debugging won't work." % str
-#        print " !!> Cannot find that file; ignoring simulation request."
-#        print " !!> This probably means that symbolic debugging will not work."
-#        print " !!> Note that we are running loader callbacks anyway!"
-#        print " !!> Please contact a TA."
         error = 1
 
-    for x in boot_callbacks:
-      x(cpu, cs410_dispatch.kernel_up, error)
+    def run_callbacks():
+        for x in boot_callbacks:
+            x(cpu, cs410_dispatch.kernel_up, error)
+    cs410_utils.alone(run_callbacks)
 
 cs410_dispatch.add_simcall(booted)

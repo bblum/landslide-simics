@@ -77,10 +77,10 @@ def tidinfo_del(dummy, cpu, param) :
         % (cpu,tid,tidcontext[cpu]));
       del cputid[tidcontext[tid]]
 
-  SIM_hap_delete_callback('Core_Exception', offcore_cb, tid)
-  SIM_hap_delete_callback('Core_Exception', offcore_cb, tid)
-  SIM_hap_delete_callback('Core_Exception_Return', oncore_cb, tid)
-  SIM_hap_delete_callback('Core_Exception_Return', oncore_cb, tid)
+  #SIM_hap_delete_callback('Core_Exception', offcore_cb, tid)
+  SIM_hap_delete_callback_obj('Core_Exception', cpu, offcore_cb, tid)
+  #SIM_hap_delete_callback('Core_Exception_Return', oncore_cb, tid)
+  SIM_hap_delete_callback_obj('Core_Exception_Return', cpu, oncore_cb, tid)
 
   if tid in tidcontext:
     del tidcontext[tid]

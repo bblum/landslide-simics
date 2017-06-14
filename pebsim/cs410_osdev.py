@@ -11,6 +11,8 @@ commands = {
     'switch': 2
 }
 
+hap_id = {}
+
 def switch():
     global commands
     issue_command(commands['switch'], 0, False)
@@ -19,7 +21,7 @@ def irqswitch(dummy, cpu, status):
     global cmdq
     cmd = cmdq[0]
     cmdq = cmdq[1:]
-    SIM_hap_delete_callback("Core_Interrupt_Status", irqswitch, 0)
+    SIM_hap_delete_callback_id("Core_Interrupt_Status", hap_id[cpu])
     # If we got here, the command was interactive, so break.
     SIM_break_simulation("Command done. Welcome back.")
 
@@ -32,7 +34,7 @@ def osdev_next(dummy, cpu, param):
         cmd = cmdq[0]
         u.copyin(cpu, cpu.ecx, "II", cmd['op'], cmd['arg'])
         if cmd['interactive']:
-            SIM_hap_add_callback("Core_Interrupt_Status", irqswitch, 0)
+            hap_id[cpu] = SIM_hap_add_callback("Core_Interrupt_Status", irqswitch, 0)
 
 def acked(ignored):
     return 32 + 6
@@ -42,7 +44,9 @@ def issue_command(num, arg, interactive):
     cmdq.append({ 'op': num,
                   'arg': arg,
                   'interactive': interactive })
-    conf.cpu0.iface.interrupt_ack.raise_interrupt(conf.cpu0, acked, None)
+    if (not conf.cpu0.iface.x86.has_pending_interrupt() and
+        not conf.cpu0.iface.x86.has_waiting_interrupt()):
+        conf.cpu0.iface.interrupt_ack.raise_interrupt(acked, None)
 
 # Obsoleted by 410mods-dynamic-tidinfo.py, which is a vastly superior
 # mechanism.  NWF 20100120

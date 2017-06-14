@@ -17,7 +17,7 @@ def xchg_handle_breakpoints(h,b,brknum,m):
 
 # Creates an execute breakpoint that spans userspace.
 def create_userspace_breakpoint():
-    return SIM_breakpoint(conf.cell0_context, Sim_Break_Virtual,
+    return SIM_breakpoint(conf.system.cell_context, Sim_Break_Virtual,
                           Sim_Access_Execute, 0x1000000, 0xfeffffffL,
                           Sim_Breakpoint_Simulation)
 
