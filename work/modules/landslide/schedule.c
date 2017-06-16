@@ -653,7 +653,7 @@ static void keep_schedule_inflight(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
 
-	cause_timer_interrupt(ls->cpu0);
+	cause_timer_interrupt(ls->cpu0, ls->apic0, ls->pic0);
 
 	assert(s->schedule_in_flight != NULL);
 	s->entering_timer = true;
@@ -1871,7 +1871,7 @@ void sched_update(struct ls_state *ls)
 					 CURRENT(s, tid), chosen->tid, ls->eip,
 					 (unsigned int)READ_STACK(ls->cpu0, 0));
 				set_schedule_target(s, chosen);
-				cause_timer_interrupt(ls->cpu0);
+				cause_timer_interrupt(ls->cpu0, ls->apic0, ls->pic0);
 				s->entering_timer = true;
 			}
 			/* Record the choice that was just made. */

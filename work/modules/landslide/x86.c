@@ -20,6 +20,8 @@
 #define GET_SEGSEL(cpu, name) \
 	SIM_attr_integer(SIM_attr_list_item(SIM_get_attribute(cpu, #name), 0))
 
+#define INT SIM_make_attr_integer
+
 /* two possible methods for causing a timer interrupt - the "immediately"
  * version makes the simulation immediately jump to some assembly on the stack
  * that directly invokes the timer interrupt INSTEAD of executing the pending
@@ -72,31 +74,15 @@ unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu)
 
 		/* Change %cs and %ss. (Other segsels should be saved/restored
 		 * in the kernel's handler wrappers.) */
-		attr_value_t cs = SIM_make_attr_list(10,
-			SIM_make_attr_integer(SEGSEL_KERNEL_CS),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(0),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(11),
-			SIM_make_attr_integer(0),
-			SIM_make_attr_integer(4294967295L),
-			SIM_make_attr_integer(1));
+		attr_value_t cs = SIM_make_attr_list(10, INT(SEGSEL_KERNEL_CS),
+			INT(1), INT(0), INT(1), INT(1), INT(1),
+			INT(11), INT(0), INT(4294967295L), INT(1));
 		set_error_t ret = SIM_set_attribute(cpu, "cs", &cs);
 		assert(ret == Sim_Set_Ok && "failed set cs");
 		SIM_free_attribute(cs);
-		attr_value_t ss = SIM_make_attr_list(10,
-			SIM_make_attr_integer(SEGSEL_KERNEL_DS),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(3),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(1),
-			SIM_make_attr_integer(3),
-			SIM_make_attr_integer(0),
-			SIM_make_attr_integer(4294967295L),
-			SIM_make_attr_integer(1));
+		attr_value_t ss = SIM_make_attr_list(10, INT(SEGSEL_KERNEL_DS),
+			INT(1), INT(3), INT(1), INT(1), INT(1),
+			INT(3), INT(0), INT(4294967295L), INT(1));
 		ret = SIM_set_attribute(cpu, "ss", &ss);
 		assert(ret == Sim_Set_Ok && "failed set ss");
 		SIM_free_attribute(ss);
@@ -119,20 +105,29 @@ static void cause_timer_interrupt_soviet_style(conf_object_t *cpu, lang_void *x)
 	SIM_stall_cycle(cpu, 0);
 }
 
-void cause_timer_interrupt(conf_object_t *cpu)
+void cause_timer_interrupt(conf_object_t *cpu, conf_object_t *apic, conf_object_t *pic)
 {
 	lsprintf(DEV, "tick! (0x%x)\n", GET_CPU_ATTR(cpu, eip));
 
-	if (GET_CPU_ATTR(cpu, pending_vector_valid)) {
-		SET_CPU_ATTR(cpu, pending_vector,
-			     GET_CPU_ATTR(cpu, pending_vector)
-			     | TIMER_INTERRUPT_NUMBER);
-	} else {
-		SET_CPU_ATTR(cpu, pending_vector, TIMER_INTERRUPT_NUMBER);
-		SET_CPU_ATTR(cpu, pending_vector_valid, 1);
-	}
+	assert(GET_CPU_ATTR(cpu, waiting_interrupt) == 0);
+	SET_CPU_ATTR(cpu, waiting_interrupt, 1);
+	SET_ATTR(cpu, waiting_device, object, apic);
 
-	SET_CPU_ATTR(cpu, pending_interrupt, 1);
+	/* hello simics 4.6, nice to meet you too */
+	SET_ATTR(apic, interrupt_posted, integer, 1);
+	SET_ATTR(apic, ext_int_obj, object, pic);
+	attr_value_t s = SIM_get_attribute(apic, "status");
+	SIM_attr_list_set_item(&s, 0, SIM_make_attr_list(3, INT(0), INT(1), INT(0)));
+	set_error_t ret = SIM_set_attribute(apic, "status", &s);
+	assert(ret == Sim_Set_Ok && "failed set apic status");
+	SIM_free_attribute(s);
+
+	SET_ATTR(pic, irq_requested, integer, 1);
+	attr_value_t r = SIM_make_attr_list(2, INT(1), INT(0));
+	ret = SIM_set_attribute(pic, "request", &r);
+	assert(ret == Sim_Set_Ok && "failed set pic status");
+	SIM_free_attribute(r);
+
 	/* Causes simics to flush whatever pipeline, implicit or not, would
 	 * otherwise let more instructions get executed before the interrupt be
 	 * taken. */

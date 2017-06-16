@@ -58,10 +58,14 @@ struct ls_state *new_landslide()
 	ls->trigger_count = 0;
 	ls->absolute_trigger_count = 0;
 
-	ls->cpu0 = SIM_get_object("system.motherboard.processor0.core[0][0]");
-	assert(ls->cpu0 != NULL && "failed to find cpu");
-	ls->kbd0 = SIM_get_object("system.motherboard.sio.kbd");
-	assert(ls->kbd0 != NULL && "failed to find keyboard");
+	ls->cpu0  = SIM_get_object("system.motherboard.processor0.core[0][0]");
+	ls->kbd0  = SIM_get_object("system.motherboard.sio.kbd");
+	ls->apic0 = SIM_get_object("system.motherboard.processor0.apic[0][0]");
+	ls->pic0  = SIM_get_object("system.motherboard.southbridge.pic");
+	assert(ls->cpu0  != NULL && "failed to find cpu");
+	assert(ls->kbd0  != NULL && "failed to find keyboard");
+	assert(ls->apic0 != NULL && "failed to find apic");
+	assert(ls->pic0  != NULL && "failed to find apic");
 
 	sched_init(&ls->sched);
 	arbiter_init(&ls->arbiter);

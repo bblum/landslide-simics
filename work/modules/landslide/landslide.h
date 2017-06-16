@@ -29,6 +29,8 @@ struct ls_state {
 	/* Pointers to relevant objects. Currently only supports one CPU. */
 	conf_object_t *cpu0;
 	conf_object_t *kbd0;
+	conf_object_t *apic0;
+	conf_object_t *pic0;
 	unsigned int eip;
 	uint8_t instruction_text[16];
 

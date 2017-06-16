@@ -17,21 +17,27 @@
 
 static inline unsigned int get_cpu_attr(conf_object_t *cpu, const char *name) {
 	attr_value_t register_attr = SIM_get_attribute(cpu, name);
-	if (!SIM_attr_is_integer(register_attr)) {
+	if (SIM_attr_is_integer(register_attr)) {
+		return SIM_attr_integer(register_attr);
+	} else if (SIM_attr_is_boolean(register_attr)) {
+		return (int)SIM_attr_boolean(register_attr);
+	} else {
 		assert(register_attr.kind == Sim_Val_Invalid && "GET_CPU_ATTR failed!");
 		// "Try again." WTF, simics??
 		register_attr = SIM_get_attribute(cpu, name);
 		assert(SIM_attr_is_integer(register_attr));
 		return SIM_attr_integer(register_attr);
 	}
-	return SIM_attr_integer(register_attr);
 }
-#define SET_CPU_ATTR(cpu, name, val) do {				\
-		attr_value_t noob = SIM_make_attr_integer(val);		\
-		set_error_t ret = SIM_set_attribute(cpu, #name, &noob);	\
-		assert(ret == Sim_Set_Ok && "SET_CPU_ATTR failed!");	\
+
+#define SET_ATTR(obj, name, type, val) do {				\
+		attr_value_t noob = SIM_make_attr_##type(val);		\
+		set_error_t ret = SIM_set_attribute(obj, #name, &noob);	\
+		assert(ret == Sim_Set_Ok && "SET_ATTR failed!");	\
 		SIM_free_attribute(noob);				\
 	} while (0)
+
+#define SET_CPU_ATTR(cpu, name, val) SET_ATTR(cpu, name, integer, val)
 
 #define WORD_SIZE 4
 #define PAGE_SIZE 4096
@@ -57,7 +63,7 @@ static inline unsigned int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_CLI 0xfa
 #define OPCODE_STI 0xfb
 
-void cause_timer_interrupt(conf_object_t *cpu);
+void cause_timer_interrupt(conf_object_t *cpu, conf_object_t *apic, conf_object_t *pic);
 unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu);
 unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu);
 void cause_keypress(conf_object_t *kbd, char);
