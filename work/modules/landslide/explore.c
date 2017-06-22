@@ -229,9 +229,19 @@ static void tag_reachable_aunts(struct hax *h0, struct hax *ancestor,
 }
 #endif
 
-static bool any_tagged_child(struct hax *h, unsigned int *new_tid)
+static bool any_tagged_child(struct hax *h, unsigned int *new_tid, bool *txn)
 {
 	struct agent *a;
+
+	if ((*txn = (h->xbegin && !h->xbegin_explored))) {
+		// TODO: reduction challenge?
+		/* need to set this here so we don't later say we still need
+		 * to do it while already in the failure injection subtree */
+		h->xbegin_explored = true;
+		/* injecting a failure in the xbeginning thread, obvs. */
+		*new_tid = h->chosen_thread;
+		return true;
+	}
 
 	/* do_explore doesn't get set on blocked threads, but might get set
 	 * on threads we've already looked at. */
@@ -264,7 +274,7 @@ static void print_pruned_children(struct save_state *ss, struct hax *h)
 		printf(DEV, "\n");
 }
 
-struct hax *explore(struct ls_state *ls, unsigned int *new_tid)
+struct hax *explore(struct ls_state *ls, unsigned int *new_tid, bool *txn)
 {
 	struct save_state *ss = &ls->save;
 	struct hax *current = ss->current;
@@ -331,12 +341,13 @@ struct hax *explore(struct ls_state *ls, unsigned int *new_tid)
 	 * outside of the current branch of the tree. A trail of "all_explored"
 	 * flags gets left behind. */
 	for (struct hax *h = current->parent; h != NULL; h = h->parent) {
-		if (any_tagged_child(h, new_tid)) {
+		if (any_tagged_child(h, new_tid, txn)) {
 			assert(h->is_preemption_point);
-			lsprintf(BRANCH, "from #%d/tid%d, chose tid %d, "
-				 "child of #%d/tid%d\n",
-				 current->depth, current->chosen_thread,
-				 *new_tid, h->depth, h->chosen_thread);
+			lsprintf(BRANCH, "from #%d/tid%d, chose tid %d%s, "
+				 "child of #%d/tid%d\n", current->depth,
+				 current->chosen_thread, *new_tid,
+				 *txn ? " (xbegin failure injection)" : "",
+				 h->depth, h->chosen_thread);
 			return h;
 		} else {
 			if (h->is_preemption_point) {

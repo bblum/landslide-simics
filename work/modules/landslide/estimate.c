@@ -78,6 +78,10 @@ static unsigned int update_marked_children(struct hax *h)
 			h->marked_children++;
 		}
 	);
+	/* ezpz */
+	if (h->xbegin) {
+		h->marked_children++;
+	}
 	/* since this is our ancestor, it must at least have us as a child */
 	assert(h->marked_children > 0);
 	/* since we never use a speculative F(vi) value (other than 0), a nobe's

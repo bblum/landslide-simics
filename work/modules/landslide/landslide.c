@@ -537,7 +537,8 @@ static bool time_travel(struct ls_state *ls)
 {
 	/* find where we want to go in the tree, and choose what to do there */
 	unsigned int tid;
-	struct hax *h = explore(ls, &tid);
+	bool txn;
+	struct hax *h = explore(ls, &tid, &txn);
 
 	lsprintf(BRANCH, COLOUR_BOLD COLOUR_GREEN "End of branch #%" PRIu64
 		 ".\n" COLOUR_DEFAULT, ls->save.total_jumps + 1);
@@ -548,7 +549,7 @@ static bool time_travel(struct ls_state *ls)
 
 	if (h != NULL) {
 		assert(!h->all_explored);
-		arbiter_append_choice(&ls->arbiter, tid);
+		arbiter_append_choice(&ls->arbiter, tid, txn);
 		save_longjmp(&ls->save, ls, h);
 		return true;
 	} else if (ls->icb_need_increment_bound) {

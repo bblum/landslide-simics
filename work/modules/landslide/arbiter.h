@@ -14,6 +14,7 @@ struct agent;
 
 struct choice {
 	unsigned int tid;
+	bool txn;
 	Q_NEW_LINK(struct choice) nobe;
 };
 
@@ -25,8 +26,8 @@ struct arbiter_state {
 
 /* maintenance interface */
 void arbiter_init(struct arbiter_state *);
-void arbiter_append_choice(struct arbiter_state *, unsigned int tid);
-bool arbiter_pop_choice(struct arbiter_state *, unsigned int *tid);
+void arbiter_append_choice(struct arbiter_state *, unsigned int tid, bool txn);
+bool arbiter_pop_choice(struct arbiter_state *, unsigned int *tid, bool *txn);
 
 /* scheduling interface */
 bool arbiter_interested(struct ls_state *, bool just_finished_reschedule,

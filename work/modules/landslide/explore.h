@@ -11,6 +11,6 @@ struct arbiter_state;
 struct hax;
 struct ls_state;
 
-struct hax *explore(struct ls_state *ls, unsigned int *new_tid);
+struct hax *explore(struct ls_state *ls, unsigned int *new_tid, bool *txn);
 
 #endif

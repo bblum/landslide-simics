@@ -1918,10 +1918,11 @@ void sched_recover(struct ls_state *ls)
 {
 	struct sched_state *s = &ls->sched;
 	unsigned int tid;
+	bool txn;
 
 	assert(ls->just_jumped);
 
-	if (arbiter_pop_choice(&ls->arbiter, &tid)) {
+	if (arbiter_pop_choice(&ls->arbiter, &tid, &txn)) {
 		if (tid == CURRENT(s, tid)) {
 			/* Hmmmm */
 			if (kern_timer_entering(ls->eip)) {

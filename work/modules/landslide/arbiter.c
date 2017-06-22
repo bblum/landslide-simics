@@ -28,21 +28,22 @@ void arbiter_init(struct arbiter_state *r)
 	Q_INIT_HEAD(&r->choices);
 }
 
-// FIXME: do these need to be threadsafe?
-void arbiter_append_choice(struct arbiter_state *r, unsigned int tid)
+void arbiter_append_choice(struct arbiter_state *r, unsigned int tid, bool txn)
 {
 	struct choice *c = MM_XMALLOC(1, struct choice);
 	c->tid = tid;
+	c->txn = txn;
 	Q_INSERT_FRONT(&r->choices, c, nobe);
 }
 
-bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid)
+bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid, bool *txn)
 {
 	struct choice *c = Q_GET_TAIL(&r->choices);
 	if (c) {
 		lsprintf(DEV, "using requested tid %d\n", c->tid);
 		Q_REMOVE(&r->choices, c, nobe);
 		*tid = c->tid;
+		*txn = c->txn;
 		MM_FREE(c);
 		return true;
 	} else {

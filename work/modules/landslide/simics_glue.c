@@ -68,25 +68,6 @@ static attr_value_t get_ls_decision_trace_attribute(
 {
 	return SIM_make_attr_integer(0x15410de0u);
 }
-// XXX: figure out how to use simics list/string attributes
-static set_error_t set_ls_arbiter_choice_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
-{
-	int tid = SIM_attr_integer(*val);
-
-	/* XXX: dum hack */
-	if (tid == -42) {
-		return Sim_Set_Not_Writable;
-	} else {
-		arbiter_append_choice(&((struct ls_state *)obj)->arbiter, tid);
-		return Sim_Set_Ok;
-	}
-}
-static attr_value_t get_ls_arbiter_choice_attribute(
-	void *arg, conf_object_t *obj, attr_value_t *idx)
-{
-	return SIM_make_attr_integer(-42);
-}
 
 static set_error_t set_ls_cmd_file_attribute(
 	void *arg, conf_object_t *obj, attr_value_t *val, attr_value_t *idx)
@@ -184,9 +165,6 @@ void init_local(void)
 	/* Register attributes for the class. */
 	LS_ATTR_REGISTER(conf_class, decision_trace, "i", "Get a decision trace.");
 	LS_ATTR_REGISTER(conf_class, trigger_count, "i", "Count of haxes");
-	LS_ATTR_REGISTER(conf_class, arbiter_choice, "i",
-			 "Tell the arbiter which thread to choose next "
-			 "(buffered, FIFO)");
 	LS_ATTR_REGISTER(conf_class, test_case, "s",
 			 "Which test case should we run?");
 	LS_ATTR_REGISTER(conf_class, cmd_file, "s",

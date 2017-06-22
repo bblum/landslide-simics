@@ -253,7 +253,8 @@ static long double compute_state_space_size(struct ls_state *ls,
 				    -1, voluntary, false);
 		}
 		unsigned int _tid;
-		explore(ls, &_tid);
+		bool _txn;
+		explore(ls, &_tid, &_txn);
 		*needed_compute = true;
 		return estimate_proportion(ls->save.root, ls->save.current);
 	} else {

@@ -834,6 +834,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->estimate_computed = false;
 		h->voluntary = voluntary;
 		h->xbegin = xbegin;
+		h->xbegin_explored = false;
 
 		if (voluntary) {
 #ifndef PINTOS_KERNEL

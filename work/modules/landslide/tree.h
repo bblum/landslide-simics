@@ -72,6 +72,7 @@ struct hax {
 	/* Does this preemption point denote the start of a transaction?
 	 * (If so, then a failure will need to be injected, not just timers.) */
 	bool xbegin;
+	bool xbegin_explored;
 
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! Also, the "tags" that POR uses to denote to-be-explored
