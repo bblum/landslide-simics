@@ -1410,16 +1410,16 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		ACTION(s, user_wants_txn) = true;
 		record_user_yield_activity(&ls->user_sync);
 	} else if (user_xbegin_exiting(ls->eip)) {
-		assert(!s->any_thread_txn && "acc'ly ran htm-blocked thread");
 		assert(ACTION(s, user_wants_txn));
-		/* potentially-blocked state -> owns the htm lock state */
 		ACTION(s, user_wants_txn) = false;
-		// TODO: Check value of eax to see if we're in failure path
-		// If so need clear wants txn as above, but skip the rest.
-		// Need confirm whether failure injection mechanism actually does
-		// make this logic execute, or otherwise duplicate it .. elsewhere?
-		ACTION(s, user_txn) = s->any_thread_txn = true;
-		// TODO: add a global txn lock to the lockset
+		if (GET_CPU_ATTR(ls->cpu0, eax) == _XBEGIN_STARTED) {
+			lsprintf(DEV, "TID %d transacts\n", CURRENT(s, tid));
+			assert(!s->any_thread_txn && "acc'ly ran htm-blocked thread");
+			ACTION(s, user_txn) = s->any_thread_txn = true;
+			// TODO: add a global txn lock to the lockset
+		} else {
+			lsprintf(DEV, "TID %d fails to transact\n", CURRENT(s, tid));
+		}
 	} else if (user_xend_entering(ls->eip)) {
 		if (!ACTION(s, user_txn)) {
 			FOUND_A_BUG(ls, "xend() while not in a transaction\n");
@@ -1923,35 +1923,7 @@ void sched_recover(struct ls_state *ls)
 	assert(ls->just_jumped);
 
 	if (arbiter_pop_choice(&ls->arbiter, &tid, &txn)) {
-		if (tid == CURRENT(s, tid)) {
-			/* Hmmmm */
-			if (kern_timer_entering(ls->eip)) {
-				/* Oops, we ended up trying to leave the thread
-				 * we want to be running. Make sure to go
-				 * back... */
-				set_schedule_target(s, s->cur_agent);
-				assert(s->entering_timer);
-				lsprintf(INFO, "Explorer-chosen tid %d wants "
-					 "to run; not switching away\n", tid);
-				/* Make sure the arbiter knows this isn't a
-				 * voluntary reschedule. The handling_timer flag
-				 * won't be on now, but sched_update sets it. */
-				lsprintf(INFO, "Updating the last_agent: ");
-				print_agent(INFO, s->last_agent);
-				printf(INFO, " to ");
-				print_agent(INFO, s->cur_agent);
-				printf(INFO, "\n");
-				s->last_agent = s->cur_agent;
-				/* This will cause an assert to trip faster. */
-				s->voluntary_resched_tid = -1;
-			} else {
-				lsprintf(INFO, "Explorer-chosen tid %d already "
-					 "running!\n", tid);
-			}
-			/* ICB counter logic not necessary here; current thread
-			 * will always be legal w/o "preempting" (per ICB). */
-		} else {
-			// TODO: duplicate agent search logic (arbiter.c)
+		if (tid != CURRENT(s, tid)) {
 			struct agent *a = agent_by_tid_or_null(&s->rq, tid);
 			if (a == NULL) {
 				a = agent_by_tid_or_null(&s->sq, tid);
@@ -1980,7 +1952,23 @@ void sched_recover(struct ls_state *ls)
 				       "ouch! BPOR tried to preempt too much!");
 #endif
 			}
+		} else if (kern_timer_entering(ls->eip)) {
+			/* Oops, we ended up trying to leave the thread we want
+			 * to be running. Make sure to go back... */
+			set_schedule_target(s, s->cur_agent);
+			assert(s->entering_timer);
+			lsprintf(INFO, "Not switching from chosen tid %d\n", tid);
+			/* Make sure the arbiter knows this isn't a
+			 * voluntary reschedule. The handling_timer flag
+			 * won't be on now, but sched_update sets it. */
+			s->last_agent = s->cur_agent;
+			/* This will cause an assert to trip faster. */
+			s->voluntary_resched_tid = -1;
+		} else {
+			lsprintf(INFO, "Chosen tid %d already running!\n", tid);
 		}
+		/* ICB counter logic not necessary here; current thread
+		 * will always be legal w/o "preempting" (per ICB). */
 	} else {
 		tid = CURRENT(s, tid);
 		lsprintf(BUG, "Explorer chose no tid; defaulting to %d\n", tid);
