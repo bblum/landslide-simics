@@ -436,3 +436,15 @@ unsigned int delay_instruction(conf_object_t *cpu)
 
 	return buf;
 }
+
+unsigned int cause_transaction_failure(conf_object_t *cpu, unsigned int status)
+{
+	/* it'd work in principle but explore/sched shouldn't use it this way */
+	assert(status != _XBEGIN_STARTED && "i don't swing like that");
+	SET_CPU_ATTR(cpu, eax, status);
+	/* because of the 1-instruction delay on timer interrupce after a PP,
+	 * we'll be injecting the failure after ebp is pushed in _xbegin. */
+	assert(GET_CPU_ATTR(cpu, eip) == HTM_XBEGIN + 1);
+	SET_CPU_ATTR(cpu, eip, HTM_XBEGIN_END - 1);
+	return HTM_XBEGIN_END - 1;
+}

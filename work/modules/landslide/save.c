@@ -291,6 +291,8 @@ static void copy_sched(struct sched_state *dest, const struct sched_state *src)
 	dest->deadlock_fp_avoidance_count = src->deadlock_fp_avoidance_count;
 	dest->icb_preemption_count = src->icb_preemption_count;
 	dest->any_thread_txn = src->any_thread_txn;
+	dest->delayed_txn_fail = src->delayed_txn_fail;
+	dest->delayed_txn_fail_tid = src->delayed_txn_fail_tid;
 }
 
 static void copy_test(struct test_state *dest, const struct test_state *src)

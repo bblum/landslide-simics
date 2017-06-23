@@ -217,6 +217,8 @@ struct sched_state {
 	unsigned int icb_preemption_count;
 	/* HTM */
 	bool any_thread_txn;
+	bool delayed_txn_fail;
+	unsigned int delayed_txn_fail_tid;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
 	/* It does take many instructions for us to switch, after all. This is

@@ -397,6 +397,7 @@ void sched_init(struct sched_state *s)
 	s->deadlock_fp_avoidance_count = 0;
 	s->icb_preemption_count = 0;
 	s->any_thread_txn = false;
+	s->delayed_txn_fail = false;
 }
 
 void print_agent(verbosity v, const struct agent *a)
@@ -1108,6 +1109,16 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 	if (opcodes_are_atomic_swap(ls->instruction_text) ||
 	     user_make_runnable_entering(ls->eip)) {
 		check_user_xchg(&ls->user_sync, s->cur_agent);
+	}
+
+	/* Check if we wanted to inject a transaction failure earlier but
+	 * couldn't due to being stuck in a timer interrupt. If so, the first
+	 * instruction in userspace since then must be the injection point. */
+	if (s->delayed_txn_fail) {
+		assert(s->delayed_txn_fail_tid == CURRENT(s, tid));
+		// TODO dem failure codez
+		ls->eip = cause_transaction_failure(ls->cpu0, 0);
+		s->delayed_txn_fail = false;
 	}
 
 	/* mutexes (and yielding) */
@@ -1924,6 +1935,7 @@ void sched_recover(struct ls_state *ls)
 
 	if (arbiter_pop_choice(&ls->arbiter, &tid, &txn)) {
 		if (tid != CURRENT(s, tid)) {
+			assert(!txn && "can't do both nondeterminims at once");
 			struct agent *a = agent_by_tid_or_null(&s->rq, tid);
 			if (a == NULL) {
 				a = agent_by_tid_or_null(&s->sq, tid);
@@ -1964,6 +1976,17 @@ void sched_recover(struct ls_state *ls)
 			s->last_agent = s->cur_agent;
 			/* This will cause an assert to trip faster. */
 			s->voluntary_resched_tid = -1;
+			if (txn) {
+				/* Can't inject the txn failure immediately;
+				 * need to wait to get back to userspace. */
+				// TODO: send an xabort status here too
+				s->delayed_txn_fail = true;
+				s->delayed_txn_fail_tid = tid;
+			}
+		} else if (txn) {
+			// TODO: failure codes
+			lsprintf(INFO, "TID %d fails to transact\n", tid);
+			ls->eip = cause_transaction_failure(ls->cpu0, 0);
 		} else {
 			lsprintf(INFO, "Chosen tid %d already running!\n", tid);
 		}

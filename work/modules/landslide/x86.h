@@ -63,6 +63,15 @@ static inline unsigned int get_cpu_attr(conf_object_t *cpu, const char *name) {
 #define OPCODE_CLI 0xfa
 #define OPCODE_STI 0xfb
 
+#define _XBEGIN_STARTED    (~0u)
+#define _XABORT_EXPLICIT   (1 << 0)
+#define _XABORT_RETRY      (1 << 1)
+#define _XABORT_CONFLICT   (1 << 2)
+#define _XABORT_CAPACITY   (1 << 3)
+#define _XABORT_DEBUG      (1 << 4)
+#define _XABORT_NESTED     (1 << 5)
+#define _XABORT_CODE(x)    (((x) >> 24) & 0xFF)
+
 void cause_timer_interrupt(conf_object_t *cpu, conf_object_t *apic, conf_object_t *pic);
 unsigned int cause_timer_interrupt_immediately(conf_object_t *cpu);
 unsigned int avoid_timer_interrupt_immediately(conf_object_t *cpu);
@@ -74,6 +83,7 @@ char *read_string(conf_object_t *cpu, unsigned int eip);
 bool instruction_is_atomic_swap(conf_object_t *cpu, unsigned int eip); /* slower; uses READ_MEMORY */
 bool opcodes_are_atomic_swap(uint8_t *opcodes); /* faster; ok to use every instruction */
 unsigned int delay_instruction(conf_object_t *cpu);
+unsigned int cause_transaction_failure(conf_object_t *cpu, unsigned int status);
 
 #define READ_BYTE(cpu, addr) \
 	({ ASSERT_UNSIGNED(addr); read_memory(cpu, addr, 1); })
