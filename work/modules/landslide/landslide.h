@@ -53,7 +53,7 @@ struct ls_state {
 	char *html_file;
 
 	bool just_jumped;
-	bool end_branch_early_due_to_trylock_prob;
+	bool end_branch_early;
 };
 
 /* process exit codes */

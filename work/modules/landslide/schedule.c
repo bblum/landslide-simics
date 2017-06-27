@@ -691,7 +691,7 @@ static void keep_schedule_inflight(struct ls_state *ls)
 			// we were able to find the other runnable thread, which
 			// is in the sleep critical section preventing a trylock.
 			// override the test lifecycle logic, and end it now.
-			ls->end_branch_early_due_to_trylock_prob = true;
+			ls->end_branch_early = true;
 			// note that this is not precise: if TWO threads both
 			// simultaneously fall into a hole and can take no more,
 			// the other will appear to be runnable, and we'll end
@@ -1445,8 +1445,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		}
 		// TODO
 		assert(xabort_code == 0 && "diff xabort codes not supported yet");
-		// TODO
-		assert(0 && "implement dis time travel");
+		ls->end_branch_early = true;
 	/* misc */
 	} else if (user_make_runnable_entering(ls->eip)) {
 		/* Catch "while (make_runnable(tid) < 0)" loops. */

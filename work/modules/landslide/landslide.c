@@ -89,7 +89,7 @@ struct ls_state *new_landslide()
 	ls->cmd_file = NULL;
 	ls->html_file = NULL;
 	ls->just_jumped = false;
-	ls->end_branch_early_due_to_trylock_prob = false;
+	ls->end_branch_early = false;
 
 	lsprintf(ALWAYS, "welcome to landslide.\n");
 
@@ -569,8 +569,8 @@ static void check_test_state(struct ls_state *ls)
 {
 	/* When a test case finishes, break the simulation so the wrapper can
 	 * decide what to do. */
-	if ((test_update_state(ls) && !ls->test.test_is_running) || ls->end_branch_early_due_to_trylock_prob) {
-		ls->end_branch_early_due_to_trylock_prob = false;
+	if ((test_update_state(ls) && !ls->test.test_is_running) || ls->end_branch_early) {
+		ls->end_branch_early = false;
 		/* See if it's time to try again... */
 		if (ls->test.test_ever_caused) {
 			lsprintf(DEV, "test case ended!\n");
