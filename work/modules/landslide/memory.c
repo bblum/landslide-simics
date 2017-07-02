@@ -624,6 +624,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 	assert(!(during_init && during_destroy));
 
 	bool interrupce = interrupts_enabled(ls->cpu0);
+	bool during_txn = ls->sched.cur_agent->action.user_txn;
 
 	enum chunk_id_info any_cids = c == NULL ? NOT_IN_HEAP : HAS_CHUNK_ID;
 	unsigned int cid = c == NULL ? 0x15410de0u : c->id;
@@ -670,7 +671,8 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		}
 
 		/* ensure not merging into differently-interruptible access */
-		if (l_old->interrupce_enabled != interrupce) {
+		if (l_old->interrupce_enabled != interrupce ||
+		    l_old->during_txn != during_txn) {
 			continue;
 		}
 
@@ -732,6 +734,7 @@ static void add_lockset_to_shm(struct ls_state *ls, struct mem_access *ma,
 		l_new->during_init = during_init;
 		l_new->during_destroy = during_destroy;
 		l_new->interrupce_enabled = interrupce;
+		l_new->during_txn = during_txn;
 		l_new->last_call = called_from;
 		l_new->most_recent_syscall = current_syscall;
 		l_new->any_chunk_ids = any_cids;
@@ -1225,18 +1228,18 @@ static void print_data_race(struct ls_state *ls, struct hax *h0, struct hax *h1,
 	STATIC_ASSERT(EXPLORE_BACKWARDS == 0 && "Hey, no fair!");
 	/* a 1-pass dr analysis would report this on 1st branch w/o "waiting to
 	 * reorder it"; it's not fair to count as a potential false negative */
-	if (l0->interrupce_enabled) {
+	if (l0->interrupce_enabled && !l0->during_txn) {
 #else
-	if (confirmed && l0->interrupce_enabled) {
+	if (confirmed && l0->interrupce_enabled && !l0->during_txn) {
 #endif
 		message_data_race(&ls->mess, l0->eip, h0->chosen_thread,
 			l0->last_call, l0->most_recent_syscall, confirmed,
 			deterministic, free_re_malloc);
 	}
 #ifdef DR_FALSE_NEGATIVE_EXPERIMENT
-	if (l1->interrupce_enabled) {
+	if (l1->interrupce_enabled && !l1->during_txn) {
 #else
-	if ((confirmed || !too_suspicious) && l1->interrupce_enabled) {
+	if ((confirmed || !too_suspicious) && l1->interrupce_enabled && !l1->during_txn) {
 #endif
 		message_data_race(&ls->mess, l1->eip, h1->chosen_thread,
 			l1->last_call, l1->most_recent_syscall, confirmed,
@@ -1356,6 +1359,7 @@ static void check_locksets(struct ls_state *ls, struct hax *h0, struct hax *h1,
 			    /* with pure HB, the above check subsumes this one */
 			    && !lockset_intersect(&l0->locks_held, &l1->locks_held)
 			    && (l0->interrupce_enabled || l1->interrupce_enabled)
+			    && !(l0->during_txn && l1->during_txn)
 			    && !ignore_dr_function(l0->eip)
 			    && !ignore_dr_function(l1->eip)) {
 				/* Data race. Have we seen it reordered? */

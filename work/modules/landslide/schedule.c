@@ -1427,7 +1427,6 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 			lsprintf(DEV, "TID %d transacts\n", CURRENT(s, tid));
 			assert(!s->any_thread_txn && "acc'ly ran htm-blocked thread");
 			ACTION(s, user_txn) = s->any_thread_txn = true;
-			// TODO: add a global txn lock to the lockset
 		} else {
 			lsprintf(DEV, "TID %d fails to transact\n", CURRENT(s, tid));
 		}
@@ -1438,7 +1437,6 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		assert(s->any_thread_txn);
 		ACTION(s, user_txn) = s->any_thread_txn = false;
 		record_user_yield_activity(&ls->user_sync);
-		// TODO: lockset
 	} else if (user_xabort_entering(ls->cpu0, ls->eip, &xabort_code)) {
 		if (!ACTION(s, user_txn)) {
 			FOUND_A_BUG(ls, "xabort() while not in a transaction\n");

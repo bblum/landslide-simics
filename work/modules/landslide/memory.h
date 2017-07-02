@@ -32,6 +32,7 @@ struct mem_lockset {
 	bool during_init;
 	bool during_destroy;
 	bool interrupce_enabled;
+	bool during_txn;
 	/* two locksets with existing but different chunk ids are a false
 	 * positive for data race detection (see issues #23 and #170).
 	 * however, since we aggressively combine locksets, multiple chunk
