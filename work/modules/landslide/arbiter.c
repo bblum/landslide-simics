@@ -118,7 +118,7 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 		   && ((!KERNEL_MEMORY(ls->eip) && user_within_functions(ls)) ||
 		      (KERNEL_MEMORY(ls->eip) && kern_within_functions(ls)))
 #endif
-		   ) {
+		   && !ls->sched.cur_agent->action.user_txn) {
 		*data_race = true;
 		ASSERT_ONE_THREAD_PER_PP(ls);
 		return true;
@@ -144,6 +144,8 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			/* User thread is blocked on an "xchg-continue" mutex.
 			 * Analogous to HLT state -- need to preempt it. */
 			ASSERT_ONE_THREAD_PER_PP(ls);
+			// FIXME: should be equivalent to making a syscall in a txn
+			assert(!ls->sched.cur_agent->action.user_txn && "txn must abort");
 			return true;
 #ifndef PINTOS_KERNEL
 		} else if (!check_user_address_space(ls)) {
@@ -153,6 +155,8 @@ bool arbiter_interested(struct ls_state *ls, bool just_finished_reschedule,
 			    user_mutex_unlock_exiting(ls->eip)) &&
 			   user_within_functions(ls)) {
 			ASSERT_ONE_THREAD_PER_PP(ls);
+			// FIXME: can we skip this PP without violating soundness?
+			assert(!ls->sched.cur_agent->action.user_txn && "is this ok??");
 			return true;
 		} else if (user_xbegin_entering(ls->eip) ||
 			   user_xend_entering(ls->eip)) {

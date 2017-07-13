@@ -1004,6 +1004,10 @@ static void sched_update_kern_state_machine(struct ls_state *ls)
 	} else if (kern_exit_disk_io_fn(ls->eip)) {
 		assert(ACTION(s, disk_io) && "(co)recursive disk_io not supported");
 		ACTION(s, disk_io) = false;
+	} else if (ACTION(s, user_txn)) {
+		/* syscalls will always abort transactions */
+		check_user_yield_activity(&ls->user_sync, s->cur_agent);
+		ls->end_branch_early = true;
 	} else {
 		sched_check_lmm_init(ls);
 	}
@@ -1443,6 +1447,7 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		}
 		// TODO
 		assert(xabort_code == 0 && "diff xabort codes not supported yet");
+		check_user_yield_activity(&ls->user_sync, s->cur_agent);
 		ls->end_branch_early = true;
 	/* misc */
 	} else if (user_make_runnable_entering(ls->eip)) {
@@ -1791,6 +1796,7 @@ void sched_update(struct ls_state *ls)
 		bool our_choice;
 
 		assert(!(data_race && voluntary));
+		assert(!ACTION(s, user_txn));
 
 		/* Avoid infinite stuckness if we just inserted a DR PP. */
 		if (data_race && CURRENT(s, just_delayed_for_data_race)) {
