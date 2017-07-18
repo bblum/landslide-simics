@@ -44,10 +44,12 @@ bool use_icb = false;
 bool preempt_everywhere = false;
 bool pure_hb = false;
 bool transactions = false;
+bool abort_codes = false;
 
 void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 		     bool arg_pintos, bool arg_use_icb, bool arg_preempt_everywhere,
-		     bool arg_pure_hb, bool arg_txn, bool arg_pathos)
+		     bool arg_pure_hb, bool arg_txn, bool arg_txn_abort_codes,
+		     bool arg_pathos)
 {
 	test_name = XSTRDUP(arg_test_name);
 	verbose = arg_verbose;
@@ -58,6 +60,7 @@ void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 	preempt_everywhere = arg_preempt_everywhere;
 	pure_hb = arg_pure_hb;
 	transactions = arg_txn;
+	abort_codes = arg_txn_abort_codes;
 }
 
 bool testing_pintos() { return pintos; }
@@ -194,6 +197,9 @@ static void *run_job(void *arg)
 		assert(!pintos && !pathos);
 		XWRITE(&j->config_static, "HTM=1\n");
 		XWRITE(&j->config_static, "FILTER_DRS_BY_TID=0\n");
+		if (abort_codes) {
+			XWRITE(&j->config_static, "HTM_ABORT_CODES=1\n");
+		}
 		XWRITE(&j->config_static, "ignore_dr_function thr_create 1\n");
 		XWRITE(&j->config_static, "ignore_dr_function thr_exit 1\n");
 		XWRITE(&j->config_static, "ignore_dr_function thr_join 1\n");

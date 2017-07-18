@@ -131,6 +131,7 @@ DR_PPS_RESPECT_WITHIN_FUNCTIONS=0
 PREEMPT_EVERYWHERE=0
 PURE_HAPPENS_BEFORE=0
 HTM=0
+HTM_ABORT_CODES=0
 source $CONFIG
 
 source ./symbols.sh
@@ -387,6 +388,9 @@ if [ "$HTM" = "1" ]; then
 	echo "#define HTM_XBEGIN_END 0x`get_user_func_end _xbegin`"
 	echo "#define HTM_XEND       0x`get_user_func     _xend`"
 	echo "#define HTM_XABORT     0x`get_user_func     _xabort`"
+	if [ "$HTM_ABORT_CODES" = "1" ]; then
+		echo "#define HTM_ABORT_CODES"
+	fi
 fi
 
 echo

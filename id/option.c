@@ -120,7 +120,8 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		 unsigned long *max_time, unsigned long *num_cpus, bool *verbose,
 		 bool *leave_logs, bool *control_experiment, bool *use_wrapper_log,
 		 char *wrapper_log, unsigned int wrapper_log_len, bool *pintos,
-		 bool *use_icb, bool *preempt_everywhere, bool *pure_hb, bool *txn,
+		 bool *use_icb, bool *preempt_everywhere, bool *pure_hb,
+		 bool *txn, bool *txn_abort_codes,
 		 bool *pathos, unsigned long *progress_report_interval,
 		 unsigned long *eta_factor, unsigned long *eta_thresh)
 {
@@ -168,6 +169,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	DEF_CMDLINE_FLAG('H', true, limited_hb, "Use \"limited\" happens-before data-race analysis");
 	DEF_CMDLINE_FLAG('V', true, pure_hb, "Use vector clocks for \"pure\" happens-before data-races");
 	DEF_CMDLINE_FLAG('X', true, txn, "Enable transactional-memory testing options");
+	DEF_CMDLINE_FLAG('A', true, txn_abort_codes, "Support multiple xabort failure codes (warning: exponential)");
 #undef DEF_CMDLINE_FLAG
 
 #define DEF_CMDLINE_OPTION(flagname, secret, varname, descr, value)	\
@@ -317,6 +319,9 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 			ERR("Can't test TM and kernels at same time\n");
 			options_valid = false;
 		}
+	} else if (arg_txn_abort_codes) {
+		ERR("-A (txn abort codes) supplied without -X (txn)");
+		options_valid = false;
 	} else if (strstr(test_name, "htm") == test_name) {
 		// TODO: add a similar check for STM
 		ERR("You want to use -X with that HTM test case, right?\n");
@@ -336,6 +341,7 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	*preempt_everywhere = arg_everywhere;
 	*pure_hb = (!arg_pintos && !arg_pathos && !arg_limited_hb) || arg_pure_hb;
 	*txn = arg_txn;
+	*txn_abort_codes = arg_txn_abort_codes;
 
 	return options_valid;
 }
