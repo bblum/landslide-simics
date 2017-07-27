@@ -229,15 +229,16 @@ static void tag_reachable_aunts(struct hax *h0, struct hax *ancestor,
 }
 #endif
 
-static bool any_tagged_child(struct hax *h, unsigned int *new_tid, bool *txn)
+static bool any_tagged_child(struct hax *h, unsigned int *new_tid, bool *txn,
+			     unsigned int *xabort_code)
 {
 	struct agent *a;
 
-	if ((*txn = (h->xbegin && !h->xbegin_explored))) {
+	if ((*txn = (h->xbegin && ARRAY_LIST_SIZE(&h->xabort_codes_todo) > 0))) {
 		// TODO: reduction challenge?
-		/* need to set this here so we don't later say we still need
-		 * to do it while already in the failure injection subtree */
-		h->xbegin_explored = true;
+		/* pop the code from the list so it won't be doubly explored */
+		*xabort_code = *ARRAY_LIST_GET(&h->xabort_codes_todo, 0);
+		ARRAY_LIST_REMOVE_SWAP(&h->xabort_codes_todo, 0);
 		/* injecting a failure in the xbeginning thread, obvs. */
 		*new_tid = h->chosen_thread;
 		return true;
@@ -274,7 +275,8 @@ static void print_pruned_children(struct save_state *ss, struct hax *h)
 		printf(DEV, "\n");
 }
 
-struct hax *explore(struct ls_state *ls, unsigned int *new_tid, bool *txn)
+struct hax *explore(struct ls_state *ls, unsigned int *new_tid, bool *txn,
+		    unsigned int *xabort_code)
 {
 	struct save_state *ss = &ls->save;
 	struct hax *current = ss->current;
@@ -341,7 +343,7 @@ struct hax *explore(struct ls_state *ls, unsigned int *new_tid, bool *txn)
 	 * outside of the current branch of the tree. A trail of "all_explored"
 	 * flags gets left behind. */
 	for (struct hax *h = current->parent; h != NULL; h = h->parent) {
-		if (any_tagged_child(h, new_tid, txn)) {
+		if (any_tagged_child(h, new_tid, txn, xabort_code)) {
 			assert(h->is_preemption_point);
 			lsprintf(BRANCH, "from #%d/tid%d, chose tid %d%s, "
 				 "child of #%d/tid%d\n", current->depth,

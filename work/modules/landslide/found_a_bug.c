@@ -254,7 +254,8 @@ static long double compute_state_space_size(struct ls_state *ls,
 		}
 		unsigned int _tid;
 		bool _txn;
-		explore(ls, &_tid, &_txn);
+		unsigned int _xabort_code;
+		explore(ls, &_tid, &_txn, &_xabort_code);
 		*needed_compute = true;
 		return estimate_proportion(ls->save.root, ls->save.current);
 	} else {

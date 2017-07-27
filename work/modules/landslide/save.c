@@ -33,6 +33,7 @@
 #include "tree.h"
 #include "user_sync.h"
 #include "vector_clock.h"
+#include "x86.h"
 
 /******************************************************************************
  * simics goo
@@ -566,6 +567,10 @@ static void free_hax(struct hax *h)
 	h->happens_before = NULL;
 	free_stack_trace(h->stack_trace);
 	free_haxs_children(h);
+	if (h->xbegin) {
+		ARRAY_LIST_FREE(&h->xabort_codes_ever);
+		ARRAY_LIST_FREE(&h->xabort_codes_todo);
+	}
 }
 
 /* Reverse that which is not glowing green. */
@@ -835,8 +840,12 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		h->subtree_usecs = 0.0L;
 		h->estimate_computed = false;
 		h->voluntary = voluntary;
-		h->xbegin = xbegin;
-		h->xbegin_explored = false;
+		if ((h->xbegin = xbegin)) {
+			ARRAY_LIST_INIT(&h->xabort_codes_ever, 8);
+			ARRAY_LIST_INIT(&h->xabort_codes_todo, 8);
+			ARRAY_LIST_APPEND(&h->xabort_codes_ever, _XABORT_RETRY);
+			ARRAY_LIST_APPEND(&h->xabort_codes_todo, _XABORT_RETRY);
+		}
 
 		if (voluntary) {
 #ifndef PINTOS_KERNEL

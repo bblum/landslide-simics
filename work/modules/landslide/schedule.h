@@ -219,6 +219,7 @@ struct sched_state {
 	bool any_thread_txn;
 	bool delayed_txn_fail;
 	unsigned int delayed_txn_fail_tid;
+	unsigned int delayed_txn_fail_code;
 	/* Did the guest finish initialising its own state */
 	bool guest_init_done;
 	/* It does take many instructions for us to switch, after all. This is

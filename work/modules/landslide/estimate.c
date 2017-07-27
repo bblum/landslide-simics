@@ -80,7 +80,7 @@ static unsigned int update_marked_children(struct hax *h)
 	);
 	/* ezpz */
 	if (h->xbegin) {
-		h->marked_children++;
+		h->marked_children += ARRAY_LIST_SIZE(&h->xabort_codes_ever);
 	}
 	/* since this is our ancestor, it must at least have us as a child */
 	assert(h->marked_children > 0);

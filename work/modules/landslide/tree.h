@@ -10,6 +10,7 @@
 #include <simics/api.h> /* for "bool" */
 
 #include "variable_queue.h"
+#include "array_list.h"
 
 struct ls_state;
 struct mem_state;
@@ -72,7 +73,8 @@ struct hax {
 	/* Does this preemption point denote the start of a transaction?
 	 * (If so, then a failure will need to be injected, not just timers.) */
 	bool xbegin;
-	bool xbegin_explored;
+	ARRAY_LIST(unsigned int) xabort_codes_ever; /* append-only */
+	ARRAY_LIST(unsigned int) xabort_codes_todo; /* serves as workqueue */
 
 	/* Note: a list of available tids to run next is implicit in the copied
 	 * sched! Also, the "tags" that POR uses to denote to-be-explored

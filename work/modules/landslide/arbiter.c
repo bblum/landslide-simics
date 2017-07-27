@@ -28,15 +28,16 @@ void arbiter_init(struct arbiter_state *r)
 	Q_INIT_HEAD(&r->choices);
 }
 
-void arbiter_append_choice(struct arbiter_state *r, unsigned int tid, bool txn)
+void arbiter_append_choice(struct arbiter_state *r, unsigned int tid, bool txn, unsigned int xabort_code)
 {
 	struct choice *c = MM_XMALLOC(1, struct choice);
 	c->tid = tid;
 	c->txn = txn;
+	c->xabort_code = xabort_code;
 	Q_INSERT_FRONT(&r->choices, c, nobe);
 }
 
-bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid, bool *txn)
+bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid, bool *txn, unsigned int *xabort_code)
 {
 	struct choice *c = Q_GET_TAIL(&r->choices);
 	if (c) {
@@ -44,6 +45,7 @@ bool arbiter_pop_choice(struct arbiter_state *r, unsigned int *tid, bool *txn)
 		Q_REMOVE(&r->choices, c, nobe);
 		*tid = c->tid;
 		*txn = c->txn;
+		*xabort_code = c->xabort_code;
 		MM_FREE(c);
 		return true;
 	} else {
