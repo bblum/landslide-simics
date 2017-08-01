@@ -682,6 +682,39 @@ static void compute_happens_before(struct hax *h)
 	printf(DEV, "} happen-before #%d/tid%d.\n", h->depth, h->chosen_thread);
 }
 
+static void add_xabort_code(struct hax *h, unsigned int code)
+{
+	assert(h->xbegin);
+	unsigned int i;
+	unsigned int *existing_code;
+	ARRAY_LIST_FOREACH(&h->xabort_codes_ever, i, existing_code) {
+		if (*existing_code == code) {
+			return;
+		}
+	}
+	ARRAY_LIST_APPEND(&h->xabort_codes_ever, code);
+	ARRAY_LIST_APPEND(&h->xabort_codes_todo, code);
+}
+
+
+/* h2 should be supplied as the parent PP of the transition which should abort */
+void abort_transaction(unsigned int tid, struct hax *h2, unsigned int code)
+{
+#ifdef HTM_ABORT_CODES
+	for (; h2 != NULL; h2 = h2->parent) {
+		if (h2->chosen_thread == tid) {
+			if (h2->xbegin) {
+				add_xabort_code(h2, code);
+			} else {
+				assert(code != _XABORT_EXPLICIT);
+			}
+			/* Done either way. If wasn't xbegin, wasn't a txn. */
+			return;
+		}
+	}
+#endif
+}
+
 /* Resets the current set of shared-memory accesses by moving what we've got so
  * far into the save point we're creating. Then, intersects the memory accesses
  * with those of each ancestor to compute independences and find data races.
@@ -714,6 +747,7 @@ static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 
 	/* compute newly-completed transition's conflicts with previous ones */
 	for (struct hax *old = h->parent; old != NULL; old = old->parent) {
+		assert(old->depth >= 0 && old->depth < h->depth);
 		if (h->chosen_thread == old->chosen_thread) {
 			lsprintf(INFO, "Same TID %d for #%d and #%d\n",
 				 h->chosen_thread, h->depth, old->depth);
@@ -724,14 +758,21 @@ static void shimsham_shm(struct ls_state *ls, struct hax *h, bool in_kernel)
 		} else if (old->depth == 0) {
 			/* Basically guaranteed, and irrelevant. Suppress printing. */
 			h->conflicts[0] = true;
+		} else if (h->happens_before[old->depth]) {
+			/* No conflict if reordering is impossible */
+			h->conflicts[old->depth] = false;
 		} else {
 			/* The haxes are independent if there was no intersection. */
-			assert(old->depth >= 0 && old->depth < h->depth);
-			/* Only bother to compute, and look for data races, if
-			 * they are possibly 'concurrent' with each other. */
 			h->conflicts[old->depth] =
-				(!h->happens_before[old->depth]) &&
 				mem_shm_intersect(ls, h, old, in_kernel);
+			if (h->conflicts[old->depth]) {
+				// TODO: reduction challenge: does it suffice
+				// TODO: to only tag one of these txns?
+				abort_transaction(h->chosen_thread, h->parent,
+						  _XABORT_CONFLICT);
+				abort_transaction(old->chosen_thread, old->parent,
+						  _XABORT_CONFLICT);
+			}
 		}
 	}
 }
@@ -843,8 +884,7 @@ void save_setjmp(struct save_state *ss, struct ls_state *ls,
 		if ((h->xbegin = xbegin)) {
 			ARRAY_LIST_INIT(&h->xabort_codes_ever, 8);
 			ARRAY_LIST_INIT(&h->xabort_codes_todo, 8);
-			ARRAY_LIST_APPEND(&h->xabort_codes_ever, _XABORT_RETRY);
-			ARRAY_LIST_APPEND(&h->xabort_codes_todo, _XABORT_RETRY);
+			add_xabort_code(h, _XABORT_RETRY);
 		}
 
 		if (voluntary) {

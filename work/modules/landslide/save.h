@@ -36,6 +36,8 @@ struct save_state {
 	uint64_t total_usecs;
 };
 
+void abort_transaction(unsigned int tid, struct hax *h2, unsigned int code);
+
 void save_init(struct save_state *);
 
 void save_recover(struct save_state *, struct ls_state *, int new_tid);

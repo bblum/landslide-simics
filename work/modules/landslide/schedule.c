@@ -1444,8 +1444,8 @@ static void sched_update_user_state_machine(struct ls_state *ls)
 		if (!ACTION(s, user_txn)) {
 			FOUND_A_BUG(ls, "xabort() while not in a transaction\n");
 		}
-		// TODO
-		assert(xabort_code == 0 && "diff xabort codes not supported yet");
+		abort_transaction(CURRENT(s, tid), ls->save.current,
+				  _XABORT_EXPLICIT | ((xabort_code & 0xFF) << 24));
 		check_user_yield_activity(&ls->user_sync, s->cur_agent);
 		ls->end_branch_early = true;
 	/* misc */

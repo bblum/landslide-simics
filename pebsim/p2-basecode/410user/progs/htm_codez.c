@@ -30,10 +30,24 @@ void txn()
 	int status;
 	if ((status = _xbegin()) == _XBEGIN_STARTED) {
 		count++;
+		_xabort(42);
 		_xend();
 	} else {
-		assert(status == _XABORT_RETRY);
+		assert(status == _XABORT_RETRY || status == _XABORT_CONFLICT ||
+		       ((status & _XABORT_EXPLICIT) != 0 && _XABORT_CODE(status) == 42));
 	}
+}
+
+void *child(void *dummy)
+{
+	int status;
+	if ((status = _xbegin()) == _XBEGIN_STARTED) {
+		count++;
+		_xend();
+	} else {
+		assert(status == _XABORT_RETRY || status == _XABORT_CONFLICT);
+	}
+	return NULL;
 }
 
 int main(void)
@@ -44,7 +58,11 @@ int main(void)
 	ERR(mutex_init(&lock));
 	misbehave(BGND_BRWN >> FGND_CYAN); // for landslide
 
+	int tid = thr_create(child, NULL);
+	ERR(tid);
+
 	txn();
+	ERR(thr_join(tid, NULL));
 
 	return 0;
 }
