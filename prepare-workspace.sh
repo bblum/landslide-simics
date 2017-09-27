@@ -13,6 +13,7 @@ function die() {
 sed -i "s:SIMICS_WORKSPACE=.*:SIMICS_WORKSPACE=$PWD/work:" work/config.mk || die 1
 sed -i "s:add-module-directory.*:add-module-directory $PWD/work/linux64/lib:" pebsim/config.simics || die 2
 sed -i "s:SIMENV=/.*:SIMENV=$PWD/pebsim:" pebsim/simics46 || die 3
+grep -R "bblum/masters" work/ | cut -d: -f1 | xargs sed -i "s@/afs/andrew.cmu.edu/usr12/bblum/masters@$PWD@" || die 4
 
 echo "$0: success."
 exit 0
