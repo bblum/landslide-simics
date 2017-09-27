@@ -17,6 +17,18 @@ if [ "`cat pebsim/current-architecture.txt 2>/dev/null`" = "p2" ]; then
 	cd pebsim/p2-basecode
 	./check-need-p2-setup-again.sh || exit 1
 	cd ../../
+	# try to find the program name and check the kernel is built with it
+	# if we let until build.sh to catch this error, quicksand will hang
+	if echo "$@" | grep -- "-p " >/dev/null; then
+		TEST_CASE=`echo " $@" | sed 's/.* -p *//' | sed 's/ .*//'`
+		KERNEL_IMG=pebsim/kernel
+		if ! grep "${TEST_CASE}_exec2obj_userapp_code_ptr" $KERNEL_IMG 2>&1 >/dev/null; then
+			echo -e "\033[01;31mSpecified test program '$TEST_CASE' wasn't built with your p2.\033[00m"
+			echo -e "\033[01;31mPlease consult lecture slide #34 regarding Landslide-friendly tests,\033[00m"
+			echo -e "\033[01;31mor consult the user guide point 3(d) on how to include custom test cases.\033[00m"
+			exit 1
+		fi
+	fi
 fi
 
 SUFFIX=`date +%Y%m%d%H%M%S`
@@ -79,5 +91,8 @@ if [ "$MV_RV" != "0" ]; then
 	echo -e "\033[00m(landslide's exit code was $RV)"
 	exit 1
 fi
+
+# prevent quadratic usage of student AFS volume space :O
+rm -f id/ls*log* pebsim/config.quicksand.* pebsim/pps-and-such.quicksand.*
 
 exit $RV
