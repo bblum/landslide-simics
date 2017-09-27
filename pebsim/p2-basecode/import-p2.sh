@@ -52,6 +52,7 @@ sync_subdir user/inc
 sync_subdir user/libautostack
 sync_subdir user/libsyscall
 sync_subdir user/libthread
+mkdir -p user/progs
 
 # Merge student config.mk targets into ours
 

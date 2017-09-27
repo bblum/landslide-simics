@@ -151,7 +151,6 @@ if $ls_pintos == "yes" {
 	break (sym _start)
 }
 run
-delete 3
 new-tracer
 trace0.start
 @SIM_set_attribute(SIM_get_object("trace0"), "consumer", landslide)
