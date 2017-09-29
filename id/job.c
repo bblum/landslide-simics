@@ -45,6 +45,7 @@ bool preempt_everywhere = false;
 bool pure_hb = false;
 bool transactions = false;
 bool abort_codes = false;
+bool minimize_traces = false;
 
 void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 		     bool arg_pintos, bool arg_use_icb, bool arg_preempt_everywhere,
@@ -61,12 +62,13 @@ void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 	pure_hb = arg_pure_hb;
 	transactions = arg_txn;
 	abort_codes = arg_txn_abort_codes;
+	minimize_traces = !use_icb; // TODO: make into a cmdline option?
 }
 
 bool testing_pintos() { return pintos; }
 bool testing_pathos() { return pathos; }
 
-struct job *new_job(struct pp_set *config, bool should_reproduce)
+struct job *new_job(struct pp_set *config, bool reproduce, bool minimize)
 {
 	struct job *j = XMALLOC(1, struct job);
 	j->config = config;
@@ -74,7 +76,11 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->id = __sync_fetch_and_add(&job_id, 1);
 	j->generation = compute_generation(config);
 	j->status = JOB_NORMAL;
-	j->should_reproduce = should_reproduce;
+	j->should_reproduce = reproduce;
+	assert(!(use_icb && minimize) && "we're already using ICB!");
+	j->minimizing_trace = minimize;
+	j->minimizing_id = (unsigned int)-1;
+	j->original_trace_length = (unsigned int)-1;
 
 	RWLOCK_INIT(&j->stats_lock);
 	j->elapsed_branches = 0;
@@ -88,6 +94,7 @@ struct job *new_job(struct pp_set *config, bool should_reproduce)
 	j->kill_job = false;
 	j->log_filename = NULL;
 	j->trace_filename = NULL;
+	j->trace_length = (unsigned int)-1;
 	j->need_rerun = false;
 	j->fab_timestamp = 0;
 	j->fab_cputime = 0;
@@ -120,7 +127,7 @@ static void *run_job(void *arg)
 
 	XWRITE(&j->config_static, "TEST_CASE=%s\n", test_name);
 	XWRITE(&j->config_static, "VERBOSE=%d\n", preempt_everywhere ? 0 : verbose ? 1 : 0);
-	XWRITE(&j->config_static, "ICB=%d\n", use_icb ? 1 : 0);
+	XWRITE(&j->config_static, "ICB=%d\n", use_icb ? 1 : j->minimizing_trace ? 1 : 0);
 	XWRITE(&j->config_static, "PREEMPT_EVERYWHERE=%d\n", preempt_everywhere ? 1 : 0);
 	XWRITE(&j->config_static, "PURE_HAPPENS_BEFORE=%d\n", pure_hb ? 1 : 0);
 
@@ -244,7 +251,7 @@ static void *run_job(void *arg)
 	LOCK(&compile_landslide_lock);
 	start_using_cpu(j->current_cpu);
 
-	bool bug_in_subspace = bug_already_found(j->config);
+	bool bug_in_subspace = bug_already_found(j->config) && !j->minimizing_trace;
 	bool too_late = TIME_UP();
 	if (bug_in_subspace || too_late) {
 		DBG("[JOB %d] %s; aborting compilation.\n", j->id,
@@ -433,11 +440,29 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 			      j->fab_timestamp, j->fab_cputime);
 		}
 		PRINT(")\n");
+		if (minimize_traces) {
+			assert(j->minimizing_id != (unsigned int)-1);
+			PRINT("       ");
+			if (j->minimizing_trace) {
+				/* minimizer (ICB) job */
+				PRINT(COLOUR_BOLD COLOUR_YELLOW "Job %u's "
+				      "trace minimized to %u preemptions (was "
+				      "%u)", j->minimizing_id, j->trace_length,
+				      j->original_trace_length);
+			} else {
+				/* minimizee (original) job */
+				PRINT(COLOUR_BOLD COLOUR_YELLOW "Trace is %u "
+				      "preemptions long; Job %u is trying to "
+				      "make it shorter; please wait...\n",
+				      j->trace_length, j->minimizing_id);
+			}
+			PRINT("\n");
+		}
 	} else if (j->timed_out) {
 		PRINT(COLOUR_BOLD COLOUR_YELLOW "TIMED OUT ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
 		print_human_friendly_time(&j->estimate_eta);
-		if (use_icb) {
+		if (use_icb || j->minimizing_trace) {
 			PRINT("; cur ICB bound %d", j->icb_current_bound);
 		}
 		PRINT(")\n");
@@ -447,10 +472,15 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 		      j->elapsed_branches == 1 ? "" : "s");
 		print_human_friendly_time(&j->estimate_elapsed);
 		PRINT(" elapsed");
-		if (use_icb) {
+		if (use_icb || j->minimizing_trace) {
 			PRINT("; max ICB bound %d", j->icb_current_bound);
 		}
 		PRINT(")\n");
+		if (j->minimizing_trace) {
+			PRINT("       " COLOUR_BOLD COLOUR_YELLOW "Warning: "
+			      "couldn't reproduce Job %u's bug!\n",
+			      j->minimizing_id);
+		}
 	} else if (pending) {
 		PRINT("Pending...\n");
 	} else if (j->elapsed_branches == 0) {
@@ -464,7 +494,7 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 		PRINT(COLOUR_BOLD COLOUR_MAGENTA "Running ");
 		PRINT("(%Lf%%; ETA ", j->estimate_proportion * 100);
 		print_human_friendly_time(&j->estimate_eta);
-		if (use_icb) {
+		if (use_icb || j->minimizing_trace) {
 			PRINT("; cur ICB bound %d", j->icb_current_bound);
 		}
 		PRINT(")\n");

@@ -57,6 +57,7 @@ struct output_message {
 
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
+			unsigned int trace_length;
 			unsigned int icb_preemption_count;
 		} bug;
 
@@ -235,14 +236,14 @@ uint64_t message_estimate(struct messaging_state *state, long double proportion,
 }
 
 void message_found_a_bug(struct messaging_state *state, const char *trace_filename,
-			 unsigned int icb_preemptions, unsigned int icb_bound)
+			 unsigned int trace_length, unsigned int icb_preemptions)
 {
 	struct output_message m;
 	m.tag = FOUND_A_BUG;
 	assert(strlen(trace_filename) < MESSAGE_BUF_SIZE && "name too long");
 	strcpy(m.content.bug.trace_filename, trace_filename);
+	m.content.bug.trace_length = trace_length;
 	m.content.bug.icb_preemption_count = icb_preemptions;
-	//m.content.bug.icb_cur_bound = icb_bound; // not needed
 	send(state, &m);
 }
 

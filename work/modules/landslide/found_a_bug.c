@@ -160,7 +160,7 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 				    bool bug_found, bool tabular,
 				    struct fab_html_env *env,
 				    table_column_map_t *map,
-				    bool verbose)
+				    bool verbose, unsigned int *trace_length)
 {
 	unsigned int num;
 
@@ -170,7 +170,7 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 	}
 
 	num = 1 + print_tree_from(h->parent, h->chosen_thread, bug_found,
-				  tabular, env, map, verbose);
+				  tabular, env, map, verbose, trace_length);
 
 	if (h->is_preemption_point &&
 	    (h->chosen_thread != choose_thread || verbose)) {
@@ -197,6 +197,7 @@ static unsigned int print_tree_from(struct hax *h, unsigned int choose_thread,
 		if (tabular) {
 			html_print_stack_trace_in_table(env, map, h->stack_trace);
 		}
+		*trace_length = *trace_length + 1;
 	}
 
 	return num;
@@ -388,8 +389,9 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 	}
 
 	/* Walk current branch from root. */
+	unsigned int trace_length = 0;
 	print_tree_from(ls->save.current, ls->save.next_tid, bug_found,
-			tabular, &env, &map, verbose);
+			tabular, &env, &map, verbose, &trace_length);
 
 	lsprintf(BUG, bug_found, COLOUR_BOLD "%sCurrent stack:\n"
 		 COLOUR_DEFAULT, bug_found ? COLOUR_RED : COLOUR_GREEN);
@@ -415,9 +417,8 @@ void _found_a_bug(struct ls_state *ls, bool bug_found, bool verbose,
 			 "Tabular preemption trace output to %s\n." COLOUR_DEFAULT,
 			 ls->html_file);
 		if (bug_found) {
-			message_found_a_bug(&ls->mess, ls->html_file,
-					    ls->sched.icb_preemption_count,
-					    ls->icb_bound);
+			message_found_a_bug(&ls->mess, ls->html_file, trace_length,
+					    ls->sched.icb_preemption_count);
 		}
 	}
 	MM_FREE(stack);

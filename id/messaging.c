@@ -60,6 +60,7 @@ struct input_message {
 
 		struct {
 			char trace_filename[MESSAGE_BUF_SIZE];
+			unsigned int trace_length;
 			unsigned int icb_preemption_count;
 		} bug;
 
@@ -107,6 +108,7 @@ static bool recv(int input_fd, struct input_message *m)
 extern bool control_experiment;
 extern bool use_icb;
 extern bool verbose;
+extern bool minimize_traces;
 
 static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			     unsigned int eip, unsigned int tid, bool confirmed,
@@ -172,7 +174,7 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			} else {
 				DBG("Adding small job with new PP '%s'\n",
 				    pp->config_str);
-				add_work(new_job(new_set, false));
+				add_work(new_job(new_set, false, false));
 				added = true;
 			}
 		}
@@ -182,7 +184,7 @@ static void handle_data_race(struct job *j, struct pp_set **discovered_pps,
 			free_pp_set(new_set);
 		} else {
 			DBG("Adding big job with new PP '%s'\n", pp->config_str);
-			add_work(new_job(new_set, true));
+			add_work(new_job(new_set, true, false));
 			added = true;
 		}
 		if (added) {
@@ -267,7 +269,7 @@ static void handle_estimate(struct messaging_state *state, struct job *j,
 
 static bool handle_should_continue(struct job *j)
 {
-	if (bug_already_found(j->config)) {
+	if (bug_already_found(j->config) && !j->minimizing_trace) {
 		DBG("Aborting -- a subset of our PPs already found a bug.\n");
 		WRITE_LOCK(&j->stats_lock);
 		j->cancelled = true;
@@ -338,6 +340,62 @@ static void move_trace_file(const char *trace_filename)
 	FREE(new_path);
 }
 
+static void handle_found_a_bug(struct job *j, char *trace_filename,
+			       unsigned int trace_length,
+			       unsigned int icb_preemption_count)
+{
+	move_trace_file(trace_filename);
+	/* NB. Harmless if/then/else race; could cause simply
+	 * extraneous bug reports when this races itself. */
+	if (bug_already_found(j->config) && !j->minimizing_trace) {
+		DBG("Ignoring bug report -- a subset of our "
+		    "PPs already found a bug.\n");
+		WRITE_LOCK(&j->stats_lock);
+		j->cancelled = true;
+		RW_UNLOCK(&j->stats_lock);
+		return;
+	}
+
+	READ_LOCK(&j->stats_lock);
+	/* this should scare you. it scares me. */
+	bool need_rerun = testing_pintos() && j->elapsed_branches == 0;
+	RW_UNLOCK(&j->stats_lock);
+	if (need_rerun && !j->minimizing_trace) {
+		WRITE_LOCK(&j->stats_lock);
+		j->elapsed_branches++;
+		j->need_rerun = true;
+		RW_UNLOCK(&j->stats_lock);
+		return;
+	}
+
+	found_a_bug(trace_filename, j);
+
+	struct job *minimizer = NULL;
+	if (minimize_traces && !j->minimizing_trace) {
+		/* rerun the job with ICB to try and find a shorter fab trace */
+		minimizer = new_job(clone_pp_set(j->config), false, true);
+		minimizer->minimizing_id = j->id;
+		minimizer->original_trace_length = trace_length;
+		assert(minimizer->minimizing_trace);
+		add_work(minimizer);
+	}
+
+	WRITE_LOCK(&j->stats_lock);
+	assert(j->trace_filename == NULL && "bug already found same job?");
+	j->trace_filename = XSTRDUP(trace_filename);
+	j->fab_timestamp = time_elapsed();
+	j->fab_cputime = total_cpu_time();
+	j->elapsed_branches++;
+	j->icb_fab_preemptions = icb_preemption_count;
+	j->trace_length = trace_length;
+	if (j->minimizing_trace) {
+		assert(j->minimizing_id != (unsigned int)-1);
+	} else if (minimizer != NULL) {
+		j->minimizing_id = minimizer->id;
+	}
+	RW_UNLOCK(&j->stats_lock);
+}
+
 /* messaging logic */
 
 /* creates the fifo files on the filesystem, but does not block on them yet. */
@@ -401,43 +459,9 @@ void talk_to_child(struct messaging_state *state, struct job *j)
 					m.content.estimate.elapsed_usecs,
 					m.content.estimate.icb_cur_bound);
 		} else if (m.tag == FOUND_A_BUG) {
-			move_trace_file(m.content.bug.trace_filename);
-			// NB. Harmless if/then/else race; could cause simply
-			// extraneous bug reports when this races itself.
-			if (bug_already_found(j->config)) {
-				DBG("Ignoring bug report -- a subset of our "
-				    "PPs already found a bug.\n");
-				WRITE_LOCK(&j->stats_lock);
-				j->cancelled = true;
-				RW_UNLOCK(&j->stats_lock);
-			} else {
-				READ_LOCK(&j->stats_lock);
-				/* this should scare you. it scares me. */
-				bool need_rerun = testing_pintos() &&
-					j->elapsed_branches == 0;
-				RW_UNLOCK(&j->stats_lock);
-				if (need_rerun) {
-					WRITE_LOCK(&j->stats_lock);
-					j->elapsed_branches++;
-					j->need_rerun = true;
-					RW_UNLOCK(&j->stats_lock);
-				} else {
-					/* actual logic */
-					found_a_bug(m.content.bug.trace_filename, j);
-
-					WRITE_LOCK(&j->stats_lock);
-					assert(j->trace_filename == NULL &&
-					       "bug already found same job?");
-					j->trace_filename =
-						XSTRDUP(m.content.bug.trace_filename);
-					j->fab_timestamp = time_elapsed();
-					j->fab_cputime = total_cpu_time();
-					j->elapsed_branches++;
-					j->icb_fab_preemptions =
-						m.content.bug.icb_preemption_count;
-					RW_UNLOCK(&j->stats_lock);
-				}
-			}
+			handle_found_a_bug(j, m.content.bug.trace_filename,
+					   m.content.bug.trace_length,
+					   m.content.bug.icb_preemption_count);
 		} else if (m.tag == SHOULD_CONTINUE) {
 			struct output_message reply;
 			reply.tag = SHOULD_CONTINUE_REPLY;

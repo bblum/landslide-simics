@@ -29,7 +29,7 @@ uint64_t message_estimate(struct messaging_state *m, long double proportion,
 			  unsigned int icb_preemptions, unsigned int icb_bound);
 
 void message_found_a_bug(struct messaging_state *m, const char *trace_filename,
-			 unsigned int icb_preemptions, unsigned int icb_bound);
+			 unsigned int trace_length, unsigned int icb_preemptions);
 
 bool should_abort(struct messaging_state *m);
 

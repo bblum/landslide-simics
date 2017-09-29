@@ -21,6 +21,10 @@ struct job {
 	unsigned int id;
 	unsigned int generation; /* max among generations of pps + 1 */
 	bool should_reproduce;
+	/* after a bug is found; we'll try to use ICB to minimize the trace */
+	bool minimizing_trace;
+	unsigned int minimizing_id; /* set if minimizing || bug */
+	unsigned int original_trace_length; /* set if minimizing */
 	/* static config should not change between jobs, and defines cpp macros
 	 * that cause landslide recompiles. dynamic config defines pps and such
 	 * and is interpreted more "at runtime" by the build glue, to avoid
@@ -46,6 +50,7 @@ struct job {
 	/* associated files */
 	char *log_filename;
 	char *trace_filename;
+	unsigned int trace_length;
 	bool need_rerun;
 	unsigned long fab_timestamp;
 	unsigned long fab_cputime;
@@ -67,7 +72,7 @@ void set_job_options(char *test_name, bool verbose, bool leave_logs, bool pintos
 bool testing_pintos();
 bool testing_pathos();
 
-struct job *new_job(struct pp_set *config, bool should_reproduce);
+struct job *new_job(struct pp_set *config, bool reproduce, bool minimize);
 void start_job(struct job *j);
 bool wait_on_job(struct job *j); /* true if job blocked, false if done */
 void resume_job(struct job *j);

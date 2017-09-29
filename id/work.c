@@ -174,7 +174,9 @@ static struct job *get_work(unsigned long wq_id, bool *was_blocked)
 			}
 
 			/* Is the pending job the best one so far? */
-			unsigned int priority = unexplored_priority((*j)->config);
+			unsigned int priority = (*j)->minimizing_trace ?
+				PRIORITY_MINIMIZER :
+				unexplored_priority((*j)->config);
 			unsigned int size = (*j)->config->size;
 			if (best_job == NULL || priority < best_priority ||
 			    (priority == best_priority && size < best_size)) {
@@ -268,7 +270,7 @@ static void move_job_to_blocked_queue(struct job *j)
 
 static void process_work(struct job *j, bool was_blocked)
 {
-	if (bug_already_found(j->config)) {
+	if (bug_already_found(j->config) && !j->minimizing_trace) {
 		/* Optimization for subset-foundabug jobs where the bug was not
 		 * found until after the work was added, but before we start the
 		 * job. Don't waste time compiling landslide before checking. */
@@ -293,7 +295,8 @@ static void process_work(struct job *j, bool was_blocked)
 			if (need_rerun) {
 				WARN("[JOB %d] failed on branch 1, needs rerun\n",
 				     j->id);
-				add_work(new_job(j->config, j->should_reproduce));
+				add_work(new_job(j->config, j->should_reproduce,
+						 j->minimizing_trace));
 			} else
 			/* Job ran to completion. */
 			/* Don't let "small" jobs mark DRs as verified: they're
