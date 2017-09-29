@@ -440,8 +440,7 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 			      j->fab_timestamp, j->fab_cputime);
 		}
 		PRINT(")\n");
-		if (minimize_traces) {
-			assert(j->minimizing_id != (unsigned int)-1);
+		if (minimize_traces && j->minimizing_id != (unsigned int)-1) {
 			PRINT("       ");
 			if (j->minimizing_trace) {
 				/* minimizer (ICB) job */

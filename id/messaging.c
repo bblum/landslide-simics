@@ -371,7 +371,10 @@ static void handle_found_a_bug(struct job *j, char *trace_filename,
 	found_a_bug(trace_filename, j);
 
 	struct job *minimizer = NULL;
-	if (minimize_traces && !j->minimizing_trace) {
+	READ_LOCK(&j->stats_lock);
+	bool need_minimize = !j->minimizing_trace && j->elapsed_branches >= 1;
+	RW_UNLOCK(&j->stats_lock);
+	if (minimize_traces && need_minimize) {
 		/* rerun the job with ICB to try and find a shorter fab trace */
 		minimizer = new_job(clone_pp_set(j->config), false, true);
 		minimizer->minimizing_id = j->id;
