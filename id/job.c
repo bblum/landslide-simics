@@ -452,7 +452,7 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 				/* minimizee (original) job */
 				PRINT(COLOUR_BOLD COLOUR_YELLOW "Trace is %u "
 				      "preemptions long; Job %u is trying to "
-				      "make it shorter; please wait...\n",
+				      "make it shorter; please wait...",
 				      j->trace_length, j->minimizing_id);
 			}
 			PRINT("\n");
