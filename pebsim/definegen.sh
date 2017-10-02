@@ -544,6 +544,7 @@ define_user_addr USER_REPORT_END report_end
 define_user_addr USER_YIELD yield
 define_user_addr USER_MAKE_RUNNABLE make_runnable
 define_user_addr USER_SLEEP sleep
+define_user_addr USER_MAGIC_BREAK sim_breakpoint
 
 echo
 

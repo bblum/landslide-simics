@@ -347,6 +347,22 @@ static bool ensure_progress(struct ls_state *ls)
 	} else if (user_report_end_fail(ls->cpu0, ls->eip)) {
 		FOUND_A_BUG(ls, "User test program reported failure!");
 		return false;
+#ifdef USER_MAGIC_BREAK_ENTER
+	} else if (ls->eip == USER_MAGIC_BREAK_ENTER) {
+		const char *headline = "MAGIC_BREAK invoked";
+		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
+			HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
+			HTML_PRINTF(html_env, "<b>Landslide does not support "
+				    "MAGIC_BREAK.\n" HTML_NEWLINE);
+			HTML_PRINTF(html_env, "If this MAGIC_BREAK indicates a "
+				    "bug (see the stack trace above), here is "
+				    "your bug report;\n" HTML_NEWLINE);
+			HTML_PRINTF(html_env, "otherwise, please comment it out "
+				    "for now, and run Landslide again.</b>\n"
+				    HTML_NEWLINE HTML_BOX_END HTML_NEWLINE);
+		);
+		return false;
+#endif
 	} else if (kern_page_fault_handler_entering(ls->eip)) {
 		unsigned int from_eip = READ_STACK(ls->cpu0, 1);
 		unsigned int from_cs  = READ_STACK(ls->cpu0, 2);
