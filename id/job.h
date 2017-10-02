@@ -49,6 +49,7 @@ struct job {
 	bool kill_job;
 	/* associated files */
 	char *log_filename;
+	char *log_stdout_filename;
 	char *trace_filename;
 	unsigned int trace_length;
 	bool need_rerun;

@@ -93,6 +93,7 @@ struct job *new_job(struct pp_set *config, bool reproduce, bool minimize)
 	j->timed_out = false;
 	j->kill_job = false;
 	j->log_filename = NULL;
+	j->log_stdout_filename = NULL;
 	j->trace_filename = NULL;
 	j->trace_length = (unsigned int)-1;
 	j->need_rerun = false;
@@ -277,6 +278,7 @@ static void *run_job(void *arg)
 
 	WRITE_LOCK(&j->stats_lock);
 	j->log_filename = XSTRDUP(j->log_stderr.filename);
+	j->log_stdout_filename = XSTRDUP(j->log_stdout.filename);
 	j->need_rerun = false;
 	RW_UNLOCK(&j->stats_lock);
 
@@ -348,7 +350,9 @@ static void *run_job(void *arg)
 	}
 	if (should_delete) {
 		FREE(j->log_filename);
+		FREE(j->log_stdout_filename);
 		j->log_filename = NULL;
+		j->log_stdout_filename = NULL;
 	}
 	RW_UNLOCK(&j->stats_lock);
 	LOCK(&j->lifecycle_lock);
@@ -440,6 +444,12 @@ void print_job_stats(struct job *j, bool pending, bool blocked)
 			      j->fab_timestamp, j->fab_cputime);
 		}
 		PRINT(")\n");
+		// FIXME: clean up this condition; lprintf() is specific to P2
+		if (!pintos && j->log_stdout_filename != NULL) {
+			PRINT("       ");
+			PRINT(COLOUR_DARK COLOUR_GREY "Log of lprintf()s: "
+			      "id/%s\n", j->log_stdout_filename);
+		}
 		if (minimize_traces && j->minimizing_id != (unsigned int)-1) {
 			PRINT("       ");
 			if (j->minimizing_trace) {
