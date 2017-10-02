@@ -358,7 +358,8 @@ static bool ensure_progress(struct ls_state *ls)
 				    "bug (see the stack trace above), here is "
 				    "your bug report;\n" HTML_NEWLINE);
 			HTML_PRINTF(html_env, "otherwise, please comment it out "
-				    "for now, and run Landslide again.</b>\n"
+				    "for now (remember to re-run ./p2-setup.sh), "
+				    "and run Landslide again.</b>\n"
 				    HTML_NEWLINE HTML_BOX_END HTML_NEWLINE);
 		);
 		return false;
