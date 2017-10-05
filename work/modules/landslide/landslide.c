@@ -348,7 +348,7 @@ static bool ensure_progress(struct ls_state *ls)
 		FOUND_A_BUG(ls, "User test program reported failure!");
 		return false;
 #ifdef USER_MAGIC_BREAK_ENTER
-	} else if (ls->eip == USER_MAGIC_BREAK_ENTER) {
+	} else if (ls->eip == USER_MAGIC_BREAK_ENTER && check_user_address_space(ls)) {
 		const char *headline = "MAGIC_BREAK invoked";
 		FOUND_A_BUG_HTML_INFO(ls, headline, strlen(headline), html_env,
 			HTML_PRINTF(html_env, HTML_NEWLINE HTML_BOX_BEGIN);
