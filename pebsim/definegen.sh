@@ -504,6 +504,9 @@ define_user_addr USER_MM_INIT mm_init
 define_user_addr USER_MM_MALLOC mm_malloc
 define_user_addr USER_MM_FREE mm_free
 define_user_addr USER_MM_REALLOC mm_realloc
+define_user_addr USER__MALLOC _malloc
+define_user_addr USER__FREE _free
+define_user_addr USER__REALLOC _realloc
 define_user_addr USER_LOCKED_MALLOC malloc
 define_user_addr USER_LOCKED_FREE free
 define_user_addr USER_LOCKED_CALLOC calloc

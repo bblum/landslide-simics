@@ -565,12 +565,20 @@ void mem_update(struct ls_state *ls)
 			assert(USER_MALLOC_STATE(ls)->in_realloc);
 			USER_MALLOC_STATE(ls)->in_realloc = false;
 		} else if (user_mm_init_entering(ls->eip)) {
+#ifdef USER_MM_MALLOC_ENTER
+			/* if mm_malloc gets inlined into _malloc, we'll have
+			 * to use that function to set this flag. _malloc,
+			 * however, itself calls mm_init, so relax this
+			 * assertion in that case. */
 			assert(!USER_MALLOC_STATE(ls)->in_alloc);
+#endif
 			assert(!USER_MALLOC_STATE(ls)->in_free);
 			ls->user_mem.in_mm_init = true;
 		} else if (user_mm_init_exiting(ls->eip)) {
 			assert(ls->user_mem.in_mm_init);
+#ifdef USER_MM_MALLOC_ENTER
 			assert(!USER_MALLOC_STATE(ls)->in_alloc);
+#endif
 			assert(!USER_MALLOC_STATE(ls)->in_free);
 			ls->user_mem.in_mm_init = false;
 		}
