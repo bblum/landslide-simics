@@ -13,7 +13,7 @@ expr "`hostname`" : '.*.ics.cs.cmu.edu' >/dev/null && {
 	exit 2
 }
 
-[ -z $SIMROOT ] && SIMROOT=/afs/cs.cmu.edu/academic/class/15410-f17/simics-4.6.58
+[ -z $SIMROOT ] && SIMROOT=/afs/cs.cmu.edu/academic/class/15410-s18/simics-4.6.58
 [ -z $SIMSCRIPTS ] && SIMSCRIPTS=$SIMROOT/simics-4.6.58/scripts
 [ -z $SIMBIN ] && SIMBIN=simics
 [ -z $SIMBINPATH] && SIMBINPATH=$SIMROOT/simics-4.6.58/bin/$SIMBIN
