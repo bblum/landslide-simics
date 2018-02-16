@@ -62,7 +62,8 @@ void set_job_options(char *arg_test_name, bool arg_verbose, bool arg_leave_logs,
 	pure_hb = arg_pure_hb;
 	transactions = arg_txn;
 	abort_codes = arg_txn_abort_codes;
-	minimize_traces = !use_icb; // TODO: make into a cmdline option?
+	/* feature disabled for now; was deployed in f'17 with no observed benefit */
+	minimize_traces = false; // !use_icb; // TODO: make into a cmdline option?
 }
 
 bool testing_pintos() { return pintos; }
