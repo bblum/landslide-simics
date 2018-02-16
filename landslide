@@ -38,12 +38,27 @@ echo "$@" > $CMDLINE_OPTION_FILE
 
 WRAPPER_LOG="ls-id-log-$SUFFIX.log"
 
+# this should really be using flock instead
+LOCKFILE="landslide_already_running_in_this_directory"
+# students, if you're reading this, WHAT'S WRONG WITH THIS CODE??
+if [ -f "$LOCKFILE" ]; then
+	echo -e "\033[01;31mIt seems like Landslide is already running in this directory.\033[00m"
+	echo -e "\033[01;31mIf you want to run multiple Landslides at once, please make a separate\033[00m"
+	echo -e "\033[01;31m'git clone' and run one Landslide in each.(see user guide, page 2).\033[00m"
+	echo -e "\033[01;31mTo override this message, remove the file '$LOCKFILE'.\033[00m"
+	exit 1
+else
+	touch "$LOCKFILE"
+fi
+
 ORIGDIR="$PWD"
 cd "$IDDIR"
 ./$IDEXE -L $WRAPPER_LOG "$@"
 RV=$?
 
 cd "$ORIGDIR"
+
+rm -f "$LOCKFILE"
 
 ID_EXIT_USAGE=2
 ID_EXIT_CTRL_C=3
