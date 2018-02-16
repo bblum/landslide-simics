@@ -243,6 +243,13 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 		optp->bool_ptr  = NULL;
 	}
 
+	/* check for junk */
+	if (optind < argc) {
+		ERR("Unprocessed command line argument: '%s'; "
+		    "did you forget to put '-p' before it?\n", argv[optind]);
+		options_valid = false;
+	}
+
 	/* Interpret string versions of arguments (or their defaults) */
 
 	if (!parse_time(arg_max_time, max_time)) {
@@ -325,6 +332,20 @@ bool get_options(int argc, char **argv, char *test_name, unsigned int test_name_
 	} else if (strstr(test_name, "htm") == test_name) {
 		// TODO: add a similar check for STM
 		ERR("You want to use -X with that HTM test case, right?\n");
+		options_valid = false;
+	}
+
+	if (strstr(test_name, "cyclone") == test_name ||
+	    strstr(test_name, "racer") == test_name ||
+	    strstr(test_name, "largetest") == test_name ||
+	    strstr(test_name, "agility_drill") == test_name ||
+	    strstr(test_name, "mandelbrot") == test_name ||
+	    strstr(test_name, "bistromath") == test_name ||
+	    strstr(test_name, "juggle") == test_name) {
+		ERR("%s is not a Landslide-friendly test.\n", test_name);
+		WARN("Please consult slides 33 and 34 of the Landslide lecture.\n");
+		WARN("If you're sure you want to proceed with this test,\n");
+		WARN("email bblum@cs.cmu.edu for advice.\n");
 		options_valid = false;
 	}
 
