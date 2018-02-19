@@ -181,6 +181,7 @@ KINCLUDES = -I$(410KDIR) -I$(410KDIR)/inc \
 UCFLAGS = -nostdinc \
 	-fno-strict-aliasing -fno-builtin -fno-stack-protector -fno-omit-frame-pointer \
 	-fno-aggressive-loop-optimizations \
+	--std=gnu99 \
 	-Wall -gstabs+ -Werror -O0 -m32
 # This prevents the gcc4 "hurr durr I'm aligning main()'s stack"
 UCFLAGS += -mpreferred-stack-boundary=2
