@@ -48,7 +48,11 @@
 #elif EXTRA_VERBOSE != 0
 #define MAX_VERBOSITY INFO // EXTRA_VERBOSE overrides VERBOSE
 #else
+#if TESTING_USERSPACE == 1
+#define MAX_VERBOSITY BRANCH
+#else
 #define MAX_VERBOSITY DEV
+#endif
 #endif
 
 typedef int verbosity;
