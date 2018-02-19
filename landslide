@@ -76,7 +76,7 @@ for logfile in id/ls*log*; do
 	gzip -q $logfile
 done
 
-SNAPSHOT_DIR="/afs/cs.cmu.edu/academic/class/15410-f17/user/$USER/mygroup/landslide/"
+SNAPSHOT_DIR="/afs/cs.cmu.edu/academic/class/15410-s18/user/$USER/mygroup/landslide/"
 TEMP_SNAP_DIR="/dev/shm"
 SNAPSHOT_NAME="ls-snap-$USER-$SUFFIX.tar.bz2"
 umask 077
