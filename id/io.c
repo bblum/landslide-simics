@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "common.h"
 #include "io.h"
@@ -73,6 +74,10 @@ char *create_fifo(const char *prefix, unsigned int id)
 
 	/* create file */
 	int ret = mkfifo(buf, 0700);
+	if (ret != 0) {
+		ERR("failed to create a fifo file for communication with "
+		    "landslide: %s\n", strerror(errno));
+	}
 	assert(ret == 0 && "failed create fifo file");
 
 	return XSTRDUP(buf);
