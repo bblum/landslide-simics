@@ -109,7 +109,18 @@ void cause_timer_interrupt(conf_object_t *cpu, conf_object_t *apic, conf_object_
 {
 	lsprintf(DEV, "tick! (0x%x)\n", GET_CPU_ATTR(cpu, eip));
 
-	assert(GET_CPU_ATTR(cpu, waiting_interrupt) == 0);
+	if (GET_CPU_ATTR(cpu, waiting_interrupt) != 0) {
+		/* it seems possible after a time travel for a timer to already
+		 * be pending. in this case make sure the apic/pic agree, and
+		 * move on. observed in paraguay, PPs mutex_lock, with tarball
+		 * waiting_interrupt_assertion_debug.tar.bz2 in s18. */
+		// XXX: slight misuse of the cpu attr macros, but getting the
+		// pic's and apic's attributes coincides with how they work, so
+		assert(GET_CPU_ATTR(apic, interrupt_posted) == 1);
+		assert(GET_CPU_ATTR(pic, irq_requested) == 1);
+		assert(GET_SEGSEL(pic, request) == 1);
+		return;
+	}
 	SET_CPU_ATTR(cpu, waiting_interrupt, 1);
 	SET_ATTR(cpu, waiting_device, object, apic);
 
