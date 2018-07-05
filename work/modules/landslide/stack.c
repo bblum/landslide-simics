@@ -424,8 +424,10 @@ struct stack_trace *stack_trace(struct ls_state *ls)
 			}
 		}
 
+		if (rabbit > (unsigned int)(-4)) stop_ebp = rabbit;
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, rabbit);
 		if (rabbit == ebp) stop_ebp = ebp;
+		if (rabbit > (unsigned int)(-4)) stop_ebp = rabbit;
 		if (rabbit != stop_ebp) rabbit = READ_MEMORY(cpu, rabbit);
 		if (rabbit == ebp) stop_ebp = ebp;
 		ebp = READ_MEMORY(cpu, ebp);
