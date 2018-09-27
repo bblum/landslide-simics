@@ -76,38 +76,38 @@ for logfile in id/ls*log*; do
 	gzip -q $logfile
 done
 
-SNAPSHOT_DIR="/afs/cs.cmu.edu/academic/class/15410-s18/user/$USER/mygroup/landslide/"
-TEMP_SNAP_DIR="/dev/shm"
-SNAPSHOT_NAME="ls-snap-$USER-$SUFFIX.tar.bz2"
-umask 077
-tar cvjf "$TEMP_SNAP_DIR/$SNAPSHOT_NAME" \
-	--exclude="pebsim/p2-basecode/410user/*" \
-	--exclude="pebsim/p2-basecode/410kern/*" \
-	--exclude="pebsim/p2-basecode/temp/*" \
-	--exclude=".git/*" \
-	--exclude="work/*" \
-	--exclude="tests/*" \
-	--exclude="*.o" \
-	--exclude="*.a" \
-	--exclude="*.bz2" \
-	--exclude="*.dep" \
-	--exclude="*.py" \
-	--exclude="*.pyc" \
-	--exclude="*landslide-id" \
-	--exclude="*kernel" \
-	--exclude="*bootfd.img" \
-	--exclude="*kernel.strip" \
-	--exclude="*kernel.log" \
-	"./" >/dev/null
-mv "$TEMP_SNAP_DIR/$SNAPSHOT_NAME" "$SNAPSHOT_DIR"
-MV_RV=$?
-if [ "$MV_RV" != "0" ]; then
-	echo -e "\033[01;31mFailed to save snapshot ($TEMP_SNAP_DIR/$SNAPSHOT_NAME) into 410 AFS space ($SNAPSHOT_DIR). Please email Ben <bblum@cs.cmu.edu> for support, and copy that .tar.bz2 file as an attachment."
-	echo -e "\033[00m(landslide's exit code was $RV)"
-	exit 1
-fi
-
-# prevent quadratic usage of student AFS volume space :O
-rm -f id/ls*log* pebsim/config.quicksand.* pebsim/pps-and-such.quicksand.*
+#SNAPSHOT_DIR="/afs/cs.cmu.edu/academic/class/15410-f18/user/$USER/mygroup/landslide/"
+#TEMP_SNAP_DIR="/dev/shm"
+#SNAPSHOT_NAME="ls-snap-$USER-$SUFFIX.tar.bz2"
+#umask 077
+#tar cvjf "$TEMP_SNAP_DIR/$SNAPSHOT_NAME" \
+#	--exclude="pebsim/p2-basecode/410user/*" \
+#	--exclude="pebsim/p2-basecode/410kern/*" \
+#	--exclude="pebsim/p2-basecode/temp/*" \
+#	--exclude=".git/*" \
+#	--exclude="work/*" \
+#	--exclude="tests/*" \
+#	--exclude="*.o" \
+#	--exclude="*.a" \
+#	--exclude="*.bz2" \
+#	--exclude="*.dep" \
+#	--exclude="*.py" \
+#	--exclude="*.pyc" \
+#	--exclude="*landslide-id" \
+#	--exclude="*kernel" \
+#	--exclude="*bootfd.img" \
+#	--exclude="*kernel.strip" \
+#	--exclude="*kernel.log" \
+#	"./" >/dev/null
+#mv "$TEMP_SNAP_DIR/$SNAPSHOT_NAME" "$SNAPSHOT_DIR"
+#MV_RV=$?
+#if [ "$MV_RV" != "0" ]; then
+#	echo -e "\033[01;31mFailed to save snapshot ($TEMP_SNAP_DIR/$SNAPSHOT_NAME) into 410 AFS space ($SNAPSHOT_DIR). Please email Ben <bblum@cs.cmu.edu> for support, and copy that .tar.bz2 file as an attachment."
+#	echo -e "\033[00m(landslide's exit code was $RV)"
+#	exit 1
+#fi
+#
+## prevent quadratic usage of student AFS volume space :O
+#rm -f id/ls*log* pebsim/config.quicksand.* pebsim/pps-and-such.quicksand.*
 
 exit $RV
