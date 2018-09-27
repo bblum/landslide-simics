@@ -3,6 +3,7 @@ Landslide
 
 The landslide codebase. Relevant reading:
 
-- user guide:            http://bblum.net/landslide-guide.pdf
-- thesis document:       http://bblum.net/thesis.pdf (tech report number CMU-CS-12-118)
-- 15-410 lecture slides: http://bblum.net/landslide-lecture-2013.pdf
+- user guide:            http://www.contrib.andrew.cmu.edu/~bblum/landslide-guide-f18.pdf
+- MS thesis document:    http://www.contrib.andrew.cmu.edu/~bblum/thesis.pdf
+- Ph.D. thesis (draft):  http://www.contrib.andrew.cmu.edu/~bblum/thesis-draft-edu-tm-related.pdf
+- 15-410 lecture slides: https://www.cs.cmu.edu/~410-s18/lectures/L14_Landslide.pdf
